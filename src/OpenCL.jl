@@ -83,7 +83,7 @@ macro device_property(func, cl_device_info, return_type)
             result = Array($return_type, 1)
             clGetDeviceInfo(d.id, $cl_device_info, sizeof($return_type), result, C_NULL)
             #TODO: Find a way around this hack as CL_bool is typealiased to CL_uint
-            if $(string(return_type)) == "CL_bool"
+            if $(symbol(return_type)) == :CL_bool
                 bool(result[1])
             else
                 result[1]
