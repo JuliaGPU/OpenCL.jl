@@ -37,7 +37,7 @@ end
 @ocl_func(clGetPlatformInfo, (CL_platform_id, CL_platform_info, Csize_t, Ptr{Void}, Ptr{Csize_t}))
 
 function get_platforms()
-    nplatforms = CL_uint[1]
+    nplatforms = Array(CL_uint, 1)
     clGetPlatformIDs(0, C_NULL, nplatforms)
     cl_platform_ids = Array(CL_platform_id, nplatforms[1])
     clGetPlatformIDs(nplatforms[1], cl_platform_ids, C_NULL)
@@ -45,13 +45,13 @@ function get_platforms()
 end
 
 function num_platforms()
-    nplatforms = CL_uint[1]
+    nplatforms = Array(CL_uint, 1)
     clGetPlatformIDs(0, C_NULL, nplatforms)
     return int(nplatforms[1])
 end
  
 function get_info(p::Platform, info::CL_platform_info)
-    size = Csize_t[1]
+    size = Array(Csize_t, 1)
     clGetPlatformInfo(p.id, info, 0, C_NULL, size)
     result = Array(CL_char, size[1])
     clGetPlatformInfo(p.id, info, size[1], result, C_NULL)
@@ -97,7 +97,7 @@ end
 @ocl_func(clGetDeviceInfo, (CL_device_id, CL_device_info, Csize_t, Ptr{Void}, Ptr{Csize_t}))
 
 function get_devices(p::Platform, device_type=CL_DEVICE_TYPE_ALL)
-    ndevices = CL_uint[1]
+    ndevices = Array(CL_uint, 1)
     clGetDeviceIDs(p.id, device_type, 0, C_NULL, ndevices)
     result = Array(CL_device_id, ndevices[1])
     clGetDeviceIDs(p.id, device_type, ndevices[1], result, C_NULL)
@@ -105,7 +105,7 @@ function get_devices(p::Platform, device_type=CL_DEVICE_TYPE_ALL)
 end
 
 function get_info(d::Device, info::CL_device_info)
-    size = Csize_t[1]
+    size = Array(Csize_t, 1)
     clGetDeviceInfo(d.id, info, 0, C_NULL, size)
     result = Array(CL_char, size[1])
     clGetDeviceInfo(d.id, info, size, result, C_NULL)
@@ -120,15 +120,16 @@ extensions(d::Device) = split(get_info(d, CL_DEVICE_EXTENSIONS))
 @device_property(platform,    CL_DEVICE_PLATFORM, CL_platform_id)
 @device_property(device_type, CL_DEVICE_TYPE,     CL_device_type)
 
+box{T}(x::T) = T[x]
 function has_image_support(d::Device)
-    has_support = CL_bool[1]
+    has_support = box(CL_FALSE)
     has_support[1] = CL_FALSE
     clGetDeviceInfo(d.id, CL_DEVICE_IMAGE_SUPPORT, sizeof(CL_bool), has_support, C_NULL)
     return has_support[1] == CL_TRUE ? true : false
 end
 
 function name(d::Device)
-    size = Csize_t[1]
+    size = Array(Csize_t, 1)
     clGetDeviceInfo(d.id, CL_DEVICE_NAME, 0, C_NULL, size)
     result = Array(CL_char, size[1])
     clGetDeviceInfo(d.id, CL_DEVICE_NAME, size[1] * sizeof(CL_char), result, C_NULL)
