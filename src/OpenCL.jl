@@ -1,5 +1,7 @@
 module OpenCL
 
+# ---- OpenCL Types ----
+
 # Opaque types
 typealias CL_platform_id        Ptr{Void}
 typealias CL_device_id          Ptr{Void}
@@ -80,5 +82,7 @@ immutable BufferRegion
     size::Csize_t
 end
 
+# ---- OpenCL Constants ----
+include("constants.jl")
 
 end # module

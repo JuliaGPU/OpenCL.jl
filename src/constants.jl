@@ -139,7 +139,7 @@ const CL_DEVICE_EXTENSIONS                            = 0x1030
 const CL_DEVICE_PLATFORM                              = 0x1031
 const CL_DEVICE_DOUBLE_FP_CONFIG                      = 0x1032
 
-# 0x1033 reserved for CL_DEVICE_HALF_FP_CONFIG */
+# 0x1033 reserved for CL_DEVICE_HALF_FP_CONFIG 
 const CL_DEVICE_PREFERRED_VECTOR_WIDTH_HALF           = 0x1034
 const CL_DEVICE_HOST_UNIFIED_MEMORY                   = 0x1035
 const CL_DEVICE_NATIVE_VECTOR_WIDTH_CHAR              = 0x1036
@@ -165,7 +165,7 @@ const CL_DEVICE_PRINTF_BUFFER_SIZE                    = 0x1049
 const CL_DEVICE_IMAGE_PITCH_ALIGNMENT                 = 0x104A
 const CL_DEVICE_IMAGE_BASE_ADDRESS_ALIGNMENT          = 0x104B
 
-# cl_device_fp_config - bitfield */
+# cl_device_fp_config - bitfield 
 const CL_FP_DENORM                                    = (1 << 0)
 const CL_FP_INF_NAN                                   = (1 << 1)
 const CL_FP_ROUND_TO_NEAREST                          = (1 << 2)
@@ -192,23 +192,23 @@ const CL_EXEC_NATIVE_KERNEL                           = (1 << 1)
 const CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE          = (1 << 0)
 const CL_QUEUE_PROFILING_ENABLE                       = (1 << 1)
 
-# cl_context_info  */
+# cl_context_info  
 const CL_CONTEXT_REFERENCE_COUNT                      = 0x1080
 const CL_CONTEXT_DEVICES                              = 0x1081
 const CL_CONTEXT_PROPERTIES                           = 0x1082
 const CL_CONTEXT_NUM_DEVICES                          = 0x1083
 
-# cl_context_properties */
+# cl_context_properties 
 const CL_CONTEXT_PLATFORM                             = 0x1084
 const CL_CONTEXT_INTEROP_USER_SYNC                    = 0x1085
     
-# cl_device_partition_property */
+# cl_device_partition_property 
 const CL_DEVICE_PARTITION_EQUALLY                     = 0x1086
 const CL_DEVICE_PARTITION_BY_COUNTS                   = 0x1087
 const CL_DEVICE_PARTITION_BY_COUNTS_LIST_END          = 0x0
 const CL_DEVICE_PARTITION_BY_AFFINITY_DOMAIN          = 0x1088
     
-# cl_device_affinity_domain */
+# cl_device_affinity_domain 
 const CL_DEVICE_AFFINITY_DOMAIN_NUMA                  = (1 << 0)
 const CL_DEVICE_AFFINITY_DOMAIN_L4_CACHE              = (1 << 1)
 const CL_DEVICE_AFFINITY_DOMAIN_L3_CACHE              = (1 << 2)
