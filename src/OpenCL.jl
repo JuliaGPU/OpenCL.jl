@@ -60,6 +60,23 @@ typealias CL_event_info                 CL_uint
 typealias CL_command_type               CL_uint
 typealias CL_profiling_info             CL_uint
 
+# type conversion functions
+cL_char(x)   = int8(x)
+cl_uchar(x)  = uint8(x)
+cl_short(x)  = int16(x)
+cl_ushort(x) = uint16(x)
+cl_int(x)    = int32(x)
+cl_uint(x)   = uint32(x)
+cl_long(x)   = int64(x)
+cl_ulong(x)  = uint64(x)
+
+cl_half(x)   = uint16(x)
+cl_float(x)  = float32(x) 
+cl_double(x) = float64(x)
+
+cl_bool(x)     = cl_uint(x)
+cl_bitfield(x) = cl_ulong(x) 
+
 immutable ImageFormat
     image_channel_order::CL_channel_order
     image_channel_data_type::CL_channel_type 
