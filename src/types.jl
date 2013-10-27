@@ -32,6 +32,7 @@ typealias CL_platform_info              CL_uint
 typealias CL_device_info                CL_uint
 typealias CL_device_fp_config           CL_bitfield
 typealias CL_device_mem_cache_type      CL_uint
+typealias CL_device_local_mem_type      CL_uint
 typealias CL_device_exec_capabilities   CL_bitfield
 typealias CL_command_queue_properties   CL_bitfield
 
@@ -85,20 +86,18 @@ end
 
 #--- Conversion Functions ---
 
-cL_char(x)   = int8(x)
-cl_uchar(x)  = uint8(x)
-cl_short(x)  = int16(x)
-cl_ushort(x) = uint16(x)
-cl_int(x)    = int32(x)
-cl_uint(x)   = uint32(x)
-cl_long(x)   = int64(x)
-cl_ulong(x)  = uint64(x)
+cL_char(x)     = int8(x)
+cl_uchar(x)    = uint8(x)
+cl_short(x)    = int16(x)
+cl_ushort(x)   = uint16(x)
+cl_int(x)      = int32(x)
+cl_uint(x)     = uint32(x)
+cl_long(x)     = int64(x)
+cl_ulong(x)    = uint64(x)
 
-cl_half(x)   = uint16(x)
-cl_float(x)  = float32(x) 
-cl_double(x) = float64(x)
+cl_half(x)     = uint16(x)
+cl_float(x)    = float32(x) 
+cl_double(x)   = float64(x)
 
 cl_bool(x)     = cl_uint(x)
 cl_bitfield(x) = cl_ulong(x) 
-
-
