@@ -19,4 +19,7 @@ include("platform.jl")
 # --- OpenCL Device --- 
 include("device.jl")
 
+# --- OpenCL Context ---
+include("context.jl")
+
 end # module
