@@ -100,4 +100,6 @@ cl_float(x)    = float32(x)
 cl_double(x)   = float64(x)
 
 cl_bool(x)     = cl_uint(x)
-cl_bitfield(x) = cl_ulong(x) 
+cl_bitfield(x) = cl_ulong(x)
+
+cl_command_queue_properties(x) = cl_ulong(x) 

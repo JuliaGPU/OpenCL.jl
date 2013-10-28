@@ -22,4 +22,7 @@ include("device.jl")
 # --- OpenCL Context ---
 include("context.jl")
 
+# --- OpenCL Queue ---
+include("queue.jl")
+
 end # module

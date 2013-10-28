@@ -62,7 +62,8 @@ function clCreateContext(props,
     local ctx::CL_context
     ctx = ccall((:clCreateContext, libopencl),
                 CL_context,
-                (CL_context_properties, CL_uint, Ptr{CL_device_id}, Ptr{Void}, Ptr{Void}, Ptr{CL_int}),
+                (CL_context_properties, CL_uint, Ptr{CL_device_id},
+                 Ptr{Void}, Ptr{Void}, Ptr{CL_int}),
                 props, ndevices, devices, pfn_notify, user_data, err_code)
     if err_code[1] != CL_SUCCESS
         ctx = C_NULL
@@ -101,7 +102,7 @@ function num_devices(ctx::Context)
     return ndevices[1]
 end
 
-function devices(ctx::Context)
+function device(ctx::Context)
     n = num_devices(ctx)
     if n == 0
         return []
@@ -128,14 +129,14 @@ end
 #    end 
 #end
 
-@ocl_function(clReleaseContext, (CL_context,))
+@ocl_func(clReleaseContext, (CL_context,))
 
 #TODO: wrap try finally
 function free(ctx::Context)
     if ctx.id != C_NULL
         clReleaseContext(ctx.id)
+        ctx.id = C_NULL 
     end
-    ctx = nothing
 end
 
 
