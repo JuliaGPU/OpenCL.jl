@@ -51,34 +51,69 @@ end
 const pfn_notify_ctx_error = cfunction(notify_ctx_error, Cint,
                                        (Ptr{Cchar}, Ptr{Void}, Csize_t, Ptr{Void}))
 
-function clCreateContext(props::CL_context_properties,
-                         ndevices::CL_uint,
-                         devices::Ptr{CL_device_id},
-                         pfn_notify::Ptr{Void},
-                         user_data::Ptr{Void},
-                         err_code::Ptr{CL_int})
-    #TODO: Callbacks 
-    ptf_notfiy = C_NULL
+#TODO: Dig into the c ffi system here for the correct types
+function clCreateContext(props,
+                         ndevices,
+                         devices,
+                         pfn_notify,
+                         user_data,
+                         err_code)
+    ptf_notfiy = pfn_notify_ctx_error
     local ctx::CL_context
     ctx = ccall((:clCreateContext, libopencl),
                 CL_context,
-                (CL_context_properties, CL_uint, Ptr{CL_device_id},
-                 Ptr{Void}, Ptr{Void}, Ptr{CL_int}),
+                (CL_context_properties, CL_uint, Ptr{CL_device_id}, Ptr{Void}, Ptr{Void}, Ptr{CL_int}),
                 props, ndevices, devices, pfn_notify, user_data, err_code)
     if err_code[1] != CL_SUCCESS
-        ctx = CL_NULL
-        return
+        ctx = C_NULL
     end
     return ctx
 end
 
+# TODO: Unimplemented: create context without specifing device
 function Context(devices::Vector{Device}, device_type=CL_DEVICE_TYPE_DEFAULT)
-    if devices
-        num_devices = length(devices)
+    # TODO: context properties
+    #local ctx_props::CL_context_properties
+    ctx_props = C_NULL
+    user_data = C_NULL
+    num_devices = length(devices)
+    device_ids = Array(CL_device_id, num_devices)
+    for i in 1:num_devices
+        device_ids[i] = devices[i].id
     end
+    err_code = Array(CL_int, 1)
+    local ctx_id::CL_context
+    ctx_id = clCreateContext(ctx_props, num_devices, device_ids,
+                             pfn_notify_ctx_error, user_data, err_code)
+    if err_code[1] != CL_SUCCESS || ctx_id == C_NULL
+        error("Error creating context")
+    end
+    return Context(ctx_id)
 end
 
+Contect(device::Device, device_type=CL_DEVICE_TYPE_DEFAULT) = Context([device], device_type)
+
 @ocl_func(clGetContextInfo, (CL_context, CL_context_info, Csize_t, Ptr{Void}, Ptr{Csize_t}))
+
+function num_devices(ctx::Context)
+    ndevices = Array(CL_uint, 1)
+    clGetContextInfo(ctx.id, CL_CONTEXT_NUM_DEVICES, sizeof(CL_uint), ndevices, C_NULL)
+    return ndevices[1]
+end
+
+function devices(ctx::Context)
+    n = num_devices(ctx)
+    if n == 0
+        return []
+    end
+    dev_ids = Array(CL_device_id, n)
+    clGetContextInfo(ctx.id, CL_CONTEXT_DEVICES, n * sizeof(CL_device_id), dev_ids, C_NULL)
+    devs = Array(Device, n)
+    for i in 1:n
+        devs[i] = Device(dev_ids[i])
+    end
+    return devs
+end
 
 #function properties(ctx::Context)
 #    props_size = Array(Csize_t, 1)
@@ -93,6 +128,8 @@ end
 #    end 
 #end
 
+@ocl_function(clReleaseContext, (CL_context,))
+
 #TODO: wrap try finally
 function free(ctx::Context)
     if ctx.id != C_NULL
@@ -100,6 +137,5 @@ function free(ctx::Context)
     end
     ctx = nothing
 end
-
 
 
