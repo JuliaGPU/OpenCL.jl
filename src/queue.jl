@@ -4,7 +4,7 @@ immutable Queue
     id::CL_command_queue
 end 
 
-@ocl_function(clRealeaseCommandQueue, (CL_command_queue,))
+@ocl_function(clReleaseCommandQueue, (CL_command_queue,))
 
 #TODO: Better implementation
 function free(q::Queue)
@@ -13,4 +13,5 @@ function free(q::Queue)
     end
     q = nothing
 end
+
 
