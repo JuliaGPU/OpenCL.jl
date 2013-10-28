@@ -65,6 +65,7 @@ function marker(q::Queue)
    return Event(evt_id[1])
 end 
 
+@ocl_func(clGetEventProfilingInfo, (CL_event
 @ocl_func(clReleaseCommandQueue, (CL_command_queue,))
 
 #TODO: Better implementation
