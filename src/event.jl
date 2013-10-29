@@ -21,8 +21,16 @@ function wait(evt::Event)
     clWaitForEvents(1, evt_id)
 end
 
-function wait_for_events(events)
-    #TODO:
+function wait(evts::Vector{Event})
+    for evt in evts
+        wait(evt)
+    end
+end
+
+function wait(evts::Tuple{N,Event})
+    for i in 1:N
+        wait(evts[i])
+    end
 end
 
 @ocl_func(clGetEventInfo, (CL_event, CL_event_info, Csize_t, Ptr{Void}, Ptr{Csize_t}))
