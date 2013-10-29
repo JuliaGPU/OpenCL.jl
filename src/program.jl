@@ -12,13 +12,25 @@ function release!(p::Program)
 end
 
 # low level api 
-function clBuildProgram()
-end
+@ocl_func(clBuildProgram,
+          (CL_program, CL_uint, Ptr{CL_device_id},Ptr{Cchar}, Ptr{Void}, Ptr{Void}))
 
-function clGetProgramBuildInfo()
-end
+@ocl_func(clGetProgramBuildInfo,
+          (CL_program, CL_device_id, CL_program_build_info, Csize_t, Ptr{Void}, Ptr{Csize_t}))  
 
-function clCreateProgramWithBinary()
+function clCreateProgramWithBinary(ctx::CL_context,
+                                   num_devices::CL_uint,
+                                   device_list::Ptr{CL_device_id},
+                                   lengths::Ptr{Csize_t},
+                                   binaries::Ptr{Ptr{Cchar}},
+                                   binary_status::Ptr{CL_int},
+                                   errcode_ret::Ptr{CL_int})
+    program = ccall((:clCreateProgramWithBinary, libopencl),
+                    CL_program,
+                    (CL_context, CL_uint, Ptr{CL_device_id}, Ptr{Csize_t},
+                     Ptr{Ptr{Cchar}}, Ptr{CL_int}, Ptr{CL_int}),
+                     ctx, num_devices, device_list, lengths, binaries, binary_status, errcode_ret)
+    return program
 end
 
 # high level api
