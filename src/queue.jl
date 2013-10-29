@@ -47,7 +47,9 @@ end
 
 @ocl_func(clEnqueueBarrier, (CL_command_queue,))
 
-function barrier(q::Queue)
+#TODO: put in event.jl
+#TODO: wait_for=Noen
+function enqueue_barrier(q::Queue)
     clEnqueueBarrier(q.id)
 end
 
@@ -57,15 +59,18 @@ function flush(q::Queue)
     clFlush(q.id)
 end
 
-@ocl_func(clEnqueueMarker, (CL_command_queue, CL_event)
+#TODO: function finish(q::Queue)
 
-function marker(q::Queue)
+@ocl_func(clEnqueueMarker, (CL_command_queue, CL_event))
+
+#TODO: put in event.jl
+#TODO: wait_for=None
+function enqueue_marker(q::Queue)
    evt_id = CL_event[0]
    clEnqueueMarker(q.id, evt_id)
    return Event(evt_id[1])
 end 
 
-@ocl_func(clGetEventProfilingInfo, (CL_event
 @ocl_func(clReleaseCommandQueue, (CL_command_queue,))
 
 #TODO: Better implementation

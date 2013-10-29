@@ -8,6 +8,10 @@ immutable Event
     id :: CL_event
 end
 
+pointer(evt::Event) = evt.id
+
+#TODO: user events 
+
 @ocl_func(clWaitForEvents, (CL_uint, Ptr{CL_event}))
 
 #TODO: see if there is a better way to do this
@@ -16,7 +20,11 @@ function wait(evt::Event)
     evt_id[1] = evt.id
     clWaitForEvents(1, evt_id)
 end
-    
+
+function wait_for_events(events)
+    #TODO:
+end
+
 @ocl_func(clGetEventInfo, (CL_event, CL_event_info, Csize_t, Ptr{Void}, Ptr{Csize_t}))
 
 function status(evt::Event)
