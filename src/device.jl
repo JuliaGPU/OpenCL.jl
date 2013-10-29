@@ -4,6 +4,8 @@ immutable Device
     id :: CL_device_id
 end
 
+pointer(d::Device) = d.id
+
 macro device_property(func, cl_device_info, return_type)
     quote
         function $(esc(func))(d::Device)
@@ -93,7 +95,7 @@ function max_work_item_sizes(d::Device)
     dims = max_work_item_dims(d)
     result = Array(Csize_t, dims)
     clGetDeviceInfo(d.id, CL_DEVICE_MAX_WORK_ITEM_SIZES, sizeof(Csize_t) * dims, result, C_NULL)
-    return [result[i] for i in 1:length(result)]
+    return [r for r in result]
 end 
 
 @device_property(max_workgroup_size,         CL_DEVICE_MAX_WORK_GROUP_SIZE, Csize_t)
@@ -105,7 +107,7 @@ function max_image2d_shape(d::Device)
     height = Array(Csize_t, 1)
     clGetDeviceInfo(d.id, CL_DEVICE_IMAGE2D_MAX_WIDTH,  sizeof(Csize_t), width,  C_NULL)
     clGetDeviceInfo(d.id, CL_DEVICE_IMAGE2D_MAX_HEIGHT, sizeof(Csize_t), height, C_NULL)
-    return [width[1], height[1]]
+    return (width[1], height[1])
 end
 
 function max_image3d_shape(d::Device)
@@ -115,5 +117,5 @@ function max_image3d_shape(d::Device)
     clGetDeviceInfo(d.id, CL_DEVICE_IMAGE3D_MAX_WIDTH,  sizeof(Csize_t), width,  C_NULL)
     clGetDeviceInfo(d.id, CL_DEVICE_IMAGE3D_MAX_HEIGHT, sizeof(Csize_t), height, C_NULL)
     clGetDeviceInfo(d.id, CL_DEVICE_IMAGE3D_MAX_DEPTH,  sizeof(Csize_t), depth,  C_NULL)
-    return [width[1], height[1], depth[1]]
+    return (width[1], height[1], depth[1])
 end

@@ -4,6 +4,8 @@ immutable Platform
     id :: CL_platform_id
 end
 
+pointer(p::Platform) = p.id
+
 @ocl_func(clGetPlatformIDs, (CL_uint, Ptr{CL_platform_id}, Ptr{CL_uint}))
 @ocl_func(clGetPlatformInfo, (CL_platform_id, CL_platform_info, Csize_t, Ptr{Void}, Ptr{Csize_t}))
 
@@ -12,7 +14,7 @@ function get_platforms()
     clGetPlatformIDs(0, C_NULL, nplatforms)
     cl_platform_ids = Array(CL_platform_id, nplatforms[1])
     clGetPlatformIDs(nplatforms[1], cl_platform_ids, C_NULL)
-    return [Platform(cl_platform_ids[i]) for i in 1:length(cl_platform_ids)]
+    return [Platform(id) for id in cl_platform_ids]
 end
 
 function num_platforms()
@@ -48,5 +50,5 @@ function get_devices(p::Platform, device_type=CL_DEVICE_TYPE_ALL)
     clGetDeviceIDs(p.id, device_type, 0, C_NULL, ndevices)
     result = Array(CL_device_id, ndevices[1])
     clGetDeviceIDs(p.id, device_type, ndevices[1], result, C_NULL)
-    return [Device(result[i]) for i in 1:length(result)]
+    return [Device(id) for id in result]
 end
