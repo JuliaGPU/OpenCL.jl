@@ -12,7 +12,9 @@ function clCreateCommandQueue(ctx_id::CL_context, dev_id::CL_device_id,
               (CL_context, CL_device_id, CL_command_queue_properties, Ptr{CL_int}),
               ctx_id, dev_id, props, err)
     err_code = unsafe_load(err)
-    if err_code != CL_SUCCESS; q = C_NULL; end
+    if err_code != CL_SUCCESS
+        q = nothing
+    end
     return q
 end
 
@@ -25,7 +27,7 @@ function Queue(ctx::Context, dev::Device)
     queue = clCreateCommandQueue(ctx_id, dev_id, props, err)
     err_code = unsafe_load(err)
     if err_code != CL_SUCCESS 
-        free(queue)
+        release!(queue)
         return 
     end
     return Queue(queue)
@@ -74,9 +76,9 @@ end
 @ocl_func(clReleaseCommandQueue, (CL_command_queue,))
 
 #TODO: Better implementation
-function free!(q::Queue)
+function release!(q::Queue)
     if q.id != C_NULL
         clReleaseCommandQueue(q.id)
+        q.id = C_NULL
     end
 end
-
