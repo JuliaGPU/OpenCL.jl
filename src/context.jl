@@ -132,7 +132,7 @@ end
 @ocl_func(clReleaseContext, (CL_context,))
 
 #TODO: wrap try finally
-function free(ctx::Context)
+function release!(ctx::Context)
     if ctx.id != C_NULL
         clReleaseContext(ctx.id)
         ctx.id = C_NULL 

@@ -102,7 +102,7 @@ end
 
 @ocl_func(clReleaseEvent, (CL_event,))
 
-function free!(evt::Event)
+function release!(evt::Event)
     if evt.id != C_NULL
         clReleaseEvent(evt.id)
         evt.id = C_NULL
