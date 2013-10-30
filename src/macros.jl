@@ -7,7 +7,7 @@ macro ocl_call(func, arg_types, args...)
     end
 end
 
-macro ocl_call2(func, ret_type, arg_types, args...)
+macro ocl_call(func, ret_type, arg_types, args...)
     quote
         ccall(($func, libopencl), $ret_type, $arg_types, $(args...))
     end
@@ -20,9 +20,9 @@ macro ocl_func(func, arg_types)
     end
 end
 
-macro ocl_check(clfunc)
+macro check(clfunc)
     quote
-        _err = $clfunc
+        _err = esc(clfunc)
         if _err != CL_SUCCESS
             error("CL_ERROR: $func")
         end
