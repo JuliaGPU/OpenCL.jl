@@ -23,9 +23,9 @@ include("platform.jl")
 include("device.jl")
 
 # --- OpenCL Context ---
-include("context.jl")
+#include("context.jl")
 
 # --- OpenCL Queue ---
-include("queue.jl")
+#include("queue.jl")
 
 end # module

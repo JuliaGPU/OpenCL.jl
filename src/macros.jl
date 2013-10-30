@@ -22,7 +22,7 @@ end
 
 macro check(clfunc)
     quote
-        _err = esc(clfunc)
+        _err = $clfunc
         if _err != CL_SUCCESS
             error("CL_ERROR: $func")
         end

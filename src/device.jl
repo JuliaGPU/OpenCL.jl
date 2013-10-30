@@ -4,14 +4,25 @@ immutable Device
     id :: CL_device_id
 end
 
-pointer(d::Device) = d.id
+Base.pointer(d::Device) = d.id
+Base.hash(p::Platform) = unsigned(Base.pointer(p))
+Base.isequal(p1::Device, p2::Device) = (Base.hash(p1) == Base.hash(p2))
+
+function Base.show(io::IO, d::Device)
+    strip_extra_whitespace = r"\s+"
+    device_name = replace(name(d), strip_extra_whitespace, " ")
+    platform_name = replace(name(platform(d)), strip_extra_whitespace, " ")
+    ptr_address = "0x$(hex(unsigned(Base.pointer(d)), WORD_SIZE>>2))"
+    print(io, "<OpenCL.Device '$device_name' on '$platform_name' @$ptr_address>")
+end
+
 
 macro device_property(func, cl_device_info, return_type)
     quote
         function $(esc(func))(d::Device)
             result = Array($return_type, 1)
-            clGetDeviceInfo(d.id, $cl_device_info, sizeof($return_type), result, C_NULL)
-            #TODO: Find a way around this hack as CL_bool is typealiased to CL_uint
+            @check api.clGetDeviceInfo(d.id, $cl_device_info,
+                                       sizeof($return_type), result, C_NULL)
             if $(symbol(return_type)) == :CL_bool
                 bool(result[1])
             else
@@ -21,15 +32,11 @@ macro device_property(func, cl_device_info, return_type)
     end
 end
 
-
-@ocl_func(clGetDeviceIDs, (CL_platform_id, CL_device_type, CL_uint, Ptr{CL_device_id}, Ptr{CL_uint}))
-@ocl_func(clGetDeviceInfo, (CL_device_id, CL_device_info, Csize_t, Ptr{Void}, Ptr{Csize_t}))
-
 function get_info(d::Device, info::CL_device_info)
     size = Array(Csize_t, 1)
-    clGetDeviceInfo(d.id, info, 0, C_NULL, size)
+    @check api.clGetDeviceInfo(d.id, info, 0, C_NULL, size)
     result = Array(CL_char, size[1])
-    clGetDeviceInfo(d.id, info, size, result, C_NULL)
+    @check clGetDeviceInfo(d.id, info, size, result, C_NULL)
     return bytestring(convert(Ptr{CL_char}, result))
 end
 
@@ -38,33 +45,45 @@ version(d::Device) = get_info(d, CL_DEVICE_VERSION)
 profile(d::Device) = get_info(d, CL_DEVICE_PROFILE)
 extensions(d::Device) = split(get_info(d, CL_DEVICE_EXTENSIONS))
 
-@device_property(platform,    CL_DEVICE_PLATFORM, CL_platform_id)
+function platform(d::Device)
+   result = Array(CL_platform_id, 1)
+   @check api.clGetDeviceInfo(d.id, CL_DEVICE_PLATFORM,
+                              sizeof(CL_platform_id), result, C_NULL)
+   return Platform(result[1])
+end
+
 @device_property(device_type, CL_DEVICE_TYPE,     CL_device_type)
 
 box{T}(x::T) = T[x]
 function has_image_support(d::Device)
     has_support = box(CL_FALSE)
     has_support[1] = CL_FALSE
-    clGetDeviceInfo(d.id, CL_DEVICE_IMAGE_SUPPORT, sizeof(CL_bool), has_support, C_NULL)
+    @check api.clGetDeviceInfo(d.id, CL_DEVICE_IMAGE_SUPPORT,
+                               sizeof(CL_bool), has_support, C_NULL)
     return has_support[1] == CL_TRUE ? true : false
 end
 
 function name(d::Device)
     size = Array(Csize_t, 1)
-    clGetDeviceInfo(d.id, CL_DEVICE_NAME, 0, C_NULL, size)
+    @check api.clGetDeviceInfo(d.id, CL_DEVICE_NAME, 0, C_NULL, size)
     result = Array(CL_char, size[1])
-    clGetDeviceInfo(d.id, CL_DEVICE_NAME, size[1] * sizeof(CL_char), result, C_NULL)
+    @check api.clGetDeviceInfo(d.id, CL_DEVICE_NAME,
+                               size[1] * sizeof(CL_char), result, C_NULL)
     return bytestring(convert(Ptr{CL_char}, result))
 end
 
 @device_property(queue_properties, CL_DEVICE_QUEUE_PROPERTIES, CL_command_queue_properties)
 
-has_queue_out_of_order_exec(d::Device) = bool(queue_properties(d) & CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE)
-has_queue_profiling(d::Device) = bool(queue_properties(d) & CL_QUEUE_PROFILING_ENABLE)
+has_queue_out_of_order_exec(d::Device) =
+        bool(queue_properties(d) & CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE)
+
+has_queue_profiling(d::Device) =
+        bool(queue_properties(d) & CL_QUEUE_PROFILING_ENABLE)
 
 function has_native_kernel(d::Device)
     result = Array(CL_device_exec_capabilities, 1)
-    clGetDeviceInfo(d.id, CL_DEVICE_EXECUTION_CAPABILITIES, sizeof(CL_device_exec_capabilities), result, C_NULL)
+    @check api.clGetDeviceInfo(d.id, CL_DEVICE_EXECUTION_CAPABILITIES,
+                               sizeof(CL_device_exec_capabilities), result, C_NULL)
     return result[1] & CL_EXEC_NATIVE_KERNEL ? true : false
 end
 
@@ -82,7 +101,8 @@ end
 
 function has_local_mem(d::Device)
     result = Array(CL_device_local_mem_type, 1)
-    clGetDeviceInfo(d.id, CL_DEVICE_LOCAL_MEM_TYPE, sizeof(CL_device_local_mem_type), result, C_NULL)
+    @check api.clGetDeviceInfo(d.id, CL_DEVICE_LOCAL_MEM_TYPE,
+                               sizeof(CL_device_local_mem_type), result, C_NULL)
     return result[1] == CL_LOCAL
 end
 
@@ -94,7 +114,8 @@ end
 function max_work_item_sizes(d::Device)
     dims = max_work_item_dims(d)
     result = Array(Csize_t, dims)
-    clGetDeviceInfo(d.id, CL_DEVICE_MAX_WORK_ITEM_SIZES, sizeof(Csize_t) * dims, result, C_NULL)
+    @check api.clGetDeviceInfo(d.id, CL_DEVICE_MAX_WORK_ITEM_SIZES,
+                               sizeof(Csize_t) * dims, result, C_NULL)
     return [r for r in result]
 end 
 
@@ -105,8 +126,10 @@ end
 function max_image2d_shape(d::Device)
     width  = Array(Csize_t, 1)
     height = Array(Csize_t, 1)
-    clGetDeviceInfo(d.id, CL_DEVICE_IMAGE2D_MAX_WIDTH,  sizeof(Csize_t), width,  C_NULL)
-    clGetDeviceInfo(d.id, CL_DEVICE_IMAGE2D_MAX_HEIGHT, sizeof(Csize_t), height, C_NULL)
+    @check api.clGetDeviceInfo(d.id, CL_DEVICE_IMAGE2D_MAX_WIDTH,
+                               sizeof(Csize_t), width,  C_NULL)
+    @check api.clGetDeviceInfo(d.id, CL_DEVICE_IMAGE2D_MAX_HEIGHT,
+                               sizeof(Csize_t), height, C_NULL)
     return (width[1], height[1])
 end
 
@@ -114,8 +137,11 @@ function max_image3d_shape(d::Device)
     width  = Array(Csize_t, 1)
     height = Array(Csize_t, 1)
     depth =  Array(Csize_t, 1)
-    clGetDeviceInfo(d.id, CL_DEVICE_IMAGE3D_MAX_WIDTH,  sizeof(Csize_t), width,  C_NULL)
-    clGetDeviceInfo(d.id, CL_DEVICE_IMAGE3D_MAX_HEIGHT, sizeof(Csize_t), height, C_NULL)
-    clGetDeviceInfo(d.id, CL_DEVICE_IMAGE3D_MAX_DEPTH,  sizeof(Csize_t), depth,  C_NULL)
+    @check api.clGetDeviceInfo(d.id, CL_DEVICE_IMAGE3D_MAX_WIDTH,
+                               sizeof(Csize_t), width, C_NULL)
+    @check api.clGetDeviceInfo(d.id, CL_DEVICE_IMAGE3D_MAX_HEIGHT,
+                               sizeof(Csize_t), height, C_NULL)
+    @check api.clGetDeviceInfo(d.id, CL_DEVICE_IMAGE3D_MAX_DEPTH, 
+                               sizeof(Csize_t), depth, C_NULL)
     return (width[1], height[1], depth[1])
 end

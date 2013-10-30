@@ -640,7 +640,7 @@ clGetContextInfo(cl_context         /* context */,
 extern CL_API_ENTRY cl_command_queue CL_API_CALL
 clCreateCommandQueue(cl_context                     /* context */, 
                      cl_device_id                   /* device */, 
-                     cl_command_queue_properties    /* properties */,
+                     l_command_queue_properties    /* properties */,
                      cl_int *                       /* errcode_ret */) CL_API_SUFFIX__VERSION_1_0;
 
 extern CL_API_ENTRY cl_int CL_API_CALL

@@ -1,5 +1,7 @@
 module api
 
+include("types.jl")
+
 @unix_only begin
     const libopencl = "libOpenCL"
 end
@@ -16,29 +18,29 @@ end
 
 macro ocl_func_1_0(func, ret_type, arg_types) 
     quote
-        @ocl_func(func, ret_type, arg_types)
+        @ocl_func($func, $ret_type, $arg_types)
     end
 end
 
 macro ocl_func_1_1(func, ret_type, arg_types)
     quote
-        @ocl_func(func, ret_type, arg_types)
+        @ocl_func($func, $ret_type, $arg_types)
     end
 end
 
 macro ocl_func_1_2(func, ret_type, arg_types)
     quote
-        @ocl_func(func, ret_type, arg_types)
+        @ocl_func($func, $ret_type, $arg_types)
     end
 end
 
 macro ocl_deprecate(func, ret_type, arg_types)
     quote
-        @deprecate(@ocl_func(func, ret_type, arg_types), nothing)
+        @ocl_func($func, $ret_type, $arg_types)
     end
 end
 
-typealias CL_callback::Ptr{Void}
+typealias CL_callback Ptr{Void}
 
 ################
 # platform apis
@@ -146,7 +148,7 @@ typealias CL_callback::Ptr{Void}
                Ptr{Ptr{Cuchar}}, Ptr{CL_int}, Ptr{CL_int}))
 
 @ocl_func_1_2(clCreateProgramWithBuiltInKernels, CL_program,
-              (CL_context, CL_uint Ptr{CL_device_id}, Ptr{Cchar}, Ptr{CL_int}))
+              (CL_context, CL_uint, Ptr{CL_device_id}, Ptr{Cchar}, Ptr{CL_int}))
 
 @ocl_func_1_0(clRetainProgram, CL_int, (CL_program,))
 
@@ -272,7 +274,7 @@ typealias CL_callback::Ptr{Void}
                Ptr{Void}, CL_uint, Ptr{CL_event}, Ptr{CL_event}))
 
 @ocl_func_1_0(clEnqueueWriteImage, CL_int,
-              (CL_command_queue, CL_mem, CL_bool, Ptr{Csize_t}, Ptr{Csize_t}
+              (CL_command_queue, CL_mem, CL_bool, Ptr{Csize_t}, Ptr{Csize_t},
                Csize_t, Csize_t, Ptr{Void}, CL_uint, Ptr{CL_event}, Ptr{CL_event}))
 
 @ocl_func_1_2(clEnqueueFillImage, CL_int,
@@ -323,7 +325,7 @@ typealias CL_callback::Ptr{Void}
               (CL_command_queue, CL_uint, Ptr{CL_event}, Ptr{CL_event}))
 
 @ocl_func_1_2(clEnqueueBarrierWithWaitList, CL_int, 
-              CL_command_queue, CL_uint, Ptr{CL_event}, Ptr{CL_event})
+              (CL_command_queue, CL_uint, Ptr{CL_event}, Ptr{CL_event}))
 
 ############################
 # extension function access
