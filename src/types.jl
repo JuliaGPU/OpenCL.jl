@@ -46,6 +46,7 @@ typealias CL_channel_type               CL_uint
 typealias CL_mem_flags                  CL_bitfield
 typealias CL_mem_object_type            CL_uint
 typealias CL_mem_info                   CL_uint
+typealias CL_mem_migration_flags        CL_bitfield 
 typealias CL_image_info                 CL_uint
 typealias CL_buffer_create_type         CL_uint
 typealias CL_addressing_mode            CL_uint
