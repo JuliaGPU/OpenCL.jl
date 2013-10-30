@@ -35,8 +35,10 @@ typealias CL_device_mem_cache_type      CL_uint
 typealias CL_device_local_mem_type      CL_uint
 typealias CL_device_exec_capabilities   CL_bitfield
 typealias CL_command_queue_properties   CL_bitfield
+typealias CL_device_partition_property  Cint
+typealias CL_device_affinity_domain     CL_bitfield
 
-typealias CL_context_properties         Ptr{Cint}
+typealias CL_context_properties         Cint
 typealias CL_context_info               CL_uint
 typealias CL_command_queue_info         CL_uint
 typealias CL_channel_order              CL_uint
@@ -61,12 +63,12 @@ typealias CL_profiling_info             CL_uint
 
 #--- Image Types ---
 
-immutable ImageFormat
+immutable CL_image_format
     image_channel_order::CL_channel_order
     image_channel_data_type::CL_channel_type 
 end
 
-type ImageDesc
+type CL_image_desc
     image_type::CL_mem_object_type
     image_width::Csize_t
     image_depth::Csize_t
@@ -78,7 +80,7 @@ type ImageDesc
     buffer::CL_mem
 end
 
-immutable BufferRegion
+immutable CL_buffer_region
     origin::Csize_t
     size::Csize_t
 end
