@@ -9,6 +9,9 @@ include("constants.jl")
 # OpenCL low level api 
 include("api.jl")
 
+# util functions 
+include("util.jl")
+
 @linux_only begin
     const libopencl = "libOpenCL"
 end
