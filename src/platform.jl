@@ -80,10 +80,36 @@ end
 #profile(p::Platform) = info(p::Platform, CL_PLATFORM_PROFILE)
 #extensions(p::Platform) = split(info(p::Platform, CL_PLATFORM_EXTENSIONS))
 
-function devices(p::Platform, device_type=CL_DEVICE_TYPE_ALL)
+function devices(p::Platform, device_type::CL_device_type)
     ndevices = Array(CL_uint, 1)
     @check api.clGetDeviceIDs(p.id, device_type, 0, C_NULL, ndevices)
     result = Array(CL_device_id, ndevices[1])
     @check api.clGetDeviceIDs(p.id, device_type, ndevices[1], result, C_NULL)
     return [Device(id) for id in result]
 end
+
+devices(p::Platform) = devices(p, CL_DEVICE_TYPE_ALL)
+
+function devices(p::Platform, device_type::Symbol)
+    try
+       if device_type == :all
+            devices(p, CL_DEVICE_TYPE_ALL)
+        elseif device_type == :cpu
+            devices(p, CL_DEVICE_TYPE_CPU)
+        elseif device_type == :gpu
+            devices(p, CL_DEVICE_TYPE_GPU)
+        elseif device_type == :accelerator
+            devices(p, CL_DEVICE_TYPE_ACCELERATOR)
+        elseif device_type == :custom
+            devices(p, CL_DEVICE_TYPE_CUSTOM)
+        elseif device_type == :default
+            devices(p, CL_DEVICE_TYPE_DEFAULT)
+        else
+            return []
+        end
+    catch
+        # device type does not exit
+        return []
+    end
+end
+

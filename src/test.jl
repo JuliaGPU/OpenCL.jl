@@ -9,7 +9,13 @@ for p in cl.platforms()
     end
 end
 
+
 platform = cl.platforms()[1]
+for p in cl.platforms()
+    for k in (:gpu, :cpu, :accelerator, :all)
+        println(cl.devices(p, k))
+    end
+end
 
 device_info_keys = Symbol[
         :driver_version,
