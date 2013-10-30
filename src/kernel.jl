@@ -1,4 +1,4 @@
-type Kernel
+pe Kernel
 end
 
 type KernelArg

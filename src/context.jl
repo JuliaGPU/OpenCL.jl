@@ -36,7 +36,7 @@ end
 
 #Base.Dict(ctx_props::ContextProperties) = (Any=>Property)[k=>v for (k, v) in ctx_props.properties]
 
-immutable Context
+type Context 
     id :: CL_context
 end
 
@@ -92,7 +92,7 @@ function Context(devices::Vector{Device}, device_type=CL_DEVICE_TYPE_DEFAULT)
     return Context(ctx_id)
 end
 
-Contect(device::Device, device_type=CL_DEVICE_TYPE_DEFAULT) = Context([device], device_type)
+Context(device::Device, device_type=CL_DEVICE_TYPE_DEFAULT) = Context([device], device_type)
 
 @ocl_func(clGetContextInfo, (CL_context, CL_context_info, Csize_t, Ptr{Void}, Ptr{Csize_t}))
 

@@ -8,6 +8,7 @@ end
 
 macro ocl_func(func, ret_type, arg_types)
     local args_in = Symbol[symbol(string('a', i)) for i in 1:length(arg_types.args)]
+    #@eval begin
     quote
         $(esc(func))($(args_in...)) = ccall(($(string(func)), libopencl), 
                                             $ret_type,

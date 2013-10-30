@@ -24,7 +24,7 @@ macro check(clfunc)
     quote
         _err = $clfunc
         if _err != CL_SUCCESS
-            error("CL_ERROR: $func")
+            throw(CLError(err))
         end
     end
 end
