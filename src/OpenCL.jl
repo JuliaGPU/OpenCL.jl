@@ -16,6 +16,9 @@ include("util.jl")
     const libopencl = "libOpenCL"
 end
 
+# --- Errors ---
+include("error.jl")
+
 # --- Macros ---
 include("macros.jl")
 
