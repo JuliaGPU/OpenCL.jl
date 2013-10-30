@@ -80,7 +80,7 @@ const cl_err_desc = (Integer => String) [
     
     CL_INVALID_PROGRAM => "Program is not a valid program object.",
     
-    CL_INVALID_VALUE: => "CL_INVALID_VALUE: this one should have been caught by julia!",
+    CL_INVALID_VALUE => "CL_INVALID_VALUE: this one should have been caught by julia!",
     
     CL_INVALID_DEVICE => "OpenCL devices listed in device_list are not in the list of devices associated with program.",
     
@@ -90,7 +90,7 @@ const cl_err_desc = (Integer => String) [
     CL_INVALID_BUILD_OPTIONS => "The build options specified by options are invalid.",
     
     CL_INVALID_OPERATION => string("The build of a program executable for any of the devices listed in device_list by a ",
-                                   "previous call to clBuildProgram for program has not  completed.",
+                                   "previous call to clBuildProgram for program has not  completed."),
     
     CL_COMPILER_NOT_AVAILABLE => "Program is created with clCreateProgramWithSource and a compiler is not available",
     
