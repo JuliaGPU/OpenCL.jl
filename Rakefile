@@ -1,9 +1,9 @@
 task :runtest do
-	sh "julia -L src/OpenCL.jl test/runtests.jl"
+	sh "julia -L src/OpenCL.jl test/header.jl test/runtests.jl"
 end
 
 task :runslowtest do
-	sh "julia -L src/OpenCL.jl test/runslowtests.jl"
+	sh "julia -L src/OpenCL.jl test/header.jl test/runslowtests.jl"
 end
 
 task :runalltest => [:runtest, :runslowtest]
