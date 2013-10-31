@@ -7,7 +7,8 @@ cl = OpenCL
 macro throws_pred(ex) FactCheck.throws_pred(ex) end 
 
 facts("OpenCL.Platform") do 
-    context("platform info") do
+    
+    context("Platform Info") do
         @fact length(cl.platforms()) => cl.num_platforms()
         for p in cl.platforms()
             @fact p != nothing => true
@@ -17,8 +18,8 @@ facts("OpenCL.Platform") do
             end
          end
      end
-
-     context("platform_equality") do 
+     
+     context("Platform Equality") do 
         platform       = cl.platforms()[1]
         platform_copy  = cl.platforms()[1]
         
@@ -37,22 +38,37 @@ facts("OpenCL.Platform") do
 end
 
 facts("OpenCL.Device") do 
+    
     context("Device Type") do
         for p in cl.platforms()
             for (t, k) in zip((cl.CL_DEVICE_TYPE_GPU, cl.CL_DEVICE_TYPE_CPU, 
                                cl.CL_DEVICE_TYPE_ACCELERATOR, cl.CL_DEVICE_TYPE_ALL), 
                               (:gpu, :cpu, :accelerator, :all))
-               
-                #TODO:
+                
                 #for (dk, dt) in zip(cl.devices(p, k), cl.devices(p, t))
                 #    @fact dk == dt => true
                 #end
-                devices = cl.devices(p, k)
-                for d in devices
-                    #TODO: CHeck this.. @fact d[:device_type] == t => true
-                end
+                #devices = cl.devices(p, k)
+                #for d in devices
+                #    @fact d[:device_type] == t => true
+                #end
             end
         end
+    end
+
+    context("Device Equality") do
+        for platform in cl.platforms()
+            devices = cl.devices(platform)
+            if length(devices) > 1
+                test_dev = devices[1]
+                for dev in devices[2:end]
+                   @fact pointer(dev) != pointer(test_dev) => true
+                   @fact hash(dev) != hash(test_dev) => true
+                   @fact isequal(dev, test_dev) => false
+               end
+           end
+       end
+
     end
 
     context("Device Info") do 
@@ -89,17 +105,42 @@ facts("OpenCL.Device") do
                 :max_image2d_shape,
                 :max_image3d_shape,
             ]
-
         for p in cl.platforms()
+            @fact isa(p, cl.Platform) => true
             @fact @throws_pred(p[:zjdlkf]) => (true, "error")
             for d in cl.devices(p)
-                @fact d[:platform] == p => true
+                @fact isa(d, cl.Device) => true
                 @fact @throws_pred(d[:zjdlkf]) => (true, "error")
                 for k in device_info_keys
                     @fact @throws_pred(d[k]) => (false, "no error")
-                    @fact d[k] == cl.info(d, k) => true
+                    @fact d[k] => cl.info(d, k)
+                    if k == :extensions
+                        @fact isa(d[k], Vector{String}) => true 
+                    elseif k == :platform
+                        @fact d[k] => p 
+                    elseif k == :max_work_item_sizes
+                        @fact length(d[k]) => 3
+                    elseif k == :max_image2d_shape
+                        @fact length(d[k]) => 2
+                    elseif k == :max_image3d_shape
+                        @fact length(d[k]) => 3
+                    end
                 end
             end
         end
     end
 end
+
+facts("OpenCL.Context") do
+
+    context("OpenCL Properties") do
+        platform = cl.platforms()[1]
+        properties = cl.ContextProperties()
+        properties.platform = platform
+        @fact platform[:name] => properties.platform[:name]
+        ctx = cl.Context(device_type=cl.CL_DEVICE_TYPE, properties=properties)
+    end
+
+end
+
+
