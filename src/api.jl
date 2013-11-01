@@ -7,8 +7,8 @@ include("types.jl")
 end
 
 macro ocl_func(func, ret_type, arg_types)
-    local args_in = Symbol[symbol("arg$i")
-                           for (i, t) in enumerate(arg_types.args)]
+    local args_in = Symbol[symbol("arg$i::$T")
+                           for (i, T) in enumerate(arg_types.args)]
     quote 
         $(esc(func))($(args_in...)) = ccall(($(string(func)), libopencl), 
                                             $ret_type,
@@ -72,7 +72,7 @@ typealias CL_callback Ptr{Void}
 # context apis
 ###############
 @ocl_func_1_0(clCreateContext, CL_context,
-              (CL_context_properties, CL_device_type, CL_callback, Ptr{Void}, Ptr{CL_int}))
+              (CL_context_properties, CL_uint, Ptr{CL_device_id}, CL_callback, Ptr{Void}, Ptr{CL_int}))
 
 @ocl_func_1_0(clCreateContextFromType, CL_context,
               (CL_context_properties, CL_device_type, CL_callback, Ptr{Void}, Ptr{CL_int}))
