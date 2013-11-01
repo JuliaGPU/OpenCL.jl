@@ -22,14 +22,14 @@ Base.pointer(ctx::Context) = ctx.id
 @ocl_object_equality(Context)
 
 function _ctx_err_notify(err_info::Ptr{Cchar}, priv_info::Ptr{Void},
-                         cb::Csize_t , julia_func::Ptr{Void})
+                         cb::Csize_t, julia_func::Ptr{Void})
     err = bytestring(err_info)
     private = bytestring(convert(Ptr{Cchar}, err_info))
     callback = unsafe_pointer_to_objref(julia_func)::Function
     callback(err, private)
 end
 
-function context_error(err_info, priv_info)
+function context_error(error_info, private_info)
     error("OpenCL.Context error: $err_info")
 end
 
@@ -48,7 +48,7 @@ function Context(ds::Vector{Device}; properties=None, callback=None)
     ctx_callback   = C_NULL
     ctx_user_data  = C_NULL
     if properties != None
-        #TODO: properties
+        ctx_properties = _parse_properties(properties)
     end
     if callback != None
         ctx_callback = cfunction(_ctx_err_notify, Void, (Ptr{Cchar}, Ptr{Void}, Csize_t, Ptr{Void}))
@@ -74,7 +74,7 @@ function Context(device_type::CL_device_type; properties=None, callback=None)
     ctx_user_data  = C_NULL
 
     if properties != None
-        #TODO: properties
+        ctx_properties = _parse_properties(properties)
     end
     if callback != None
         ctx_callback = cfunction(_ctx_err_notify, Void, (Ptr{Cchar}, Ptr{Void}, Csize_t, Ptr{Void}))
@@ -93,6 +93,71 @@ function Context(device_type::Symbol; properties=None, callback=None)
     Context(cl_device_type(device_type),
             properties=properties, callback=callback)
 end 
+
+function properties(ctx_id::CL_context)
+    size = Array(Csize_t, 1)
+    @check api.clGetContextInfo(ctx_id, CL_CONTEXT_PROPERTIES, 0, C_NULL, size)
+    props = Array(CL_context_properties, size[1])
+    @check api.clGetContextInfo(ctx_id, CL_CONTEXT_PROPERTIES,
+                                size[1] * sizeof(CL_context_properties), props, C_NULL)
+    #properties array of [key,value...]
+    result = []
+    for i in 1:2:size[1]
+        local value::Any
+        key = props[i]
+        if key == CL_CONTEXT_PLATFORM
+            value = Platform(cl_platform_id(props[i+1]))
+            break
+        elseif key == CL_CONTEXT_PROPERTY_USE_CGL_SHAREGROUP_APPLE
+        elseif key == CL_GL_CONTEXT_KHR
+        elseif key == CL_EGL_DISPLAY
+        elseif key == CL_GLX_DISPLAY
+        elseif key == CL_WGL_HDC_KHR
+        elseif key == CL_CGL_SHAREGROUP_KHR
+            value = props[i+1]
+        elseif key == 0
+            break
+        else
+            error("Context properties: unknown context_property key encountered")
+        end
+        push!(result, (key, value))
+    end
+    return result
+end
+
+function properties(ctx::Context)
+    properties(ctx.id)
+end
+
+function _parse_properties(props)
+    cl_props = CL_context_properties[]
+    if !isempty(props)
+        for prop_tuple in props
+            if length(prop_tuple) != 2
+                error("Context property tuple must have length 2")
+            end
+            prop = cl_context_property(prop_tuple[1])
+            push!(cl_props, prop)
+            if p == CL_CONTEXT_PLATFORM
+                val = prop_tuple[2]
+                push!(cl_props, val.id)
+            elseif p == CL_WGL_HDC_KHR
+                val = prop_tuple[2]
+                push!(cl_props, val)
+            elseif (prop == CL_CONTEXT_PLATFORM_USE_CGL_SHAREGROUP_APPLE ||
+                    prop == CL_GL_CONTEXT_KHR ||
+                    prop == CL_EGL_DISPLAY ||
+                    prop == CL_GLX_DISPLAY ||
+                    prop == CL_CGL_SHAREGROUP_KHR)
+                #TODO:
+            else
+                error("Invalid OpenCL Context property")
+            end
+            push!(cl_props, 0)
+        end
+    end
+    return cl_props
+end
 
 function num_devices(ctx::Context)
     ndevices = Array(CL_uint, 1)
