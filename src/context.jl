@@ -133,37 +133,36 @@ function properties(ctx::Context)
     properties(ctx.id)
 end
 
+#Note: properties list needs to be terminated with a NULL value!
 function _parse_properties(props)
-    cl_props = CL_context_properties[]
-    if !isempty(props)
-        for prop_tuple in props
-            if length(prop_tuple) != 2
-                error("Context property tuple must have length 2")
-            end
-            prop = cl_context_property(prop_tuple[1])
-            push!(cl_props, prop)
-            if p == CL_CONTEXT_PLATFORM
-                val = prop_tuple[2]
-                push!(cl_props, val.id)
-            elseif p == CL_WGL_HDC_KHR
-                val = prop_tuple[2]
-                push!(cl_props, val)
-            elseif (prop == CL_CONTEXT_PLATFORM_USE_CGL_SHAREGROUP_APPLE ||
-                    prop == CL_GL_CONTEXT_KHR ||
-                    prop == CL_EGL_DISPLAY ||
-                    prop == CL_GLX_DISPLAY ||
-                    prop == CL_CGL_SHAREGROUP_KHR)
-                #TODO: GL_PROPERTIES
-                #ptr = convert(Ptr{Void}, prop_tuple[2])
-                #val = convert(CL_context_properties, )
-                val = cl_context_properties(prop_tuple[2])
-                push!(cl_props, val)
-            else
-                error("Invalid OpenCL Context property")
-            end
-            push!(cl_props, 0)
+    if isempty(props)
+        return C_NULL
+    end 
+    cl_props = Array(CL_context_properties, 0)
+    for prop_tuple in props
+        if length(prop_tuple) != 2
+            error("Context property tuple must have length 2")
+        end
+        prop = prop_tuple[1]
+        push!(cl_props, cl_context_properties(prop))
+        if prop == CL_CONTEXT_PLATFORM
+            val = prop_tuple[2]
+            push!(cl_props, cl_context_properties(val.id))
+        elseif prop == CL_WGL_HDC_KHR
+            val = prop_tuple[2]
+            push!(cl_props, cl_context_properties(val))
+        elseif (prop == CL_GL_CONTEXT_KHR ||
+                prop == CL_EGL_DISPLAY_KHR ||
+                prop == CL_GLX_DISPLAY_KHR ||
+                prop == CL_CGL_SHAREGROUP_KHR)
+            #TODO: CHECK GL_PROPERTIES
+            ptr = convert(Ptr{Void}, prop_tuple[2])
+            push!(cl_props, cl_context_properties(ptr))
+        else
+            error("Invalid OpenCL Context property")
         end
     end
+    push!(cl_props, cl_context_properties(C_NULL))
     return cl_props
 end
 

@@ -35,10 +35,10 @@ typealias CL_device_mem_cache_type      CL_uint
 typealias CL_device_local_mem_type      CL_uint
 typealias CL_device_exec_capabilities   CL_bitfield
 typealias CL_command_queue_properties   CL_bitfield
-typealias CL_device_partition_property  Cint
+typealias CL_device_partition_property  Csize_t #intptr_t
 typealias CL_device_affinity_domain     CL_bitfield
 
-typealias CL_context_properties         Cint
+typealias CL_context_properties         Csize_t #intptr_t
 typealias CL_context_info               CL_uint
 typealias CL_command_queue_info         CL_uint
 typealias CL_channel_order              CL_uint
@@ -115,7 +115,7 @@ cl_device_local_mem_type(x)    = cl_uint(x)
 cl_device_exec_capabilities(x) = cl_bitfield(x)
 cl_command_queue_properties(x) = cl_bitfield(x)
 
-cL_context_properties(x)       = convert(Ptr{Cint}, x)
+cl_context_properties(x)       = convert(CL_context_properties, x)
 cl_context_info(x)             = cl_uint(x)
 cl_command_queue_info(x)       = cl_uint(x)
 cl_channel_order(x)            = cl_uint(x)

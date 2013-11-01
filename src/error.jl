@@ -125,6 +125,6 @@ immutable CLError
         new(c, cl_error_codes[int(c)])
     end
 end
-Base.show(io::IO, err::CLError) = Base.print(:red, io, "CLError($(err.code), $(err.desc))")
+Base.show(io::IO, err::CLError) = Base.print_with_color(:red, io, "CLError($(err.code), $(err.desc))")
 
 description(err::CLError) = "$(cl_error_codes[err.code])"

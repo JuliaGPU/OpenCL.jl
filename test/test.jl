@@ -143,8 +143,15 @@ facts("OpenCL.Context") do
 
     context("OpenCL.Context device_type constructor") do
         platform = cl.platforms()[1]
-        ctx = cl.Context(cl.CL_DEVICE_TYPE_CPU)
-        @fact ctx != nothing => true
+        try
+            cl.Context(cl.CL_DEVICE_TYPE_CPU)
+        catch err
+            @fact typeof(err) => cl.CLError
+            @fact err.code => cl.cl_int(-32)
+        end
+        properties = [(cl.CL_CONTEXT_PLATFORM, platform)]
+        @fact @throws_pred(cl.Context(cl.CL_DEVICE_TYPE_CPU, properties=properties)) => (false, "no error") 
+        cl.Context(cl.CL_DEVICE_TYPE_CPU, properties=properties)
     end
 
 end
