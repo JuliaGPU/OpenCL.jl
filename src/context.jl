@@ -5,7 +5,7 @@ type Context
 end
 
 #TODO: change to cl_pointer??? so it doesn't interfere with base definition
-Base.pointer(ctx::Contex) = ctx.id
+Base.pointer(ctx::Context) = ctx.id
 @ocl_object_equality(Context)
 
 #function Context(devices::Vector{Device}, device_type=CL_DEVICE_TYPE_DEFAULT)
@@ -27,6 +27,21 @@ Base.pointer(ctx::Contex) = ctx.id
 #    end
 #    return Context(ctx_id)
 #end
+macro device_property(func, cl_device_info, return_type)
+    @eval begin
+        function $func(d::Device)
+            result = Array($return_type, 1)
+            @check api.clGetDeviceInfo(d.id, $cl_device_info,
+                                       sizeof($return_type), result, C_NULL)
+            #TODO: see if there is a better way to do this 
+            if $return_type  == CL_bool
+                return bool(result[1])
+            else
+                return result[1]
+            end
+        end
+    end
+end
 
 function Context(ds::Vector{Device}; properties=None, callback=None)
     if isempty(ds)
@@ -160,7 +175,7 @@ end
 #    info = bytestring(unsafe_load(error_info))
 #    error("CTX Error: $info")
 #    return convert(Cint, 0)
-end
+#end
 
 #const pfn_notify_ctx_error = cfunction(notify_ctx_error, Cint,
 #                                       (Ptr{Cchar}, Ptr{Void}, Csize_t, Ptr{Void}))

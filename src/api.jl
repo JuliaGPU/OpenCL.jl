@@ -7,13 +7,13 @@ include("types.jl")
 end
 
 macro ocl_func(func, ret_type, arg_types)
-    local args_in = Symbol[symbol(string('a', i)) for i in 1:length(arg_types.args)]
-    #@eval begin
-    quote
+    local args_in = Symbol[symbol("arg$i")
+                           for (i, t) in enumerate(arg_types.args)]
+    quote 
         $(esc(func))($(args_in...)) = ccall(($(string(func)), libopencl), 
-                                            $ret_type,
-                                            $arg_types,
-                                            $(args_in...))
+                                           $ret_type,
+                                           $arg_types,
+                                           $(args_in...))
     end
 end
 
@@ -357,5 +357,11 @@ typealias CL_callback Ptr{Void}
 @ocl_deprecate(clUnloadCompiler, CL_int, ())
 
 @ocl_deprecate(clGetExtensionFunctionAddress, Ptr{Void}, (Ptr{Cchar},))
+
+
+#===============
+# Helper Macros
+#===============
+
 
 end

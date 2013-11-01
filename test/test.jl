@@ -138,7 +138,7 @@ facts("OpenCL.Context") do
         properties = cl.CtxProperties()
         properties.platform = platform
         @fact platform[:name] => properties.platform[:name]
-        ctx = cl.Context(device_type=cl.CL_DEVICE_TYPE, properties=properties)
+        ctx = cl.Context(:gpu, properties=properties)
     end
 
 end

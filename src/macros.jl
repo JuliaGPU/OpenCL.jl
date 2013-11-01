@@ -35,3 +35,34 @@ macro ocl_object_equality(cl_object_type)
         Base.isequal(x1::$cl_object_type, x2::$cl_object_type) = Base.hash(x1) == Base.hash(x2)
     end
 end
+
+macro int_info(what, arg1, arg2, ret_type)
+    local clFunc = symbol(string("clGet$(what)Info"))
+    quote
+        local result = Array($ret_type, 1)
+        @check api.$clFunc($arg1, $arg2, sizeof($ret_type), result, C_NULL)
+        result[1] 
+    end
+end
+
+macro vec_info(what, arg1, arg2, res_vec)
+    local clFunc = symbol(string("clGet$(what)Info"))
+    quote
+        local size = Array(Csize_t, 1)
+        @check clFunc($arg1, $arg2, 0, C_NULL, size)
+        local n = size / sizeof(res_vec[1])
+        resize!(res_vec, n)
+        @check clFunc($arg1, $arg2, empty($res_vec) ? C_NULL : res_vec, size)
+    end
+end
+
+macro str_info(what, arg1, arg2)
+    local clFunc = symbol("api.clGet$(what)Info")
+    quote
+        local size = Array(Csize_t, 1)
+        $(clFunc)($(esc(arg1)), $(esc(arg2)), 0, C_NULL, size)
+        local result = Array(CL_char, size[1])
+        $(clFunc)($(esc(arg1)), $(esc(arg2)), size[1], result, size)
+        bytestring(convert(Ptr{CL_char}, result))
+    end
+end

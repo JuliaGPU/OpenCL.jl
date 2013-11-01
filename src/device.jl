@@ -206,11 +206,11 @@ let driver_version(d::Device) = info(d, CL_DRIVER_VERSION)
     ]
 
     function info(d::Device, s::Symbol)
-        #try
+        try
             func = info_map[s]
             func(d)
-        #catch 
-        #    error("OpenCL.Device has no info for: $s")
-        #end
+        catch 
+            error("OpenCL.Device has no info for: $s")
+        end
     end
 end

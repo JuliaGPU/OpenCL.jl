@@ -43,7 +43,11 @@ function num_platforms()
     @check api.clGetPlatformIDs(0, C_NULL, nplatforms)
     return int(nplatforms[1])
 end
- 
+
+function info2(p::Platform, pinfo::CL_platform_info)
+    @str_info(Platform, p.id, pinfo)
+end
+
 function info(p::Platform, pinfo::CL_platform_info)
     size = Array(Csize_t, 1)
     @check api.clGetPlatformInfo(p.id, pinfo, 0, C_NULL, size)
