@@ -136,24 +136,47 @@ facts("OpenCL.Context") do
     context("OpenCL.Context device constructor") do
         platform = cl.platforms()[1]
         device = cl.devices(platform)[1]
-        ctx = cl.Context(device)
-        props = cl.properties(ctx)
-        @fact isempty(props) => false
+        @fact @throws_pred(cl.Context(device)) => (false, "no error")
+        @fact @throws_pred(cl.Context([])) => (true, "error")
     end
 
     context("OpenCL.Context device_type constructor") do
-        platform = cl.platforms()[1]
-        try
-            cl.Context(cl.CL_DEVICE_TYPE_CPU)
-        catch err
-            @fact typeof(err) => cl.CLError
-            @fact err.code => cl.cl_int(-32)
+        for platform in cl.platforms()
+            try
+                cl.Context(cl.CL_DEVICE_TYPE_CPU)
+            catch err
+                @fact typeof(err) => cl.CLError
+                @fact err.desc => :CL_INVALID_PLATFORM
+            end
+            properties = [(cl.CL_CONTEXT_PLATFORM, platform)]
+            @fact @throws_pred(cl.Context(cl.CL_DEVICE_TYPE_CPU, properties=properties)) => (false, "no error") 
+            ctx = cl.Context(cl.CL_DEVICE_TYPE_CPU, properties=properties)
+            @fact isempty(cl.properties(ctx)) => false
+            test_properties = cl.properties(ctx)
+            platform_in_properties = false 
+            for (t, v) in test_properties
+                if t == cl.CL_CONTEXT_PLATFORM
+                    @fact v[:name] => platform[:name]
+                    @fact v == platform => true
+                    platform_in_properties = true
+                    break
+                end
+            end
+            @fact platform_in_properties => true 
+            @fact @throws_pred(cl.Context(:cpu, properties=properties)) => (false, "no error")
+            try
+                ctx2 = cl.Context(cl.CL_DEVICE_TYPE_ACCELERATOR, properties=properties)
+            catch err
+                @fact typeof(err) => cl.CLError
+                @fact err.desc => :CL_DEVICE_NOT_FOUND
+            end
         end
-        properties = [(cl.CL_CONTEXT_PLATFORM, platform)]
-        @fact @throws_pred(cl.Context(cl.CL_DEVICE_TYPE_CPU, properties=properties)) => (false, "no error") 
-        cl.Context(cl.CL_DEVICE_TYPE_CPU, properties=properties)
     end
 
+    context("OpenCL.Context create_some_context") do
+        @fact @throws_pred(cl.create_some_context()) => (false, "no error")
+        @fact typeof(cl.create_some_context()) => cl.Context
+    end
 end
 
 

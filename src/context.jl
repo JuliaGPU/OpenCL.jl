@@ -2,7 +2,6 @@
 
 type Context 
     id :: CL_context
-    
     function Context(ctx_id::CL_context; retain=true)
         if retain
             @check api.clRetainContext(ctx_id)
@@ -94,7 +93,7 @@ function Context(dev_type::CL_device_type; properties=None, callback=None)
 end
 
 function Context(dev_type::Symbol; properties=None, callback=None)
-    Context(cl_device_type(device_type),
+    Context(cl_device_type(dev_type),
             properties=properties, callback=callback)
 end 
 
@@ -106,25 +105,27 @@ function properties(ctx_id::CL_context)
     @check api.clGetContextInfo(ctx_id, CL_CONTEXT_PROPERTIES,
                                 size[1] * sizeof(CL_context_properties), props, C_NULL)
     #properties array of [key,value...]
-    result = []
+    result = {}
     for i in 1:2:size[1]
         key = props[i]
         if key == CL_CONTEXT_PLATFORM
-            value = Platform(cl_platform_id(props[i+1]))
-            break
-        elseif key == CL_CONTEXT_PROPERTY_USE_CGL_SHAREGROUP_APPLE
+            value = Platform(cl_platform_id(props[i + 1]))
+            push!(result, (key, value))
+            continue
+        #elseif key == CL_CONTEXT_PROPERTY_USE_CGL_SHAREGROUP_APPLE
         elseif key == CL_GL_CONTEXT_KHR
-        elseif key == CL_EGL_DISPLAY
-        elseif key == CL_GLX_DISPLAY
+        elseif key == CL_EGL_DISPLAY_KHR
+        elseif key == CL_GLX_DISPLAY_KHR
         elseif key == CL_WGL_HDC_KHR
         elseif key == CL_CGL_SHAREGROUP_KHR
-            value = props[i+1]
+            value = props[i + 1]
+            push!(result, (key, value))
+            continue
         elseif key == 0
             break
         else
             error("Context properties: unknown context_property key encountered")
         end
-        push!(result, (key, value))
     end
     return result
 end

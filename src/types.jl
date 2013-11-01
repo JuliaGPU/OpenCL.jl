@@ -137,3 +137,5 @@ cl_kernel_work_group_info(x)   = cl_uint(x)
 cl_event_info(x)               = cl_uint(x)
 cl_command_type(x)             = cl_uint(x)
 cl_profiling_info(x)           = cl_uint(x)
+
+cl_platform_id(x) = convert(Ptr{Void}, x)
