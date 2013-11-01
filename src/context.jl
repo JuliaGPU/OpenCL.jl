@@ -21,6 +21,18 @@ end
 Base.pointer(ctx::Context) = ctx.id
 @ocl_object_equality(Context)
 
+function _ctx_err_notify(err_info::Ptr{Cchar}, priv_info::Ptr{Void},
+                         cb::Csize_t , julia_func::Ptr{Void})
+    err = bytestring(err_info)
+    private = bytestring(convert(Ptr{Cchar}, err_info))
+    callback = unsafe_pointer_to_objref(julia_func)::Function
+    callback(err, private)
+end
+
+function context_error(err_info, priv_info)
+    error("OpenCL.Context error: $err_info")
+end
+
 function Context(ctx_id::CL_context; retain=true)
     if retain
         @check api.clRetainContext(ctx_id)
@@ -39,7 +51,8 @@ function Context(ds::Vector{Device}; properties=None, callback=None)
         #TODO: properties
     end
     if callback != None
-        #TODO: context
+        ctx_callback = cfunction(_ctx_err_notify, Void, (Ptr{Cchar}, Ptr{Void}, Csize_t, Ptr{Void}))
+        ctx_user_data = callback
     end
     n_devices = length(devices)
     device_ids = Array(CL_device_id, n_devices)
@@ -64,7 +77,8 @@ function Context(device_type::CL_device_type; properties=None, callback=None)
         #TODO: properties
     end
     if callback != None
-        user_data = convert(Ptr{Void}, callback)
+        ctx_callback = cfunction(_ctx_err_notify, Void, (Ptr{Cchar}, Ptr{Void}, Csize_t, Ptr{Void}))
+        ctx_user_data = callback
     end
     err_code = Array(CL_int, 1)
     ctx_id = api.clCreateContextFromType(ctx_properties, dtype,
