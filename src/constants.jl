@@ -447,3 +447,15 @@ const CL_PROFILING_COMMAND_QUEUED                     = cl_uint(0x1280)
 const CL_PROFILING_COMMAND_SUBMIT                     = cl_uint(0x1281)
 const CL_PROFILING_COMMAND_START                      = cl_uint(0x1282)
 const CL_PROFILING_COMMAND_END                        = cl_uint(0x1283)
+
+# OpenCL OpenGL Constants
+# cl_gl_context_info
+const CL_DEVICES_FOR_GL_CONTEXT_KHR                   = cl_uint(0x2007)
+    
+# Additional cl_context_properties
+const CL_GL_CONTEXT_KHR                               = cl_uint(0x2008)
+const CL_EGL_DISPLAY_KHR                              = cl_uint(0x2009)
+const CL_GLX_DISPLAY_KHR                              = cl_uint(0x200A)
+const CL_WGL_HDC_KHR                                  = cl_uint(0x200B)
+const CL_CGL_SHAREGROUP_KHR                           = cl_uint(0x200C)
+
