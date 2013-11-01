@@ -42,6 +42,7 @@ macro ocl_deprecate(func, ret_type, arg_types)
 end
 
 typealias CL_callback Ptr{Void}
+typealias CL_user_data Any 
 
 ################
 # platform apis
@@ -71,17 +72,19 @@ typealias CL_callback Ptr{Void}
 ###############
 # context apis
 ###############
+
+#TODO: pass user data as Any type 
 @ocl_func_1_0(clCreateContext, CL_context,
-              (CL_context_properties, CL_uint, Ptr{CL_device_id}, CL_callback, Ptr{Void}, Ptr{CL_int}))
+              (CL_context_properties, CL_uint, Ptr{CL_device_id}, CL_callback, CL_user_data, Ptr{CL_int}))
 
 @ocl_func_1_0(clCreateContextFromType, CL_context,
-              (CL_context_properties, CL_device_type, CL_callback, Ptr{Void}, Ptr{CL_int}))
+              (CL_context_properties, CL_device_type, CL_callback, CL_user_data, Ptr{CL_int}))
 
 @ocl_func_1_0(clRetainContext, CL_int, (CL_context,))
 
 @ocl_func_1_0(clReleaseContext, CL_int, (CL_context,))
 
-@ocl_func_1_0(clContextInfo, CL_int,
+@ocl_func_1_0(clGetContextInfo, CL_int,
               (CL_context, CL_context_info, Csize_t, Ptr{Void}, Ptr{Csize_t}))
 
 #####################
