@@ -2,45 +2,30 @@
 
 type Context 
     id :: CL_context
+    
+    function Context(ctx_id::CL_context)
+        ctx = new(ctx_id)
+        finalizer(ctx, c -> release!(c))
+        return ctx 
+    end
 end
 
-#TODO: change to cl_pointer??? so it doesn't interfere with base definition
+function release!(ctx::Context)
+    if ctx.id != C_NULL
+        @check api.clReleaseContext(ctx.id)
+        ctx.id = C_NULL 
+    end
+end
+
+#TODO: change to cl_pointer??? so it doesn't interfere with Base definition
 Base.pointer(ctx::Context) = ctx.id
 @ocl_object_equality(Context)
 
-#function Context(devices::Vector{Device}, device_type=CL_DEVICE_TYPE_DEFAULT)
-#    # TODO: context properties
-#    #local ctx_props::CL_context_properties
-#    ctx_props = C_NULL
-#    user_data = C_NULL
-#    num_devices = length(devices)
-#    device_ids = Array(CL_device_id, num_devices)
-#    for i in 1:num_devices
-#        device_ids[i] = devices[i].id
-#    end
-#    err_code = Array(CL_int, 1)
-#    local ctx_id::CL_context
-#    ctx_id = clCreateContext(ctx_props, num_devices, device_ids,
-#                             pfn_notify_ctx_error, user_data, err_code)
-#    if err_code[1] != CL_SUCCESS || ctx_id == C_NULL
-#        error("Error creating context")
-#    end
-#    return Context(ctx_id)
-#end
-macro device_property(func, cl_device_info, return_type)
-    @eval begin
-        function $func(d::Device)
-            result = Array($return_type, 1)
-            @check api.clGetDeviceInfo(d.id, $cl_device_info,
-                                       sizeof($return_type), result, C_NULL)
-            #TODO: see if there is a better way to do this 
-            if $return_type  == CL_bool
-                return bool(result[1])
-            else
-                return result[1]
-            end
-        end
+function Context(ctx_id::CL_context; retain=true)
+    if retain
+        @check api.clRetainContext(ctx_id)
     end
+    return Context(ctx_id)
 end
 
 function Context(ds::Vector{Device}; properties=None, callback=None)
@@ -66,8 +51,8 @@ function Context(ds::Vector{Device}; properties=None, callback=None)
                                  ctx_callback, ctx_user_data, err_code)
     if err_code[1] != CL_SUCCESS
         throw(CLError(err_code[1]))
-    end
-    return Context(ctx_id)
+    end 
+    return Context(ctx_id, retain=true)
 end
 
 function Context(device_type::CL_device_type; properties=None, callback=None)
@@ -87,25 +72,19 @@ function Context(device_type::CL_device_type; properties=None, callback=None)
     if err_code[1] != CL_SUCCESS
         throw(CLError(err_code[1]))
     end
-    return Context(ctx_id)
+    return Context(ctx_id, retain=true)
 end
 
 function Context(device_type::Symbol; properties=None, callback=None)
-    Context(cl_device_type(dtype),
+    Context(cl_device_type(device_type),
             properties=properties, callback=callback)
 end 
 
-function release!(ctx::Context)
-    if ctx.id != C_NULL
-        @check api.clReleaseContext(ctx.id)
-        ctx.id = C_NULL 
-    end
-end
-
 function num_devices(ctx::Context)
-    ndevices = box(cl_uint(0))
-    @check api.clGetContextInfo(ctx.id, CL_CONTEXT_NUM_DEVICES, sizeof(CL_uint), ndevices, C_NULL)
-    return unbox(ndevices)
+    ndevices = Array(CL_uint, 1)
+    @check api.clGetContextInfo(ctx.id, CL_CONTEXT_NUM_DEVICES,
+                                sizeof(CL_uint), ndevices, C_NULL)
+    return ndevices[1]
 end
 
 function devices(ctx::Context)
@@ -114,7 +93,8 @@ function devices(ctx::Context)
         return [] 
     end
     dev_ids = Array(CL_device_id, n)
-    @check api.clGetContextInfo(ctx.id, CL_CONTEXT_DEVICES, n * sizeof(CL_device_id), dev_ids, C_NULL)
+    @check api.clGetContextInfo(ctx.id, CL_CONTEXT_DEVICES,
+                                n * sizeof(CL_device_id), dev_ids, C_NULL)
     return [Device(id) for id in dev_ids]
 end
 

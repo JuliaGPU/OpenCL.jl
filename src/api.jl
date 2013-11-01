@@ -11,9 +11,9 @@ macro ocl_func(func, ret_type, arg_types)
                            for (i, t) in enumerate(arg_types.args)]
     quote 
         $(esc(func))($(args_in...)) = ccall(($(string(func)), libopencl), 
-                                           $ret_type,
-                                           $arg_types,
-                                           $(args_in...))
+                                            $ret_type,
+                                            $arg_types,
+                                            $(args_in...))
     end
 end
 

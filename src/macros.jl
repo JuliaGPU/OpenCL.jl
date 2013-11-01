@@ -46,7 +46,7 @@ macro int_info(what, arg1, arg2, ret_type)
 end
 
 macro vec_info(what, arg1, arg2, res_vec)
-    local clFunc = symbol(string("clGet$(what)Info"))
+    local clFunc = symbol(string("api.clGet$(what)Info"))
     quote
         local size = Array(Csize_t, 1)
         @check clFunc($arg1, $arg2, 0, C_NULL, size)
@@ -60,9 +60,9 @@ macro str_info(what, arg1, arg2)
     local clFunc = symbol("api.clGet$(what)Info")
     quote
         local size = Array(Csize_t, 1)
-        $(clFunc)($(esc(arg1)), $(esc(arg2)), 0, C_NULL, size)
+        @check $(esc(clFunc))($(esc(arg1)), $(esc(arg2)), 0, C_NULL, size)
         local result = Array(CL_char, size[1])
-        $(clFunc)($(esc(arg1)), $(esc(arg2)), size[1], result, size)
+        @check $(esc(clFunc))($(esc(arg1)), $(esc(arg2)), size[1], result, size)
         bytestring(convert(Ptr{CL_char}, result))
     end
 end

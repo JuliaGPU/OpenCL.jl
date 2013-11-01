@@ -12,10 +12,6 @@ include("api.jl")
 # util functions 
 include("util.jl")
 
-@linux_only begin
-    const libopencl = "libOpenCL"
-end
-
 # --- Errors ---
 include("error.jl")
 
