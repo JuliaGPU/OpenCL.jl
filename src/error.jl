@@ -1,4 +1,4 @@
-const cl_error_codes = (Integer => Symbol)[
+const cl_error_codes = (Int => Symbol)[
      +0 => :CL_SUCCESS,
      -1 => :CL_DEVICE_NOT_FOUND,
      -2 => :CL_DEVICE_NOT_AVAILABLE,
@@ -118,8 +118,13 @@ const cl_err_desc = (Integer => String) [
 ]
 
 
-immutable CLError <: Exception
-    code::Int
+immutable CLError 
+    code::CL_int
+    desc::Symbol
+    function CLError(c::Integer)
+        new(c, cl_error_codes[int(c)])
+    end
 end
+Base.show(io::IO, err::CLError) = Base.print(:red, io, "CLError($(err.code), $(err.desc))")
 
 description(err::CLError) = "$(cl_error_codes[err.code])"
