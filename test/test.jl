@@ -133,12 +133,18 @@ end
 
 facts("OpenCL.Context") do
 
-    context("OpenCL Properties") do
+    context("OpenCL.Context device constructor") do
         platform = cl.platforms()[1]
-        properties = cl.CtxProperties()
-        properties.platform = platform
-        @fact platform[:name] => properties.platform[:name]
-        ctx = cl.Context(:gpu, properties=properties)
+        device = cl.devices(platform)[1]
+        ctx = cl.Context(device)
+        props = cl.properties(ctx)
+        @fact isempty(props) => false
+    end
+
+    context("OpenCL.Context device_type constructor") do
+        platform = cl.platforms()[1]
+        ctx = cl.Context(cl.CL_DEVICE_TYPE_CPU)
+        @fact ctx != nothing => true
     end
 
 end
