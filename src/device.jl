@@ -20,23 +20,23 @@ function Base.show(io::IO, d::Device)
     print(io, "<OpenCL.Device '$device_name' on '$platform_name' @$ptr_address>")
 end
 
-function cl_device_type(s::Symbol)
-    if device_type == :all
-        dtype = CL_DEVICE_TYPE_ALL
-    elseif device_type == :cpu
-        dtype = CL_DEVICE_TYPE_CPU
-    elseif device_type == :gpu
-        dtype = CL_DEVICE_TYPE_GPU
-    elseif device_type == :accelerator
-        dtype = CL_DEVICE_TYPE_ACCELERATOR
-    elseif device_type == :custom
-        dtype = CL_DEVICE_TYPE_CUSTOM
-    elseif device_type == :default
-        dtype = CL_DEVICE_TYPE_DEFAULT
+function cl_device_type(dtype::Symbol)
+    if dtype == :all
+        cl_dtype = CL_DEVICE_TYPE_ALL
+    elseif dtype == :cpu
+        cl_dtype = CL_DEVICE_TYPE_CPU
+    elseif dtype == :gpu
+        cl_dtype = CL_DEVICE_TYPE_GPU
+    elseif dtype == :accelerator
+        cl_dtype = CL_DEVICE_TYPE_ACCELERATOR
+    elseif dtype == :custom
+        cl_dtype = CL_DEVICE_TYPE_CUSTOM
+    elseif dtype == :default
+        cl_dtype = CL_DEVICE_TYPE_DEFAULT
     else
         error("Unknown device type: $device_type")
     end
-    return dtype
+    return cl_dtype
 end
 
 macro device_property(func, cl_device_info, return_type)
