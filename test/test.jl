@@ -135,7 +135,7 @@ facts("OpenCL.Context") do
 
     context("OpenCL Properties") do
         platform = cl.platforms()[1]
-        properties = cl.ContextProperties()
+        properties = cl.CtxProperties()
         properties.platform = platform
         @fact platform[:name] => properties.platform[:name]
         ctx = cl.Context(device_type=cl.CL_DEVICE_TYPE, properties=properties)

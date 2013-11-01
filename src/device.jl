@@ -5,8 +5,10 @@ immutable Device
 end
 
 Base.pointer(d::Device) = d.id
-Base.hash(p::Platform) = unsigned(Base.pointer(p))
-Base.isequal(p1::Device, p2::Device) = (Base.hash(p1) == Base.hash(p2))
+@ocl_object_equality(Device) 
+
+#Base.hash(p::Platform) = unsigned(Base.pointer(p))
+#Base.isequal(p1::Device, p2::Device) = (Base.hash(p1) == Base.hash(p2))
 
 Base.getindex(d::Device, dinfo::Symbol) = info(d, dinfo)
 
@@ -16,6 +18,25 @@ function Base.show(io::IO, d::Device)
     platform_name = replace(d[:platform][:name], strip_extra_whitespace, " ")
     ptr_address = "0x$(hex(unsigned(Base.pointer(d)), WORD_SIZE>>2))"
     print(io, "<OpenCL.Device '$device_name' on '$platform_name' @$ptr_address>")
+end
+
+function cl_device_type(s::Symbol)
+    if device_type == :all
+        dtype = CL_DEVICE_TYPE_ALL
+    elseif device_type == :cpu
+        dtype = CL_DEVICE_TYPE_CPU
+    elseif device_type == :gpu
+        dtype = CL_DEVICE_TYPE_GPU
+    elseif device_type == :accelerator
+        dtype = CL_DEVICE_TYPE_ACCELERATOR
+    elseif device_type == :custom
+        dtype = CL_DEVICE_TYPE_CUSTOM
+    elseif device_type == :default
+        dtype = CL_DEVICE_TYPE_DEFAULT
+    else
+        error("Unknown device type: $device_type")
+    end
+    return dtype
 end
 
 macro device_property(func, cl_device_info, return_type)

@@ -5,8 +5,10 @@ immutable Platform
 end
 
 Base.pointer(p::Platform) = p.id
-Base.hash(p::Platform) = unsigned(p.id)
-Base.isequal(p1::Platform, p2::Platform) = Base.hash(p1) == Base.hash(p2)
+@ocl_object_equality(Platform)
+
+#Base.hash(p::Platform) = unsigned(p.id)
+#Base.isequal(p1::Platform, p2::Platform) = Base.hash(p1) == Base.hash(p2)
 
 Base.getindex(p::Platform, pinfo::Symbol) = info(p, pinfo)
 
@@ -90,6 +92,7 @@ end
 
 devices(p::Platform) = devices(p, CL_DEVICE_TYPE_ALL)
 
+#TODO: shorten this with cl_device_type
 function devices(p::Platform, device_type::Symbol)
     try
        if device_type == :all
@@ -105,10 +108,10 @@ function devices(p::Platform, device_type::Symbol)
         elseif device_type == :default
             devices(p, CL_DEVICE_TYPE_DEFAULT)
         else
-            return []
+            error("Unknown device type: $device_type")
         end
     catch
-        # device type does not exit
+        # device type does not exist
         return []
     end
 end
