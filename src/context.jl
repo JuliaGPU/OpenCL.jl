@@ -186,21 +186,6 @@ function devices(ctx::Context)
     return [Device(id) for id in dev_ids]
 end
 
-#TODO: interative
-#function create_some_context(;interative=true)
-#    ocl_platforms = platforms()
-#    if isempty(ocl_platforms)
-#        error("No OpenCL platforms available")
-#    end
-#    platform = first(ocl_platforms)
-#    ocl_devices = devices(platform)
-#    if isempty(ocl_devices)
-#        error("No devices for platform: $platform")
-#    end 
-#    device = first(ocl_devices)
-#    return Context(device)
-#end
-
 function create_some_context(;interactive=true)
     devs = {}
     if isempty(platforms())
