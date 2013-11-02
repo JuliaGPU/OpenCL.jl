@@ -37,9 +37,8 @@ end
 
 #TODO: wait for multiple events by passing in array
 function wait(evts::Vector{Event})
-    for evt in evts
-        wait(evt)
-    end
+    evt_ids = [evt.id for evt in evts]
+    @check api.clWaitForEvents(length(evt_ids), evt_ids)
     return evts
 end
 
