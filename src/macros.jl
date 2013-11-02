@@ -36,6 +36,16 @@ macro ocl_object_equality(cl_object_type)
     end
 end
 
+#TODO: these are just stubs for future expanded versions
+macro ocl_ver_1_1(ex)
+    $(esc(ex))
+end
+
+macro ocl_ver_1_2(ex)
+    $(esc(ex))
+end
+
+#TODO:
 macro int_info(what, arg1, arg2, ret_type)
     local clFunc = symbol(string("clGet$(what)Info"))
     quote

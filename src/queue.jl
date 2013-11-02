@@ -118,7 +118,7 @@ let context(q::CommandQueue) = begin
         :properties => properties
     ]
 
-    function info(q::CommandQueue, qinfo)
+    function info(q::CommandQueue, qinfo::Symbol)
         try
             func = info_map[qinfo]
             func(d)

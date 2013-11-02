@@ -30,4 +30,8 @@ include("context.jl")
 # --- OpenCL Queue ---
 include("queue.jl")
 
+#--- OpenCL Event ---
+include("event.jl")
+
+
 end # module
