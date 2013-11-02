@@ -37,11 +37,11 @@ macro ocl_object_equality(cl_object_type)
 end
 
 #TODO: these are just stubs for future expanded versions
-macro ocl_ver_1_1(ex)
+macro ocl_v1_1_only(ex)
     $(esc(ex))
 end
 
-macro ocl_ver_1_2(ex)
+macro ocl_v1_2_only(ex)
     $(esc(ex))
 end
 

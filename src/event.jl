@@ -35,11 +35,43 @@ function wait(evt::Event)
     return evt
 end
 
-#TODO: wait for multiple events by passing in array
 function wait(evts::Vector{Event})
     evt_ids = [evt.id for evt in evts]
-    @check api.clWaitForEvents(length(evt_ids), evt_ids)
+    if !isempty(evt_ids)
+        @check api.clWaitForEvents(length(evt_ids), evt_ids)
+    end
     return evts
+end
+
+@ocl_v1_2_only begin
+    
+    function enqueue_marker_with_wait_list(q::CommandQueue, wait_for)
+        @check api.clEnqueueMarkerWithWaitList(q.id, evt)
+        return Event(evt)
+    end
+
+    function enqueue_barrier_with_wait_list(q::CommandQueue, wait_for)
+        @check api.clEnqueueBarrierWithWaitList(q.id, evt)
+        return Event(evt)
+    end
+end
+
+# internal (pre 1.2 contexts)
+function enqueue_marker(q::CommandQueue)
+    @api.clEnqueueMarker(q.id)
+    return Event(evt)
+end
+
+function enqueue_wait_for_events(q::CommandQueue, evts::Vector{Events})
+    evt_ids = [evt.id for evt in evts]
+    @check api.clEnqueueMarker(q.id, length(evt_ids), i
+                               isempty(evt_ids) ? C_NULL : evt_ids)
+    return Event(evt_id[1])
+end
+
+function enqueue_barrier(q::CommandQueue)
+    @check api.clEnqueueBarrier(q.id)
+    return q
 end
 
 #TODO: make the following more consistent
