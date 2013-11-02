@@ -7,9 +7,6 @@ end
 Base.pointer(p::Platform) = p.id
 @ocl_object_equality(Platform)
 
-#Base.hash(p::Platform) = unsigned(p.id)
-#Base.isequal(p1::Platform, p2::Platform) = Base.hash(p1) == Base.hash(p2)
-
 Base.getindex(p::Platform, pinfo::Symbol) = info(p, pinfo)
 
 function Base.show(io::IO, p::Platform)
@@ -18,7 +15,6 @@ function Base.show(io::IO, p::Platform)
     ptr_address = "0x$(hex(unsigned(Base.pointer(p)), WORD_SIZE>>2))"
     print(io, "<OpenCL.Platform '$platform_name @$ptr_address>")
 end
-
 
 #Base.keys(p::Platform) = [k for k in keys(info_map)]
 #Base.haskey(p::Platform, s::Symbol) = begin
@@ -79,13 +75,6 @@ let
     end
 end
 
-
-#name(p::Platform) = info(p::Platform, CL_PLATFORM_NAME)
-#vendor(p::Platform) = info(p::Platform, CL_PLATFORM_VENDOR)
-#version(p::Platform) = info(p::Platform, CL_PLATFORM_VERSION)
-#profile(p::Platform) = info(p::Platform, CL_PLATFORM_PROFILE)
-#extensions(p::Platform) = split(info(p::Platform, CL_PLATFORM_EXTENSIONS))
-
 function devices(p::Platform, dtype::CL_device_type)
     try 
         ndevices = Array(CL_uint, 1)
@@ -107,7 +96,6 @@ end
 
 devices(p::Platform) = devices(p, CL_DEVICE_TYPE_ALL)
 
-#TODO: shorten this with cl_device_type
 function devices(p::Platform, dtype::Symbol)
     devices(p, cl_device_type(dtype))
 end
