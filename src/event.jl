@@ -28,7 +28,6 @@ function Base.show(io::IO, q::CommandQueue)
     print(io, "<OpenCL.Event @$ptr_address>")
 end
 
-
 function wait(evt::Event)
     evt_id = [evt.id]
     @check api.clWaitForEvents(1, evt_id)
@@ -43,31 +42,42 @@ function wait(evts::Vector{Event})
     return evts
 end
 
-#@ocl_v1_2_only begin
-    
-#    function enqueue_marker_with_wait_list(q::CommandQueue, wait_for)
-#        @check api.clEnqueueMarkerWithWaitList(q.id, evt)
-#        return Event(evt)
-#    end
+@ocl_v1_2_only begin
+    function enqueue_marker_with_wait_list(q::CommandQueue,
+                                           wait_for::Vector{Event})
+        n_wait_events = cl_uint(length(wait_for))
+        wait_evt_ids = [evt.id for evt in wait_for]
+        ret_evt = Array(CL_event, 1)
+        @check api.clEnqueueMarkerWithWaitList(q.id, n_wait_events,
+                            isempty(wait_evt_ids) ? C_NULL : wait_evt_ids, ret_evt)
+        @return_event ret_evt[1]
+    end
 
-#    function enqueue_barrier_with_wait_list(q::CommandQueue, wait_for)
-#        @check api.clEnqueueBarrierWithWaitList(q.id, evt)
-#        return Event(evt)
-#    end
-#end
+    function enqueue_barrier_with_wait_list(q::CommandQueue,
+                                            wait_for::Vector{Event})
+        n_wait_events = cl_uint(length(wait_for))
+        wait_evt_ids = [evt.id for evt in wait_for]
+        ret_evt = Array(CL_event, 1)
+        @check api.clEnqueueBarrierWithWaitList(q.id, n_wait_events,
+                            isempty(wait_evt_ids) ? C_NULL : wait_evt_ids, ret_evt)
+        @return_event ret_evt[1]
+    end
+end
 
 # internal (pre 1.2 contexts)
 function enqueue_marker(q::CommandQueue)
-    evt_id = Array(CL_event, 1)
-    @check api.clEnqueueMarker(q.id, evt_id)
-    return Event(evt)
+    evt = Array(CL_event, 1)
+    @check api.clEnqueueMarker(q.id, evt)
+    @return_event evt[1]
 end
 
-function enqueue_wait_for_events(q::CommandQueue, evts::Vector{Events})
-    evt_ids = [evt.id for evt in evts]
-    @check api.clEnqueueMarker(q.id, length(evt_ids), i
-                               isempty(evt_ids) ? C_NULL : evt_ids)
-    return Event(evt_id[1])
+function enqueue_wait_for_events(q::CommandQueue, wait_for::Vector{Events})
+    n_wait_events = cl_uint(length(wait_for))
+    wait_evt_ids = [evt.id for evt in wait_for]
+    ret_evt = Array(CL_event, 1)
+    @check api.clEnqueueWaitForEvents(q.id, n_wait_events, 
+                           isempty(wait_evt_ids) ? C_NULL : wait_evt_ids, ret_evt)
+    @return_event ret_evt[1]
 end
 
 function enqueue_barrier(q::CommandQueue)

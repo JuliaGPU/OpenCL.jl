@@ -38,11 +38,26 @@ end
 
 #TODO: these are just stubs for future expanded versions
 macro ocl_v1_1_only(ex)
-    $(esc(ex))
+    quote
+        $(esc(ex))
+    end
 end
 
 macro ocl_v1_2_only(ex)
-    $(esc(ex))
+    quote
+        $(esc(ex))
+    end
+end
+
+macro return_event(evt)
+    quote
+        try
+            return Event($(esc(evt)), retain=false)
+        catch err
+            @check api.clReleaseEvent($(esc(evt)))
+            throw(err)
+        end
+    end 
 end
 
 #TODO:
