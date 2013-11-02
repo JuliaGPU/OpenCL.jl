@@ -54,6 +54,20 @@ end
                        exec_status::CL_int)
         @check api.clSetUserEventStatus(evt.id, exec_status)
     end
+
+    function create_user_event(ctx::Context)
+        status = Array(CL_int, 1)
+        usr_event = api.clCreateUserEvent(ctx.id, status)
+        if status[1] != CL_SUCCESS
+            throw(CLError(status[1]))
+        end
+        try 
+            return UserEvent(usr_evt, retain=false)
+        catch err
+            @check cl.clReleaseEvent(usr_evt)
+            throw(err)
+        end
+    end
 end
 
 
