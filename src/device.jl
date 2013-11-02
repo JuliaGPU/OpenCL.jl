@@ -7,9 +7,6 @@ end
 Base.pointer(d::Device) = d.id
 @ocl_object_equality(Device) 
 
-#Base.hash(p::Platform) = unsigned(Base.pointer(p))
-#Base.isequal(p1::Device, p2::Device) = (Base.hash(p1) == Base.hash(p2))
-
 Base.getindex(d::Device, dinfo::Symbol) = info(d, dinfo)
 
 function Base.show(io::IO, d::Device)
