@@ -43,22 +43,23 @@ function wait(evts::Vector{Event})
     return evts
 end
 
-@ocl_v1_2_only begin
+#@ocl_v1_2_only begin
     
-    function enqueue_marker_with_wait_list(q::CommandQueue, wait_for)
-        @check api.clEnqueueMarkerWithWaitList(q.id, evt)
-        return Event(evt)
-    end
+#    function enqueue_marker_with_wait_list(q::CommandQueue, wait_for)
+#        @check api.clEnqueueMarkerWithWaitList(q.id, evt)
+#        return Event(evt)
+#    end
 
-    function enqueue_barrier_with_wait_list(q::CommandQueue, wait_for)
-        @check api.clEnqueueBarrierWithWaitList(q.id, evt)
-        return Event(evt)
-    end
-end
+#    function enqueue_barrier_with_wait_list(q::CommandQueue, wait_for)
+#        @check api.clEnqueueBarrierWithWaitList(q.id, evt)
+#        return Event(evt)
+#    end
+#end
 
 # internal (pre 1.2 contexts)
 function enqueue_marker(q::CommandQueue)
-    @api.clEnqueueMarker(q.id)
+    evt_id = Array(CL_event, 1)
+    @check api.clEnqueueMarker(q.id, evt_id)
     return Event(evt)
 end
 
