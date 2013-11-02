@@ -1,6 +1,8 @@
 # --- low level OpenCL Event ---
 
-type Event
+abstract CLEvent
+
+type Event <: CLEvent
     id :: CL_event
 
     function Event(evt_id::CL_event; retain=true)
@@ -13,28 +15,55 @@ type Event
     end
 end
 
-function release!(evt::Event)
+function release!(evt::CLEvent)
     if evt.id != C_NULL
-        @check api.clReleaseEvent(evt_id)
+        @check api.clReleaseEvent(evt.id)
         evt.id = C_NULL
     end
 end
 
-Base.pointer(evt::Event) = evt.id
-@ocl_object_equality(Event)
+Base.pointer(evt::CLEvent) = evt.id
+@ocl_object_equality(CLEvent)
 
-function Base.show(io::IO, q::CommandQueue)
-    ptr_address = "0x$(hex(unsigned(Base.pointer(q)), WORD_SIZE>>2))"
+function Base.show(io::IO, evt::Event)
+    ptr_address = "0x$(hex(unsigned(Base.pointer(evt)), WORD_SIZE>>2))"
     print(io, "<OpenCL.Event @$ptr_address>")
 end
 
-function wait(evt::Event)
+@ocl_v1_1_only begin
+
+    type UserEvent <: CLEvent
+        id :: CL_event 
+
+        function UserEvent(evt_id::CL_event; retain=true)
+            if retain
+                @check api.clRetainEvent(evt_id)
+            end
+            evt = new(evt_id)
+            finalizer(evt, evt -> release!(evt))
+            return evt
+        end
+    end
+    
+    function Base.show(io::IO, evt::UserEvent)
+        ptr_address = "0x$(hex(unsigned(Base.pointer(evt)), WORD_SIZE>>2))"
+        print(io, "<OpenCL.UserEvent @$ptr_address>")
+    end
+
+    function set_status(evt::UserEvent, 
+                       exec_status::CL_int)
+        @check api.clSetUserEventStatus(evt.id, exec_status)
+    end
+end
+
+
+function wait(evt::CLEvent)
     evt_id = [evt.id]
     @check api.clWaitForEvents(1, evt_id)
     return evt
 end
 
-function wait(evts::Vector{Event})
+function wait(evts::Vector{CLEvent})
     evt_ids = [evt.id for evt in evts]
     if !isempty(evt_ids)
         @check api.clWaitForEvents(length(evt_ids), evt_ids)
@@ -44,7 +73,7 @@ end
 
 @ocl_v1_2_only begin
     function enqueue_marker_with_wait_list(q::CommandQueue,
-                                           wait_for::Vector{Event})
+                                           wait_for::Vector{CLEvent})
         n_wait_events = cl_uint(length(wait_for))
         wait_evt_ids = [evt.id for evt in wait_for]
         ret_evt = Array(CL_event, 1)
@@ -54,7 +83,7 @@ end
     end
 
     function enqueue_barrier_with_wait_list(q::CommandQueue,
-                                            wait_for::Vector{Event})
+                                            wait_for::Vector{CLEvent})
         n_wait_events = cl_uint(length(wait_for))
         wait_evt_ids = [evt.id for evt in wait_for]
         ret_evt = Array(CL_event, 1)
@@ -71,7 +100,7 @@ function enqueue_marker(q::CommandQueue)
     @return_event evt[1]
 end
 
-function enqueue_wait_for_events(q::CommandQueue, wait_for::Vector{Events})
+function enqueue_wait_for_events(q::CommandQueue, wait_for::Vector{CLEvent})
     n_wait_events = cl_uint(length(wait_for))
     wait_evt_ids = [evt.id for evt in wait_for]
     ret_evt = Array(CL_event, 1)
@@ -92,7 +121,7 @@ let status_dict = (CL_uint => Symbol)[
                    CL_RUNNING => :running,
                    CL_COMPLETE => :complete]
 
-    function status(evt::Event)
+    function status(evt::CLEvent)
         status = Array(CL_uint, 1)
         @check api.clGetEventProfilingInfo(evt.id, 
                                            CL_EVENT_COMMAND_EXECUTION_STATUS, 
@@ -102,13 +131,13 @@ let status_dict = (CL_uint => Symbol)[
 end
 
 function status(evt_id::CL_event)
-    status = convert(Ptr{Void}, Array(CL_int, 1))
+    status = Array(CL_int, 1)
     @check api.clGetEventInfo(evt_id, CL_EVENT_COMMAND_EXECUTION_STATUS,
                               sizeof(CL_int), status)
-    return unsafe_ref(convert(Ptr{CL_int}, status))
+    return status[1] 
 end
 
-function profiling_info(evt::Event, param::CL_profiling_info)
+function profiling_info(evt::CLEvent, param::CL_profiling_info)
     if     param == CL_PROFILING_COMMAND_QUEUED
     elseif param == CL_PROFILING_COMMAND_SUBMIT
     elseif param == CL_PROFILING_COMMAND_START
@@ -123,7 +152,7 @@ function profiling_info(evt::Event, param::CL_profiling_info)
 end
 
 # cannot use reserved word end as symbol
-function profiling_info(evt::Event, param::Symbol)
+function profiling_info(evt::CLEvent, param::Symbol)
     if     param == :pqueued
     elseif param == :psubmitted
     elseif param == :pstart
@@ -135,28 +164,28 @@ function profiling_info(evt::Event, param::Symbol)
 end
 
 
-let command_queue(evt::Event) = begin
+let command_queue(evt::CLEvent) = begin
         cmd_q = Array(CL_command_queue, 1)
         @check api.clGetEventInfo(evt.id, CL_EVENT_COMMAND_QUEUE,
                                   sizeof(CL_command_queue), cmd_q, C_NULL)
         return CommandQueue(cmd_q[1])
     end
     
-    command_type(evt::Event) = begin
+    command_type(evt::CLEvent) = begin
         cmd_t = Array(CL_int , 1)
         @check api.clGetEventInfo(evt.id, CL_EVENT_COMMAND_TYPE,
                                   sizeof(CL_int), cmd_t, C_NULL)
         return cmd_t[1]
     end
 
-    reference_count(evt::Event) = begin
+    reference_count(evt::CLEvent) = begin
         cnt = Array(CL_uint, 1)
         @check api.clGetEventInfo(evt.id, CL_EVENT_REFERENCE_COUNT,
                                   sizeof(CL_uint), cnt, C_NULL)
         return cnt[1]
     end
 
-    context(evt::Event) = begin
+    context(evt::CLEvent) = begin
         ctx = Array(CL_context, 1)
         @check api.clGetEventInfo(evt.id, CL_EVENT_CONTEXT,
                                   sizeof(CL_context), CL_context, C_NULL)
@@ -171,7 +200,7 @@ let command_queue(evt::Event) = begin
         :status => status,
     ]
 
-    function info(q::CommandQueue, qinfo::Symbol)
+    function info(q::CLEvent, qinfo::Symbol)
         try
             func = info_map[qinfo]
             func(d)
