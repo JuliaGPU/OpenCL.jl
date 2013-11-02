@@ -185,4 +185,14 @@ facts("OpenCL.Context") do
     end
 end
 
-
+facts("OpenCL.CommandQueue") do 
+    context("OpenCL.CommandQueue device constructor") do
+        @fact @throws_pred(cl.CommandQueue(nothing, nothing)) => (true, "error")
+        for platform in cl.platforms()
+            for device in cl.devices(platform)
+                ctx = cl.Context(device)
+                @fact @throws_pred(cl.CommandQueue(ctx, device)) => (false, "no error")
+            end
+        end
+    end
+end

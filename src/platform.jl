@@ -69,8 +69,12 @@ let
             else
                 info(p, cl_info)
             end
-        catch
-            error("OpenCL.Platform has no info for: $pinfo")
+        catch err
+            if isa(err, KeyError)
+                error("OpenCL.Platform has no info for: $pinfo")
+            else
+                throw(err)
+            end
         end
     end
 end
