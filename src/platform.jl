@@ -87,11 +87,22 @@ end
 #extensions(p::Platform) = split(info(p::Platform, CL_PLATFORM_EXTENSIONS))
 
 function devices(p::Platform, dtype::CL_device_type)
-    ndevices = Array(CL_uint, 1)
-    @check api.clGetDeviceIDs(p.id, dtype, 0, C_NULL, ndevices)
-    result = Array(CL_device_id, ndevices[1])
-    @check api.clGetDeviceIDs(p.id, dtype, ndevices[1], result, C_NULL)
-    return [Device(id) for id in result]
+    try 
+        ndevices = Array(CL_uint, 1)
+        @check api.clGetDeviceIDs(p.id, dtype, 0, C_NULL, ndevices)
+        if ndevices[1] == 0
+            return []
+        end
+        result = Array(CL_device_id, ndevices[1])
+        @check api.clGetDeviceIDs(p.id, dtype, ndevices[1], result, C_NULL)
+        return [Device(id) for id in result]
+    catch err
+        if err.desc == :CL_DEVICE_NOT_FOUND || err.code == -1
+            return []
+        else
+            throw(err)
+        end
+    end
 end
 
 devices(p::Platform) = devices(p, CL_DEVICE_TYPE_ALL)
@@ -104,11 +115,7 @@ end
 function devices(dtype::CL_device_type)
     devs = Device[]
     for platform in platforms()
-        try
-            append!(devs, devices(platform, dtype))
-        catch err
-            # device type not found
-        end
+        append!(devs, devices(platform, dtype))
     end
     return devs
 end
