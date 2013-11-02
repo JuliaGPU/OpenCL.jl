@@ -23,6 +23,12 @@ end
 Base.pointer(ctx::Context) = ctx.id
 @ocl_object_equality(Context)
 
+function Base.show(io::IO, ctx::Context)
+    dev_strs = [replace(d[:name], r"\s+", " ") for d in devices(ctx)]
+    devs_str = join(dev_strs, ",")
+    ptr_address = "0x$(hex(unsigned(Base.pointer(ctx)), WORD_SIZE>>2))"
+    print(io, "<OpenCL.Context @$ptr_address on $devs_str>")
+end
 
 function ctx_notify_err(err_info::Ptr{Cchar}, priv_info::Ptr{Void},
                          cb::Csize_t, julia_func::Ptr{Void})

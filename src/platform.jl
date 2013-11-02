@@ -86,37 +86,39 @@ end
 #profile(p::Platform) = info(p::Platform, CL_PLATFORM_PROFILE)
 #extensions(p::Platform) = split(info(p::Platform, CL_PLATFORM_EXTENSIONS))
 
-function devices(p::Platform, device_type::CL_device_type)
+function devices(p::Platform, dtype::CL_device_type)
     ndevices = Array(CL_uint, 1)
-    @check api.clGetDeviceIDs(p.id, device_type, 0, C_NULL, ndevices)
+    @check api.clGetDeviceIDs(p.id, dtype, 0, C_NULL, ndevices)
     result = Array(CL_device_id, ndevices[1])
-    @check api.clGetDeviceIDs(p.id, device_type, ndevices[1], result, C_NULL)
+    @check api.clGetDeviceIDs(p.id, dtype, ndevices[1], result, C_NULL)
     return [Device(id) for id in result]
 end
 
 devices(p::Platform) = devices(p, CL_DEVICE_TYPE_ALL)
 
 #TODO: shorten this with cl_device_type
-function devices(p::Platform, device_type::Symbol)
-    try
-       if device_type == :all
-            devices(p, CL_DEVICE_TYPE_ALL)
-        elseif device_type == :cpu
-            devices(p, CL_DEVICE_TYPE_CPU)
-        elseif device_type == :gpu
-            devices(p, CL_DEVICE_TYPE_GPU)
-        elseif device_type == :accelerator
-            devices(p, CL_DEVICE_TYPE_ACCELERATOR)
-        elseif device_type == :custom
-            devices(p, CL_DEVICE_TYPE_CUSTOM)
-        elseif device_type == :default
-            devices(p, CL_DEVICE_TYPE_DEFAULT)
-        else
-            error("Unknown device type: $device_type")
-        end
-    catch
-        # device type does not exist
-        return []
-    end
+function devices(p::Platform, dtype::Symbol)
+    devices(p, cl_device_type(dtype))
 end
 
+function devices(dtype::CL_device_type)
+    devs = Device[]
+    for platform in platforms()
+        try
+            append!(devs, devices(platform, dtype))
+        catch err
+            # device type not found
+        end
+    end
+    return devs
+end
+
+devices(dtype::Symbol) = devices(cl_device_type(dtype))
+
+function devices()
+    devs = Device[]
+    for platform in platforms()
+        append!(devs, devices(platform))
+    end
+    return devs
+end

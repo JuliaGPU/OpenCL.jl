@@ -34,7 +34,7 @@ function cl_device_type(dtype::Symbol)
     elseif dtype == :default
         cl_dtype = CL_DEVICE_TYPE_DEFAULT
     else
-        error("Unknown device type: $device_type")
+        error("Unknown device type: $dtype")
     end
     return cl_dtype
 end
