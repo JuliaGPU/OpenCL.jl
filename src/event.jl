@@ -70,7 +70,6 @@ end
     end
 end
 
-
 function wait(evt::CLEvent)
     evt_id = [evt.id]
     @check api.clWaitForEvents(1, evt_id)
@@ -228,6 +227,7 @@ let command_queue(evt::CLEvent) = begin
     end
 end
 
+# TODO: Profiling...
 #function clGetEventProfilingInfo(evt_id::CL_event,
 #                                 param::CL_profiling_info,
 #                                 param_size::Csize_t,
