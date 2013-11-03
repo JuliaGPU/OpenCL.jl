@@ -57,20 +57,6 @@ function CommandQueue(ctx::Context; properties=None)
     return CommandQueue(ctx, first(devs); properties=None)
 end
 
-function device(q::CommandQueue)
-    dev_id = CL_device_id[0]
-    @check api.clGetCommandQueueInfo(q.id, CL_QUEUE_DEVICE, 
-                                     sizeof(CL_device_id), dev_id, C_NULL)
-    return Device(dev_id[1])
-end
-
-function context(q::CommandQueue)
-    ctx_id = CL_context[0]
-    @check api.clGetCommandQueueInfo(q.id, CL_QUEUE_CONTEXT, 
-                                     sizeof(CL_context), ctx_id, C_NULL)
-    return Context(ctx_id[1], retain=true)
-end
-
 function flush(q::CommandQueue)
     @check api.clFlush(q.id)
     return q
