@@ -72,6 +72,17 @@ macro return_event(evt)
     end 
 end
 
+macro return_nanny_event(evt, obj)
+    quote
+        try
+            return NannyEvent($(esc(evt)), $(esc(obj)), retain=false)
+        catch err
+            @check api.clReleaseEvent($(esc(evt)))
+            throw err
+        end
+    end
+end
+
 #TODO:
 macro int_info(what, arg1, arg2, ret_type)
     local clFunc = symbol(string("clGet$(what)Info"))

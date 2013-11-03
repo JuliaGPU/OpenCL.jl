@@ -15,6 +15,7 @@ type Event <: CLEvent
     end
 end
 
+# wait for completion before running finalizer
 type NannyEvent <: CLEvent
     id::CL_event
     obj::Any
@@ -40,6 +41,7 @@ function release!(evt::CLEvent)
     end
 end
 
+#TODO: object_id(x) --> cl_object.id
 Base.pointer(evt::CLEvent) = evt.id
 @ocl_object_equality(CLEvent)
 
