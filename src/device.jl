@@ -131,7 +131,7 @@ let driver_version(d::Device) = info(d, CL_DRIVER_VERSION)
     @device_property(available,           CL_DEVICE_AVAILABLE,           CL_bool)
     @device_property(compiler_available,  CL_DEVICE_COMPILER_AVAILABLE,  CL_bool)
 
-    function max_work_item_sizes(d::Device)
+    max_work_item_sizes(d::Device) = begin
         dims = Array(CL_uint, 1)
         @check api.clGetDeviceInfo(d.id, CL_DEVICE_MAX_WORK_ITEM_DIMENSIONS,
                                    sizeof(CL_uint), dims, C_NULL)

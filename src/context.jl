@@ -24,7 +24,7 @@ Base.pointer(ctx::Context) = ctx.id
 
 
 function ctx_notify_err(err_info::Ptr{Cchar}, priv_info::Ptr{Void},
-                         cb::Csize_t, julia_func::Ptr{Void})
+                        cb::Csize_t, julia_func::Ptr{Void})
     err = bytestring(err_info)
     private = bytestring(convert(Ptr{Cchar}, err_info))
     callback = unsafe_pointer_to_objref(julia_func)::Function
