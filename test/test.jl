@@ -195,15 +195,16 @@ facts("OpenCL.CommandQueue") do
         end
     end
 
-    context("CommandQueue Info") do
+    context("OpenCL.CommandQueue info") do
         for platform in cl.platforms()
             for device in cl.devices(platform)
                 ctx = cl.Context(device)
-                q = cl.CommandQueue(ctx, device)
-                @fact q[:context] => ctx
-                @fact q[:device] => device
-                @fact q[:reference_count] > 0 => true
-                @fact typeof(q[:properties]) => cl.CL_command_queue_properties
+                for q in (cl.CommandQueue(ctx), cl.CommandQueue(ctx, device))
+                    @fact q[:context] => ctx
+                    @fact q[:device] => device
+                    @fact q[:reference_count] > 0 => true
+                    @fact typeof(q[:properties]) => cl.CL_command_queue_properties
+                end
             end
         end
     end
