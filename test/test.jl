@@ -153,8 +153,7 @@ facts("OpenCL.Context") do
             properties = [(cl.CL_CONTEXT_PLATFORM, platform)]
             @fact @throws_pred(cl.Context(cl.CL_DEVICE_TYPE_CPU,
                                properties=properties)) => (false, "no error") 
-            ctx = cl.Context(cl.CL_DEVICE_TYPE_CPU,
-                             properties=properties)
+            ctx = cl.Context(cl.CL_DEVICE_TYPE_CPU, properties=properties)
             @fact isempty(cl.properties(ctx)) => false
             test_properties = cl.properties(ctx)
             platform_in_properties = false 
@@ -167,8 +166,7 @@ facts("OpenCL.Context") do
                 end
             end
             @fact platform_in_properties => true 
-            @fact @throws_pred(
-                cl.Context(:cpu, properties=properties)) => (false, "no error")
+            @fact @throws_pred(cl.Context(:cpu, properties=properties)) => (false, "no error")
             try
                 ctx2 = cl.Context(cl.CL_DEVICE_TYPE_ACCELERATOR,
                                   properties=properties)
@@ -192,7 +190,20 @@ facts("OpenCL.CommandQueue") do
             for device in cl.devices(platform)
                 ctx = cl.Context(device)
                 @fact @throws_pred(cl.CommandQueue(ctx)) => (false, "no error")
-                cl.CommandQueue(ctx)
+                @fact @throws_pred(cl.CommandQueue(ctx, device)) => (false, "no error")
+            end
+        end
+    end
+
+    context("CommandQueue Info") do
+        for platform in cl.platforms()
+            for device in cl.devices(platform)
+                ctx = cl.Context(device)
+                q = cl.CommandQueue(ctx, device)
+                @fact q[:context] => ctx
+                @fact q[:device] => device
+                @fact q[:reference_count] > 0 => true
+                @fact typeof(q[:properties]) => cl.CL_command_queue_properties
             end
         end
     end
