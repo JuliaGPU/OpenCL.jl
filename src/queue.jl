@@ -1,84 +1,133 @@
 # low level OpenCL queue
 
-immutable Queue
+type CommandQueue
     id::CL_command_queue
+
+    function CommandQueue(q_id::CL_command_queue; retain=true)
+        if retain
+            @check api.clRetainCommandQueue(q_id)
+        end
+        q = new(q_id)
+        finalizer(q, cmd_q -> release!(cmd_q))
+        return q
+    end
 end 
 
-#TODO: manage the handling of the error code in function (unify)
-function clCreateCommandQueue(ctx_id::CL_context, dev_id::CL_device_id,
-                              props::CL_command_queue_properties, err::Ptr{CL_int}) 
-    q = ccall((:clCreateCommandQueue, libopencl),
-              CL_command_queue, 
-              (CL_context, CL_device_id, CL_command_queue_properties, Ptr{CL_int}),
-              ctx_id, dev_id, props, err)
-    err_code = unsafe_load(err)
-    if err_code != CL_SUCCESS
-        q = nothing
+function release!(q::CommandQueue)
+    if ctx.id != C_NULL
+        @check api.clReleaseCommandQueue(q)
+        q.id = C_NULL
     end
-    return q
 end
 
-#TODO: support queue properties
-function Queue(ctx::Context, dev::Device)
+Base.pointer(q::CommandQueue) = q.id
+@ocl_object_equality(CommandQueue) 
+
+function Base.show(io::IO, q::CommandQueue)
+    ptr_address = "0x$(hex(unsigned(Base.pointer(q)), WORD_SIZE>>2))"
+    print(io, "<OpenCL.CommandQueue @$ptr_address>")
+end
+
+Base.getindex(q::CommandQueue, qinfo::Symbol) = info(q, qinfo)
+
+function CommandQueue(ctx::Context, dev::Device; properties=None)
     ctx_id = ctx.id
     dev_id = dev.id
-    err = convert(Ptr{CL_int}, Array(CL_int, 1))
-    props = cl_command_queue_properties(0)
-    queue = clCreateCommandQueue(ctx_id, dev_id, props, err)
-    err_code = unsafe_load(err)
-    if err_code != CL_SUCCESS 
-        release!(queue)
-        return 
+    err_code = Array(CL_int, 1)
+    if properties == None
+        props = cl_command_queue_properties(0)
+    else
+        props = cl_command_queue_properties(properties)
     end
-    return Queue(queue)
+    props = cl_command_queue_properties(0)
+    queue_id = @check api.clCreateCommandQueue(ctx_id, dev_id, props, err_code)
+    if err_code[1] != CL_SUCCESS 
+        if queue_id != C_NULL
+            @check api.clReleaseCommandQueue(queue_id)
+        end
+        throw(CLError(err_code[1]))
+    end
+    return CommandQueue(queue_id)
 end 
 
-@ocl_func(clGetCommandQueueInfo, (CL_command_queue, CL_command_queue_info, Csize_t, Ptr{Void}, Ptr{Csize_t}))
+function CommandQueue(ctx::Context; properties=None)
+    devs = devices(ctx)
+    if isempty(devs)
+        error("CommandQueue context does not have any devices")
+    end
+    return CommandQueue(ctx, first(devs), properties=properties)
+end
 
-function device(q::Queue)
+function device(q::CommandQueue)
     dev_id = CL_device_id[0]
-    clGetCommandQueueInfo(q.id, CL_QUEUE_DEVICE, sizeof(CL_device_id), dev_id, C_NULL)
+    @check api.clGetCommandQueueInfo(q.id, CL_QUEUE_DEVICE, 
+                                     sizeof(CL_device_id), dev_id, C_NULL)
     return Device(dev_id[1])
 end
 
-function context(q::Queue)
+function context(q::CommandQueue)
     ctx_id = CL_context[0]
-    clGetCommandQueueInfo(q.id, CL_QUEUE_CONTEXT, sizeof(CL_context), ctx_id, C_NULL)
-    return Context(ctx_id[1])
+    @check api.clGetCommandQueueInfo(q.id, CL_QUEUE_CONTEXT, 
+                                     sizeof(CL_context), ctx_id, C_NULL)
+    return Context(ctx_id[1], retain=true)
 end
 
-@ocl_func(clEnqueueBarrier, (CL_command_queue,))
-
-#TODO: put in event.jl
-#TODO: wait_for=Noen
-function enqueue_barrier(q::Queue)
-    clEnqueueBarrier(q.id)
+function flush(q::CommandQueue)
+    @check api.clFlush(q.id)
+    return q
 end
 
-@ocl_func(clFlush, (CL_command_queue,))
-
-function flush(q::Queue)
-    clFlush(q.id)
+function finish(q::CommandQueue)
+    @check api.clFinish(q.id)
+    return q
 end
 
-#TODO: function finish(q::Queue)
+let context(q::CommandQueue) = begin
+        ctx_id = Array(CL_context, 1)
+        @check api.clGetCommandQueueInfo(q.id, CL_QUEUE_CONTEXT,
+                                         sizeof(CL_context), ctx_id, C_NULL)
+        Context(ctx_id[1])
+    end
+                                          
+    device(q::CommandQueue) = begin
+        dev_id = Array(CL_device_id)
+        @check api.clGetCommandQueueInfo(q.id, CL_QUEUE_DEVICE, 
+                                         sizeof(CL_device_id), dev_id, C_NULL)
+        Device(dev_id[1])
+    end
 
-@ocl_func(clEnqueueMarker, (CL_command_queue, CL_event))
+    reference_count(q::CommandQueue) = begin
+        ref_count = Array(CL_uint, 1)
+        @check api.clGetCommandQueueInfo(q.id, CL_QUEUE_REFERENCE_COUNT, 
+                                         sizeof(CL_uint), ref_count, C_NULL)
+        ref_count[1]
+    end
 
-#TODO: put in event.jl
-#TODO: wait_for=None
-function enqueue_marker(q::Queue)
-   evt_id = CL_event[0]
-   clEnqueueMarker(q.id, evt_id)
-   return Event(evt_id[1])
-end 
+    properties(q::CommandQueue) = begin
+        props = Array(CL_command_queue_properties, 1)
+        @check api.clGetCommandQueueInfo(q.id, CL_QUEUE_PROPERTIES,
+                                         sizeof(CL_command_queue_properties),
+                                         props, C_NULL)
+        props[1]
+    end
 
-@ocl_func(clReleaseCommandQueue, (CL_command_queue,))
+    const info_map = (Symbol => Function)[
+        :context => context,
+        :device => device,
+        :reference_count => reference_count,
+        :properties => properties
+    ]
 
-#TODO: Better implementation
-function release!(q::Queue)
-    if q.id != C_NULL
-        clReleaseCommandQueue(q.id)
-        q.id = C_NULL
+    function info(q::CommandQueue, qinfo::Symbol)
+        try
+            func = info_map[qinfo]
+            func(d)
+        catch err
+            if isa(err, KeyError)
+                error("OpenCL.CommandQueue has no info for: $qinfo") 
+            else
+                throw(err)
+            end
+        end
     end
 end

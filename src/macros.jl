@@ -22,9 +22,21 @@ end
 
 macro check(clfunc)
     quote
-        _err = $clfunc
-        if _err != CL_SUCCESS
-            throw(CLError(_err))
+        local err::CL_int
+        err = $clfunc
+        if err != CL_SUCCESS
+            throw(CLError(err))
+        end
+        err
+    end
+end
+
+macro check_release(clfunc)
+    quote
+        local err::CL_int
+        err = $clfunc 
+        if err != CL_SUCCESS
+            error("release! $clfunc failed with code $(err[1]))")
         end
     end
 end
@@ -36,6 +48,42 @@ macro ocl_object_equality(cl_object_type)
     end
 end
 
+#TODO: these are just stubs for future expanded versions
+macro ocl_v1_1_only(ex)
+    quote
+        $(esc(ex))
+    end
+end
+
+macro ocl_v1_2_only(ex)
+    quote
+        $(esc(ex))
+    end
+end
+
+macro return_event(evt)
+    quote
+        try
+            return Event($(esc(evt)), retain=false)
+        catch err
+            @check api.clReleaseEvent($(esc(evt)))
+            throw(err)
+        end
+    end 
+end
+
+macro return_nanny_event(evt, obj)
+    quote
+        try
+            return NannyEvent($(esc(evt)), $(esc(obj)), retain=false)
+        catch err
+            @check api.clReleaseEvent($(esc(evt)))
+            throw err
+        end
+    end
+end
+
+#TODO:
 macro int_info(what, arg1, arg2, ret_type)
     local clFunc = symbol(string("clGet$(what)Info"))
     quote

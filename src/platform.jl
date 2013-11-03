@@ -7,9 +7,6 @@ end
 Base.pointer(p::Platform) = p.id
 @ocl_object_equality(Platform)
 
-#Base.hash(p::Platform) = unsigned(p.id)
-#Base.isequal(p1::Platform, p2::Platform) = Base.hash(p1) == Base.hash(p2)
-
 Base.getindex(p::Platform, pinfo::Symbol) = info(p, pinfo)
 
 function Base.show(io::IO, p::Platform)
@@ -18,7 +15,6 @@ function Base.show(io::IO, p::Platform)
     ptr_address = "0x$(hex(unsigned(Base.pointer(p)), WORD_SIZE>>2))"
     print(io, "<OpenCL.Platform '$platform_name @$ptr_address>")
 end
-
 
 #Base.keys(p::Platform) = [k for k in keys(info_map)]
 #Base.haskey(p::Platform, s::Symbol) = begin
@@ -73,50 +69,55 @@ let
             else
                 info(p, cl_info)
             end
-        catch
-            error("OpenCL.Platform has no info for: $pinfo")
+        catch err
+            if isa(err, KeyError)
+                error("OpenCL.Platform has no info for: $pinfo")
+            else
+                throw(err)
+            end
         end
     end
 end
 
-
-#name(p::Platform) = info(p::Platform, CL_PLATFORM_NAME)
-#vendor(p::Platform) = info(p::Platform, CL_PLATFORM_VENDOR)
-#version(p::Platform) = info(p::Platform, CL_PLATFORM_VERSION)
-#profile(p::Platform) = info(p::Platform, CL_PLATFORM_PROFILE)
-#extensions(p::Platform) = split(info(p::Platform, CL_PLATFORM_EXTENSIONS))
-
-function devices(p::Platform, device_type::CL_device_type)
-    ndevices = Array(CL_uint, 1)
-    @check api.clGetDeviceIDs(p.id, device_type, 0, C_NULL, ndevices)
-    result = Array(CL_device_id, ndevices[1])
-    @check api.clGetDeviceIDs(p.id, device_type, ndevices[1], result, C_NULL)
-    return [Device(id) for id in result]
+function devices(p::Platform, dtype::CL_device_type)
+    try 
+        ndevices = Array(CL_uint, 1)
+        @check api.clGetDeviceIDs(p.id, dtype, 0, C_NULL, ndevices)
+        if ndevices[1] == 0
+            return []
+        end
+        result = Array(CL_device_id, ndevices[1])
+        @check api.clGetDeviceIDs(p.id, dtype, ndevices[1], result, C_NULL)
+        return [Device(id) for id in result]
+    catch err
+        if err.desc == :CL_DEVICE_NOT_FOUND || err.code == -1
+            return []
+        else
+            throw(err)
+        end
+    end
 end
 
 devices(p::Platform) = devices(p, CL_DEVICE_TYPE_ALL)
 
-#TODO: shorten this with cl_device_type
-function devices(p::Platform, device_type::Symbol)
-    try
-       if device_type == :all
-            devices(p, CL_DEVICE_TYPE_ALL)
-        elseif device_type == :cpu
-            devices(p, CL_DEVICE_TYPE_CPU)
-        elseif device_type == :gpu
-            devices(p, CL_DEVICE_TYPE_GPU)
-        elseif device_type == :accelerator
-            devices(p, CL_DEVICE_TYPE_ACCELERATOR)
-        elseif device_type == :custom
-            devices(p, CL_DEVICE_TYPE_CUSTOM)
-        elseif device_type == :default
-            devices(p, CL_DEVICE_TYPE_DEFAULT)
-        else
-            error("Unknown device type: $device_type")
-        end
-    catch
-        # device type does not exist
-        return []
-    end
+function devices(p::Platform, dtype::Symbol)
+    devices(p, cl_device_type(dtype))
 end
 
+function devices(dtype::CL_device_type)
+    devs = Device[]
+    for platform in platforms()
+        append!(devs, devices(platform, dtype))
+    end
+    return devs
+end
+
+devices(dtype::Symbol) = devices(cl_device_type(dtype))
+
+function devices()
+    devs = Device[]
+    for platform in platforms()
+        append!(devs, devices(platform))
+    end
+    return devs
+end

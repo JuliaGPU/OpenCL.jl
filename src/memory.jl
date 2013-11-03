@@ -1,6 +1,76 @@
 abstract CLMemObject
 
-@ocl_func(clReleaseMemObject, (CL_mem,))
+#TODO: this should be implemented by all subtypes
+#type MemObject <: CLMemory
+#    valid :: Bool
+#    ptr   :: CL_mem
+#    hostbuf
+#
+#    function CLMemObject(mem_ptr::CL_mem; retain=true, hostbuf=nothing)
+#        if retain
+#            @check api.clRetainMemObject(mem_ptr)
+#        end
+#        m = new(true, mem_ptr, hostbuf)
+#        finalizer(m, mem -> if mem.valid; release!(mem); end)
+#        return m
+#    end
+#
+#end
+
+Base.pointer(mem::CLMemObject) = mem.ptr
+
+Base.sizeof(mem::CL_mem) = begin
+    val = Array(Csize_t, 1)
+    @check api.clGetMemObjectInfo(mem, CL_MEM_SIZE, sizeof(Csize_t), Csize_t, C_NULL)
+    return val[0]
+end
+
+function release!(mem::CLMemObject)
+    if !mem.valid
+        error("OpenCL.MemObject relase! error: trying to double unref mem object")
+    end
+    @check_release api.clReleaseMemObject(mem.ptr)
+    mem.valid = false
+end
+
+context(mem::CLMemObject) = begin
+    param = Array(CL_context, 1)
+    @check api.clGetMemObjectInfo(mem.id, CL_MEM_CONTEXT, 
+                                  sizeof(Csize_t), param_value, C_NULL)
+    return Context(param[1])
+end
+
+type(mem::CLMemObject) = begin
+    param = Array(CL_context, 1)
+    @check api.clGetMemObjectInfo(mem.id, CL_MEM_TYPE,
+                                  sizeof(CL_mem_object_type), param, C_NULL)
+    return param[1]
+end 
+
+
+mem_size(mem::CLMemObject) = begin
+    param = Array(Csize_t, 1)
+    status = @check api.clGetMemObjectInfo(mem.id, CL_MEM_SIZE, 
+                                           sizeof(Csize_t), param_value, C_NULL)
+    return param[1]
+end
+
+#TODO: prefix ref_count info with debug??
+ref_count(mem::CLMemObject) = begin
+    param = Array(CL_uint, 1)
+    @check api.clGetMemObjectInfo(mem.id, CL_MEM_REFERENCE_COUNT,
+                                  sizeof(CL_uint), param, C_NULL)
+    return param[1]
+end
+
+map_count(mem::CLMemObject) = begin
+    param = Array(CL_uint, 1)
+    @check api.clGetMemObjectInfo(mem.id, CL_MEM_MAP_COUNT,
+                                  sizeof(CL_uint), param, C_NULL)
+    return param[1]
+end
+
+#TODO: base...
 
 #TODO: function get_info()
 #TODO: function hostbuf()
@@ -10,11 +80,3 @@ abstract CLMemObject
 
 #TODO: enqueue_migrate_mem_objects(queue, mem_objects, flags=0, wait_for=None)
 #TODO: enqueue_migrate_mem_objects_ext(queue, mem_objects, flags=0, wait_for=None)
-
-function release!(m::CLMemObject)
-    if m.ptr != C_NULL
-        clReleaseMemObject(m.ptr)
-        m.ptr = C_NULL
-    end
-end
-

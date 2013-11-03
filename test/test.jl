@@ -134,14 +134,16 @@ end
 facts("OpenCL.Context") do
 
     context("OpenCL.Context device constructor") do
-        platform = cl.platforms()[1]
-        device = cl.devices(platform)[1]
-        @fact @throws_pred(cl.Context(device)) => (false, "no error")
         @fact @throws_pred(cl.Context([])) => (true, "error")
+        for platform in cl.platforms()
+            for device in cl.devices(platform)
+                @fact @throws_pred(cl.Context(device)) => (false, "no error")
+            end
+        end
     end
 
     context("OpenCL.Context device_type constructor") do
-        for platform in cl.platforms()
+        for platform in [cl.platforms()[2]]
             try
                 cl.Context(cl.CL_DEVICE_TYPE_CPU)
             catch err
@@ -149,8 +151,10 @@ facts("OpenCL.Context") do
                 @fact err.desc => :CL_INVALID_PLATFORM
             end
             properties = [(cl.CL_CONTEXT_PLATFORM, platform)]
-            @fact @throws_pred(cl.Context(cl.CL_DEVICE_TYPE_CPU, properties=properties)) => (false, "no error") 
-            ctx = cl.Context(cl.CL_DEVICE_TYPE_CPU, properties=properties)
+            @fact @throws_pred(cl.Context(cl.CL_DEVICE_TYPE_GPU,
+                               properties=properties)) => (false, "no error") 
+            ctx = cl.Context(cl.CL_DEVICE_TYPE_GPU,
+                             properties=properties)
             @fact isempty(cl.properties(ctx)) => false
             test_properties = cl.properties(ctx)
             platform_in_properties = false 
@@ -163,9 +167,11 @@ facts("OpenCL.Context") do
                 end
             end
             @fact platform_in_properties => true 
-            @fact @throws_pred(cl.Context(:cpu, properties=properties)) => (false, "no error")
+            @fact @throws_pred(
+                cl.Context(:cpu, properties=properties)) => (false, "no error")
             try
-                ctx2 = cl.Context(cl.CL_DEVICE_TYPE_ACCELERATOR, properties=properties)
+                ctx2 = cl.Context(cl.CL_DEVICE_TYPE_ACCELERATOR,
+                                  properties=properties)
             catch err
                 @fact typeof(err) => cl.CLError
                 @fact err.desc => :CL_DEVICE_NOT_FOUND
@@ -179,4 +185,14 @@ facts("OpenCL.Context") do
     end
 end
 
-
+facts("OpenCL.CommandQueue") do 
+    context("OpenCL.CommandQueue device constructor") do
+        @fact @throws_pred(cl.CommandQueue(nothing, nothing)) => (true, "error")
+        for platform in cl.platforms()
+            for device in cl.devices(platform)
+                ctx = cl.Context(device)
+                @fact @throws_pred(cl.CommandQueue(ctx, device)) => (false, "no error")
+            end
+        end
+    end
+end

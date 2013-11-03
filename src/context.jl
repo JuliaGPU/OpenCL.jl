@@ -2,6 +2,7 @@
 
 type Context 
     id :: CL_context
+    
     function Context(ctx_id::CL_context; retain=true)
         if retain
             @check api.clRetainContext(ctx_id)
@@ -22,6 +23,12 @@ end
 Base.pointer(ctx::Context) = ctx.id
 @ocl_object_equality(Context)
 
+function Base.show(io::IO, ctx::Context)
+    dev_strs = [replace(d[:name], r"\s+", " ") for d in devices(ctx)]
+    devs_str = join(dev_strs, ",")
+    ptr_address = "0x$(hex(unsigned(Base.pointer(ctx)), WORD_SIZE>>2))"
+    print(io, "<OpenCL.Context @$ptr_address on $devs_str>")
+end
 
 function ctx_notify_err(err_info::Ptr{Cchar}, priv_info::Ptr{Void},
                         cb::Csize_t, julia_func::Ptr{Void})
@@ -185,18 +192,31 @@ function devices(ctx::Context)
     return [Device(id) for id in dev_ids]
 end
 
-#TODO: interative
-function create_some_context(;interative=true)
-    ocl_platforms = platforms()
-    if isempty(ocl_platforms)
-        error("No OpenCL platforms available")
+function create_some_context(;interactive=true)
+    devs = {}
+    if isempty(platforms())
+        error("No OpenCL.Platform available")
     end
-    platform = first(ocl_platforms)
-    ocl_devices = devices(platform)
-    if isempty(ocl_devices)
-        error("No devices for platform: $platform")
-    end 
-    device = first(ocl_devices)
-    return Context(device)
+
+    for platform in platforms()
+        append!(devs, devices(platform))
+    end
+    if isempty(devs)
+        error("No OpenCL.Device available")
+    end
+
+    #TODO: filter devices by performance
+    # sort_est_performance!(devs)
+    for dev in devs
+        local ctx::Context
+        try
+            ctx = Context(dev)
+        catch
+            continue 
+        end
+        return ctx
+    end
+    error("Unable to create any OpenCL.Context")
 end
 
+            

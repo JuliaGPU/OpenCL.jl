@@ -7,11 +7,6 @@ end
 Base.pointer(d::Device) = d.id
 @ocl_object_equality(Device) 
 
-#Base.hash(p::Platform) = unsigned(Base.pointer(p))
-#Base.isequal(p1::Device, p2::Device) = (Base.hash(p1) == Base.hash(p2))
-
-Base.getindex(d::Device, dinfo::Symbol) = info(d, dinfo)
-
 function Base.show(io::IO, d::Device)
     strip_extra_whitespace = r"\s+"
     device_name = replace(d[:name], strip_extra_whitespace, " ")
@@ -20,25 +15,9 @@ function Base.show(io::IO, d::Device)
     print(io, "<OpenCL.Device '$device_name' on '$platform_name' @$ptr_address>")
 end
 
-function cl_device_type(dtype::Symbol)
-    if dtype == :all
-        cl_dtype = CL_DEVICE_TYPE_ALL
-    elseif dtype == :cpu
-        cl_dtype = CL_DEVICE_TYPE_CPU
-    elseif dtype == :gpu
-        cl_dtype = CL_DEVICE_TYPE_GPU
-    elseif dtype == :accelerator
-        cl_dtype = CL_DEVICE_TYPE_ACCELERATOR
-    elseif dtype == :custom
-        cl_dtype = CL_DEVICE_TYPE_CUSTOM
-    elseif dtype == :default
-        cl_dtype = CL_DEVICE_TYPE_DEFAULT
-    else
-        error("Unknown device type: $device_type")
-    end
-    return cl_dtype
-end
+Base.getindex(d::Device, dinfo::Symbol) = info(d, dinfo)
 
+#TODO: replace with int_info, str_info, etc...
 macro device_property(func, cl_device_info, return_type)
     @eval begin
         function $func(d::Device)
@@ -209,8 +188,33 @@ let driver_version(d::Device) = info(d, CL_DRIVER_VERSION)
         try
             func = info_map[s]
             func(d)
-        catch 
-            error("OpenCL.Device has no info for: $s")
+        catch err
+            if isa(err, KeyError)
+                error("OpenCL.Device has no info for: $s")
+            else
+                throw(err)
+            end
         end
     end
 end
+
+function cl_device_type(dtype::Symbol)
+    if dtype == :all
+        cl_dtype = CL_DEVICE_TYPE_ALL
+    elseif dtype == :cpu
+        cl_dtype = CL_DEVICE_TYPE_CPU
+    elseif dtype == :gpu
+        cl_dtype = CL_DEVICE_TYPE_GPU
+    elseif dtype == :accelerator
+        cl_dtype = CL_DEVICE_TYPE_ACCELERATOR
+    elseif dtype == :custom
+        cl_dtype = CL_DEVICE_TYPE_CUSTOM
+    elseif dtype == :default
+        cl_dtype = CL_DEVICE_TYPE_DEFAULT
+    else
+        error("Unknown device type: $dtype")
+    end
+    return cl_dtype
+end
+
+
