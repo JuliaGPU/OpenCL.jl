@@ -22,9 +22,20 @@ end
 
 macro check(clfunc)
     quote
-        _err = $clfunc
-        if _err != CL_SUCCESS
-            throw(CLError(_err))
+        local err::CL_int
+        err = $clfunc
+        if err != CL_SUCCESS
+            throw(CLError(err))
+        end
+    end
+end
+
+macro check_release(clfunc)
+    quote
+        local err::CL_int
+        err = $clfunc 
+        if err != CL_SUCCESS
+            error("release! $clfunc failed with code $(err[1]))")
         end
     end
 end
