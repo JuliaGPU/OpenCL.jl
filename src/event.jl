@@ -15,6 +15,24 @@ type Event <: CLEvent
     end
 end
 
+type NannyEvent <: CLEvent
+    id::CL_event
+    obj::Any
+
+    function NannyEvent(evt_id::CL_event, obj::Any; retain=true)
+        if retain
+            @check api.clRetainEvent(evt_id)
+        end
+        nanny_evt = new(evt, obj)
+        finalizer(nanny_evt, evt -> begin 
+            wait(evt)
+            evt.obj = nothing
+            release!(evt.id)
+        end)
+        nanny_evt
+    end
+end
+
 function release!(evt::CLEvent)
     if evt.id != C_NULL
         @check api.clReleaseEvent(evt.id)
