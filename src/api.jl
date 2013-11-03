@@ -218,7 +218,7 @@ typealias CL_user_data Any
 @ocl_func_1_1(clSetUserEventStatus, CL_int, (CL_event, CL_int))
 
 @ocl_func_1_1(clSetEventCallback, CL_int,
-              (CL_event, CL_int, CL_callback, Ptr{Void}))
+              (CL_event, CL_int, CL_callback, CL_user_data))
 
 #################
 # profiling apis
@@ -349,7 +349,7 @@ typealias CL_user_data Any
                 Csize_t, Ptr{Void}, Ptr{CL_int}))
 
 @ocl_deprecate(clEnqueueMarker, CL_int,
-               (CL_command_queue, CL_uint, Ptr{CL_event}))
+               (CL_command_queue, Ptr{CL_event}))
 
 @ocl_deprecate(clEnqueueWaitForEvents, CL_int,
                (CL_command_queue, CL_uint, Ptr{CL_event}))

@@ -209,3 +209,66 @@ facts("OpenCL.CommandQueue") do
         end
     end
 end
+
+facts("OpenCL.Event") do
+    context("OpenCL.Event status") do
+        #TODO: check if this is version 1.2 or greater..
+        ctx = cl.create_some_context()
+        evt = cl.UserEvent(ctx)
+        evt[:status]
+        @fact evt[:status] => cl.CL_SUBMITTED
+        cl.complete(evt)
+        @fact evt[:status] => cl.CL_COMPLETE
+    end
+
+    context("OpenCL.Event wait") do
+        ctx = cl.create_some_context()
+        # create user event
+        usr_evt = cl.UserEvent(ctx)
+        q = cl.CommandQueue(ctx)
+        cl.enqueue_wait_for_events(q, usr_evt)
+
+        # create marker event
+        mkr_evt = cl.enqueue_marker(q)
+        
+        @fact usr_evt[:status] => cl.CL_SUBMITTED
+        @fact mkr_evt[:status] => cl.CL_QUEUED
+
+        cl.complete(usr_evt)
+        @fact usr_evt[:status] => cl.CL_COMPLETE
+
+        cl.wait(mkr_evt)
+        @fact mkr_evt[:status] => cl.CL_COMPLETE
+    end
+
+    context("OpenCL.Event callback") do
+        callback_called = false
+
+        function test_callback(evt, status) 
+            callback_called = true
+            println("Test Callback") 
+        end
+        
+        #Intel platform works, AMD does not...
+        ctx = cl.Context(cl.devices()[end])
+        #ctx = cl.create_some_context()
+        usr_evt = cl.UserEvent(ctx)
+        queue = cl.CommandQueue(ctx)
+        
+        cl.enqueue_wait_for_events(queue, usr_evt)
+        
+        mkr_evt = cl.enqueue_marker(queue)
+        cl.add_callback(mkr_evt, test_callback)
+
+        @fact usr_evt[:status] => cl.CL_SUBMITTED
+        @fact mkr_evt[:status] => cl.CL_QUEUED
+        @fact callback_called => false
+        
+        cl.complete(usr_evt)
+        @fact usr_evt[:status] => cl.CL_COMPLETE
+        
+        cl.wait(mkr_evt)
+        @fact mkr_evt[:status] => cl.CL_COMPLETE
+        @fact callback_called => true
+    end       
+end

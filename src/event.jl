@@ -5,7 +5,7 @@ abstract CLEvent
 type Event <: CLEvent
     id :: CL_event
 
-    function Event(evt_id::CL_event; retain=true)
+    function Event(evt_id::CL_event; retain=false)
         if retain
             @check api.clRetainEvent(evt_id)
         end
@@ -50,6 +50,8 @@ function Base.show(io::IO, evt::Event)
     print(io, "<OpenCL.Event @$ptr_address>")
 end
 
+Base.getindex(evt::CLEvent, evt_info::Symbol) = info(evt, evt_info)
+
 @ocl_v1_1_only begin
 
     type UserEvent <: CLEvent
@@ -65,29 +67,42 @@ end
         end
     end
     
+    function UserEvent(ctx::Context)
+        status = Array(CL_int, 1)
+        evt_id = api.clCreateUserEvent(ctx.id, status)
+        if status[1] != CL_SUCCESS
+            throw(CLError(status[1]))
+        end
+        try
+            return UserEvent(evt_id, retain=false)
+        catch err
+            @check api.clReleaseEvent(evt_id)
+            throw(err)
+        end
+    end
+
     function Base.show(io::IO, evt::UserEvent)
         ptr_address = "0x$(hex(unsigned(Base.pointer(evt)), WORD_SIZE>>2))"
         print(io, "<OpenCL.UserEvent @$ptr_address>")
     end
 
-    function set_status(evt::UserEvent, 
-                       exec_status::CL_int)
-        @check api.clSetUserEventStatus(evt.id, exec_status)
+    function complete(evt::UserEvent)
+        @check api.clSetUserEventStatus(evt.id, CL_COMPLETE)
+        return evt
     end
+end
 
-    function create_user_event(ctx::Context)
-        status = Array(CL_int, 1)
-        usr_event = api.clCreateUserEvent(ctx.id, status)
-        if status[1] != CL_SUCCESS
-            throw(CLError(status[1]))
-        end
-        try 
-            return UserEvent(usr_evt, retain=false)
-        catch err
-            @check cl.clReleaseEvent(usr_evt)
-            throw(err)
-        end
-    end
+function event_notify(evt_id::CL_event, status::CL_int, julia_func::Ptr{Void})
+    callback = unsafe_pointer_to_objref(julia_func)::Function
+    callback(evt_id, status)
+    return C_NULL::Ptr{Void}
+end
+
+const event_notify_ptr = cfunction(event_notify, Ptr{Void},
+                                   (CL_event, CL_int, Ptr{Void}))
+
+function add_callback(evt::CLEvent, callback::Function)
+    @check api.clSetEventCallback(evt.id, CL_COMPLETE, event_notify_ptr, callback)
 end
 
 function wait(evt::CLEvent)
@@ -127,21 +142,28 @@ end
 end
 
 # internal (pre 1.2 contexts)
+#TODO: deprecated...
 function enqueue_marker(q::CommandQueue)
     evt = Array(CL_event, 1)
     @check api.clEnqueueMarker(q.id, evt)
     @return_event evt[1]
 end
 
-function enqueue_wait_for_events(q::CommandQueue, wait_for::Vector{CLEvent})
+#TODO: deprecated...
+function enqueue_wait_for_events{T<:CLEvent}(q::CommandQueue, wait_for::Vector{T})
     n_wait_events = cl_uint(length(wait_for))
     wait_evt_ids = [evt.id for evt in wait_for]
-    ret_evt = Array(CL_event, 1)
-    @check api.clEnqueueWaitForEvents(q.id, n_wait_events, 
-                           isempty(wait_evt_ids) ? C_NULL : wait_evt_ids, ret_evt)
-    @return_event ret_evt[1]
+    @check api.clEnqueueWaitForEvents(q.id, n_wait_events,
+                                      isempty(wait_evt_ids) ? C_NULL : wait_evt_ids)
 end
 
+#TODO: function enqueue_wait_for_events(q, evts..)
+#TODO: deprecated...
+function enqueue_wait_for_events(q::CommandQueue, wait_for::CLEvent)
+    enqueue_wait_for_events(q, [wait_for])
+end
+
+#TODO: deprecated...
 function enqueue_barrier(q::CommandQueue)
     @check api.clEnqueueBarrier(q.id)
     return q
@@ -163,12 +185,12 @@ let status_dict = (CL_uint => Symbol)[
     end
 end
 
-function status(evt_id::CL_event)
-    status = Array(CL_int, 1)
-    @check api.clGetEventInfo(evt_id, CL_EVENT_COMMAND_EXECUTION_STATUS,
-                              sizeof(CL_int), status)
-    return status[1] 
-end
+#function status(evt_id::CL_event)
+#    st = Array(CL_int, 1)
+#    @check api.clGetEventInfo(evt_id, CL_EVENT_COMMAND_EXECUTION_STATUS,
+#                              sizeof(CL_int), st)
+#    return st[1] 
+#end
 
 function profiling_info(evt::CLEvent, param::CL_profiling_info)
     if     param == CL_PROFILING_COMMAND_QUEUED
@@ -186,10 +208,10 @@ end
 
 # cannot use reserved word end as symbol
 function profiling_info(evt::CLEvent, param::Symbol)
-    if     param == :pqueued
-    elseif param == :psubmitted
-    elseif param == :pstart
-    elseif param == :pend 
+    if     param == :prof_queued
+    elseif param == :prof_submitted
+    elseif param == :prof_start
+    elseif param == :prof_end 
         return profiling_info(evt, CL_PROFILING_COMMAND_END)
     else
         throw(CLError(CL_INVALID_VALUE))
@@ -224,7 +246,14 @@ let command_queue(evt::CLEvent) = begin
                                   sizeof(CL_context), CL_context, C_NULL)
         Context(ctx[1])
     end
-    
+
+    status(evt::CLEvent) = begin
+        st = Array(CL_int, 1)
+        @check api.clGetEventInfo(evt.id, CL_EVENT_COMMAND_EXECUTION_STATUS,
+                                  sizeof(CL_int), st, C_NULL)
+        return st[1]
+    end
+
     const info_map = (Symbol => Function)[
         :context => context,
         :command_queue => command_queue,
@@ -233,11 +262,12 @@ let command_queue(evt::CLEvent) = begin
         :status => status,
     ]
 
-    function info(q::CLEvent, qinfo::Symbol)
+    function info(evt::CLEvent, evt_info::Symbol)
         try
-            func = info_map[qinfo]
-            func(d)
+            func = info_map[evt_info]
+            func(evt)
         catch err
+            println(err)
             if isa(err, KeyError)
                 error("OpenCL.Event has no info for: $qinfo") 
             else

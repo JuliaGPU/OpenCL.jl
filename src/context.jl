@@ -218,5 +218,3 @@ function create_some_context(;interactive=true)
     end
     error("Unable to create any OpenCL.Context")
 end
-
-            
