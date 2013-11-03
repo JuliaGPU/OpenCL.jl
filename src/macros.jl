@@ -27,6 +27,7 @@ macro check(clfunc)
         if err != CL_SUCCESS
             throw(CLError(err))
         end
+        err
     end
 end
 
