@@ -216,5 +216,3 @@ function cl_device_type(dtype::Symbol)
     end
     return cl_dtype
 end
-
-

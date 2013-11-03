@@ -143,7 +143,7 @@ facts("OpenCL.Context") do
     end
 
     context("OpenCL.Context device_type constructor") do
-        for platform in [cl.platforms()[2]]
+        for platform in cl.platforms()
             try
                 cl.Context(cl.CL_DEVICE_TYPE_CPU)
             catch err
@@ -151,9 +151,9 @@ facts("OpenCL.Context") do
                 @fact err.desc => :CL_INVALID_PLATFORM
             end
             properties = [(cl.CL_CONTEXT_PLATFORM, platform)]
-            @fact @throws_pred(cl.Context(cl.CL_DEVICE_TYPE_GPU,
+            @fact @throws_pred(cl.Context(cl.CL_DEVICE_TYPE_CPU,
                                properties=properties)) => (false, "no error") 
-            ctx = cl.Context(cl.CL_DEVICE_TYPE_GPU,
+            ctx = cl.Context(cl.CL_DEVICE_TYPE_CPU,
                              properties=properties)
             @fact isempty(cl.properties(ctx)) => false
             test_properties = cl.properties(ctx)
@@ -191,7 +191,8 @@ facts("OpenCL.CommandQueue") do
         for platform in cl.platforms()
             for device in cl.devices(platform)
                 ctx = cl.Context(device)
-                @fact @throws_pred(cl.CommandQueue(ctx, device)) => (false, "no error")
+                @fact @throws_pred(cl.CommandQueue(ctx)) => (false, "no error")
+                cl.CommandQueue(ctx)
             end
         end
     end

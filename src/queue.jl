@@ -14,8 +14,8 @@ type CommandQueue
 end 
 
 function release!(q::CommandQueue)
-    if ctx.id != C_NULL
-        @check api.clReleaseCommandQueue(q)
+    if q.id != C_NULL
+        @check api.clReleaseCommandQueue(q.id)
         q.id = C_NULL
     end
 end
@@ -25,7 +25,7 @@ Base.pointer(q::CommandQueue) = q.id
 
 function Base.show(io::IO, q::CommandQueue)
     ptr_address = "0x$(hex(unsigned(Base.pointer(q)), WORD_SIZE>>2))"
-    print(io, "<OpenCL.CommandQueue @$ptr_address>")
+    print(io, "<OpenCL.CommandQueue @TODO>")
 end
 
 Base.getindex(q::CommandQueue, qinfo::Symbol) = info(q, qinfo)
@@ -39,8 +39,7 @@ function CommandQueue(ctx::Context, dev::Device; properties=None)
     else
         props = cl_command_queue_properties(properties)
     end
-    props = cl_command_queue_properties(0)
-    queue_id = @check api.clCreateCommandQueue(ctx_id, dev_id, props, err_code)
+    queue_id = api.clCreateCommandQueue(ctx_id, dev_id, props, err_code)
     if err_code[1] != CL_SUCCESS 
         if queue_id != C_NULL
             @check api.clReleaseCommandQueue(queue_id)
@@ -55,7 +54,7 @@ function CommandQueue(ctx::Context; properties=None)
     if isempty(devs)
         error("CommandQueue context does not have any devices")
     end
-    return CommandQueue(ctx, first(devs), properties=properties)
+    return CommandQueue(ctx, first(devs); properties=None)
 end
 
 function device(q::CommandQueue)
@@ -121,7 +120,7 @@ let context(q::CommandQueue) = begin
     function info(q::CommandQueue, qinfo::Symbol)
         try
             func = info_map[qinfo]
-            func(d)
+            func(q)
         catch err
             if isa(err, KeyError)
                 error("OpenCL.CommandQueue has no info for: $qinfo") 
