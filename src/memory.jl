@@ -40,35 +40,21 @@ context(mem::CLMemObject) = begin
     return Context(param[1])
 end
 
-type(mem::CLMemObject) = begin
-    param = Array(CL_context, 1)
-    @check api.clGetMemObjectInfo(mem.id, CL_MEM_TYPE,
-                                  sizeof(CL_mem_object_type), param, C_NULL)
-    return param[1]
-end 
-
-
-mem_size(mem::CLMemObject) = begin
-    param = Array(Csize_t, 1)
-    status = @check api.clGetMemObjectInfo(mem.id, CL_MEM_SIZE, 
-                                           sizeof(Csize_t), param_value, C_NULL)
-    return param[1]
+macro memobj_property(func, cl_device_info, return_type)
+    quote
+        function $func(d::CLMemObject)
+            result = Array($return_type, 1)
+            @check api.clGetMemObjectInfo(d.id, $cl_device_info,
+                                          sizeof($return_type), result, C_NULL)
+            return result[1]
+        end
+    end
 end
 
-#TODO: prefix ref_count info with debug??
-ref_count(mem::CLMemObject) = begin
-    param = Array(CL_uint, 1)
-    @check api.clGetMemObjectInfo(mem.id, CL_MEM_REFERENCE_COUNT,
-                                  sizeof(CL_uint), param, C_NULL)
-    return param[1]
-end
-
-map_count(mem::CLMemObject) = begin
-    param = Array(CL_uint, 1)
-    @check api.clGetMemObjectInfo(mem.id, CL_MEM_MAP_COUNT,
-                                  sizeof(CL_uint), param, C_NULL)
-    return param[1]
-end
+@memobj_property(:type,            CL_MEM_TYPE,            CL_mem_object_type)
+@memobj_property(:size,            CL_MEM_SIZE,            Csize_t)
+@memobj_property(:reference_count, CL_MEM_REFERENCE_COUNT, CL_uint)
+@memobj_property(:map_count,       CL_MEM_MAP_COUNT,       CL_uint)
 
 #TODO: base...
 
