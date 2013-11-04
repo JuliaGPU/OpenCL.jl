@@ -15,6 +15,7 @@ type Event <: CLEvent
     end
 end
 
+# changed to ManagedEvent
 # wait for completion before running finalizer
 type NannyEvent <: CLEvent
     id::CL_event

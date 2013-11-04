@@ -40,4 +40,7 @@ include("memory.jl")
 # OpenCL Buffer
 include("buffer.jl")
 
+# OpenCL Program
+include("program.jl")
+
 end # module

@@ -397,3 +397,31 @@ facts("OpenCL.Buffer") do
         @fact empty_buf.size => sizeof(testarray)
     end
 end
+
+facts("OpenCL.Program") do 
+    
+    test_source = "
+    __kernel void sum(__global const float *a,
+                      __global const float *b, 
+                      __global float *c)
+    {
+      uint gid = get_global_id(0);
+      c[gid] = a[gid] + b[gid];
+    }
+    "
+
+    context("OpenCL.Program source constructor") do
+        ctx = cl.create_some_context()
+        @fact @throws_pred(cl.Program(ctx, source=test_source)) => (false, "no error")
+    end
+    
+    #TODO: build programs with binaries
+    
+    context("OpenCL.Program build") do 
+        ctx = cl.create_some_context()
+        cl.Program(ctx, source=test_source)
+        #TODO...
+    end
+end
+
+
