@@ -379,4 +379,21 @@ facts("OpenCL.Buffer") do
         readback = cl.read(queue, buf)
         @fact all(x -> x == 1.0, readback) => true
     end
+
+    context("OpenCL.Buffer empty") do
+        ctx = cl.create_some_context()
+        testarray = zeros(Float32, 1000)
+        buf = cl.Buffer(ctx, cl.CL_MEM_COPY_HOST_PTR | cl.CL_MEM_READ_WRITE,
+                        hostbuf=testarray)
+
+        @fact @throws_pred(cl.empty(Float32, ctx, -1)) => (true, "error") 
+        empty_buf = cl.empty(Float32, ctx, 1000)
+        @fact empty_buf.size => sizeof(testarray)
+        @fact empty_buf.size => buf.size
+       
+        dims = (100, 100)
+        testarray = zeros(Float32, dims)
+        empty_buf = cl.empty(Float32, ctx, dims)
+        @fact empty_buf.size => sizeof(testarray)
+    end
 end

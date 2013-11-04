@@ -187,6 +187,44 @@ function copy!{T}(q::CmdQueue, dst::Buffer{T}, src::Array{T})
     return dst
 end
 
+function copy!{T}(q::CmdQueue, dst::Buffer{T}, src::Buffer{T})
+    if dst.size != src.size
+        throw(ArgumentError("src and dst buffers must be the same size"))
+    end
+    nbytes = src.size
+    #
+    return dst
+end
+
+# copy bufer into identical buffer object
+function copy{T}(q::CmdQueue, src::Buffer{T})
+    return src
+end
+
+#TODO: allow shape tuple...
+#TODO: size checking should depend on type...
+function empty{T}(::Type{T}, ctx::Context, dims)
+    size = sizeof(T)
+    for d in dims
+        size *= d
+    end
+    if size <= 0
+        error("OpenCL.Buffer specified size is <= 0 bytes")
+    end
+    buf_ptr::Ptr{Void} = C_NULL
+    mem_id = _create_cl_buffer(ctx.id, CL_MEM_READ_WRITE, size, buf_ptr)
+    # TODO: create host buffer
+    try
+        #TODO: make constructor type more permissive cl_uint(...)
+        return Buffer{Float32}(mem_id, false, cl_uint(size))
+    catch err
+        #TODO: don't allow errors in relase mem id to mask original exceptions
+        #TODO: macro for check cleanup??
+        @check api.clReleaseMemObject(mem_id)
+        throw(err)
+    end
+end
+
 #TODO: enqueue low level functions should match up signature with cl.api
 function write!{T}(q::CmdQueue, buf::Buffer{T}, hostbuf::Array{T})
     nbytes = unsigned(sizeof(hostbuf))
