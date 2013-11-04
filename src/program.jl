@@ -1,3 +1,4 @@
+
 type Program
     id::CL_program
 
@@ -69,7 +70,7 @@ function build!(p::Program; options="", raise=true)
     if raise
         for (dev, status) in build_status(p)
             if status == CL_BUILD_ERROR
-                #throw(CLBuildError(self.logs[dev], self.logs)
+                #TODO: throw(CLBuildError(self.logs[dev], self.logs)
                 error("$p build error on device $dev")
             end
         end 
@@ -77,21 +78,35 @@ function build!(p::Program; options="", raise=true)
     return p
 end
 
+#TODO: return keywords
 function build_status(p::Program)
-    statuses = {}
+    status_dict = (Device => CL_build_status)[]
     err_code = Array(CL_int, 1)
     status = Array(CL_build_status, 1) 
-    devs = devices(p)
-    for d in devs
+    for d in devices(p)
         @check api.clGetProgramBuildInfo(p.id, d.id, CL_PROGRAM_BUILD_STATUS,
                                          sizeof(CL_build_status), status, C_NULL)
-        push!(statuses, (d, status[1])) 
+        status_dict[d] = status[1]
     end
-    return statuses
+    return status_dict
 end
 
 function build_logs(p::Program)
-    #TODO
+    logs = (Device => ASCIIString)[]
+    log_len = Array(Csize_t, 1)
+    for d in devices(p)
+        @check cl.clGetProgramBuildInfo(p.id, d.id, CL_PROGRAM_BUILD_LOG, 
+                                        0, C_NULL, log_len)
+        if log_len == 0
+            logs[d] = ""
+            continue
+        end 
+        log_bytestring = Array(Cchar, log_len)
+        @check cl.clGetProgramBuildInfo(p.id, d.id, CL_PROGRAM_BUILD_LOG,
+                                        log_len, log_bytestring, C_NULL)
+        logs[d] = bytestring(convert(Ptr{Cchar}, log_bytestring))
+    end
+    return logs
 end 
 
 source_code(p::Program) = begin
@@ -134,10 +149,6 @@ reference_count(p::Program) = begin
     @check api.clGetProgramInfo(p.id, CL_PROGRAM_REFERENCE_COUNT,
                                 sizeof(CL_uint), ret, C_NULL)
     return ret[1]
-end
-
-
-function create_program_with_binary(ctx::Context, d::Device, binary::String)
 end
 
 #TODO: create_program_from_source()
