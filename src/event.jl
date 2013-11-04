@@ -120,7 +120,7 @@ function wait(evts::Vector{CLEvent})
 end
 
 @ocl_v1_2_only begin
-    function enqueue_marker_with_wait_list(q::CommandQueue,
+    function enqueue_marker_with_wait_list(q::CmdQueue,
                                            wait_for::Vector{CLEvent})
         n_wait_events = cl_uint(length(wait_for))
         wait_evt_ids = [evt.id for evt in wait_for]
@@ -130,7 +130,7 @@ end
         @return_event ret_evt[1]
     end
 
-    function enqueue_barrier_with_wait_list(q::CommandQueue,
+    function enqueue_barrier_with_wait_list(q::CmdQueue,
                                             wait_for::Vector{CLEvent})
         n_wait_events = cl_uint(length(wait_for))
         wait_evt_ids = [evt.id for evt in wait_for]
@@ -143,14 +143,14 @@ end
 
 # internal (pre 1.2 contexts)
 #TODO: deprecated...
-function enqueue_marker(q::CommandQueue)
+function enqueue_marker(q::CmdQueue)
     evt = Array(CL_event, 1)
     @check api.clEnqueueMarker(q.id, evt)
     @return_event evt[1]
 end
 
 #TODO: deprecated...
-function enqueue_wait_for_events{T<:CLEvent}(q::CommandQueue, wait_for::Vector{T})
+function enqueue_wait_for_events{T<:CLEvent}(q::CmdQueue, wait_for::Vector{T})
     n_wait_events = cl_uint(length(wait_for))
     wait_evt_ids = [evt.id for evt in wait_for]
     @check api.clEnqueueWaitForEvents(q.id, n_wait_events,
@@ -159,12 +159,12 @@ end
 
 #TODO: function enqueue_wait_for_events(q, evts..)
 #TODO: deprecated...
-function enqueue_wait_for_events(q::CommandQueue, wait_for::CLEvent)
+function enqueue_wait_for_events(q::CmdQueue, wait_for::CLEvent)
     enqueue_wait_for_events(q, [wait_for])
 end
 
 #TODO: deprecated...
-function enqueue_barrier(q::CommandQueue)
+function enqueue_barrier(q::CmdQueue)
     @check api.clEnqueueBarrier(q.id)
     return q
 end
@@ -223,7 +223,7 @@ let command_queue(evt::CLEvent) = begin
         cmd_q = Array(CL_command_queue, 1)
         @check api.clGetEventInfo(evt.id, CL_EVENT_COMMAND_QUEUE,
                                   sizeof(CL_command_queue), cmd_q, C_NULL)
-        return CommandQueue(cmd_q[1])
+        return CmdQueue(cmd_q[1])
     end
     
     command_type(evt::CLEvent) = begin

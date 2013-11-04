@@ -1,9 +1,9 @@
 # low level OpenCL queue
 
-type CommandQueue
+type CmdQueue 
     id::CL_command_queue
 
-    function CommandQueue(q_id::CL_command_queue; retain=true)
+    function CmdQueue(q_id::CL_command_queue; retain=true)
         if retain
             @check api.clRetainCommandQueue(q_id)
         end
@@ -13,24 +13,24 @@ type CommandQueue
     end
 end 
 
-function release!(q::CommandQueue)
+function release!(q::CmdQueue)
     if q.id != C_NULL
         @check api.clReleaseCommandQueue(q.id)
         q.id = C_NULL
     end
 end
 
-Base.pointer(q::CommandQueue) = q.id
-@ocl_object_equality(CommandQueue) 
+Base.pointer(q::CmdQueue) = q.id
+@ocl_object_equality(CmdQueue) 
 
-function Base.show(io::IO, q::CommandQueue)
+function Base.show(io::IO, q::CmdQueue)
     ptr_address = "0x$(hex(unsigned(Base.pointer(q)), WORD_SIZE>>2))"
-    print(io, "<OpenCL.CommandQueue @TODO>")
+    print(io, "<OpenCL.CmdQueue @$ptr_address>")
 end
 
-Base.getindex(q::CommandQueue, qinfo::Symbol) = info(q, qinfo)
+Base.getindex(q::CmdQueue, qinfo::Symbol) = info(q, qinfo)
 
-function CommandQueue(ctx::Context, dev::Device; properties=None)
+function CmdQueue(ctx::Context, dev::Device; properties=None)
     ctx_id = ctx.id
     dev_id = dev.id
     err_code = Array(CL_int, 1)
@@ -46,49 +46,49 @@ function CommandQueue(ctx::Context, dev::Device; properties=None)
         end
         throw(CLError(err_code[1]))
     end
-    return CommandQueue(queue_id)
+    return CmdQueue(queue_id)
 end 
 
-function CommandQueue(ctx::Context; properties=None)
+function CmdQueue(ctx::Context; properties=None)
     devs = devices(ctx)
     if isempty(devs)
-        error("CommandQueue context does not have any devices")
+        error("CmdQueue context does not have any devices")
     end
-    return CommandQueue(ctx, first(devs); properties=None)
+    return CmdQueue(ctx, first(devs); properties=None)
 end
 
-function flush(q::CommandQueue)
+function flush(q::CmdQueue)
     @check api.clFlush(q.id)
     return q
 end
 
-function finish(q::CommandQueue)
+function finish(q::CmdQueue)
     @check api.clFinish(q.id)
     return q
 end
 
-let context(q::CommandQueue) = begin
+let context(q::CmdQueue) = begin
         ctx_id = Array(CL_context, 1)
         @check api.clGetCommandQueueInfo(q.id, CL_QUEUE_CONTEXT,
                                          sizeof(CL_context), ctx_id, C_NULL)
         Context(ctx_id[1])
     end
                                           
-    device(q::CommandQueue) = begin
+    device(q::CmdQueue) = begin
         dev_id = Array(CL_device_id)
         @check api.clGetCommandQueueInfo(q.id, CL_QUEUE_DEVICE, 
                                          sizeof(CL_device_id), dev_id, C_NULL)
         Device(dev_id[1])
     end
 
-    reference_count(q::CommandQueue) = begin
+    reference_count(q::CmdQueue) = begin
         ref_count = Array(CL_uint, 1)
         @check api.clGetCommandQueueInfo(q.id, CL_QUEUE_REFERENCE_COUNT, 
                                          sizeof(CL_uint), ref_count, C_NULL)
         ref_count[1]
     end
 
-    properties(q::CommandQueue) = begin
+    properties(q::CmdQueue) = begin
         props = Array(CL_command_queue_properties, 1)
         @check api.clGetCommandQueueInfo(q.id, CL_QUEUE_PROPERTIES,
                                          sizeof(CL_command_queue_properties),
@@ -103,13 +103,13 @@ let context(q::CommandQueue) = begin
         :properties => properties
     ]
 
-    function info(q::CommandQueue, qinfo::Symbol)
+    function info(q::CmdQueue, qinfo::Symbol)
         try
             func = info_map[qinfo]
             func(q)
         catch err
             if isa(err, KeyError)
-                error("OpenCL.CommandQueue has no info for: $qinfo") 
+                error("OpenCL.CmdQueue has no info for: $qinfo") 
             else
                 throw(err)
             end
