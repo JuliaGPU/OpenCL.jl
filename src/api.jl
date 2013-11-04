@@ -171,6 +171,9 @@ typealias CL_user_data Any
 
 @ocl_func_1_2(clUnloadPlatformCompiler, CL_int, (CL_platform_id,))
 
+@ocl_func_1_1(clGetProgramInfo, CL_int,
+              (CL_program, CL_program_info, Csize_t, Ptr{Void}, Ptr{Csize_t}))
+
 @ocl_func_1_0(clGetProgramBuildInfo, CL_int,
               (CL_program, CL_device_id, CL_program_build_info, Csize_t, Ptr{Void}, Ptr{Csize_t}))
 
