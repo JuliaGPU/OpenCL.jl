@@ -295,29 +295,88 @@ facts("OpenCL.Event") do
 end
 
 facts("OpenCL.Buffer") do
-    context("OpenCL.Buffer constructors") do
+
+    function create_test_buffer()
         ctx = cl.create_some_context()
         queue = cl.CmdQueue(ctx)
-        
-        testarray = zeros(cl.CL_float, 100)
-        @fact @throws_pred(cl.Buffer(ctx, cl.CL_MEM_WRITE_ONLY,
+        testarray = zeros(Float32, 1000)
+        buf = cl.Buffer(ctx, cl.CL_MEM_COPY_HOST_PTR | cl.CL_MEM_READ_WRITE,
+                        hostbuf=testarray)
+        return (queue, buf, testarray)
+    end
+
+    context("OpenCL.Buffer constructors") do
+        ctx = cl.create_some_context()
+        testarray = zeros(Float32, 1000)
+
+        @fact @throws_pred(cl.Buffer(ctx, cl.CL_MEM_ALLOC_HOST_PTR | cl.CL_MEM_READ_ONLY,
                                      sizeof(testarray))) => (false, "no error")
         
+        @fact @throws_pred(cl.Buffer(ctx, cl.CL_MEM_ALLOC_HOST_PTR | cl.CL_MEM_WRITE_ONLY,
+                                     sizeof(testarray))) => (false, "no error")
+         
+        @fact @throws_pred(cl.Buffer(ctx, cl.CL_MEM_ALLOC_HOST_PTR | cl.CL_MEM_READ_WRITE,
+                                     sizeof(testarray))) => (false, "no error")
+
+        buf = cl.Buffer(ctx, cl.CL_MEM_ALLOC_HOST_PTR | cl.CL_MEM_READ_WRITE, sizeof(testarray))
+        @fact buf.size => sizeof(testarray)
+
         @fact @throws_pred(cl.Buffer(ctx, cl.CL_MEM_COPY_HOST_PTR | cl.CL_MEM_READ_ONLY, 
                                      hostbuf=testarray)) => (false, "no error")
 
-        b = cl.Buffer(ctx, cl.CL_MEM_COPY_HOST_PTR | cl.CL_MEM_READ_ONLY,
-                      hostbuf=testarray)
+        @fact @throws_pred(cl.Buffer(ctx, cl.CL_MEM_COPY_HOST_PTR | cl.CL_MEM_WRITE_ONLY,
+                                     hostbuf=testarray)) => (false, "no error")
 
-        @fact b.size == sizeof(testarray) => true
-        cl.fill!(queue, b, cl.cl_float(1.0))
-        readback = cl.read(queue, b)
+        @fact @throws_pred(cl.Buffer(ctx, cl.CL_MEM_COPY_HOST_PTR | cl.CL_MEM_READ_WRITE,
+                                     hostbuf=testarray)) => (false, "no error")
+          
+        buf = cl.Buffer(ctx, cl.CL_MEM_COPY_HOST_PTR | cl.CL_MEM_READ_WRITE, hostbuf=testarray)
+        @fact buf.size => sizeof(testarray)
+        
+        @fact @throws_pred(cl.Buffer(ctx, cl.CL_MEM_USE_HOST_PTR | cl.CL_MEM_READ_ONLY,
+                                     hostbuf=testarray)) => (false, "no error")
+
+        @fact @throws_pred(cl.Buffer(ctx, cl.CL_MEM_USE_HOST_PTR | cl.CL_MEM_WRITE_ONLY,
+                                     hostbuf=testarray)) => (false, "no error")
+
+        @fact @throws_pred(cl.Buffer(ctx, cl.CL_MEM_USE_HOST_PTR | cl.CL_MEM_READ_WRITE,
+                                     hostbuf=testarray)) => (false, "no error")
+
+        buf = cl.Buffer(ctx, cl.CL_MEM_USE_HOST_PTR | cl.CL_MEM_READ_WRITE, hostbuf=testarray)
+        @fact buf.size => sizeof(testarray)
+       
+        # invalid buffer size should throw error
+        @fact @throws_pred(cl.Buffer(ctx, cl.CL_MEM_ALLOC_HOST_PTR, +0)) => (true, "error")
+        @fact @throws_pred(cl.Buffer(ctx, cl.CL_MEM_ALLOC_HOST_PTR, -1)) => (true, "error")
+
+        # invalid flag combinations should throw error
+        @fact @throws_pred(cl.Buffer(ctx, cl.CL_MEM_USE_HOST_PTR | cl.CL_MEM_ALLOC_HOST_PTR,
+                                     hostbuf=testarray)) => (true, "error")
+
+        # invalid host pointer should throw error
+        @fact @throws_pred(cl.Buffer(ctx, cl.CL_MEM_COPY_HOST_PTR,
+                                     hostbuf=C_NULL)) => (true, "error")
+        
+        @fact @throws_pred(cl.Buffer(ctx, cl.CL_MEM_USE_HOST_PTR,
+                                     hostbuf=C_NULL)) => (true, "error")
+     end
+
+     context("OpenCL.Buffer fill") do
+        queue, buf, testarray = create_test_buffer()
+        
+        @fact buf.size == sizeof(testarray) => true
+        cl.fill!(queue, buf, float32(1.0))
+        readback = cl.read(queue, buf)
         @fact all(x -> x == 1.0, readback) => true
         @fact all(x -> x == 0.0, testarray) => true
+    end
+
+    context("OpenCL.Buffer write!") do
+        queue, buf, testarray = create_test_buffer()
         
-        readback = fill(float32(2.0), length(testarray))
-        cl.write!(queue, b, readback)
-        readback = cl.read(queue, b)
+        @fact buf.size == sizeof(testarray) => true
+        cl.write!(queue, buf, ones(Float32, length(testarray)))
+        readback = cl.read(queue, buf)
         @fact all(x -> x == 1.0, readback) => true
-     end
+    end
 end
