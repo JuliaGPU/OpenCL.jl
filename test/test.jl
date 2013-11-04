@@ -410,6 +410,11 @@ facts("OpenCL.Program") do
     }
     "
 
+    function create_test_program()
+        ctx = cl.create_some_context()
+        cl.Program(ctx, source=test_source)
+    end
+
     context("OpenCL.Program source constructor") do
         ctx = cl.create_some_context()
         @fact @throws_pred(cl.Program(ctx, source=test_source)) => (false, "no error")
@@ -418,10 +423,16 @@ facts("OpenCL.Program") do
     #TODO: build programs with binaries
     
     context("OpenCL.Program build") do 
-        ctx = cl.create_some_context()
-        cl.Program(ctx, source=test_source)
-        #TODO...
+        prg = create_test_program()
+        @fact @throws_pred(cl.build!(prg)) => (false, "no error")
+        cl.build!(prg)
     end
+
+    context("OpenCL.Program source code") do
+        prg = create_test_program()
+        println(cl.source_code(prg))
+    end
+
 end
 
 

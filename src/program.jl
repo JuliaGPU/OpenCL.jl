@@ -1,5 +1,14 @@
 type Program
     id::CL_program
+
+    function Program(program_id::CL_program; retain=false)
+        if retain
+            @check api.clRetainProgram(program_id)
+        end 
+        p = new(program_id)
+        finalizer(p, prog -> release!(prog))
+        return p
+    end
 end
 
 function release!(p::Program)
@@ -51,11 +60,82 @@ function Program(ctx::Context; source=Nothing, binaries=Nothing)
     end
 end
 
-
-# high level api
-function build(p::Program, d::Device)
-    @check api.clBuildProgram(p.id, 0, C_NULL, C_NULL, C_NULL, C_NULL)
+#TODO: build callback...
+function build!(p::Program; options="", raise=true)
+    opts = bytestring(options)
+    ndevices = 0
+    device_ids = C_NULL
+    @check api.clBuildProgram(p.id, cl_uint(ndevices), device_ids, opts, C_NULL, C_NULL)
+    if raise
+        for (dev, status) in build_status(p)
+            if status == CL_BUILD_ERROR
+                #throw(CLBuildError(self.logs[dev], self.logs)
+                error("$p build error on device $dev")
+            end
+        end 
+    end
+    return p
 end
+
+function build_status(p::Program)
+    statuses = {}
+    err_code = Array(CL_int, 1)
+    status = Array(CL_build_status, 1) 
+    devs = devices(p)
+    for d in devs
+        @check api.clGetProgramBuildInfo(p.id, d.id, CL_PROGRAM_BUILD_STATUS,
+                                         sizeof(CL_build_status), status, C_NULL)
+        push!(statuses, (d, status[1])) 
+    end
+    return statuses
+end
+
+function build_logs(p::Program)
+    #TODO
+end 
+
+source_code(p::Program) = begin
+    src = C_NULL
+    src_len = Array(Csize_t, 1)
+    @check api.clGetProgramInfo(p.id, CL_PROGRAM_SOURCE, 0, C_NULL, src_len)
+    if src_len[1] <= 1
+        return nothing
+    end 
+    src = Array(Cchar, src_len[1])
+    @check api.clGetProgramInfo(p.id, CL_PROGRAM_SOURCE, src_len[1], src, C_NULL)
+    return bytestring(convert(Ptr{Cchar}, src))
+end
+
+#TODO: info property api
+num_devices(p::Program) = begin
+    ret = Array(CL_uint, 1)
+    @check api.clGetProgramInfo(p.id, CL_PROGRAM_NUM_DEVICES, sizeof(ret), ret, C_NULL)
+    return ret[1]
+end
+
+devices(p::Program) = begin
+    err_code = Array(CL_int, 1)
+    ndevices = num_devices(p)
+    device_ids = Array(CL_device_id, ndevices)
+    @check api.clGetProgramInfo(p.id, CL_PROGRAM_DEVICES, 
+                                sizeof(CL_device_id) * ndevices, device_ids, C_NULL)
+    return [Device(device_ids[i]) for i in 1:ndevices]
+end
+
+context(p::Program) = begin
+    ret = Array(CL_context, 1)
+    @check api.clGetProgramInfo(p.id, CL_PROGRAM_CONTEXT,
+                                sizeof(CL_context), ret, C_NULL)
+    return Context(ret[1])
+end
+
+reference_count(p::Program) = begin
+    ret = Array(CL_uint, 1) 
+    @check api.clGetProgramInfo(p.id, CL_PROGRAM_REFERENCE_COUNT,
+                                sizeof(CL_uint), ret, C_NULL)
+    return ret[1]
+end
+
 
 function create_program_with_binary(ctx::Context, d::Device, binary::String)
 end
