@@ -6,6 +6,27 @@ cl = OpenCL
 
 macro throws_pred(ex) FactCheck.throws_pred(ex) end 
 
+# define usable platforms as those that contain
+# all working devices
+function available_platforms()
+    usable_platforms = {}
+    for platform in cl.platforms()
+        usable = true
+        for device in cl.devices(platform)
+            try
+                cl.Context(device)
+            catch err
+                usable = false
+            end
+        end
+        if usable
+            push!(usable_platforms, platform)
+        end
+    end
+    return usable_platforms
+end
+
+
 facts("OpenCL.Platform") do 
     
     context("Platform Info") do
@@ -287,7 +308,7 @@ facts("OpenCL.Buffer") do
 
         b = cl.Buffer(ctx, cl.CL_MEM_COPY_HOST_PTR | cl.CL_MEM_READ_ONLY,
                       hostbuf=testarray)
-        
+
         @fact b.size == sizeof(testarray) => true
         cl.fill!(queue, b, cl.cl_float(1.0))
         readback = cl.read(queue, b)
@@ -296,6 +317,7 @@ facts("OpenCL.Buffer") do
         
         readback = fill(float32(2.0), length(testarray))
         cl.write!(queue, b, readback)
+        readback = cl.read(queue, b)
         @fact all(x -> x == 1.0, readback) => true
      end
 end

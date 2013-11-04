@@ -121,3 +121,7 @@ function devices()
     end
     return devs
 end
+
+function has_device_type(p::Platform, dtype)
+    length(devices(p, dtype)) > 0
+end

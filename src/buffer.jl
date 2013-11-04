@@ -74,13 +74,8 @@ function enqueue_read_buffer{T}(q::CmdQueue,
                                 dev_offset::Csize_t,
                                 wait_for::Union(Vector{Event}, Nothing),
                                 is_blocking::Bool)
-    if wait_for == nothing
-        n_evts = 0
-        evt_ids = C_NULL
-    else
-        n_evts  = length(wait_for)
-        evt_ids = [evt.id for evt in wait_for]
-    end
+    n_evts  = wait_for == nothing ? uint(0) : length(wait_for) 
+    evt_ids = wait_for == nothing ? C_NULL  : [evt.id for evt in wait_for]
     ret_evt = Array(CL_event, 1)
     nbytes  = sizeof(hostbuf)
     @check api.clEnqueueReadBuffer(q.id, buf.id, cl_bool(is_blocking),
@@ -97,13 +92,8 @@ function enqueue_write_buffer{T}(q::CmdQueue,
                                  offset::Csize_t,
                                  wait_for::Union(Vector{Event}, Nothing),
                                  is_blocking::Bool)
-    if wait_for == nothing
-        n_evts = 0
-        evt_ids = C_NULL
-    else
-        n_evts  = cl_uint(length(wait_for))
-        evt_ids = [evt.id for evt in wait_for]
-    end
+    n_evts  = wait_for == nothing ? uint(0) : length(wait_for) 
+    evt_ids = wait_for == nothing ? C_NULL  : [evt.id for evt in wait_for]
     ret_evt = Array(CL_event, 1)
     nbytes  = unsigned(sizeof(hostbuf))
     @check api.clEnqueueWriteBuffer(q.id, buf.id, cl_bool(is_blocking),
@@ -121,14 +111,8 @@ function enqueue_copy_buffer(q::CmdQueue,
                              src_offset::Csize_t,
                              dst_offset::Csize_t,
                              wait_for::Union(Vector{Event}, Nothing))
-    if wait_for == nothing
-        n_evts = 0
-        evt_ids = C_NULL
-    else 
-        n_evts = cl_uint(length(wait_for))
-        evt_ids = [evt.id for evt in wait_for]
-    end
-    n_evts  = cl_uint(length(evt_ids))
+    n_evts  = wait_for == nothing ? uint(0) : length(wait_for) 
+    evt_ids = wait_for == nothing ? C_NULL  : [evt.id for evt in wait_for]
     ret_evt = Array(CL_event, 1)
     if byte_count < 0
         byte_count_src = Array(Csize_t, 1)
