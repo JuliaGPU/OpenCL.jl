@@ -183,23 +183,23 @@ facts("OpenCL.Context") do
     end
 end
 
-facts("OpenCL.CommandQueue") do 
-    context("OpenCL.CommandQueue device constructor") do
-        @fact @throws_pred(cl.CommandQueue(nothing, nothing)) => (true, "error")
+facts("OpenCL.CmdQueue") do 
+    context("OpenCL.CmdQueue device constructor") do
+        @fact @throws_pred(cl.CmdQueue(nothing, nothing)) => (true, "error")
         for platform in cl.platforms()
             for device in cl.devices(platform)
                 ctx = cl.Context(device)
-                @fact @throws_pred(cl.CommandQueue(ctx)) => (false, "no error")
-                @fact @throws_pred(cl.CommandQueue(ctx, device)) => (false, "no error")
+                @fact @throws_pred(cl.CmdQueue(ctx)) => (false, "no error")
+                @fact @throws_pred(cl.CmdQueue(ctx, device)) => (false, "no error")
             end
         end
     end
 
-    context("OpenCL.CommandQueue info") do
+    context("OpenCL.CmdQueue info") do
         for platform in cl.platforms()
             for device in cl.devices(platform)
                 ctx = cl.Context(device)
-                for q in (cl.CommandQueue(ctx), cl.CommandQueue(ctx, device))
+                for q in (cl.CmdQueue(ctx), cl.CmdQueue(ctx, device))
                     @fact q[:context] => ctx
                     @fact q[:device] => device
                     @fact q[:reference_count] > 0 => true
@@ -225,7 +225,7 @@ facts("OpenCL.Event") do
         ctx = cl.create_some_context()
         # create user event
         usr_evt = cl.UserEvent(ctx)
-        q = cl.CommandQueue(ctx)
+        q = cl.CmdQueue(ctx)
         cl.enqueue_wait_for_events(q, usr_evt)
 
         # create marker event
@@ -253,7 +253,7 @@ facts("OpenCL.Event") do
         ctx = cl.Context(cl.devices()[end])
         #ctx = cl.create_some_context()
         usr_evt = cl.UserEvent(ctx)
-        queue = cl.CommandQueue(ctx)
+        queue = cl.CmdQueue(ctx)
         
         cl.enqueue_wait_for_events(queue, usr_evt)
         
@@ -271,4 +271,31 @@ facts("OpenCL.Event") do
         @fact mkr_evt[:status] => cl.CL_COMPLETE
         @fact callback_called => true
     end       
+end
+
+facts("OpenCL.Buffer") do
+    context("OpenCL.Buffer constructors") do
+        ctx = cl.create_some_context()
+        queue = cl.CmdQueue(ctx)
+        
+        testarray = zeros(cl.CL_float, 100)
+        @fact @throws_pred(cl.Buffer(ctx, cl.CL_MEM_WRITE_ONLY,
+                                     sizeof(testarray))) => (false, "no error")
+        
+        @fact @throws_pred(cl.Buffer(ctx, cl.CL_MEM_COPY_HOST_PTR | cl.CL_MEM_READ_ONLY, 
+                                     hostbuf=testarray)) => (false, "no error")
+
+        b = cl.Buffer(ctx, cl.CL_MEM_COPY_HOST_PTR | cl.CL_MEM_READ_ONLY,
+                      hostbuf=testarray)
+
+        @fact b.size == sizeof(testarray) => true
+        cl.fill!(queue, b, cl.cl_float(1.0))
+        readback = cl.read(queue, b)
+        @fact all(x -> x == 1.0, readback) => true
+        @fact all(x -> x == 0.0, testarray) => true
+        
+        readback = fill(float32(2.0), length(testarray))
+        cl.write!(queue, b, readback)
+        @fact all(x -> x == 1.0, readback) => true
+     end
 end

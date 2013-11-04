@@ -1,16 +1,21 @@
+# --- OpenCL Buffer ---
 
 type Buffer{T} <: CLMemObject
     valid::Bool
     id::CL_mem
     size::CL_uint
-    hostbuf
+    #hostbuf
 
-    function Buffer(mem_id::CL_mem; retain=true, hostbuf=nothing)
+    function Buffer(mem_id::CL_mem, retain::Bool, size::CL_uint) #hostbuf
         if retain
             @check api.clRetainMemObject(mem_id)
         end
-        buff = new(true, mem_id, hostbuf)
-        finalizer(buff, mem_obj -> if mem_obj.valid release!(mem_obj) end)
+        buff = new(true, mem_id, size)
+        finalizer(buff, mem_obj -> begin 
+            if mem_obj.valid
+                release!(mem_obj)
+            end
+        end)
         return buff
     end
 end
@@ -18,22 +23,22 @@ end
 Base.length{T}(b::Buffer{T}) = (b.size / sizeof(T))
 Base.ndims(b::Buffer) = 1
 Base.eltype{T}(b::Buffer{T}) = T
-Base.isnull{T}(b::Buffer) = (b.id == C_NULL)
 
-
-function create_cl_buffer(ctx::CL_context, flags::CL_mem_flags,
-                          size::Csize_t, host_buffer::Ptr{Void})
-    status = Array(C_int, 1)
-    mem_id = api.clCreateBuffer(ctx, flags, size, host_ptr, status)
+function _create_cl_buffer(ctx::CL_context,
+                           flags::CL_mem_flags,
+                           size::Integer, 
+                           host_buffer::Ptr{Void})
+    status = Array(CL_int, 1)
+    mem_id = api.clCreateBuffer(ctx, flags, size, host_buffer, status)
     if status[1] != CL_SUCCESS
         throw(CLError(status[1]))
     end
     return mem_id
 end
 
-function Buffer(ctx::Context, flags::CL_mem_flags, size::Csize_t=0; hostbuf=nothing)
+function Buffer(ctx::Context, flags::CL_mem_flags, size=0; hostbuf=nothing)
     if (hostbuf != nothing && 
-        !(flags & (CL_MEM_USE_HOST_PTR | CL_MEM_COPY_HOST_PTR)))
+        !bool((flags & (CL_MEM_USE_HOST_PTR | CL_MEM_COPY_HOST_PTR))))
         warn("'hostbuf' was passed, but no memory flags to make use of it")
     end
     
@@ -42,7 +47,7 @@ function Buffer(ctx::Context, flags::CL_mem_flags, size::Csize_t=0; hostbuf=noth
 
     if hostbuf != nothing
         buf_ptr = convert(Ptr{Void}, hostbuf)
-        if flags & CL_MEM_USE_HOST_PTR
+        if bool(flags & CL_MEM_USE_HOST_PTR)
             retain_buf = hostbuf
         end
         if size > sizeof(hostbuf)
@@ -52,88 +57,79 @@ function Buffer(ctx::Context, flags::CL_mem_flags, size::Csize_t=0; hostbuf=noth
             size = sizeof(hostbuf)
         end
     end
-    
-    mem_id = create_cl_buffer(ctx.id, flags, size, buf_ptr)
-    
+    #TODO:better type stability
+    size = cl_uint(size)
+    mem_id = _create_cl_buffer(ctx.id, flags, size, buf_ptr)
     try
-        return Buffer(mem_id, 
-                      retain=false,
-                      hostbuf=retain_buf)
+        return Buffer{Float32}(mem_id, false, size)
     catch err
         @check api.clReleaseMemObject(mem_id)
         throw(err)
     end
 end
 
-function copy!{T}(dst::Array{T}, src::Buffer{T})
-    if length(dist) != length(src)
-        throw(ArgumentError("Inconsistent array length"))
+function enqueue_read_buffer{T}(q::CmdQueue, 
+                                buf::Buffer{T}, 
+                                hostbuf::Array{T},
+                                dev_offset::Csize_t,
+                                wait_for::Union(Vector{Event}, Nothing),
+                                is_blocking::Bool)
+    if wait_for == nothing
+        n_evts = 0
+        evt_ids = C_NULL
+    else
+        n_evts  = length(wait_for)
+        evt_ids = [evt.id for evt in wait_for]
     end
-    nbytes = length(src) * sizeof(T)
-    # copy
-    return dst
-end
-
-function copy!{T}(dst::Buffer{T}, src::Array{T})
-    if length(dst) != length(src)
-        throw(ArgumentError("Inconsistent array length"))
-    end
-    nbytes = length(src) * sizeof(T)
-    # copy
-    return dst
-end
-
-function enqueue_read_buffer(q::Queue, 
-                             buf::Buffer, 
-                             hostbuf::Array,
-                             dev_offset::Csize_t,
-                             wait_for::Vector{Event},
-                             is_blocking::Bool)
-
-    evt_ids = [evt.id for evt in wait_for]
-    n_evts  = cl_uint(length(evt_ids))
     ret_evt = Array(CL_event, 1)
-    nbytes  = unsigned(sizeof(hostbuf))
-    @check api.clEnqueueReadBuffer(ctx.id, buf.id, cl_bool(is_blocking),
-                                   dev_offset, nbytes, buf_ptr,
-                                   n_evts, n_evts == 0 ? C_NULL : evt_ids, 
-                                   ret_evt)
+    nbytes  = sizeof(hostbuf)
+    @check api.clEnqueueReadBuffer(q.id, buf.id, cl_bool(is_blocking),
+                                   dev_offset, nbytes, hostbuf,
+                                   n_evts, evt_ids, ret_evt)
     #TODO: nanny event
     @return_event ret_evt[1] 
 end
 
-function enqueue_write_buffer(q::Queue,
-                              buf::Buffer,
-                              hostbuf::Array,
-                              byte_count::Csize_t,
-                              src_offset::Csize_t,
-                              dst_offset::Csize_t,
-                              wait_for::Vector{Event})
-
-    evt_ids = [evt.id for evt in wait_for]
-    n_evts  = cl_uint(length(evt_ids))
+function enqueue_write_buffer{T}(q::CmdQueue,
+                                 buf::Buffer{T},
+                                 hostbuf::Array{T},
+                                 byte_count::Csize_t,
+                                 offset::Csize_t,
+                                 wait_for::Union(Vector{Event}, Nothing),
+                                 is_blocking::Bool)
+    if wait_for == nothing
+        n_evts = 0
+        evt_ids = C_NULL
+    else
+        n_evts  = cl_uint(length(wait_for))
+        evt_ids = [evt.id for evt in wait_for]
+    end
     ret_evt = Array(CL_event, 1)
     nbytes  = unsigned(sizeof(hostbuf))
-    @check api.clEnqueueWriteBuffer(ctx.id, buf.id, cl_bool(is_blocking),
-                                    dev_offset, nbytes, hostbuf,
-                                    n_evts, n_evts == 0 ? C_NULL : evt_ids,
-                                    ret_evt)
+    @check api.clEnqueueWriteBuffer(q.id, buf.id, cl_bool(is_blocking),
+                                    offset, nbytes, hostbuf,
+                                    n_evts, evt_ids, ret_evt)
+    buf.size = nbytes
     # TODO: nanny evt
     @return_event ret_evt[1]
 end
 
-function enqueue_copy_buffer(q::Queue,
+function enqueue_copy_buffer(q::CmdQueue,
                              src::Buffer,
                              dst::Buffer,
                              byte_count::Csize_t,
                              src_offset::Csize_t,
                              dst_offset::Csize_t,
-                             wait_for::Vector{Event})
-
-    evt_ids = [evt.id for evt in wait_for]
+                             wait_for::Union(Vector{Event}, Nothing))
+    if wait_for == nothing
+        n_evts = 0
+        evt_ids = C_NULL
+    else 
+        n_evts = cl_uint(length(wait_for))
+        evt_ids = [evt.id for evt in wait_for]
+    end
     n_evts  = cl_uint(length(evt_ids))
     ret_evt = Array(CL_event, 1)
-    
     if byte_count < 0
         byte_count_src = Array(Csize_t, 1)
         byte_count_dst = Array(Csize_t, 1)
@@ -143,46 +139,78 @@ function enqueue_copy_buffer(q::Queue,
                                       byte_count_dst, C_NULL)
         byte_count = min(byte_count_src[1], byte_count_dst[1])
     end
-    @check api.clEnqueueCopyBuffer(ctx.id, src.id, dst.id,
+    @check api.clEnqueueCopyBuffer(q.id, src.id, dst.id,
                                    src_offset, dst_offset, byte_count,
-                                   n_evts, n_evts == 0 ? C_NULL : evt_ids, ret_evt)
+                                   n_evts, evt_ids, ret_evt)
     @return_event ret_evt[1] 
 end
 
-function enqueue_map_buffer(q::Queue, b::Buffer, flags, offset, shape,
+function enqueue_map_buffer(q::CmdQueue, b::Buffer, flags, offset, shape,
                             wait_for=nothing, is_blocking=false)
 #TODO:
 end
 
 @ocl_v1_2_only begin
-    function enqueue_fill_buffer(q::Queue, buf::Buffer, pattern::Array,
-                                 offset::Csize_t, nbytes::Csize_t,
-                                 wait_for::Vector{Event})
-
-        evt_ids = [evt.id for evt in wait_for]
-        n_evts  = cl_uint(length(evt_ids))
+    function enqueue_fill_buffer{T}(q::CmdQueue, buf::Buffer{T}, pattern::T,
+                                    offset::Csize_t, nbytes::Csize_t,
+                                    wait_for::Union(Vector{Event}, Nothing))
+        if wait_for == nothing
+            n_evts = 0
+            evt_ids = C_NULL
+        else
+            evt_ids = [evt.id for evt in wait_for]
+            n_evts  = cl_uint(length(evt_ids))
+        end
         ret_evt = Array(CL_event, 1)
         nbytes_pattern  = unsigned(sizeof(pattern)) 
-        @check api.clEnqueueFillBuffer(ctx.id, buf.id,
-                                       pattern, nbytes_pattern,
-                                       offset, size,
-                                       n_evts, n_evts == 0 ? C_NULL : evt_ids,
-                                       ret_evt)
+        pattern = [pattern]
+        @check api.clEnqueueFillBuffer(q.id, buf.id, pattern, 
+                                       nbytes_pattern, offset, buf.size,
+                                       n_evts, evt_ids, ret_evt)
         # TODO: nanny evt
         @return_event ret_evt[1]
+    end
+
+    function fill!{T}(q::CmdQueue, buf::Buffer{T}, x::T)
+        nbytes = uint64(buf.size)
+        evt = enqueue_fill_buffer(q, buf, x, unsigned(0), nbytes, nothing)
+        wait(evt)
+    end
+
+    function fill{T}(q::CmdQueue, x::T, n::Csize_t)
+        bytes = n * sizeof(T)
     end
 end
 
 
-#function write!{T}(q::Queue, b::Buffer, v::Vector{T})
-#    csize = convert(Csize_t, b.size)
-#    vptr = convert(Ptr{Void}, v)
-#    clEnqueueWriteBuffer(q.id, b.ptr, CL_TRUE, 0, csize, vptr, 0, C_NULL, C_NULL)
-#end 
+function copy!{T}(q::CmdQueue, dst::Array{T}, src::Buffer{T})
+    if length(dist) != length(src)
+        throw(ArgumentError("Inconsistent array length"))
+    end
+    nbytes = length(src) * sizeof(T)
+    # copy
+    return dst
+end
 
-#function read{T}(q::Queue, b::Buffer{T})
-#    vptr = convert(Ptr{Void}, Array(T, b.size / sizeof(T)))
-#    csize = convert(Csize_t, b.size)
-#    clEnqueueReadBuffer(q.id, b.ptr, CL_TRUE, 0, csize, vptr, 0, C_NULL, C_NULL) 
-#    return unsafe_ref(convert(Ptr{T}, vptr))
-#end
+function copy!{T}(q::CmdQueue, dst::Buffer{T}, src::Array{T})
+    if length(dst) != length(src)
+        throw(ArgumentError("Inconsistent array length"))
+    end
+    nbytes = length(src) * sizeof(T)
+    # copy
+    return dst
+end
+
+#TODO: enqueue low level functions should match up signature with cl.api
+function write!{T}(q::CmdQueue, buf::Buffer{T}, hostbuf::Array{T})
+    nbytes = unsigned(sizeof(hostbuf))
+    @assert nbytes == buf.size
+    evt = enqueue_write_buffer(q, buf, hostbuf, nbytes, unsigned(0), nothing, true)
+    wait(evt)
+end 
+
+function read{T}(q::CmdQueue, buf::Buffer{T})
+    hostbuf = Array(T, int(buf.size / sizeof(T)))
+    enqueue_read_buffer(q, buf, hostbuf, unsigned(0), nothing, true)
+    return hostbuf
+end

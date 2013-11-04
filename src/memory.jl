@@ -29,7 +29,8 @@ function release!(mem::CLMemObject)
     if !mem.valid
         error("OpenCL.MemObject relase! error: trying to double unref mem object")
     end
-    @check_release api.clReleaseMemObject(mem.ptr)
+    @check_release api.clReleaseMemObject(mem.id)
+    mem.id = C_NULL
     mem.valid = false
 end
 
@@ -42,19 +43,19 @@ end
 
 macro memobj_property(func, cl_device_info, return_type)
     quote
-        function $func(d::CLMemObject)
+        function $func(mem::CLMemObject)
             result = Array($return_type, 1)
-            @check api.clGetMemObjectInfo(d.id, $cl_device_info,
+            @check api.clGetMemObjectInfo(mem.id, $cl_device_info,
                                           sizeof($return_type), result, C_NULL)
             return result[1]
         end
     end
 end
 
-@memobj_property(:type,            CL_MEM_TYPE,            CL_mem_object_type)
-@memobj_property(:size,            CL_MEM_SIZE,            Csize_t)
-@memobj_property(:reference_count, CL_MEM_REFERENCE_COUNT, CL_uint)
-@memobj_property(:map_count,       CL_MEM_MAP_COUNT,       CL_uint)
+@memobj_property(mem_type,        CL_MEM_TYPE,            CL_mem_object_type)
+@memobj_property(size,            CL_MEM_SIZE,            Csize_t)
+@memobj_property(reference_count, CL_MEM_REFERENCE_COUNT, CL_uint)
+@memobj_property(map_count,       CL_MEM_MAP_COUNT,       CL_uint)
 
 #TODO: base...
 

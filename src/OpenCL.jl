@@ -9,29 +9,35 @@ include("constants.jl")
 # OpenCL low level api 
 include("api.jl")
 
-# util functions 
+# Util functions 
 include("util.jl")
 
-# --- Errors ---
+# Errors
 include("error.jl")
 
-# --- Macros ---
+# Macros
 include("macros.jl")
 
-# --- OpenCL Platform --- 
+# OpenCL Platform
 include("platform.jl")
 
-# --- OpenCL Device --- 
+# OpenCL Device
 include("device.jl")
 
-# --- OpenCL Context ---
+# OpenCL Context
 include("context.jl")
 
-# --- OpenCL Queue ---
+# OpenCL Queue
 include("queue.jl")
 
-#--- OpenCL Event ---
+# OpenCL Event
 include("event.jl")
 
+# OpenCL MemObject
+
+include("memory.jl")
+
+# OpenCL Buffer
+include("buffer.jl")
 
 end # module
