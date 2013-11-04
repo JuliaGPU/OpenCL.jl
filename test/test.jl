@@ -287,7 +287,7 @@ facts("OpenCL.Buffer") do
 
         b = cl.Buffer(ctx, cl.CL_MEM_COPY_HOST_PTR | cl.CL_MEM_READ_ONLY,
                       hostbuf=testarray)
-
+        
         @fact b.size == sizeof(testarray) => true
         cl.fill!(queue, b, cl.cl_float(1.0))
         readback = cl.read(queue, b)
