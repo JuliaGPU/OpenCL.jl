@@ -57,7 +57,9 @@ function Buffer(ctx::Context, flags::CL_mem_flags, size=0; hostbuf=nothing)
             size = sizeof(hostbuf)
         end
     end
-    #TODO:better type stability
+    if size <= 0
+        error("OpenCL.Buffer specified size is <= 0 bytes")
+    end
     size = cl_uint(size)
     mem_id = _create_cl_buffer(ctx.id, flags, size, buf_ptr)
     try
