@@ -131,7 +131,7 @@ function properties(ctx_id::CL_context)
         elseif key == 0
             break
         else
-            error("Context properties: unknown context_property key encountered")
+            error("Unknown OpenCL.Context property key encountered $key")
         end
     end
     return result
