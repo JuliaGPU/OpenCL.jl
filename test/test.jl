@@ -416,29 +416,70 @@ facts("OpenCL.Program") do
     end
 
     context("OpenCL.Program source constructor") do
-        ctx = cl.create_some_context()
-        @fact @throws_pred(cl.Program(ctx, source=test_source)) => (false, "no error")
+        for device in cl.devices()
+            ctx = cl.Context(device)
+            prg = cl.Program(ctx, source=test_source)
+            @fact @throws_pred(cl.Program(ctx, source=test_source)) => (false, "no error")
+        end
     end
     
-    #TODO: build programs with binaries
-    
+    context("OpenCL.Program info") do
+        for device in cl.devices()
+            ctx = cl.Context(device)
+            prg = cl.Program(ctx, source=test_source)
+            
+            @fact prg[:context] => ctx
+            
+            @fact typeof(prg[:devices]) => Vector{cl.Device}
+            @fact length(prg[:devices]) > 0 => true 
+            @fact device in prg[:devices] => true
+
+            @fact typeof(prg[:source]) => ASCIIString
+            @fact prg[:source] => test_source
+
+            @fact typeof(prg[:binaries]) => Dict{cl.Device, Array{Uint8}}
+
+            @fact prg[:reference_count] > 0 => true
+         end
+    end
+
     context("OpenCL.Program build") do 
-        prg = create_test_program()
-        @fact @throws_pred(cl.build!(prg)) => (false, "no error")
-        cl.build!(prg)
+        for device in cl.devices()
+            ctx = cl.Context(device)
+            prg = cl.Program(ctx, source=test_source)
+            @fact @throws_pred(cl.build!(prg)) => (false, "no error")
+        end
     end
 
     context("OpenCL.Program source code") do
-        prg = create_test_program()
-        println(cl.source_code(prg))
+        for device in cl.devices()
+           ctx = cl.Context(device)
+           prg = cl.Program(ctx, source=test_source)
+           @fact prg[:source] => test_source
+       end
     end
 
     context("OpenCL.Program binaries") do
-        prg = create_test_program()
-        cl.build!(prg)
-        @fact @throws_pred(cl.binaries(prg)) => (false, "no error")
+        for device in cl.devices()
+            ctx = cl.Context(device)
+            prg = cl.Program(ctx, source=test_source)
+            cl.build!(prg)
+            
+            @fact device in collect(keys(prg[:binaries])) => true
+            binaries = prg[:binaries]
+            @fact device in collect(keys(binaries)) => true
+            @fact binaries[device] => not(nothing)
+            @fact length(binaries[device]) > 0 => true
+            prg2 = cl.Program(ctx, binaries=binaries)
+            try 
+                prg2[:source]
+            catch err
+                @fact isa(err, cl.CLError) => true
+                @fact err.code => -45 
+                @fact err.desc => :CL_INVALID_PROGRAM_EXECUTABLE
+            end
+            @fact prg2[:binaries] == binaries => true
+        end
     end
 
 end
-
-
