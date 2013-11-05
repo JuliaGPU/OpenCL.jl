@@ -43,7 +43,7 @@ function Program(ctx::Context; source=Nothing, binaries=Nothing)
                 lengths[i] = length(binary)
                 bins[i] = convert(Ptr{Uint8}, binary)
             end
-            err_code = Array[1]
+            err_code = Array(CL_int, 1)
             program_id = api.clCreateProgramWithBinary(ctx.id, n_devices, device_ids, 
                                                        lengths, bins, binary_status, err_code)
             if err_code[1] != CL_SUCCESS
