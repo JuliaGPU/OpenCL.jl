@@ -109,6 +109,26 @@ function build_logs(p::Program)
     return logs
 end 
 
+binaries(p::Program) = begin
+    binary_dict = (Device => Array{Cchar})[]
+    
+    slen = Array(CL_int, 1)
+    @check api.clGetProgramInfo(p.id, CL_PROGRAM_BINARY_SIZES, 0, C_NULL, slen)
+    sizes = zeros(Csize_t, slen[1])
+    @check api.clGetProgramInfo(p.id, CL_PROGRAM_BINARY_SIZES, slen[1], sizes, C_NULL)
+    
+    size = Array(Csize_t, 1) 
+    total_size = reduce(+, 0, sizes)
+    bins = Array(Cchar, total_size)
+    @check api.clGetProgramInfo(p.id, CL_PROGRAM_BINARIES, 0, C_NULL, size)
+    @check api.clGetProgramInfo(p.id, CL_PROGRAM_BINARIES, size[1], bins, C_NULL)
+    
+    for (i, d) in enumerate(devices(p))
+        binary_dict[d] = bins[i]
+    end
+    return binary_dict
+end 
+
 source_code(p::Program) = begin
     src = C_NULL
     src_len = Array(Csize_t, 1)

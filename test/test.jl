@@ -433,6 +433,12 @@ facts("OpenCL.Program") do
         println(cl.source_code(prg))
     end
 
+    context("OpenCL.Program binaries") do
+        prg = create_test_program() 
+        cl.build!(prg)
+        println(cl.binaries(prg))
+    end
+
 end
 
 
