@@ -92,7 +92,9 @@ function build_status(p::Program)
 end
 
 function build_logs(p::Program)
+    
     logs = (Device => ASCIIString)[]
+    
     log_len = Array(Csize_t, 1)
     for d in devices(p)
         @check cl.clGetProgramBuildInfo(p.id, d.id, CL_PROGRAM_BUILD_LOG, 
@@ -110,27 +112,33 @@ function build_logs(p::Program)
 end 
 
 binaries(p::Program) = begin
+
     binary_dict = (Device => Array{Cchar})[]
     
     slen = Array(CL_int, 1)
     @check api.clGetProgramInfo(p.id, CL_PROGRAM_BINARY_SIZES, 0, C_NULL, slen)
     sizes = zeros(Csize_t, slen[1])
     @check api.clGetProgramInfo(p.id, CL_PROGRAM_BINARY_SIZES, slen[1], sizes, C_NULL)
-    
-    size = Array(Csize_t, 1) 
-    total_size = reduce(+, 0, sizes)
-    bins = Array(Cchar, total_size)
-    @check api.clGetProgramInfo(p.id, CL_PROGRAM_BINARIES, 0, C_NULL, size)
-    @check api.clGetProgramInfo(p.id, CL_PROGRAM_BINARIES, size[1], bins, C_NULL)
-    
+
+    bins = Array(Ptr{Cchar}, length(sizes))
+    for (i, s) in enumerate(sizes)
+        if s > 0
+            bins[i] = convert(Ptr{Cchar}, Array(Cchar, s))
+        else
+            bins[i] = convert(Ptr{Cchar}, C_NULL)
+        end
+    end
+    @check api.clGetProgramInfo(p.id, CL_PROGRAM_BINARIES,
+                                length(sizes) * sizeof(Ptr{Cchar}), bins, C_NULL)
     for (i, d) in enumerate(devices(p))
-        binary_dict[d] = bins[i]
+        if sizes[i] > 0
+            binary_dict[d] = Base.copy(pointer_to_array(bins[i], int(sizes[i])))
+        end
     end
     return binary_dict
 end 
 
 source_code(p::Program) = begin
-    src = C_NULL
     src_len = Array(Csize_t, 1)
     @check api.clGetProgramInfo(p.id, CL_PROGRAM_SOURCE, 0, C_NULL, src_len)
     if src_len[1] <= 1

@@ -434,9 +434,9 @@ facts("OpenCL.Program") do
     end
 
     context("OpenCL.Program binaries") do
-        prg = create_test_program() 
+        prg = create_test_program()
         cl.build!(prg)
-        println(cl.binaries(prg))
+        @fact @throws_pred(cl.binaries(prg)) => (false, "no error")
     end
 
 end
