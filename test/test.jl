@@ -481,5 +481,26 @@ facts("OpenCL.Program") do
             @fact prg2[:binaries] == binaries => true
         end
     end
+end
 
+facts("OpenCL.Kernel") do 
+
+    test_source = "
+    __kernel void sum(__global const float *a,
+                      __global const float *b, 
+                      __global float *c)
+    {
+      uint gid = get_global_id(0);
+      c[gid] = a[gid] + b[gid];
+    }
+    "
+
+    context("OpenCL.Kernel constructor") do
+        ctx = cl.create_some_context()
+        prg = cl.Program(ctx, source=test_source)
+        cl.build!(prg)
+        #TODO: check... throws a segfault when program is not built....
+        @fact @throws_pred(cl.Kernel(prg, "sum")) => (false, "no error")
+        sum = cl.Kernel(prg, "sum")
+    end
 end

@@ -34,7 +34,6 @@ include("queue.jl")
 include("event.jl")
 
 # OpenCL MemObject
-
 include("memory.jl")
 
 # OpenCL Buffer
@@ -42,5 +41,8 @@ include("buffer.jl")
 
 # OpenCL Program
 include("program.jl")
+
+# OpenCL Kernel
+include("kernel.jl")
 
 end # module
