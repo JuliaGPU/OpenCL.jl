@@ -448,6 +448,10 @@ facts("OpenCL.Program") do
             ctx = cl.Context(device)
             prg = cl.Program(ctx, source=test_source)
             @fact @throws_pred(cl.build!(prg)) => (false, "no error")
+            @fact prg[:build_status][device] => cl.CL_BUILD_SUCCESS 
+            # test build by methods chaining
+            prg = cl.Program(ctx, source=test_source) |> cl.build!
+            @fact prg[:build_status][device] => cl.CL_BUILD_SUCCESS 
         end
     end
 
@@ -462,8 +466,7 @@ facts("OpenCL.Program") do
     context("OpenCL.Program binaries") do
         for device in cl.devices()
             ctx = cl.Context(device)
-            prg = cl.Program(ctx, source=test_source)
-            cl.build!(prg)
+            prg = cl.Program(ctx, source=test_source) |> cl.build!
             
             @fact device in collect(keys(prg[:binaries])) => true
             binaries = prg[:binaries]
@@ -509,7 +512,6 @@ facts("OpenCL.Kernel") do
     context("OpenCL.Kernel info") do
         for device in cl.devices()
             ctx = cl.Context(device)
-            #TODO: return program after build to allow chaining functions |>
             prg = cl.Program(ctx, source=test_source)
             cl.build!(prg)
             k = cl.Kernel(prg, "sum")
