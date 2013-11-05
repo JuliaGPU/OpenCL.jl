@@ -106,11 +106,12 @@ end
 
 
 function properties(ctx_id::CL_context)
-    size = Array(Csize_t, 1)
+    size = Csize_t[0,]
     @check api.clGetContextInfo(ctx_id, CL_CONTEXT_PROPERTIES, 0, C_NULL, size)
     props = Array(CL_context_properties, size[1])
     @check api.clGetContextInfo(ctx_id, CL_CONTEXT_PROPERTIES,
                                 size[1] * sizeof(CL_context_properties), props, C_NULL)
+    
     #properties array of [key,value...]
     result = {}
     for i in 1:2:size[1]
@@ -131,7 +132,7 @@ function properties(ctx_id::CL_context)
         elseif key == 0
             break
         else
-            error("Unknown OpenCL.Context property key encountered $key")
+            warn("Unknown OpenCL.Context property key encountered $key")
         end
     end
     return result
