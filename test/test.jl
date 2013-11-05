@@ -496,11 +496,28 @@ facts("OpenCL.Kernel") do
     "
 
     context("OpenCL.Kernel constructor") do
-        ctx = cl.create_some_context()
-        prg = cl.Program(ctx, source=test_source)
-        cl.build!(prg)
-        #TODO: check... throws a segfault when program is not built....
-        @fact @throws_pred(cl.Kernel(prg, "sum")) => (false, "no error")
-        sum = cl.Kernel(prg, "sum")
+        for device in cl.devices()
+            ctx = cl.Context(device)
+            prg = cl.Program(ctx, source=test_source)
+            cl.build!(prg)
+            #TODO: check... throws a segfault when program is not built....
+            @fact @throws_pred(cl.Kernel(prg, "sum")) => (false, "no error")
+            sum = cl.Kernel(prg, "sum")
+        end
     end
+
+    context("OpenCL.Kernel info") do
+        for device in cl.devices()
+            ctx = cl.Context(device)
+            #TODO: return program after build to allow chaining functions |>
+            prg = cl.Program(ctx, source=test_source)
+            cl.build!(prg)
+            k = cl.Kernel(prg, "sum")
+            @fact k[:name] => "sum"
+            @fact k[:num_args] => 3
+            @fact k[:reference_count] > 0 => true
+            @fact k[:program] => prg
+            @fact typeof(k[:attributes]) => ASCIIString
+        end
+    end 
 end
