@@ -52,25 +52,25 @@ end
 
 function set_arg!(k::Kernel, idx::Integer, arg::Nothing)
     @assert idx > 0
-    @check api.clSetKernelArg(k.id, idx, sizeof(CL_mem), C_NULL)
+    @check api.clSetKernelArg(k.id, cl_uint(idx-1), sizeof(CL_mem), C_NULL)
     return k
 end
 
 function set_arg!(k::Kernel, idx::Integer, arg::CLMemObject)
     @assert idx > 0
-    @check api.clSetKernelArg(k.id, idx, arg.size, arg.id)
+    @check api.clSetKernelArg(k.id, cl_uint(idx-1), arg.size, arg.id)
     return k
 end
 
 function set_arg!(k::Kernel, idx::Integer, arg::LocalMemory)
     @assert idx > 0
-    @check api.clSetKernelArg(k.id, idx, loc.size, C_NULL)
+    @check api.clSetKernelArg(k.id, cl_uint(idx-1), loc.size, C_NULL)
     return k
 end
 
 function set_arg!(k::Kernel, idx::Integer, arg::Buffer)
     @assert idx > 0
-    @check api.clSetKernelArg(k.id, idx, arg.size, arg.id)
+    @check api.clSetKernelArg(k.id, cl_uint(idx-1), uint64(arg.size), arg.id)
     return k
 end
 

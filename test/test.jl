@@ -551,4 +551,33 @@ facts("OpenCL.Kernel") do
             @fact @throws_pred(cl.required_work_group_size(k, device)) => (false, "no error")
         end
     end
+
+    context("OpenCL.Kernel set_args!") do
+         for device in cl.devices()
+            if device[:platform][:name] == "Portable Computing Language"
+                warn("Skipping OpenCL.Kernel mem/workgroup size for Portable Computing Language Platform")
+                continue
+            end
+            ctx = cl.Context(device)
+            queue = cl.CmdQueue(ctx)
+            
+            prg = cl.Program(ctx, source=test_source) |> cl.build!
+            k = cl.Kernel(prg, "sum")
+
+            nbytes = 100 * sizeof(Float32)
+            
+            A = cl.Buffer(ctx, cl.CL_MEM_READ_ONLY,  nbytes)
+            B = cl.Buffer(ctx, cl.CL_MEM_READ_ONLY,  nbytes)
+            C = cl.Buffer(ctx, cl.CL_MEM_WRITE_ONLY, nbytes)
+
+            cl.fill!(queue, A, float32(1.0))
+            cl.fill!(queue, B, float32(1.0))
+            
+            # we use julia's index by one convention
+            @fact @throws_pred(cl.set_arg!(k, 1, A)) => (false, "no error")
+            @fact @throws_pred(cl.set_arg!(k, 2, B)) => (false, "no error")
+            @fact @throws_pred(cl.set_arg!(k, 3, C)) => (false, "no error")
+            cl.set_arg!(k, 1, C)
+        end
+    end
 end
