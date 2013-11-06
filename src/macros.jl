@@ -83,12 +83,16 @@ macro return_nanny_event(evt, obj)
     end
 end
 
-#TODO:
-macro int_info(what, arg1, arg2, ret_type)
+macro int_info(what, cl_obj_id, cl_obj_info, ret_type)
     local clFunc = symbol(string("clGet$(what)Info"))
     quote
-        local result = Array($ret_type, 1)
-        @check api.$clFunc($arg1, $arg2, sizeof($ret_type), result, C_NULL)
+        local result = Array($(esc(ret_type)), 1)
+        local err::CL_int
+        err = $clFunc($(esc(cl_obj)), $(esc(cl_obj_info)), 
+                      sizeof($(esc(ret_type))), result, C_NULL)
+        if err != CL_SUCCESS
+            throw(CLError(err))
+        end
         result[1] 
     end
 end

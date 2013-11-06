@@ -17,6 +17,8 @@ macro ocl_func(func, ret_type, arg_types)
     end
 end
 
+zzz(x) = println(x)
+
 macro ocl_func_1_0(func, ret_type, arg_types) 
     quote
         @ocl_func($func, $ret_type, $arg_types)
