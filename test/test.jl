@@ -154,7 +154,7 @@ end
 
 facts("OpenCL.Context") do
 
-    context("OpenCL.Context device constructor") do
+    context("OpenCL.Context constructor") do
         @fact @throws_pred(cl.Context([])) => (true, "error")
         for platform in cl.platforms()
             for device in cl.devices(platform)
@@ -163,7 +163,7 @@ facts("OpenCL.Context") do
         end
     end
 
-    context("OpenCL.Context device_type constructor") do
+    context("OpenCL.Context platform properties") do
         for platform in cl.platforms()
             try
                 cl.Context(cl.CL_DEVICE_TYPE_CPU)
@@ -171,6 +171,12 @@ facts("OpenCL.Context") do
                 @fact typeof(err) => cl.CLError
                 @fact err.desc => :CL_INVALID_PLATFORM
             end
+            
+            if platform[:name] == "Portable Computing Language"
+                warn("Skipping OpenCL.Context platform properties for Portable Computing Language Platform")
+                continue
+            end
+
             properties = [(cl.CL_CONTEXT_PLATFORM, platform)]
             @fact @throws_pred(cl.Context(cl.CL_DEVICE_TYPE_CPU,
                                properties=properties)) => (false, "no error") 
@@ -505,7 +511,6 @@ facts("OpenCL.Kernel") do
             cl.build!(prg)
             #TODO: check... throws a segfault when program is not built....
             @fact @throws_pred(cl.Kernel(prg, "sum")) => (false, "no error")
-            sum = cl.Kernel(prg, "sum")
         end
     end
 
@@ -522,4 +527,22 @@ facts("OpenCL.Kernel") do
             @fact typeof(k[:attributes]) => ASCIIString
         end
     end 
+
+    context("OpenCL.Kernel mem/workgroup size") do 
+        for device in cl.devices()
+            ctx = cl.Context(device)
+            prg = cl.Program(ctx, source=test_source)
+            cl.build!(prg)
+            k = cl.Kernel(prg, "sum")
+
+            if device[:platform][:name] == "Portable Computing Language"
+                warn("Skipping OpenCL.Kernel mem/workgroup size for Portable Computing Language Platform")
+            else
+                @fact @throws_pred(cl.private_mem_size(k, device)) => (false, "no error")
+                @fact @throws_pred(cl.local_mem_size(k, device)) => (false, "no error")
+                @fact @throws_pred(cl.required_work_group_size(k, device)) => (false, "no error")
+            end
+        end
+    end
+
 end

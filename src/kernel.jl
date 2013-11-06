@@ -16,7 +16,7 @@ Base.pointer(k::Kernel) = k.id
 @ocl_object_equality(Kernel)
 
 Base.show(io::IO, k::Kernel) = begin
-    print(io, k)
+    print(io, "<OpenCL.Kernel :$(k[:name]) nargs=$(k[:num_args])>")
 end 
 
 Base.getindex(k::Kernel, kinfo::Symbol) = info(k, kinfo)
@@ -66,6 +66,30 @@ function set_arg!(k::Kernel, idx::Integer, arg::Buffer)
     @assert idx > 0
     @check api.clSetKernelArg(k.id, idx, arg.size, arg.id)
     return k
+end
+
+function private_mem_size(k::Kernel, d::Device)
+    ret = Csize_t[0]
+    @check api.clGetKernelWorkGroupInfo(k.id, d.id, 
+                                        CL_KERNEL_PRIVATE_MEM_SIZE,
+                                        sizeof(Csize_t), ret, C_NULL)
+    return ret[1] 
+end
+
+function local_mem_size(k::Kernel, d::Device)
+    ret = Csize_t[0]
+    @check api.clGetKernelWorkGroupInfo(k.id, d.id, 
+                                        CL_KERNEL_PRIVATE_MEM_SIZE,
+                                        sizeof(Csize_t), ret, C_NULL)
+    return ret[1]
+end
+
+function required_work_group_size(k::Kernel, d::Device)
+    ret = Csize_t[0, 0, 0]
+    @check api.clGetKernelWorkGroupInfo(k.id, d.id, 
+                                        CL_KERNEL_COMPILE_WORK_GROUP_SIZE, 
+                                        sizeof(ret), ret, C_NULL)
+    return ret
 end
 
 #TODO: replace with macros...
