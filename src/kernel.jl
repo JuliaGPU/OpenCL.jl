@@ -29,6 +29,12 @@ function release!(k::Kernel)
 end
 
 function Kernel(p::Program, kernel_name::String)
+    for (dev, status) in info(p, :build_status)
+        if status != CL_BUILD_SUCCESS
+            msg = "OpenCL.Program has to be built before Kernel constructor invoked"
+            throw(ArgumentError(msg))
+        end
+    end
     err_code = Array(CL_int, 1)
     kernel_id = api.clCreateKernel(p.id, kernel_name, err_code)
     if err_code[1] != CL_SUCCESS

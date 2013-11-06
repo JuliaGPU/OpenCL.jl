@@ -506,16 +506,24 @@ facts("OpenCL.Kernel") do
 
     context("OpenCL.Kernel constructor") do
         for device in cl.devices()
+            if device[:platform][:name] == "Portable Computing Language"
+                warn("Skipping OpenCL.Kernel constructor for Portable Computing Language Platform")
+                continue
+            end
             ctx = cl.Context(device)
             prg = cl.Program(ctx, source=test_source)
+            @fact @throws_pred(cl.Kernel(prg, "sum")) => (true, "error")
             cl.build!(prg)
-            #TODO: check... throws a segfault when program is not built....
             @fact @throws_pred(cl.Kernel(prg, "sum")) => (false, "no error")
         end
     end
 
     context("OpenCL.Kernel info") do
         for device in cl.devices()
+            if device[:platform][:name] == "Portable Computing Language"
+                warn("Skipping OpenCL.Kernel info for Portable Computing Language Platform")
+                continue
+            end
             ctx = cl.Context(device)
             prg = cl.Program(ctx, source=test_source)
             cl.build!(prg)
@@ -530,19 +538,17 @@ facts("OpenCL.Kernel") do
 
     context("OpenCL.Kernel mem/workgroup size") do 
         for device in cl.devices()
+            if device[:platform][:name] == "Portable Computing Language"
+                warn("Skipping OpenCL.Kernel mem/workgroup size for Portable Computing Language Platform")
+                continue
+            end
             ctx = cl.Context(device)
             prg = cl.Program(ctx, source=test_source)
             cl.build!(prg)
             k = cl.Kernel(prg, "sum")
-
-            if device[:platform][:name] == "Portable Computing Language"
-                warn("Skipping OpenCL.Kernel mem/workgroup size for Portable Computing Language Platform")
-            else
-                @fact @throws_pred(cl.private_mem_size(k, device)) => (false, "no error")
-                @fact @throws_pred(cl.local_mem_size(k, device)) => (false, "no error")
-                @fact @throws_pred(cl.required_work_group_size(k, device)) => (false, "no error")
-            end
+            @fact @throws_pred(cl.private_mem_size(k, device)) => (false, "no error")
+            @fact @throws_pred(cl.local_mem_size(k, device)) => (false, "no error")
+            @fact @throws_pred(cl.required_work_group_size(k, device)) => (false, "no error")
         end
     end
-
 end
