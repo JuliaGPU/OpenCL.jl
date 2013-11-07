@@ -56,6 +56,13 @@ function set_arg!(k::Kernel, idx::Integer, arg::Nothing)
     return k
 end
 
+function set_arg!(k::Kernel, idx::Integer, arg::Ptr{Void})
+    if arg != C_NULL
+        throw(AttributeError("set_arg! for void pointer $arg is undefined"))
+    end
+    set_arg!(k, idx, nothing)
+end
+
 function set_arg!(k::Kernel, idx::Integer, arg::CLMemObject)
     @assert idx > 0
     @check api.clSetKernelArg(k.id, cl_uint(idx-1), arg.size, arg.id)

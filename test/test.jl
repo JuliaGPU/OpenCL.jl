@@ -570,6 +570,11 @@ facts("OpenCL.Kernel") do
             B = cl.Buffer(ctx, cl.CL_MEM_READ_ONLY,  nbytes)
             C = cl.Buffer(ctx, cl.CL_MEM_WRITE_ONLY, nbytes)
 
+            # sizeof mem object for buffer in bytes
+            @fact sizeof(A.id) => nbytes
+            @fact sizeof(B.id) => nbytes
+            @fact sizeof(C.id) => nbytes
+            
             cl.fill!(queue, A, float32(1.0))
             cl.fill!(queue, B, float32(1.0))
             
@@ -577,6 +582,7 @@ facts("OpenCL.Kernel") do
             @fact @throws_pred(cl.set_arg!(k, 1, A)) => (false, "no error")
             @fact @throws_pred(cl.set_arg!(k, 2, B)) => (false, "no error")
             @fact @throws_pred(cl.set_arg!(k, 3, C)) => (false, "no error")
+            
             cl.set_arg!(k, 1, C)
         end
     end
