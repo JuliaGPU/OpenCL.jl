@@ -65,7 +65,7 @@ end
 
 function set_arg!(k::Kernel, idx::Integer, arg::CLMemObject)
     @assert idx > 0
-    @check api.clSetKernelArg(k.id, cl_uint(idx-1), arg.size, arg.id)
+    @check api.clSetKernelArg(k.id, cl_uint(idx-1), sizeof(CL_mem), arg.id)
     return k
 end
 
@@ -75,10 +75,28 @@ function set_arg!(k::Kernel, idx::Integer, arg::LocalMemory)
     return k
 end
 
-function set_arg!(k::Kernel, idx::Integer, arg::Buffer)
-    @assert idx > 0
-    @check api.clSetKernelArg(k.id, cl_uint(idx-1), uint64(arg.size), arg.id)
-    return k
+#function set_arg!(k::Kernel, idx::Integer, arg::Buffer)
+#    @assert idx > 0
+#    @check api.clSetKernelArg(k.id, cl_uint(idx-1), uint64(arg.size), arg.id)
+#    return k
+#end
+
+#TODO: vector types...
+#TODO: type safe calling of set args for kernel
+
+# set scalar/vector kernel args
+for cl_type in [:CL_char, :CL_uchar, :CL_short, :CL_ushort,
+                :CL_int,  :CL_uint,  :CL_long,  :CL_ulong,
+                :CL_half, :CL_float, :CL_double]
+    @eval begin
+        function set_arg!(k::Kernel, idx::Integer, arg::$cl_type)
+            @assert idx > 0
+            boxed_arg = $cl_type[arg,]
+            @check api.clSetKernelArg(k.id, cl_uint(idx-1),
+                                      sizeof($cl_type), boxed_arg)
+            return k
+        end
+    end
 end
 
 function private_mem_size(k::Kernel, d::Device)

@@ -497,12 +497,17 @@ facts("OpenCL.Kernel") do
     test_source = "
     __kernel void sum(__global const float *a,
                       __global const float *b, 
-                      __global float *c)
+                      __global float *c,
+                      const unsigned int count)
     {
       uint gid = get_global_id(0);
-      c[gid] = a[gid] + b[gid];
+      if (gid < count) {
+          c[gid] = a[gid] + b[gid];
+      }
     }
     "
+
+    #TODO: tests for invalid kernel build error && logs...
 
     context("OpenCL.Kernel constructor") do
         for device in cl.devices()
@@ -529,7 +534,7 @@ facts("OpenCL.Kernel") do
             cl.build!(prg)
             k = cl.Kernel(prg, "sum")
             @fact k[:name] => "sum"
-            @fact k[:num_args] => 3
+            @fact k[:num_args] => 4
             @fact k[:reference_count] > 0 => true
             @fact k[:program] => prg
             @fact typeof(k[:attributes]) => ASCIIString
@@ -579,11 +584,44 @@ facts("OpenCL.Kernel") do
             cl.fill!(queue, B, float32(1.0))
             
             # we use julia's index by one convention
-            @fact @throws_pred(cl.set_arg!(k, 1, A)) => (false, "no error")
-            @fact @throws_pred(cl.set_arg!(k, 2, B)) => (false, "no error")
-            @fact @throws_pred(cl.set_arg!(k, 3, C)) => (false, "no error")
+            @fact @throws_pred(cl.set_arg!(k, 1, A))   => (false, "no error")
+            @fact @throws_pred(cl.set_arg!(k, 2, B))   => (false, "no error")
+            @fact @throws_pred(cl.set_arg!(k, 3, C))   => (false, "no error")
+            @fact @throws_pred(cl.set_arg!(k, 4, uint32(100))) => (false, "no error") 
+            #cl.set_arg!(k, 4, cl.cl_uint(100))
+            #fails... cl.set_arg!(k, 4, 100)
+        end
+    end
+
+    context("OpenCL.Kernel simple kernel") do
+        for device in cl.devices()
+            if device[:platform][:name] == "Portable Computing Language"
+                warn("Skipping OpenCL.Kernel mem/workgroup size for Portable Computing Language Platform")
+                continue
+            end
+            ctx = cl.Context(device)
+            queue = cl.CmdQueue(ctx)
             
-            cl.set_arg!(k, 1, C)
+            simple_kernel = "
+                __kernel void test(__global float *i) {
+                    *i += 1;
+                }"
+
+            prg = cl.Program(ctx, source=simple_kernel) |> cl.build!
+            k   = cl.Kernel(prg, "test")
+            
+            nbytes = sizeof(Float32) * 1
+            A = cl.Buffer(ctx, cl.cl_mem_flags(0), nbytes)
+            cl.write!(queue, A, Float32[1,])
+            @fact cl.read(queue, A) => Float32[1,]
+            @fact sizeof(A.id) => sizeof(Float32[1,])
+            try
+                cl.set_arg!(k, 1, A)
+            catch err
+                println("error: $device")
+            end
+
+            #...
         end
     end
 end
