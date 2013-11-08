@@ -117,58 +117,63 @@ function required_work_group_size(k::Kernel, d::Device)
     return ret
 end
 
-function enqueue_kernel(k::Kernel,
+function enqueue_kernel(q::CmdQueue,
+                        k::Kernel,
                         global_work_size;
                         global_work_offset=nothing,
                         local_work_size=nothing,
                         wait_on::Union(Nothing,Vector{Event})=nothing)
     #TODO: check global work size against max possible global work size
-    if length(global_work_size) > 3
+    work_dim = length(global_work_size)
+    if work_dim > 3
         throw(AttributeError("global_work_size has max dim of 3"))
     end
-    gsize = Csize_t[0, 0, 0]
+    gsize = Array(Csize_t, work_dim)
     for (i, s) in enumerate(global_work_size)
         gsize[i] = s
     end
 
-    goffset = Csize_t[0, 0, 0]
+    goffset = C_NULL 
     if global_work_offset != nothing 
         if length(global_work_offset) > 3
             throw(AttributeError("global_work_offset has max dim of 3"))
         end
-        if length(global_work_offset) != length(global_work_size)
+        if length(global_work_offset) != work_dim 
             throw(AttributeError("global_work_offset dim must match global_work_size dim"))
         end
+        goffset = Array(Csize_t, work_dim)
         for (i, o) in enumerate(global_work_offset)
             goffset[i] = o
         end
     end
 
-    lsize = Csize_t[0, 0, 0]
+    lsize = C_NULL
     if local_work_size != nothing
         #TODO: check local work size against max possible local work size....
         if length(global_work_offset) > 3
             throw(AttributeError("local_work_offset has max dim of 3"))
         end
-        if length(local_work_size) != length(global_work_size)
-            throw(AttributeError("local_work_size dim must match global_work_size dim"))
+        if length(local_work_size) != work_dim
+            throw(AttributeError("global/local work sizes have differing dimensions"))
         end
+        lsize = Array(Csize_t, work_dim)
         for (i, s) in enumerate(local_work_size)
             lsize[i] = s
         end
     end
-    if wait_list != nothing
-        event_ids = [evt.id for evt in wait_on]
-        n_wait_events = cl_uint(length(event_ids))
+
+    if wait_on != nothing
+        n_events = cl_uint(length(wait_on))
+        wait_event_ids = [evt.id for evt in wait_on]
     else
-        n_wait_events = cl_uint(0)
-        event_ids = C_NULL
+        n_events = cl_uint(0)
+        wait_event_ids = C_NULL
     end
 
     ret_event = Array(CL_event, 1)
-    @check api.clEnqueueNDRangeKernel(q.id, k.id, uint(3), goffset, gsize, lsize,
-                                      n_wait_events, event_ids, ret_event)
-    return Event(ret_event[1], retain=true)
+    @check api.clEnqueueNDRangeKernel(q.id, k.id, cl_uint(1), C_NULL, gsize, C_NULL,
+                                      n_events, wait_event_ids, ret_event)
+    #return Event(ret_event[1], retain=false)
 end
      
 #TODO: replace with macros...

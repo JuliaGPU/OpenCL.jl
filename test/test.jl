@@ -557,6 +557,51 @@ facts("OpenCL.Kernel") do
         end
     end
 
+    context("OpenCL.Kernel hello world") do
+        
+        hello_world_kernel = "
+            #pragma OPENCL EXTENSION cl_khr_byte_addressable_store : enable
+            
+            __constant char hw[] = \"hello world\";
+
+            __kernel void hello(__global char *out) {
+                size_t tid = get_global_id(0);
+                out[tid] = hw[tid];
+            }"
+
+        hello_world_str = "hello world"
+        
+        for device in [cl.devices()[end-1]]
+            if device[:platform][:name] == "Portable Computing Language"
+                warn("Skipping OpenCL.Kernel mem/workgroup size for Portable Computing Language Platform")
+                continue
+            end
+            ctx   = cl.Context(device)
+            queue = cl.CmdQueue(ctx)
+            
+            h_len  = length(hello_world_str) + 1 
+            out_h  = Array(cl.CL_char, h_len) 
+            out_cl = cl.Buffer(ctx,
+                               cl.CL_MEM_WRITE_ONLY | cl.CL_MEM_USE_HOST_PTR,
+                               hostbuf=out_h)
+            
+            prg   = cl.Program(ctx, source=hello_world_kernel) |> cl.build!
+            kern  = cl.Kernel(prg, "hello")
+            cl.set_arg!(kern, 1, out_cl)
+            evt_id = cl.api.clEnqueueNDRangeKernel(queue.id, kern.id,
+                                                   cl.uint(1),
+                                                   C_NULL,
+                                                   Csize_t[h_len,],
+                                                   Csize_t[1,1,],
+                                                   cl.cl_uint(0),
+                                                   C_NULL, C_NULL)
+            println("Kernel enqueued...")
+            cl.wait(Event(evt_id))
+            h = cl.read(queue, out_cl)
+            @fact bytestring(convert(Ptr{Char}, h)) => hello_world_str
+        end
+    end
+
     context("OpenCL.Kernel set_args!") do
          for device in cl.devices()
             if device[:platform][:name] == "Portable Computing Language"
@@ -593,8 +638,46 @@ facts("OpenCL.Kernel") do
         end
     end
 
+    context("OpenCL.Kernel set_args! api") do
+         for device in [cl.devices()[1]]
+            if device[:platform][:name] == "Portable Computing Language"
+                warn("Skipping OpenCL.Kernel mem/workgroup size for Portable Computing Language Platform")
+                continue
+            end
+            ctx = cl.Context(device)
+            queue = cl.CmdQueue(ctx)
+            
+            prg = cl.Program(ctx, source=test_source)
+            cl.build!(prg)
+            k = cl.Kernel(prg, "sum")
+
+            nbytes = 100 * sizeof(Float32)
+            
+            
+            Aid = cl._create_cl_buffer(ctx.id, cl.CL_MEM_READ_ONLY,  cl.cl_uint(nbytes), C_NULL)
+            Bid = cl._create_cl_buffer(ctx.id, cl.CL_MEM_READ_ONLY,  cl.cl_uint(nbytes), C_NULL)
+            Cid = cl._create_cl_buffer(ctx.id, cl.CL_MEM_WRITE_ONLY, cl.cl_uint(nbytes), C_NULL)
+            
+            cl.api.clSetKernelArg(k.id, cl.cl_uint(0), sizeof(cl.CL_mem), Aid)
+            cl.api.clSetKernelArg(k.id, cl.cl_uint(1), sizeof(cl.CL_mem), Bid)
+            cl.api.clSetKernelArg(k.id, cl.cl_uint(2), sizeof(cl.CL_mem), Cid)
+
+            evt = cl.enqueue_kernel(queue, k, 1)
+            cl.wait(evt)
+            # we use julia's index by one convention
+            #@fact @throws_pred(cl.set_arg!(k, 1, A))   => (false, "no error")
+            #@fact @throws_pred(cl.set_arg!(k, 2, B))   => (false, "no error")
+            #@fact @throws_pred(cl.set_arg!(k, 3, C))   => (false, "no error")
+            #@fact @throws_pred(cl.set_arg!(k, 4, uint32(100))) => (false, "no error") 
+            #cl.set_arg!(k, 4, cl.cl_uint(100))
+            #fails... cl.set_arg!(k, 4, 100)
+        end
+    end
+
+
+    
     context("OpenCL.Kernel simple kernel") do
-        for device in cl.devices()
+        for device in [cl.devices()[1]]
             if device[:platform][:name] == "Portable Computing Language"
                 warn("Skipping OpenCL.Kernel mem/workgroup size for Portable Computing Language Platform")
                 continue
@@ -616,11 +699,17 @@ facts("OpenCL.Kernel") do
             @fact cl.read(queue, A) => Float32[1,]
             @fact sizeof(A.id) => sizeof(Float32[1,])
             @fact k[:reference_count] > 0 => true
+            @fact cl.reference_count(A) => 1
+            println(cl.reference_count(A))
+            cl.set_arg!(k, 1, A)
             try
-                cl.set_arg!(k, 1, A)
+                evt = cl.enqueue_kernel(queue, k, 1)
+                #cl.wait(evt)
             catch err
                 println("error: $device")
+                throw(err)
             end
+            #@fact cl.read(queue, A) => Float32[2,] 
         end
     end
 end

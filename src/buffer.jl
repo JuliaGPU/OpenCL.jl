@@ -28,10 +28,10 @@ function _create_cl_buffer(ctx::CL_context,
                            flags::CL_mem_flags,
                            size::Integer, 
                            host_buffer::Ptr{Void})
-    status = Array(CL_int, 1)
-    mem_id = api.clCreateBuffer(ctx, flags, size, host_buffer, status)
-    if status[1] != CL_SUCCESS
-        throw(CLError(status[1]))
+    err_code = Array(CL_int, 1)
+    mem_id = api.clCreateBuffer(ctx, flags, size, host_buffer, err_code)
+    if err_code[1] != CL_SUCCESS
+        throw(CLError(err_code[1]))
     end
     return mem_id
 end
@@ -84,7 +84,7 @@ function enqueue_read_buffer{T}(q::CmdQueue,
                                    dev_offset, nbytes, hostbuf,
                                    n_evts, evt_ids, ret_evt)
     #TODO: nanny event
-    @return_event ret_evt[1] 
+    @return_nanny_event(ret_evt[1], hostbuf) 
 end
 
 function enqueue_write_buffer{T}(q::CmdQueue,
@@ -103,7 +103,7 @@ function enqueue_write_buffer{T}(q::CmdQueue,
                                     n_evts, evt_ids, ret_evt)
     buf.size = nbytes
     # TODO: nanny evt
-    @return_event ret_evt[1]
+    @return_nanny_event(ret_evt[1], hostbuf)
 end
 
 function enqueue_copy_buffer(q::CmdQueue,

@@ -75,7 +75,7 @@ end
 macro return_nanny_event(evt, obj)
     quote
         try
-            return NannyEvent($(esc(evt)), $(esc(obj)), retain=false)
+            return NannyEvent($(esc(evt)), $(esc(obj)))
         catch err
             @check api.clReleaseEvent($(esc(evt)))
             throw(err)

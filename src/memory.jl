@@ -43,7 +43,7 @@ context(mem::CLMemObject) = begin
 end
 
 macro memobj_property(func, cl_device_info, return_type)
-    quote
+    @eval begin
         function $func(mem::CLMemObject)
             result = Array($return_type, 1)
             @check api.clGetMemObjectInfo(mem.id, $cl_device_info,

@@ -21,19 +21,21 @@ type NannyEvent <: CLEvent
     id::CL_event
     obj::Any
 
-    function NannyEvent(evt_id::CL_event, obj::Any; retain=true)
+    function NannyEvent(evt_id::CL_event, obj::Any; retain=false)
         if retain
             @check api.clRetainEvent(evt_id)
         end
-        nanny_evt = new(evt, obj)
-        finalizer(nanny_evt, evt -> begin 
-            wait(evt)
-            evt.obj = nothing
-            release!(evt.id)
+        nanny_evt = new(evt_id, obj)
+        finalizer(nanny_evt, x -> begin 
+            wait(x)
+            x.obj = nothing
+            release!(x)
         end)
         nanny_evt
     end
 end
+
+NannyEvent(evt::Event, obj::Any; retain=false) = NannyEvent(evt.id, obj, retain=retain)
 
 function release!(evt::CLEvent)
     if evt.id != C_NULL
@@ -63,7 +65,7 @@ Base.getindex(evt::CLEvent, evt_info::Symbol) = info(evt, evt_info)
                 @check api.clRetainEvent(evt_id)
             end
             evt = new(evt_id)
-            finalizer(evt, evt -> release!(evt))
+            finalizer(evt, x -> release!(x))
             return evt
         end
     end
@@ -108,14 +110,15 @@ end
 
 function wait(evt::CLEvent)
     evt_id = [evt.id]
-    @check api.clWaitForEvents(1, evt_id)
+    @check api.clWaitForEvents(cl_uint(1), evt_id)
     return evt
 end
 
 function wait(evts::Vector{CLEvent})
     evt_ids = [evt.id for evt in evts]
     if !isempty(evt_ids)
-        @check api.clWaitForEvents(length(evt_ids), evt_ids)
+        nevents = cl_uint(length(evt_ids))
+        @check api.clWaitForEvents(nevents, evt_ids)
     end
     return evts
 end
@@ -127,7 +130,8 @@ end
         wait_evt_ids = [evt.id for evt in wait_for]
         ret_evt = Array(CL_event, 1)
         @check api.clEnqueueMarkerWithWaitList(q.id, n_wait_events,
-                            isempty(wait_evt_ids) ? C_NULL : wait_evt_ids, ret_evt)
+                                               isempty(wait_evt_ids)? C_NULL : wait_evt_ids,
+                                               ret_evt)
         @return_event ret_evt[1]
     end
 
@@ -137,7 +141,8 @@ end
         wait_evt_ids = [evt.id for evt in wait_for]
         ret_evt = Array(CL_event, 1)
         @check api.clEnqueueBarrierWithWaitList(q.id, n_wait_events,
-                            isempty(wait_evt_ids) ? C_NULL : wait_evt_ids, ret_evt)
+                                                isempty(wait_evt_ids)? C_NULL : wait_evt_ids,
+                                                ret_evt)
         @return_event ret_evt[1]
     end
 end
