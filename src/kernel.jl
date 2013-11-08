@@ -171,9 +171,10 @@ function enqueue_kernel(q::CmdQueue,
     end
 
     ret_event = Array(CL_event, 1)
+    #TODO:....
     @check api.clEnqueueNDRangeKernel(q.id, k.id, cl_uint(1), C_NULL, gsize, C_NULL,
                                       n_events, wait_event_ids, ret_event)
-    #return Event(ret_event[1], retain=false)
+    return Event(ret_event[1], retain=false)
 end
      
 #TODO: replace with macros...

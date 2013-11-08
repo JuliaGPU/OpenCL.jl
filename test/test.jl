@@ -375,6 +375,7 @@ facts("OpenCL.Buffer") do
         readback = cl.read(queue, buf)
         @fact all(x -> x == 1.0, readback) => true
         @fact all(x -> x == 0.0, testarray) => true
+        @fact buf.valid => true
     end
 
     context("OpenCL.Buffer write!") do
@@ -384,6 +385,7 @@ facts("OpenCL.Buffer") do
         cl.write!(queue, buf, ones(Float32, length(testarray)))
         readback = cl.read(queue, buf)
         @fact all(x -> x == 1.0, readback) => true
+        @fact buf.valid => true
     end
 
     context("OpenCL.Buffer empty") do
@@ -401,6 +403,7 @@ facts("OpenCL.Buffer") do
         testarray = zeros(Float32, dims)
         empty_buf = cl.empty(Float32, ctx, dims)
         @fact empty_buf.size => sizeof(testarray)
+        @fact empty_buf.vali => true
     end
 end
 
@@ -571,7 +574,7 @@ facts("OpenCL.Kernel") do
 
         hello_world_str = "hello world"
         
-        for device in [cl.devices()[end-1]]
+        for device in [cl.devices()[1]]
             if device[:platform][:name] == "Portable Computing Language"
                 warn("Skipping OpenCL.Kernel mem/workgroup size for Portable Computing Language Platform")
                 continue
@@ -581,10 +584,15 @@ facts("OpenCL.Kernel") do
             
             h_len  = length(hello_world_str) + 1 
             out_h  = Array(cl.CL_char, h_len) 
-            out_cl = cl.Buffer(ctx,
-                               cl.CL_MEM_WRITE_ONLY | cl.CL_MEM_USE_HOST_PTR,
-                               hostbuf=out_h)
-            
+            #out_cl = cl.Buffer(ctx,
+            #                   cl.CL_MEM_WRITE_ONLY | cl.CL_MEM_USE_HOST_PTR,
+            #                   hostbuf=out_h)
+
+            nbytes    = sizeof(cl.CL_char) * h_len
+            out_cl_id = cl._create_cl_buffer(ctx.id, cl.CL_MEM_WRITE_ONLY,  
+                                             cl.cl_uint(nbytes), C_NULL)
+            out_cl = cl.Buffer{cl.CL_char}(out_cl_id, false, cl.cl_uint(nbytes))
+
             prg   = cl.Program(ctx, source=hello_world_kernel) |> cl.build!
             kern  = cl.Kernel(prg, "hello")
             cl.set_arg!(kern, 1, out_cl)
