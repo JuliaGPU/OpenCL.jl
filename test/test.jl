@@ -615,13 +615,12 @@ facts("OpenCL.Kernel") do
             cl.write!(queue, A, Float32[1,])
             @fact cl.read(queue, A) => Float32[1,]
             @fact sizeof(A.id) => sizeof(Float32[1,])
+            @fact k[:reference_count] > 0 => true
             try
                 cl.set_arg!(k, 1, A)
             catch err
                 println("error: $device")
             end
-
-            #...
         end
     end
 end
