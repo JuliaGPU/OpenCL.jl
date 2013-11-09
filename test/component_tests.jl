@@ -498,12 +498,12 @@ end
 facts("OpenCL.Kernel") do 
 
     test_source = "
-    __kernel void sum(__global const float *a,
-                      __global const float *b, 
+    __kernel void sum(__global float *a,
+                      __global float *b, 
                       __global float *c,
                       const unsigned int count)
     {
-      uint gid = get_global_id(0);
+      int gid = get_global_id(0);
       if (gid < count) {
           c[gid] = a[gid] + b[gid];
       }
@@ -598,46 +598,159 @@ facts("OpenCL.Kernel") do
     end
 
     context("OpenCL.Kernel set_args! api") do
-        for device in [cl.devices()[end-1]]
+        for device in cl.devices()
             if device[:platform][:name] == "Portable Computing Language"
                 warn("Skipping OpenCL.Kernel mem/workgroup size for Portable Computing Language Platform")
                 continue
             end
-            ctx = cl.Context(device)
-            queue = cl.CmdQueue(ctx)
             
-            prg = cl.Program(ctx, source=test_source)
-            cl.build!(prg)
-            k = cl.Kernel(prg, "sum")
+            length = 1024
+            h_a = Array(cl.CL_float, length)
+            h_b = Array(cl.CL_float, length)
+            h_c = Array(cl.CL_float, length)
+            h_d = Array(cl.CL_float, length)
+            h_e = Array(cl.CL_float, length)
+            h_f = Array(cl.CL_float, length)
+            h_g = Array(cl.CL_float, length)
 
-            nbytes = 100 * sizeof(Float32)
-           
-            err_code = Array(cl.CL_int, 1)
-            Aid = cl.api.clCreateBuffer(ctx.id, cl.CL_MEM_READ_ONLY,  cl.cl_uint(nbytes), C_NULL, err_code)
-            Bid = cl.api.clCreateBuffer(ctx.id, cl.CL_MEM_READ_ONLY,  cl.cl_uint(nbytes), C_NULL, err_code)
-            Cid = cl.api.clCreateBuffer(ctx.id, cl.CL_MEM_WRITE_ONLY, cl.cl_uint(nbytes), C_NULL, err_code)
+            for i in 1:length
+                h_a[i] = cl.cl_float(rand())
+                h_b[i] = cl.cl_float(rand())
+                h_e[i] = cl.cl_float(rand())
+                h_g[i] = cl.cl_float(rand())
+            end 
             
-            println("enqueued kernel")
-            err  = cl.api.clSetKernelArg(k.id, cl.cl_uint(0), sizeof(cl.CL_mem), Aid)
-            err |= cl.api.clSetKernelArg(k.id, cl.cl_uint(1), sizeof(cl.CL_mem), Bid)
-            err |= cl.api.clSetKernelArg(k.id, cl.cl_uint(2), sizeof(cl.CL_mem), Cid)
-            err |= cl.api.clSetKernelArg(k.id, cl.cl_uint(3), sizeof(cl.CL_float), uint32(100))
-            if err != cl.CL_SUCCESS
-                error("Error setting Kernels")
+            err_code = Array(cl.CL_int, 1)
+
+            # create compute context
+            ctx_id = cl.api.clCreateContext(C_NULL, 1, [device.id], 
+                                            cl.ctx_callback_ptr, 
+                                            cl.raise_context_error, 
+                                            err_code)
+            if err_code[1] != cl.CL_SUCCESS
+                #error("Failed to create compute context")
+                throw(cl.CLError(err_code[1]))
             end
 
-            println("enqueued kernel")
-            evt = cl.enqueue_kernel(queue, k, 1)
-            println("wait for kernel")
-            cl.wait(evt)
-            println("completed")
-            # we use julia's index by one convention
-            #@fact @throws_pred(cl.set_arg!(k, 1, A))   => (false, "no error")
-            #@fact @throws_pred(cl.set_arg!(k, 2, B))   => (false, "no error")
-            #@fact @throws_pred(cl.set_arg!(k, 3, C))   => (false, "no error")
-            #@fact @throws_pred(cl.set_arg!(k, 4, uint32(100))) => (false, "no error") 
-            #cl.set_arg!(k, 4, cl.cl_uint(100))
-            #fails... cl.set_arg!(k, 4, 100)
+            q_id = cl.api.clCreateCommandQueue(ctx_id, device.id, 0, err_code)
+            if err_code[1] != cl.CL_SUCCESS
+                error("Failed to create command queue")
+            end
+
+            # create program
+            bytesource = bytestring(test_source)
+            prg_id = cl.api.clCreateProgramWithSource(ctx_id, 1, [bytesource], C_NULL, err_code)
+            if err_code[1] != cl.CL_SUCCESS
+                error("Failed to create program")
+            end
+
+            # build program
+            err = cl.api.clBuildProgram(prg_id, 0, C_NULL, C_NULL, C_NULL, C_NULL)
+            if err != cl.CL_SUCCESS
+                error("Failed to build program")
+            end
+            
+            # create compute kernel
+            k_id = cl.api.clCreateKernel(prg_id, "sum", err_code)
+            if err_code[1] != cl.CL_SUCCESS
+                error("Failed to create compute kernel")
+            end
+
+            # create input array in device memory
+            Aid = cl.api.clCreateBuffer(ctx_id, cl.CL_MEM_READ_ONLY | cl.CL_MEM_COPY_HOST_PTR,
+                                        sizeof(cl.CL_float) * length, h_a, err_code)
+            if err_code[1] != cl.CL_SUCCESS
+                error("Error creating buffer A")
+            end
+            Bid = cl.api.clCreateBuffer(ctx_id, cl.CL_MEM_READ_ONLY | cl.CL_MEM_COPY_HOST_PTR,
+                                        sizeof(cl.CL_float) * length, h_b, err_code)
+            if err_code[1] != cl.CL_SUCCESS
+                error("Error creating buffer B")
+            end
+            Eid = cl.api.clCreateBuffer(ctx_id, cl.CL_MEM_WRITE_ONLY | cl.CL_MEM_COPY_HOST_PTR,
+                                        sizeof(cl.CL_float) * length, h_e, err_code)
+            if err_code[1] != cl.CL_SUCCESS
+                error("Error creating buffer E")
+            end
+            Gid = cl.api.clCreateBuffer(ctx_id, cl.CL_MEM_WRITE_ONLY | cl.CL_MEM_COPY_HOST_PTR,
+                                        sizeof(cl.CL_float) * length, h_g, err_code)
+            if err_code[1] != cl.CL_SUCCESS
+                error("Error creating buffer G")
+            end
+
+            # create output arrays in device memory
+ 
+            Cid = cl.api.clCreateBuffer(ctx_id, cl.CL_MEM_READ_WRITE,
+                                        sizeof(cl.CL_float) * length, C_NULL, err_code)
+            if err_code[1] != cl.CL_SUCCESS
+                error("Error creating buffer C")
+            end
+            Did = cl.api.clCreateBuffer(ctx_id, cl.CL_MEM_READ_WRITE, 
+                                        sizeof(cl.CL_float) * length, C_NULL, err_code)
+            if err_code[1] != cl.CL_SUCCESS
+                error("Error creating buffer D")
+            end
+            Fid = cl.api.clCreateBuffer(ctx_id, cl.CL_MEM_WRITE_ONLY, 
+                                        sizeof(cl.CL_float) * length, C_NULL, err_code)
+            if err_code[1] != cl.CL_SUCCESS
+                error("Error creating buffer F")
+            end
+
+            err  = cl.api.clSetKernelArg(k_id, 0, sizeof(cl.CL_mem), [Aid])
+            err |= cl.api.clSetKernelArg(k_id, 1, sizeof(cl.CL_mem), [Bid])
+            err |= cl.api.clSetKernelArg(k_id, 2, sizeof(cl.CL_mem), [Cid])
+            err |= cl.api.clSetKernelArg(k_id, 3, sizeof(cl.CL_uint), cl.CL_uint[length])
+            if err != cl.CL_SUCCESS
+                error("Error setting kernel 1 args")
+            end
+            
+            nglobal = Csize_t[length,]
+            err = cl.api.clEnqueueNDRangeKernel(q_id, k_id,  1, C_NULL,
+                                                nglobal, C_NULL, 0, C_NULL, C_NULL)
+            if err != cl.CL_SUCCESS
+                error("Failed to execute kernel 1")
+            end
+
+            err  = cl.api.clSetKernelArg(k_id, 0, sizeof(cl.CL_mem), [Eid])
+            err |= cl.api.clSetKernelArg(k_id, 1, sizeof(cl.CL_mem), [Cid])
+            err |= cl.api.clSetKernelArg(k_id, 2, sizeof(cl.CL_mem), [Did])
+            if err != cl.CL_SUCCESS
+                error("Error setting kernel 2 args")
+            end
+            err = cl.api.clEnqueueNDRangeKernel(q_id, k_id,  1, C_NULL,
+                                                nglobal, C_NULL, 0, C_NULL, C_NULL)
+            if err != cl.CL_SUCCESS
+                error("Failed to execute kernel 2")
+            end
+
+            err  = cl.api.clSetKernelArg(k_id, 0, sizeof(cl.CL_mem), [Gid])
+            err |= cl.api.clSetKernelArg(k_id, 1, sizeof(cl.CL_mem), [Did])
+            err |= cl.api.clSetKernelArg(k_id, 2, sizeof(cl.CL_mem), [Fid])
+            if err != cl.CL_SUCCESS
+                error("Error setting kernel 3 args")
+            end
+            err = cl.api.clEnqueueNDRangeKernel(q_id, k_id,  1, C_NULL,
+                                                nglobal, C_NULL, 0, C_NULL, C_NULL)
+            if err != cl.CL_SUCCESS
+                error("Failed to execute kernel 3")
+            end
+
+            # read back the result from compute device...
+            err = cl.api.clEnqueueReadBuffer(q_id, Fid, cl.CL_TRUE, 0,
+                                             sizeof(cl.CL_float) * length, h_f, 0, C_NULL, C_NULL)
+            if err != cl.CL_SUCCESS
+                error("Failed to read output array")
+            end
+
+            # test results
+            ncorrect = 0
+            for i in 1:length
+                tmp = h_a[i] + h_b[i] + h_e[i] + h_g[i]
+                if isapprox(tmp, h_f[i])
+                    ncorrect += 1
+                end
+            end
+            @fact ncorrect => length
         end
     end
 end
