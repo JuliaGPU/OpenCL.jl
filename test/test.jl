@@ -603,7 +603,6 @@ facts("OpenCL.Kernel") do
                                                    Csize_t[1,1,],
                                                    cl.cl_uint(0),
                                                    C_NULL, C_NULL)
-            println("Kernel enqueued...")
             cl.wait(Event(evt_id))
             h = cl.read(queue, out_cl)
             @fact bytestring(convert(Ptr{Char}, h)) => hello_world_str

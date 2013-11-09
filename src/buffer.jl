@@ -12,9 +12,11 @@ type Buffer{T} <: CLMemObject
         end
         buff = new(true, mem_id, size)
         finalizer(buff, mem_obj -> begin 
-            if mem_obj.valid
-                release!(mem_obj)
+            if !mem_obj.valid
+                error("attempted to double free $mem_obj")
             end
+            release!(mem_obj)
+            mem_obj.valid = false
         end)
         return buff
     end
@@ -35,6 +37,51 @@ function _create_cl_buffer(ctx::CL_context,
     end
     return mem_id
 end
+
+function Buffer(ctx::Context, flags::Symbol, nbytes=0; hostbuf=nothing)
+    Buffer(ctx, (flags, :null), nbytes, hostbuf=hostbuf)
+end
+
+function Buffer(ctx::Context, flags::NTuple{2, Symbol}, nbytes=0; hostbuf=nothing)
+    f_r  = :r  in flags
+    f_w  = :w  in flags
+    f_rw = :rw in flags
+
+    if f_r && f_w || f_r && f_rw || f_rw && f_w
+        throw(ArgumentError("only one flag in Set(:r, :w, :rw) can be defined"))
+    end
+
+    flags::CL_mem_flags
+    if f_rw && !(f_r || f_w)
+        flags = CL_MEM_READ_WRITE
+    elseif f_r && !(f_w || f_rw)
+        flags = CL_MEM_READ_ONLY
+    elseif f_w && !(f_r || f_rw)
+        flags = CL_MEM_WRITE_ONLY
+    else
+        # default buffer in read/write
+        flags = CL_MEM_READ_WRITE
+    end
+    
+    f_alloc = :alloc in flags
+    f_use   = :use   in flags
+    f_copy  = :copy  in flags
+
+    if f_alloc && f_use || f_alloc && f_copy || f_use && f_copy
+        throw(ArgumentError("only one flag in Set(:alloc, :use, :copy) can be defined"))
+    end
+
+    if f_alloc && !(f_use || f_copy)
+        flags |= CL_MEM_ALLOC_HOST_PTR
+    elseif f_use && !(f_alloc || f_copy) 
+        flags |= CL_MEM_USE_HOST_PTR
+    elseif f_copy && !(f_alloc || f_use)
+        flags != CL_MEM_COPY_HOST_PTR
+    end
+    
+    return Buffer(ctx, flags, nbytes, hostbuf=hostbuf)
+end
+
 
 function Buffer(ctx::Context, flags::CL_mem_flags, size=0; hostbuf=nothing)
     if (hostbuf != nothing && 
