@@ -4,19 +4,20 @@ type Buffer{T} <: CLMemObject
     valid::Bool
     id::CL_mem
     size::CL_uint
-    #hostbuf
+    hostbuf::Union(Nothing, Array{T})
 
     function Buffer(mem_id::CL_mem, retain::Bool, size::CL_uint) #hostbuf
         if retain
             @check api.clRetainMemObject(mem_id)
         end
-        buff = new(true, mem_id, size)
+        buff = new(true, mem_id, size, nothing)
         finalizer(buff, mem_obj -> begin 
             if !mem_obj.valid
                 error("attempted to double free $mem_obj")
             end
             release!(mem_obj)
-            mem_obj.valid = false
+            mem_obj.valid   = false
+            mem_obj.hostbuf = nothing
         end)
         return buff
     end
@@ -26,20 +27,12 @@ Base.length{T}(b::Buffer{T}) = (b.size / sizeof(T))
 Base.ndims(b::Buffer) = 1
 Base.eltype{T}(b::Buffer{T}) = T
 
-function _create_cl_buffer(ctx::CL_context,
-                           flags::CL_mem_flags,
-                           size::Integer, 
-                           host_buffer::Ptr{Void})
-    err_code = Array(CL_int, 1)
-    mem_id = api.clCreateBuffer(ctx, flags, size, host_buffer, err_code)
-    if err_code[1] != CL_SUCCESS
-        throw(CLError(err_code[1]))
-    end
-    return mem_id
+function Buffer{T}(::Type{T}, ctx::Context, bytes=0; hostbuf=nothing)
+    Buffer(T, ctx, (:rw, :null), nbytes, hostbuf=hostbuf)
 end
 
 function Buffer{T}(::Type{T}, ctx::Context, flags::Symbol,
-                   nbytes::Integer=0; hostbuf=nothing)
+                   nbytes=0; hostbuf=nothing)
     Buffer(T, ctx, (flags, :null), nbytes, hostbuf=hostbuf)
 end
 
@@ -91,7 +84,7 @@ function Buffer(ctx::Context, flags::CL_mem_flags, size=0; hostbuf=nothing)
         warn("'hostbuf' was passed, but no memory flags to make use of it")
     end
     
-    retain_buf::Union(Nothing, Array{T}) = nothing
+    retain_buf = nothing
     if hostbuf != nothing
         if bool(flags & CL_MEM_USE_HOST_PTR)
             retain_buf = hostbuf
@@ -107,9 +100,10 @@ function Buffer(ctx::Context, flags::CL_mem_flags, size=0; hostbuf=nothing)
     if size <= 0
         error("OpenCL.Buffer specified size is <= 0 bytes")
     end
-    
+    size = cl_uint(size)
+
     err_code = Array(CL_int, 1)
-    mem_id = api.clCreateBuffer(ctx.id, flags, cl_uint(size),
+    mem_id = api.clCreateBuffer(ctx.id, flags, size,
                                 hostbuf != nothing ? hostbuf : C_NULL, 
                                 err_code)
     if err_code[1] != CL_SUCCESS
@@ -161,7 +155,7 @@ function Buffer{T}(::Type{T}, ctx::Context, flags::CL_mem_flags, size=0;
     try
         return Buffer{T}(mem_id, false, size)
     catch err
-        @check api.clReleaseMemObject(mem_id)
+        api.clReleaseMemObject(mem_id)
         throw(err)
     end
 end
@@ -170,7 +164,7 @@ function enqueue_read_buffer{T}(q::CmdQueue,
                                 buf::Buffer{T}, 
                                 hostbuf::Array{T},
                                 dev_offset::Csize_t,
-                                wait_for::Union(Vector{Event}, Nothing),
+                                wait_for::Union(Nothing, Vector{Event}),
                                 is_blocking::Bool)
     n_evts  = wait_for == nothing ? uint(0) : length(wait_for) 
     evt_ids = wait_for == nothing ? C_NULL  : [evt.id for evt in wait_for]
@@ -188,7 +182,7 @@ function enqueue_write_buffer{T}(q::CmdQueue,
                                  hostbuf::Array{T},
                                  byte_count::Csize_t,
                                  offset::Csize_t,
-                                 wait_for::Union(Vector{Event}, Nothing),
+                                 wait_for::Union(Nothing, Vector{Event}),
                                  is_blocking::Bool)
     n_evts  = wait_for == nothing ? uint(0) : length(wait_for) 
     evt_ids = wait_for == nothing ? C_NULL  : [evt.id for evt in wait_for]
@@ -208,7 +202,7 @@ function enqueue_copy_buffer(q::CmdQueue,
                              byte_count::Csize_t,
                              src_offset::Csize_t,
                              dst_offset::Csize_t,
-                             wait_for::Union(Vector{Event}, Nothing))
+                             wait_for::Union(Nothing, Vector{Event}))
     n_evts  = wait_for == nothing ? uint(0) : length(wait_for) 
     evt_ids = wait_for == nothing ? C_NULL  : [evt.id for evt in wait_for]
     ret_evt = Array(CL_event, 1)
@@ -236,17 +230,17 @@ end
     function enqueue_fill_buffer{T}(q::CmdQueue, buf::Buffer{T}, pattern::T,
                                     offset::Csize_t, nbytes::Csize_t,
                                     wait_for::Union(Vector{Event}, Nothing))
+        
         if wait_for == nothing
-            n_evts = 0
             evt_ids = C_NULL
+            n_evts = cl_uint(0)
         else
             evt_ids = [evt.id for evt in wait_for]
             n_evts  = cl_uint(length(evt_ids))
         end
         ret_evt = Array(CL_event, 1)
         nbytes_pattern  = unsigned(sizeof(pattern)) 
-        pattern = [pattern]
-        @check api.clEnqueueFillBuffer(q.id, buf.id, pattern, 
+        @check api.clEnqueueFillBuffer(q.id, buf.id, [pattern], 
                                        nbytes_pattern, offset, buf.size,
                                        n_evts, evt_ids, ret_evt)
         # TODO: nanny evt
@@ -297,26 +291,29 @@ function copy{T}(q::CmdQueue, src::Buffer{T})
     return src
 end
 
-#TODO: allow shape tuple...
-#TODO: size checking should depend on type...
 function empty{T}(::Type{T}, ctx::Context, dims)
     size = sizeof(T)
     for d in dims
+        if d < 1
+            throw(ArgumentError("all dims must be greater than or equal to 1"))
+        end
         size *= d
     end
     if size <= 0
         error("OpenCL.Buffer specified size is <= 0 bytes")
     end
-    buf_ptr::Ptr{Void} = C_NULL
-    mem_id = _create_cl_buffer(ctx.id, CL_MEM_READ_WRITE, size, buf_ptr)
-    # TODO: create host buffer
+    size = cl_uint(size)
+
+    err_code = Array(CL_int, 1)
+    mem_id = api.clCreateBuffer(ctx.id, CL_MEM_READ_WRITE, size, C_NULL, err_code)
+    if err_code[1] != CL_SUCCESS
+        throw(CLError(err_code[1]))
+    end
+
     try
-        #TODO: make constructor type more permissive cl_uint(...)
-        return Buffer{Float32}(mem_id, false, cl_uint(size))
+        return Buffer{T}(mem_id, false, size)
     catch err
-        #TODO: don't allow errors in relase mem id to mask original exceptions
-        #TODO: macro for check cleanup??
-        @check api.clReleaseMemObject(mem_id)
+        api.clReleaseMemObject(mem_id)
         throw(err)
     end
 end

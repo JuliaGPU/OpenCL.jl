@@ -403,7 +403,7 @@ facts("OpenCL.Buffer") do
         testarray = zeros(Float32, dims)
         empty_buf = cl.empty(Float32, ctx, dims)
         @fact empty_buf.size => sizeof(testarray)
-        @fact empty_buf.vali => true
+        @fact empty_buf.valid => true
     end
 end
 
