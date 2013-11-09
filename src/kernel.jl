@@ -65,7 +65,7 @@ end
 
 function set_arg!(k::Kernel, idx::Integer, arg::CLMemObject)
     @assert idx > 0
-    @check api.clSetKernelArg(k.id, cl_uint(idx-1), sizeof(CL_mem), arg.id)
+    @check api.clSetKernelArg(k.id, cl_uint(idx-1), sizeof(CL_mem), [arg.id])
     return k
 end
 
