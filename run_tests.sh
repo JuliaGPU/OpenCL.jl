@@ -1,1 +1,1 @@
-julia -L src/OpenCL.jl test/test.jl
+julia -L src/OpenCL.jl test/component_tests.jl

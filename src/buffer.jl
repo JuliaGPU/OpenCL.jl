@@ -196,13 +196,13 @@ function enqueue_write_buffer{T}(q::CmdQueue,
     @return_nanny_event(ret_evt[1], hostbuf)
 end
 
-function enqueue_copy_buffer(q::CmdQueue,
-                             src::Buffer,
-                             dst::Buffer,
-                             byte_count::Csize_t,
-                             src_offset::Csize_t,
-                             dst_offset::Csize_t,
-                             wait_for::Union(Nothing, Vector{Event}))
+function enqueue_copy_buffer{T}(q::CmdQueue,
+                                src::Buffer{T},
+                                dst::Buffer{T},
+                                byte_count::Csize_t,
+                                src_offset::Csize_t,
+                                dst_offset::Csize_t,
+                                wait_for::Union(Nothing, Vector{Event}))
     n_evts  = wait_for == nothing ? uint(0) : length(wait_for) 
     evt_ids = wait_for == nothing ? C_NULL  : [evt.id for evt in wait_for]
     ret_evt = Array(CL_event, 1)
