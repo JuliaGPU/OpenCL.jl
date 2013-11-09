@@ -48,7 +48,7 @@ function Buffer(ctx::Context, flags::NTuple{2, Symbol}, nbytes=0; hostbuf=nothin
     f_rw = :rw in flags
 
     if f_r && f_w || f_r && f_rw || f_rw && f_w
-        throw(ArgumentError("only one flag in Set(:r, :w, :rw) can be defined"))
+        throw(ArgumentError("only one flag in {:r, :w, :rw} can be defined"))
     end
 
     flags::CL_mem_flags
@@ -68,7 +68,7 @@ function Buffer(ctx::Context, flags::NTuple{2, Symbol}, nbytes=0; hostbuf=nothin
     f_copy  = :copy  in flags
 
     if f_alloc && f_use || f_alloc && f_copy || f_use && f_copy
-        throw(ArgumentError("only one flag in Set(:alloc, :use, :copy) can be defined"))
+        throw(ArgumentError("only one flag in {:alloc, :use, :copy} can be defined"))
     end
 
     if f_alloc && !(f_use || f_copy)
