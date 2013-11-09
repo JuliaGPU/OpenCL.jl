@@ -27,7 +27,7 @@ Base.length{T}(b::Buffer{T}) = (b.size / sizeof(T))
 Base.ndims(b::Buffer) = 1
 Base.eltype{T}(b::Buffer{T}) = T
 
-function Buffer{T}(::Type{T}, ctx::Context, bytes=0; hostbuf=nothing)
+function Buffer{T}(::Type{T}, ctx::Context, nbytes=0; hostbuf=nothing)
     Buffer(T, ctx, (:rw, :null), nbytes, hostbuf=hostbuf)
 end
 

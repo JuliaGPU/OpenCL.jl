@@ -630,14 +630,13 @@ facts("OpenCL.Kernel") do
             k = cl.Kernel(p, "test")
 
             nbytes = sizeof(cl.CL_float)
-            d_buff = cl.Buffer(Float32, ctx, (:rw, :use), nbytes)
-            
+            d_buff = cl.Buffer(Float32, ctx, nbytes)
             cl.write!(q, d_buff, Float32[1])
              
-            cl.set_args(k, 1, d_buff)
-            cl.enqueue_kernel(q, k, 1) |> cl.wait
+            cl.set_arg!(k, 1, d_buff)
             
-            r = cl.read(q, d_buff)
+            cl.enqueue_kernel(q, k, 1) |> cl.wait
+            r = cl.read(q, d_buff) 
 
             @fact first(r) => 2
         end
