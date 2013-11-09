@@ -611,4 +611,35 @@ facts("OpenCL.Kernel") do
         end
     end
 
+    context("OpenCL.Kernel enqueue_kernel") do
+        for device in cl.devices()
+            if device[:platform][:name] == "Portable Computing Language"
+                warn("Skipping OpenCL.Kernel mem/workgroup size for Portable Computing Language Platform")
+                continue
+            end
+
+            ctx = cl.Context(device)
+            q   = cl.CmdQueue(ctx)
+
+            simple_kernel = "
+            __kernel void test(__global float *i) {
+                *i += 1;
+            };"
+
+            p = cl.Program(ctx, source=simple_kernel) |> cl.build!
+            k = cl.Kernel(p, "test")
+
+            nbytes = sizeof(cl.CL_float)
+            d_buff = cl.Buffer(Float32, ctx, (:rw, :use), nbytes)
+            
+            cl.write!(q, d_buff, Float32[1])
+             
+            cl.set_args(k, 1, d_buff)
+            cl.enqueue_kernel(q, k, 1) |> cl.wait
+            
+            r = cl.read(q, d_buff)
+
+            @fact first(r) => 2
+        end
+    end
 end
