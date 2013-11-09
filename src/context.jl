@@ -47,16 +47,18 @@ function raise_context_error(error_info, private_info)
 end
 
 
-function Context(devs::Vector{Device}; properties=None, callback=None)
+function Context(devs::Vector{Device};
+                 properties=nothing,
+                 callback::Union(Nothing, Function)=nothing)
     if isempty(devs)
         error("No devices specified for context")
     end
-    if properties != None
+    if properties != nothing
         ctx_properties = _parse_properties(properties)
     else
         ctx_properties = C_NULL
     end
-    if callback != None
+    if callback != nothing
         ctx_user_data = callback
     else
         ctx_user_data = raise_context_error 
@@ -76,16 +78,17 @@ function Context(devs::Vector{Device}; properties=None, callback=None)
 end
 
 
-Context(d::Device; properties=None, callback=None) = 
+Context(d::Device; properties=nothing, callback=nothing) = 
         Context([d], properties=properties, callback=callback)
 
-function Context(dev_type::CL_device_type; properties=None, callback=None)
-    if properties != None
+function Context(dev_type::CL_device_type;
+                 properties=nothing, callback=nothing)
+    if properties != nothing
         ctx_properties = _parse_properties(properties)
     else
         ctx_properties = C_NULL
     end
-    if callback != None
+    if callback != nothing
         ctx_user_data = callback
     else
         ctx_user_data = raise_context_error
@@ -99,7 +102,8 @@ function Context(dev_type::CL_device_type; properties=None, callback=None)
     return Context(ctx_id, retain=true)
 end
 
-function Context(dev_type::Symbol; properties=None, callback=None)
+function Context(dev_type::Symbol;
+                 properties=nothing, callback=nothing)
     Context(cl_device_type(dev_type),
             properties=properties, callback=callback)
 end 
