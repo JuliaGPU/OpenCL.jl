@@ -249,9 +249,9 @@ end
 immutable Params
     A::Float32
     B::Float32
-    x1::Float32
-    x2::Float32
-    c::Int32
+    X1::Float32
+    X2::Float32
+    C::Int32
     Params(a, b, x, c) = begin
         new(float32(a),
             float32(b),
@@ -283,6 +283,7 @@ const test_struct = "
 
 facts("OpenCL.Kernel enqueue kernel 2") do
     for device in cl.devices()
+
         if device[:platform][:name] == "Portable Computing Language"
             warn("Skipping OpenCL.Kernel mem/workgroup size for Portable Computing Language Platform")
             continue
