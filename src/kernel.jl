@@ -125,10 +125,10 @@ function required_work_group_size(k::Kernel, d::Device)
 end
 
 # blocking kernel call that finishes queue
-function call(q::CmdQueue, k::Kernel, global_work_size;
+function call(q::CmdQueue, k::Kernel, global_work_size, local_work_size, args...;
               global_work_offset=nothing,
-              local_work_size=nothing,
               wait_on::Union(Nothing, Vector{Event})=nothing)
+    set_args!(k, args...)
     evt = enqueue_kernel(q, k, 
                          global_work_size,
                          global_work_offset=global_work_offset,
@@ -170,7 +170,7 @@ function enqueue_kernel(q::CmdQueue,
     lsize = C_NULL
     if local_work_size != nothing
         #TODO: check local work size against max possible local work size....
-        if length(global_work_offset) > 3
+        if length(local_work_size) > 3
             throw(AttributeError("local_work_offset has max dim of 3"))
         end
         if length(local_work_size) != work_dim

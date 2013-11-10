@@ -711,12 +711,10 @@ facts("OpenCL.Kernel") do
             d_buff = cl.Buffer(Float32, ctx, (:rw, :copy), hostbuf=h_buff)
 
             p = cl.Program(ctx, source=simple_kernel) |> cl.build!
-            
             k = cl.Kernel(p, "test")
-            cl.set_args!(k, d_buff)
             
             # blocking call to kernel finishes cmd queue
-            cl.call(q, k, length(h_buff))
+            cl.call(q, k, 1, 1, d_buff)
             
             r = cl.read(q, d_buff) 
             @fact r[1] => 2
