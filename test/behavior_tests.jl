@@ -4,7 +4,12 @@ using Base.Test
 import OpenCL
 cl = OpenCL
 
-facts("OpenCL.Kernel hello world") do
+info(
+"======================================================================
+                              Running Behavior Tests
+      ======================================================================")
+
+facts("OpenCL Hello World Test") do
     
     hello_world_kernel = "
         #pragma OPENCL EXTENSION cl_khr_byte_addressable_store : enable
@@ -12,87 +17,50 @@ facts("OpenCL.Kernel hello world") do
         __constant char hw[] = \"hello world\";
 
         __kernel void hello(__global char *out) {
-            size_t tid = get_global_id(0);
+            int tid = get_global_id(0);
             out[tid] = hw[tid];
         }"
 
     hello_world_str = "hello world"
     
-    for device in [cl.devices()[1]]
+    for device in cl.devices()
         if device[:platform][:name] == "Portable Computing Language"
             warn("Skipping OpenCL.Kernel mem/workgroup size for Portable Computing Language Platform")
             continue
         end
+
         ctx   = cl.Context(device)
         queue = cl.CmdQueue(ctx)
         
-        h_len  = length(hello_world_str) + 1 
-        out_h  = Array(cl.CL_char, h_len) 
-        #out_cl = cl.Buffer(ctx,
-        #                   cl.CL_MEM_WRITE_ONLY | cl.CL_MEM_USE_HOST_PTR,
-        #                   hostbuf=out_h)
-
-        nbytes    = sizeof(cl.CL_char) * h_len
-        out_cl_id = cl._create_cl_buffer(ctx.id, cl.CL_MEM_WRITE_ONLY,  
-                                         cl.cl_uint(nbytes), C_NULL)
-        out_cl = cl.Buffer{cl.CL_char}(out_cl_id, false, cl.cl_uint(nbytes))
+        str_len  = length(hello_world_str) + 1 
+        out_buf  = cl.Buffer(Cchar, ctx, :w, sizeof(Cchar) * str_len)
 
         prg   = cl.Program(ctx, source=hello_world_kernel) |> cl.build!
         kern  = cl.Kernel(prg, "hello")
-        cl.set_arg!(kern, 1, out_cl)
-        evt_id = cl.api.clEnqueueNDRangeKernel(queue.id, kern.id,
-                                               cl.uint(1),
-                                               C_NULL,
-                                               Csize_t[h_len,],
-                                               Csize_t[1,1,],
-                                               cl.cl_uint(0),
-                                               C_NULL, C_NULL)
-        cl.wait(Event(evt_id))
-        h = cl.read(queue, out_cl)
-        @fact bytestring(convert(Ptr{Char}, h)) => hello_world_str
-    end
-end
-
-facts("OpenCL.Kernel simple kernel") do
-    for device in [cl.devices()[1]]
-        if device[:platform][:name] == "Portable Computing Language"
-            warn("Skipping OpenCL.Kernel mem/workgroup size for Portable Computing Language Platform")
-            continue
-        end
-        ctx = cl.Context(device)
-        queue = cl.CmdQueue(ctx)
         
-        simple_kernel = "
-            __kernel void test(__global float *i) {
-                *i += 1;
-            }"
+        cl.call(queue, kern, str_len, nothing, out_buf)
+        h = cl.read(queue, out_buf)
 
-        prg = cl.Program(ctx, source=simple_kernel) |> cl.build!
-        k   = cl.Kernel(prg, "test")
-        
-        nbytes = sizeof(Float32) * 1
-        A = cl.Buffer(ctx, cl.cl_mem_flags(0), nbytes)
-        cl.write!(queue, A, Float32[1,])
-        @fact cl.read(queue, A) => Float32[1,]
-        @fact sizeof(A.id) => sizeof(Float32[1,])
-        @fact k[:reference_count] > 0 => true
-        @fact cl.reference_count(A) => 1
-        println(cl.reference_count(A))
-        cl.set_arg!(k, 1, A)
-        try
-            evt = cl.enqueue_kernel(queue, k, 1)
-            #cl.wait(evt)
-        catch err
-            println("error: $device")
-            throw(err)
-        end
-        #@fact cl.read(queue, A) => Float32[2,] 
+        @fact bytestring(convert(Ptr{Cchar}, h)) => hello_world_str
     end
 end
 
 
+facts("OpenCL Low Level Api Test") do
 
-facts("OpenCL.Kernel low level api") do
+  test_source = "
+    __kernel void sum(__global const float *a,
+                      __global const float *b, 
+                      __global float *c,
+                      const unsigned int count)
+    {
+      int gid = get_global_id(0);
+      if (gid < count) {
+          c[gid] = a[gid] + b[gid];
+      }
+    }
+    "
+
     for device in cl.devices()
         
         length = 1024
@@ -245,10 +213,10 @@ facts("OpenCL.Kernel low level api") do
     end
 end
 
-#TODO: works when field access is broken out, Array{Float32} does not given consistent alignment
 immutable Params
     A::Float32
     B::Float32
+    #TODO: fixed size arrays?
     X1::Float32
     X2::Float32
     C::Int32
@@ -281,11 +249,11 @@ const test_struct = "
     }
 "
 
-facts("OpenCL.Kernel enqueue kernel 2") do
+facts("OpenCL Struct Buffer Test") do
     for device in cl.devices()
 
         if device[:platform][:name] == "Portable Computing Language"
-            warn("Skipping OpenCL.Kernel mem/workgroup size for Portable Computing Language Platform")
+            warn("Skipping OpenCL Struct Buffer Test for Portable Computing Language Platform")
             continue
         end
 
