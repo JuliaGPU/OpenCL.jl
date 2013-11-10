@@ -629,16 +629,15 @@ facts("OpenCL.Kernel") do
             p = cl.Program(ctx, source=simple_kernel) |> cl.build!
             k = cl.Kernel(p, "test")
 
-            nbytes = sizeof(cl.CL_float)
-            d_buff = cl.Buffer(Float32, ctx, nbytes)
-            cl.write!(q, d_buff, Float32[1])
+            h_buff = Float32[1,]
+            d_buff = cl.Buffer(Float32, ctx, (:rw, :copy), hostbuf=h_buff)
              
             cl.set_arg!(k, 1, d_buff)
             
             cl.enqueue_kernel(q, k, 1) |> cl.wait
             r = cl.read(q, d_buff) 
 
-            @fact first(r) => 2
+            @fact r[1] => 2
         end
     end
 end
