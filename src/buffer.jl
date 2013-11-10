@@ -31,13 +31,11 @@ function Buffer{T}(::Type{T}, ctx::Context, nbytes=0; hostbuf=nothing)
     Buffer(T, ctx, (:rw, :null), nbytes, hostbuf=hostbuf)
 end
 
-function Buffer{T}(::Type{T}, ctx::Context, mem_flag::Symbol,
-                   nbytes=0; hostbuf=nothing)
+function Buffer{T}(::Type{T}, ctx::Context, mem_flag::Symbol, nbytes=0; hostbuf=nothing)
     Buffer(T, ctx, (mem_flag, :null), nbytes, hostbuf=hostbuf)
 end
 
-function Buffer{T}(::Type{T}, ctx::Context, mem_flags::NTuple{2, Symbol},
-                   nbytes=0; hostbuf=nothing)
+function Buffer{T}(::Type{T}, ctx::Context, mem_flags::NTuple{2, Symbol}, nbytes=0; hostbuf=nothing)
     f_r  = :r  in mem_flags
     f_w  = :w  in mem_flags
     f_rw = :rw in mem_flags

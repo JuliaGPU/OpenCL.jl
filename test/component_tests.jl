@@ -31,6 +31,7 @@ immutable TestStruct
     b::cl.CL_float
 end
 
+
 facts("OpenCL.Platform") do 
     
     context("Platform Info") do
@@ -699,19 +700,19 @@ facts("OpenCL.Kernel") do
                 continue
             end
             
-            ctx = cl.Context(device)
-            q   = cl.CmdQueue(ctx)
-
             simple_kernel = "
                 __kernel void test(__global float *i) {
                     *i += 1;
                 };"
-                
+            
+            ctx = cl.Context(device)
+
             h_buff = Float32[1,]
             d_buff = cl.Buffer(Float32, ctx, (:rw, :copy), hostbuf=h_buff)
 
             p = cl.Program(ctx, source=simple_kernel) |> cl.build!
             k = cl.Kernel(p, "test")
+            q = cl.CmdQueue(ctx)
             
             # blocking call to kernel finishes cmd queue
             cl.call(q, k, 1, 1, d_buff)
@@ -719,5 +720,73 @@ facts("OpenCL.Kernel") do
             r = cl.read(q, d_buff) 
             @fact r[1] => 2
         end
+    end
+end
+
+#TODO: works when field access is broken out, Array{Float32} does not given consistent alignment
+immutable Params
+    A::Float32
+    B::Float32
+    x1::Float32
+    x2::Float32
+    c::Int32
+    Params(a, b, x, c) = begin
+        new(float32(a),
+            float32(b),
+            float32(x[1]),
+            float32(x[2]),
+            int32(c))
+    end
+end
+
+const test_struct = "
+    typedef struct Params
+    {
+        float A;
+        float B;
+        float x[2];  //padding
+        int C;
+    } Params;
+
+
+    __kernel void part3(__global const float *a,
+                        __global const float *b, 
+                        __global float *c,
+                        __constant struct Params* test)
+    {
+        int gid = get_global_id(0);
+        c[gid] = test->A * a[gid] + test->B * b[gid] + test->C;
+    }
+"
+
+facts("OpenCL.Kernel enqueue kernel 2") do
+    for device in cl.devices()
+        if device[:platform][:name] == "Portable Computing Language"
+            warn("Skipping OpenCL.Kernel mem/workgroup size for Portable Computing Language Platform")
+            continue
+        end
+
+        ctx = cl.Context(device)
+        q   = cl.CmdQueue(ctx)
+        p   = cl.Program(ctx, source=test_struct) |> cl.build!
+        
+        part3 = cl.Kernel(p, "part3")
+       
+        X::Array{Float32} = fill(float32(1.0), 10)
+        Y::Array{Float32} = fill(float32(1.0), 10)
+
+        P = [Params(0.5, 10.0, [0.0, 0.0], 3)]
+        P_buf = cl.Buffer(Params, ctx, :r, sizeof(P))
+        cl.write!(q, P_buf, P)
+        
+        X_buf = cl.Buffer(Float32, ctx, (:r, :copy), hostbuf=X)
+        Y_buf = cl.Buffer(Float32, ctx, (:r, :copy), hostbuf=Y)
+        R_buf = cl.Buffer(Float32, ctx, :w, sizeof(X))
+        
+        global_size = size(X)
+        cl.call(q, part3, global_size, nothing, X_buf, Y_buf, R_buf, P_buf)
+
+        r = cl.read(q, R_buf)
+        @fact all(x -> x == 13.5, r) => true
     end
 end
