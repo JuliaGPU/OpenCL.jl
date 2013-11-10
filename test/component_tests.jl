@@ -591,9 +591,9 @@ facts("OpenCL.Kernel") do
 
             nbytes = 100 * sizeof(Float32)
             
-            A = cl.Buffer(ctx, cl.CL_MEM_READ_ONLY,  nbytes)
-            B = cl.Buffer(ctx, cl.CL_MEM_READ_ONLY,  nbytes)
-            C = cl.Buffer(ctx, cl.CL_MEM_WRITE_ONLY, nbytes)
+            A = cl.Buffer(Float32, ctx, :r, nbytes)
+            B = cl.Buffer(Float32, ctx, :r, nbytes)
+            C = cl.Buffer(Float32, ctx, :w, nbytes)
 
             # sizeof mem object for buffer in bytes
             @fact sizeof(A.id) => nbytes
@@ -607,7 +607,12 @@ facts("OpenCL.Kernel") do
             @fact @throws_pred(cl.set_arg!(k, 1, A))   => (false, "no error")
             @fact @throws_pred(cl.set_arg!(k, 2, B))   => (false, "no error")
             @fact @throws_pred(cl.set_arg!(k, 3, C))   => (false, "no error")
-            @fact @throws_pred(cl.set_arg!(k, 4, uint32(100))) => (false, "no error") 
+            @fact @throws_pred(cl.set_arg!(k, 4, uint32(100))) => (false, "no error")
+
+            cl.enqueue_kernel(queue, k, 100) |> cl.wait
+            r = cl.read(queue, C)
+
+            @fact all(x -> x == 2.0, r) => true
         end
     end
 
@@ -617,7 +622,7 @@ facts("OpenCL.Kernel") do
                 warn("Skipping OpenCL.Kernel mem/workgroup size for Portable Computing Language Platform")
                 continue
             end
-
+            
             ctx = cl.Context(device)
             q   = cl.CmdQueue(ctx)
 
@@ -625,18 +630,18 @@ facts("OpenCL.Kernel") do
             __kernel void test(__global float *i) {
                 *i += 1;
             };"
-
-            p = cl.Program(ctx, source=simple_kernel) |> cl.build!
-            k = cl.Kernel(p, "test")
-
+            
             h_buff = Float32[1,]
             d_buff = cl.Buffer(Float32, ctx, (:rw, :copy), hostbuf=h_buff)
-             
+
+            p = cl.Program(ctx, source=simple_kernel) |> cl.build!
+            
+            k = cl.Kernel(p, "test")
             cl.set_arg!(k, 1, d_buff)
             
             cl.enqueue_kernel(q, k, 1) |> cl.wait
             r = cl.read(q, d_buff) 
-
+           
             @fact r[1] => 2
         end
     end

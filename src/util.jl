@@ -7,5 +7,3 @@ function create_compute_context()
     queue  = CmdQueue(ctx)
     return (device, ctx, queue)
 end
-
-
