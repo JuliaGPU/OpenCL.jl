@@ -675,16 +675,17 @@ facts("OpenCL.Kernel") do
             r = cl.read(queue, C)
 
             @fact all(x -> x == 2.0, r) => true
+            cl.flush(queue)
 
             # test set_args with new kernel
             k2 = cl.Kernel(prg, "sum")
-            
-            cl.fill!(queue, A, float32(2.0))
-            cl.fill!(queue, B, float32(2.0))
-            
             cl.set_args!(k2, A, B, C, uint32(count))
             
-            cl.enqueue_kernel(queue, k, count) |> cl.wait
+            cl.enqueue_fill(queue, A, float32(2.0))
+            cl.enqueue_fill(queue, B, float32(2.0))
+            cl.enqueue_kernel(queue, k, count)
+            cl.finish(queue)
+
             r = cl.read(queue, C)
 
             @fact all(x -> x == 4.0, r) => true
@@ -712,11 +713,12 @@ facts("OpenCL.Kernel") do
             p = cl.Program(ctx, source=simple_kernel) |> cl.build!
             
             k = cl.Kernel(p, "test")
-            cl.set_arg!(k, 1, d_buff)
+            cl.set_args!(k, d_buff)
             
-            cl.enqueue_kernel(q, k, 1) |> cl.wait
+            # blocking call to kernel finishes cmd queue
+            cl.call(q, k, length(h_buff))
+            
             r = cl.read(q, d_buff) 
-           
             @fact r[1] => 2
         end
     end
