@@ -124,6 +124,19 @@ function required_work_group_size(k::Kernel, d::Device)
     return ret
 end
 
+# blocking kernel call that finishes queue
+function call(q::CmdQueue, k::Kernel, global_work_size;
+              global_work_offset=nothing,
+              local_work_size=nothing,
+              wait_on::Union(Nothing, Vector{Event})=nothing)
+    evt = enqueue_kernel(q, k, 
+                         global_work_size,
+                         global_work_offset=global_work_offset,
+                         local_work_size=local_work_size,
+                         wait_on=wait_on)
+    finish(q)
+end
+
 function enqueue_kernel(q::CmdQueue,
                         k::Kernel,
                         global_work_size;
@@ -178,8 +191,8 @@ function enqueue_kernel(q::CmdQueue,
     end
 
     ret_event = Array(CL_event, 1)
-    #TODO:....
-    @check api.clEnqueueNDRangeKernel(q.id, k.id, cl_uint(1), C_NULL, gsize, C_NULL,
+    #TODO: Support offsets??? hardcoded to NULL for the time being...
+    @check api.clEnqueueNDRangeKernel(q.id, k.id, cl_uint(work_dim), C_NULL, gsize, lsize,
                                       n_events, wait_event_ids, ret_event)
     return Event(ret_event[1], retain=false)
 end
