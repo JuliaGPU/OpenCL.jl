@@ -776,6 +776,7 @@ facts("OpenCL.Kernel enqueue kernel 2") do
         Y::Array{Float32} = fill(float32(1.0), 10)
 
         P = [Params(0.5, 10.0, [0.0, 0.0], 3)]
+        #TODO: constructor for single immutable types.., chech if passed parameter isbits
         P_buf = cl.Buffer(Params, ctx, :r, sizeof(P))
         cl.write!(q, P_buf, P)
         
