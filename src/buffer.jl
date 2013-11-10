@@ -23,7 +23,7 @@ type Buffer{T} <: CLMemObject
     end
 end
 
-Base.length{T}(b::Buffer{T}) = (b.size / sizeof(T))
+Base.length{T}(b::Buffer{T}) = int(b.size / sizeof(T))
 Base.ndims(b::Buffer) = 1
 Base.eltype{T}(b::Buffer{T}) = T
 
@@ -223,7 +223,7 @@ function enqueue_map_buffer(q::CmdQueue, b::Buffer, flags, offset, shape,
 end
 
 @ocl_v1_2_only begin
-    function _enqueue_fill_buffer{T}(q::CmdQueue, buf::Buffer{T}, pattern::T,
+    function enqueue_fill_buffer{T}(q::CmdQueue, buf::Buffer{T}, pattern::T,
                                     offset::Csize_t, nbytes::Csize_t,
                                     wait_for::Union(Vector{Event}, Nothing))
         
@@ -245,7 +245,7 @@ end
 
     function enqueue_fill{T}(q::CmdQueue, buf::Buffer{T}, x::T)
         nbytes = uint(buf.size)
-        evt = _enqueue_fill_buffer(q, buf, x, unsigned(0), nbytes, nothing)
+        evt = enqueue_fill_buffer(q, buf, x, unsigned(0), nbytes, nothing)
         return evt
     end
     
@@ -254,13 +254,12 @@ end
     end
 end
 
-
 function copy!{T}(q::CmdQueue, dst::Array{T}, src::Buffer{T})
     if length(dist) != length(src)
         throw(ArgumentError("Inconsistent array length"))
     end
     nbytes = length(src) * sizeof(T)
-    # copy
+    wait(enqueue_copy_buffer(src, dst, nbytes, uint(0), uint(0), nothing))
     return dst
 end
 
@@ -269,22 +268,13 @@ function copy!{T}(q::CmdQueue, dst::Buffer{T}, src::Array{T})
         throw(ArgumentError("Inconsistent array length"))
     end
     nbytes = length(src) * sizeof(T)
-    # copy
-    return dst
-end
-
-function copy!{T}(q::CmdQueue, dst::Buffer{T}, src::Buffer{T})
-    if dst.size != src.size
-        throw(ArgumentError("src and dst buffers must be the same size"))
-    end
-    nbytes = src.size
-    #
+    wait(enqueue_copy_buffer(src, dst, nbytes, uint(0), uint(0), nothing))
     return dst
 end
 
 # copy bufer into identical buffer object
 function copy{T}(q::CmdQueue, src::Buffer{T})
-    return src
+   #TODO.... 
 end
 
 function empty{T}(::Type{T}, ctx::Context, dims)
