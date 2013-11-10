@@ -26,6 +26,10 @@ function available_platforms()
     return usable_platforms
 end
 
+immutable TestStruct
+    a::cl.CL_int
+    b::cl.CL_float
+end
 
 facts("OpenCL.Platform") do 
     
@@ -318,8 +322,7 @@ facts("OpenCL.Buffer") do
         ctx = cl.create_some_context()
         queue = cl.CmdQueue(ctx)
         testarray = zeros(Float32, 1000)
-        buf = cl.Buffer(ctx, cl.CL_MEM_COPY_HOST_PTR | cl.CL_MEM_READ_WRITE,
-                        hostbuf=testarray)
+        buf = cl.Buffer(Float32, ctx, (:rw, :copy), hostbuf=testarray)
         return (queue, buf, testarray)
     end
 
@@ -327,56 +330,114 @@ facts("OpenCL.Buffer") do
         ctx = cl.create_some_context()
         testarray = zeros(Float32, 1000)
 
-        @fact @throws_pred(cl.Buffer(ctx, cl.CL_MEM_ALLOC_HOST_PTR | cl.CL_MEM_READ_ONLY,
+        @fact @throws_pred(cl.Buffer(Float32, ctx, cl.CL_MEM_ALLOC_HOST_PTR | cl.CL_MEM_READ_ONLY,
                                      sizeof(testarray))) => (false, "no error")
         
-        @fact @throws_pred(cl.Buffer(ctx, cl.CL_MEM_ALLOC_HOST_PTR | cl.CL_MEM_WRITE_ONLY,
+        @fact @throws_pred(cl.Buffer(Float32, ctx, cl.CL_MEM_ALLOC_HOST_PTR | cl.CL_MEM_WRITE_ONLY,
                                      sizeof(testarray))) => (false, "no error")
          
-        @fact @throws_pred(cl.Buffer(ctx, cl.CL_MEM_ALLOC_HOST_PTR | cl.CL_MEM_READ_WRITE,
+        @fact @throws_pred(cl.Buffer(Float32, ctx, cl.CL_MEM_ALLOC_HOST_PTR | cl.CL_MEM_READ_WRITE,
                                      sizeof(testarray))) => (false, "no error")
 
-        buf = cl.Buffer(ctx, cl.CL_MEM_ALLOC_HOST_PTR | cl.CL_MEM_READ_WRITE, sizeof(testarray))
+        buf = cl.Buffer(Float32, ctx, cl.CL_MEM_ALLOC_HOST_PTR | cl.CL_MEM_READ_WRITE, sizeof(testarray))
         @fact buf.size => sizeof(testarray)
 
-        @fact @throws_pred(cl.Buffer(ctx, cl.CL_MEM_COPY_HOST_PTR | cl.CL_MEM_READ_ONLY, 
+        @fact @throws_pred(cl.Buffer(Float32, ctx, cl.CL_MEM_COPY_HOST_PTR | cl.CL_MEM_READ_ONLY, 
                                      hostbuf=testarray)) => (false, "no error")
 
-        @fact @throws_pred(cl.Buffer(ctx, cl.CL_MEM_COPY_HOST_PTR | cl.CL_MEM_WRITE_ONLY,
+        @fact @throws_pred(cl.Buffer(Float32, ctx, cl.CL_MEM_COPY_HOST_PTR | cl.CL_MEM_WRITE_ONLY,
                                      hostbuf=testarray)) => (false, "no error")
 
-        @fact @throws_pred(cl.Buffer(ctx, cl.CL_MEM_COPY_HOST_PTR | cl.CL_MEM_READ_WRITE,
+        @fact @throws_pred(cl.Buffer(Float32, ctx, cl.CL_MEM_COPY_HOST_PTR | cl.CL_MEM_READ_WRITE,
                                      hostbuf=testarray)) => (false, "no error")
           
-        buf = cl.Buffer(ctx, cl.CL_MEM_COPY_HOST_PTR | cl.CL_MEM_READ_WRITE, hostbuf=testarray)
+        buf = cl.Buffer(Float32, ctx, cl.CL_MEM_COPY_HOST_PTR | cl.CL_MEM_READ_WRITE, hostbuf=testarray)
         @fact buf.size => sizeof(testarray)
         
-        @fact @throws_pred(cl.Buffer(ctx, cl.CL_MEM_USE_HOST_PTR | cl.CL_MEM_READ_ONLY,
+        @fact @throws_pred(cl.Buffer(Float32, ctx, cl.CL_MEM_USE_HOST_PTR | cl.CL_MEM_READ_ONLY,
                                      hostbuf=testarray)) => (false, "no error")
 
-        @fact @throws_pred(cl.Buffer(ctx, cl.CL_MEM_USE_HOST_PTR | cl.CL_MEM_WRITE_ONLY,
+        @fact @throws_pred(cl.Buffer(Float32, ctx, cl.CL_MEM_USE_HOST_PTR | cl.CL_MEM_WRITE_ONLY,
                                      hostbuf=testarray)) => (false, "no error")
 
-        @fact @throws_pred(cl.Buffer(ctx, cl.CL_MEM_USE_HOST_PTR | cl.CL_MEM_READ_WRITE,
+        @fact @throws_pred(cl.Buffer(Float32, ctx, cl.CL_MEM_USE_HOST_PTR | cl.CL_MEM_READ_WRITE,
                                      hostbuf=testarray)) => (false, "no error")
 
-        buf = cl.Buffer(ctx, cl.CL_MEM_USE_HOST_PTR | cl.CL_MEM_READ_WRITE, hostbuf=testarray)
+        buf = cl.Buffer(Float32, ctx, cl.CL_MEM_USE_HOST_PTR | cl.CL_MEM_READ_WRITE, hostbuf=testarray)
         @fact buf.size => sizeof(testarray)
        
         # invalid buffer size should throw error
-        @fact @throws_pred(cl.Buffer(ctx, cl.CL_MEM_ALLOC_HOST_PTR, +0)) => (true, "error")
-        @fact @throws_pred(cl.Buffer(ctx, cl.CL_MEM_ALLOC_HOST_PTR, -1)) => (true, "error")
+        @fact @throws_pred(cl.Buffer(Float32, ctx, cl.CL_MEM_ALLOC_HOST_PTR, +0)) => (true, "error")
+        @fact @throws_pred(cl.Buffer(Float32, ctx, cl.CL_MEM_ALLOC_HOST_PTR, -1)) => (true, "error")
 
         # invalid flag combinations should throw error
-        @fact @throws_pred(cl.Buffer(ctx, cl.CL_MEM_USE_HOST_PTR | cl.CL_MEM_ALLOC_HOST_PTR,
+        @fact @throws_pred(cl.Buffer(Float32, ctx, cl.CL_MEM_USE_HOST_PTR | cl.CL_MEM_ALLOC_HOST_PTR,
                                      hostbuf=testarray)) => (true, "error")
 
         # invalid host pointer should throw error
-        @fact @throws_pred(cl.Buffer(ctx, cl.CL_MEM_COPY_HOST_PTR,
+        @fact @throws_pred(cl.Buffer(Float32, ctx, cl.CL_MEM_COPY_HOST_PTR,
                                      hostbuf=C_NULL)) => (true, "error")
         
-        @fact @throws_pred(cl.Buffer(ctx, cl.CL_MEM_USE_HOST_PTR,
+        @fact @throws_pred(cl.Buffer(Float32, ctx, cl.CL_MEM_USE_HOST_PTR,
                                      hostbuf=C_NULL)) => (true, "error")
+     end
+
+     context("OpenCL.Buffer constructors symbols") do
+         for device in cl.devices()
+             ctx = cl.Context(device)
+             
+             for mf1 in [:rw, :r, :w]
+                 for mf2 in [:copy, :use, :alloc, :null]
+                     for mtype in [cl.CL_char,
+                                   cl.CL_uchar,
+                                   cl.CL_short,
+                                   cl.CL_ushort,
+                                   cl.CL_int,
+                                   cl.CL_uint,
+                                   cl.CL_long,
+                                   cl.CL_ulong,
+                                   cl.CL_half,
+                                   cl.CL_float,
+                                   cl.CL_double,
+                                   #TODO: bool, vector_types, struct_types...
+                                   ]
+                         testarray = zeros(mtype, 100)
+                         if mf2 == :copy || mf2 == :use
+                             @fact @throws_pred(cl.Buffer(mtype, ctx, (mf1, mf2), 
+                                                          hostbuf=testarray)) => (false, "no error")
+                             buf = cl.Buffer(mtype, ctx, (mf1, mf2), hostbuf=testarray)
+                             @fact buf.size => sizeof(testarray)
+                         elseif mf2 == :alloc
+                             @fact @throws_pred(cl.Buffer(mtype, ctx, (mf1, mf2),
+                                                          sizeof(testarray))) => (false, "no error")
+                             buf = cl.Buffer(mtype, ctx, (mf1, mf2), sizeof(testarray))
+                             @fact buf.size => sizeof(testarray)
+                         end
+                     end
+                 end
+             end
+
+             #
+             test_array = Array(TestStruct, 100)
+             @fact @throws_pred(cl.Buffer(TestStruct, ctx, :alloc, sizeof(test_array))) => (false, "no error")
+             @fact @throws_pred(cl.Buffer(TestStruct, ctx, :copy, hostbuf=test_array))  => (false, "no error")
+
+             # invalid buffer size should throw error
+             @fact @throws_pred(cl.Buffer(Float32, ctx, :alloc, +0)) => (true, "error")
+             @fact @throws_pred(cl.Buffer(Float32, ctx, :alloc, -1)) => (true, "error")
+
+             # invalid flag combinations should throw error
+             @fact @throws_pred(cl.Buffer(Float32, ctx, (:use, :alloc), 
+                                          hostbuf=testarray)) => (true, "error")
+
+             # invalid host pointer should throw error
+             @fact @throws_pred(cl.Buffer(Float32, ctx, :copy,
+                                          hostbuf=C_NULL)) => (true, "error")
+            
+             @fact @throws_pred(cl.Buffer(Float32, ctx, :use, 
+                                          hostbuf=C_NULL)) => (true, "error")
+     
+         end
      end
 
      context("OpenCL.Buffer fill") do
@@ -403,8 +464,7 @@ facts("OpenCL.Buffer") do
     context("OpenCL.Buffer empty") do
         ctx = cl.create_some_context()
         testarray = zeros(Float32, 1000)
-        buf = cl.Buffer(ctx, cl.CL_MEM_COPY_HOST_PTR | cl.CL_MEM_READ_WRITE,
-                        hostbuf=testarray)
+        buf = cl.Buffer(Float32, ctx, (:rw, :copy), hostbuf=testarray)
 
         @fact @throws_pred(cl.empty(Float32, ctx, -1)) => (true, "error") 
         empty_buf = cl.empty(Float32, ctx, 1000)

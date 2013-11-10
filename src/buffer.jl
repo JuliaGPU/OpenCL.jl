@@ -75,48 +75,6 @@ function Buffer{T}(::Type{T}, ctx::Context, mem_flags::NTuple{2, Symbol},
     return Buffer(T, ctx, flags, nbytes, hostbuf=hostbuf)
 end
 
-
-function Buffer(ctx::Context, flags::CL_mem_flags, size=0; hostbuf=nothing)
-    if (hostbuf != nothing && 
-        !bool((flags & (CL_MEM_USE_HOST_PTR | CL_MEM_COPY_HOST_PTR))))
-        warn("'hostbuf' was passed, but no memory flags to make use of it")
-    end
-    
-    retain_buf = nothing
-    if hostbuf != nothing
-        if bool(flags & CL_MEM_USE_HOST_PTR)
-            retain_buf = hostbuf
-        end
-        if size > sizeof(hostbuf)
-            error("OpenCL.Buffer specified size greater than host buffer size")
-        end
-        if size == 0
-            size = sizeof(hostbuf)
-        end
-    end
-
-    if size <= 0
-        error("OpenCL.Buffer specified size is <= 0 bytes")
-    end
-    size = cl_uint(size)
-
-    err_code = Array(CL_int, 1)
-    mem_id = api.clCreateBuffer(ctx.id, flags, size,
-                                hostbuf != nothing ? hostbuf : C_NULL, 
-                                err_code)
-    if err_code[1] != CL_SUCCESS
-        throw(CLError(err_code[1]))
-    end
-
-    try
-        return Buffer{Float32}(mem_id, false, size)
-    catch err
-        @check api.clReleaseMemObject(mem_id)
-        throw(err)
-    end
-end
-
-
 function Buffer{T}(::Type{T}, ctx::Context, flags::CL_mem_flags, nbytes=0;
                    hostbuf::Union(Nothing, Array{T})=nothing)
     if (hostbuf != nothing && 
