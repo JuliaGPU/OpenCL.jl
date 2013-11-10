@@ -703,10 +703,10 @@ facts("OpenCL.Kernel") do
             q   = cl.CmdQueue(ctx)
 
             simple_kernel = "
-            __kernel void test(__global float *i) {
-                *i += 1;
-            };"
-            
+                __kernel void test(__global float *i) {
+                    *i += 1;
+                };"
+                
             h_buff = Float32[1,]
             d_buff = cl.Buffer(Float32, ctx, (:rw, :copy), hostbuf=h_buff)
 
