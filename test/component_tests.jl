@@ -514,8 +514,8 @@ end
 facts("OpenCL.Kernel") do 
 
     test_source = "
-    __kernel void sum(__global float *a,
-                      __global float *b, 
+    __kernel void sum(__global const float *a,
+                      __global const float *b, 
                       __global float *c,
                       const unsigned int count)
     {
@@ -577,19 +577,21 @@ facts("OpenCL.Kernel") do
     end
 
 
-    context("OpenCL.Kernel set_args!") do
+    context("OpenCL.Kernel set_arg!/set_args!") do
          for device in cl.devices()
             if device[:platform][:name] == "Portable Computing Language"
                 warn("Skipping OpenCL.Kernel mem/workgroup size for Portable Computing Language Platform")
                 continue
             end
+
             ctx = cl.Context(device)
             queue = cl.CmdQueue(ctx)
             
             prg = cl.Program(ctx, source=test_source) |> cl.build!
             k = cl.Kernel(prg, "sum")
 
-            nbytes = 100 * sizeof(Float32)
+            count  = 1024
+            nbytes = count * sizeof(Float32)
             
             A = cl.Buffer(Float32, ctx, :r, nbytes)
             B = cl.Buffer(Float32, ctx, :r, nbytes)
@@ -607,12 +609,25 @@ facts("OpenCL.Kernel") do
             @fact @throws_pred(cl.set_arg!(k, 1, A))   => (false, "no error")
             @fact @throws_pred(cl.set_arg!(k, 2, B))   => (false, "no error")
             @fact @throws_pred(cl.set_arg!(k, 3, C))   => (false, "no error")
-            @fact @throws_pred(cl.set_arg!(k, 4, uint32(100))) => (false, "no error")
+            @fact @throws_pred(cl.set_arg!(k, 4, uint32(count))) => (false, "no error")
 
-            cl.enqueue_kernel(queue, k, 100) |> cl.wait
+            cl.enqueue_kernel(queue, k, count) |> cl.wait
             r = cl.read(queue, C)
 
             @fact all(x -> x == 2.0, r) => true
+
+            # test set_args with new kernel
+            k2 = cl.Kernel(prg, "sum")
+            
+            cl.fill!(queue, A, float32(2.0))
+            cl.fill!(queue, B, float32(2.0))
+            
+            cl.set_args!(k2, A, B, C, uint32(count))
+            
+            cl.enqueue_kernel(queue, k, count) |> cl.wait
+            r = cl.read(queue, C)
+
+            @fact all(x -> x == 4.0, r) => true
         end
     end
 

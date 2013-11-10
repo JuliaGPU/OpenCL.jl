@@ -93,6 +93,13 @@ for cl_type in [:CL_char, :CL_uchar, :CL_short, :CL_ushort,
     end
 end
 
+function set_args!(k::Kernel, args...)
+    for (i, a) in enumerate(args)
+        set_arg!(k, i, a)
+    end
+end
+
+
 function private_mem_size(k::Kernel, d::Device)
     ret = Csize_t[0]
     @check api.clGetKernelWorkGroupInfo(k.id, d.id, 
