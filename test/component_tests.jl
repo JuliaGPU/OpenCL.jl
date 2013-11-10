@@ -772,11 +772,12 @@ facts("OpenCL.Kernel enqueue kernel 2") do
         
         part3 = cl.Kernel(p, "part3")
        
-        X::Array{Float32} = fill(float32(1.0), 10)
-        Y::Array{Float32} = fill(float32(1.0), 10)
+        X = fill(float32(1.0), 10)
+        Y = fill(float32(1.0), 10)
 
         P = [Params(0.5, 10.0, [0.0, 0.0], 3)]
-        #TODO: constructor for single immutable types.., chech if passed parameter isbits
+        
+        #TODO: constructor for single immutable types.., check if passed parameter isbits
         P_buf = cl.Buffer(Params, ctx, :r, sizeof(P))
         cl.write!(q, P_buf, P)
         
