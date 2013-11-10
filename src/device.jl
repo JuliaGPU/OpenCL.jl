@@ -46,7 +46,7 @@ let driver_version(d::Device) = info(d, CL_DRIVER_VERSION)
     version(d::Device) = info(d, CL_DEVICE_VERSION)
     profile(d::Device) = info(d, CL_DEVICE_PROFILE)
     extensions(d::Device) = split(info(d, CL_DEVICE_EXTENSIONS))
- 
+
     platform(d::Device) = begin
         result = Array(CL_platform_id, 1)
         @check api.clGetDeviceInfo(d.id, CL_DEVICE_PLATFORM,

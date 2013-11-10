@@ -40,10 +40,6 @@ function num_platforms()
     return int(nplatforms[1])
 end
 
-function info2(p::Platform, pinfo::CL_platform_info)
-    @str_info(Platform, p.id, pinfo)
-end
-
 function info(p::Platform, pinfo::CL_platform_info)
     size = Array(Csize_t, 1)
     @check api.clGetPlatformInfo(p.id, pinfo, 0, C_NULL, size)
@@ -52,8 +48,8 @@ function info(p::Platform, pinfo::CL_platform_info)
     return bytestring(convert(Ptr{CL_char}, result))
 end
 
-let 
-    const info_map = (Symbol => CL_platform_info)[
+
+let info_map = (Symbol => CL_platform_info)[
         :profile => CL_PLATFORM_PROFILE,
         :version => CL_PLATFORM_VERSION,
         :name    => CL_PLATFORM_NAME,

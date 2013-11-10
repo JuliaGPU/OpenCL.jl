@@ -171,7 +171,6 @@ function enqueue_read_buffer{T}(q::CmdQueue,
     @check api.clEnqueueReadBuffer(q.id, buf.id, cl_bool(is_blocking),
                                    dev_offset, nbytes, hostbuf,
                                    n_evts, evt_ids, ret_evt)
-    #TODO: nanny event
     @return_nanny_event(ret_evt[1], hostbuf) 
 end
 
@@ -190,7 +189,6 @@ function enqueue_write_buffer{T}(q::CmdQueue,
                                     offset, nbytes, hostbuf,
                                     n_evts, evt_ids, ret_evt)
     buf.size = nbytes
-    # TODO: nanny evt
     @return_nanny_event(ret_evt[1], hostbuf)
 end
 
@@ -225,7 +223,7 @@ function enqueue_map_buffer(q::CmdQueue, b::Buffer, flags, offset, shape,
 end
 
 @ocl_v1_2_only begin
-    function enqueue_fill_buffer{T}(q::CmdQueue, buf::Buffer{T}, pattern::T,
+    function _enqueue_fill_buffer{T}(q::CmdQueue, buf::Buffer{T}, pattern::T,
                                     offset::Csize_t, nbytes::Csize_t,
                                     wait_for::Union(Vector{Event}, Nothing))
         
@@ -245,14 +243,14 @@ end
         @return_event ret_evt[1]
     end
 
-    function fill!{T}(q::CmdQueue, buf::Buffer{T}, x::T)
-        nbytes = uint64(buf.size)
-        evt = enqueue_fill_buffer(q, buf, x, unsigned(0), nbytes, nothing)
-        wait(evt)
+    function enqueue_fill{T}(q::CmdQueue, buf::Buffer{T}, x::T)
+        nbytes = uint(buf.size)
+        evt = _enqueue_fill_buffer(q, buf, x, unsigned(0), nbytes, nothing)
+        return evt
     end
-
-    function fill{T}(q::CmdQueue, x::T, n::Csize_t)
-        bytes = n * sizeof(T)
+    
+    function fill!{T}(q::CmdQueue, buf::Buffer{T}, x::T)
+        wait(enqueue_fill(q, buf, x))
     end
 end
 
