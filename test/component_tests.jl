@@ -713,7 +713,7 @@ facts("OpenCL.Kernel") do
 
             p = cl.Program(ctx, source=simple_kernel) |> cl.build!
             k = cl.Kernel(p, "test")
-            q = cl.CmdQueue(ctx)
+            q = cl.Queue(ctx)
             
             # blocking call to kernel finishes cmd queue
             cl.call(q, k, 1, 1, d_buff)
