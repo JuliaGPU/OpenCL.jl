@@ -72,7 +72,7 @@ function cl_performance(ndatapts::Integer, nworkers::Integer)
             end
 
             ctx   = cl.Context(device)
-            queue = cl.CmdQueue(ctx)
+            queue = cl.CmdQueue(ctx, :profile)
             
             a_buf = cl.Buffer(Float32, ctx, (:r, :copy), hostbuf=a)
             b_buf = cl.Buffer(Float32, ctx, (:r, :copy), hostbuf=b)

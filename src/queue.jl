@@ -39,6 +39,21 @@ function CmdQueue(ctx::Context)
     return CmdQueue(ctx, first(devs), flags)
 end
 
+function CmdQueue(ctx::Context, prop::Symbol)
+    devs = devices(ctx)
+    if isempty(devs)
+        throw(ArgumentError("OpenCL.CmdQueue Context argument does not have any devices"))
+    end
+    return CmdQueue(ctx, first(devs), prop)
+end
+
+function CmdQueue(ctx::Context, props::NTuple{2, Symbol})
+    devs = devices(ctx)
+    if isempty(devs)
+        throw(ArgumentError("OpenCL.CmdQueue Context argument does not have any devices"))
+    end 
+    return CmdQueue(ctx, first(devs), props)
+end
 
 function CmdQueue(ctx::Context, dev::Device)
     flags = cl_command_queue_properties(0)
@@ -50,7 +65,7 @@ function CmdQueue(ctx::Context, dev::Device, prop::Symbol)
     if prop == :out_of_order
         flags |= CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE
     elseif prop == :profile
-        flags |= CL_QUEUE_PROFILE_ENABLE
+        flags |= CL_QUEUE_PROFILING_ENABLE
     else
         throw(ArgumentError("Only :out_of_order and :profile flags are valid, recognized flag $prop"))
     end
@@ -61,7 +76,7 @@ function CmdQueue(ctx::Context, dev::Device, props::NTuple{2,Symbol})
     if !(:out_of_order in props && :profile in props)
         throw(ArgumentError("Only :out_of_order and :profile flags are vaid, unrecognized flags $props"))
     end
-    flags = CL_QUEUE_PROFILE_ENABLE | CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE
+    flags = CL_QUEUE_PROFILING_ENABLE | CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE
     return CmdQueue(ctx, dev, flags)
 end
 
