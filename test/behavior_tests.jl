@@ -2,7 +2,7 @@ using FactCheck
 using Base.Test
 
 import OpenCL
-cl = OpenCL
+const cl = OpenCL
 
 info(
 "======================================================================

@@ -3,12 +3,12 @@
 type CmdQueue 
     id::CL_command_queue
 
-    function CmdQueue(q_id::CL_command_queue; retain=true)
+    function CmdQueue(q_id::CL_command_queue; retain=false)
         if retain
             @check api.clRetainCommandQueue(q_id)
         end
         q = new(q_id)
-        finalizer(q, cmd_q -> release!(cmd_q))
+        finalizer(q, x -> release!(x))
         return q
     end
 end 

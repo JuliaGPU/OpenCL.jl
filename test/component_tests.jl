@@ -2,7 +2,7 @@ using FactCheck
 using Base.Test
 
 import OpenCL 
-cl = OpenCL
+const cl = OpenCL
 
 macro throws_pred(ex) FactCheck.throws_pred(ex) end 
 
@@ -434,7 +434,6 @@ facts("OpenCL.Buffer") do
                  end
              end
 
-             #
              test_array = Array(TestStruct, 100)
              @fact @throws_pred(cl.Buffer(TestStruct, ctx, :alloc, sizeof(test_array))) => (false, "no error")
              @fact @throws_pred(cl.Buffer(TestStruct, ctx, :copy, hostbuf=test_array))  => (false, "no error")
