@@ -42,7 +42,7 @@ function Program(ctx::Context; source=nothing, binaries=nothing)
     elseif binaries != nothing
         n_devices = length(binaries)
         device_ids = Array(CL_device_id, n_devices)
-        lens = Array(Csize_t, n_devices)
+        bin_lengths = Array(Csize_t, n_devices)
         binary_status = Array(CL_int, n_devices)
         binary_ptrs= Array(Ptr{Uint8}, n_devices)
         try
