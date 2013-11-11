@@ -175,6 +175,20 @@ function enqueue_barrier(q::CmdQueue)
     return q
 end
 
+cl_event_status(s::Symbol) = begin
+    if s == :queued
+        return CL_QUEUED
+    elseif s == :submitted
+        return CL_SUBMITTED
+    elseif s == :running
+        return CL_RUNNING
+    elseif s == :complete
+        return CL_COMPLETE
+    else
+        throw(ArgumentError("unrecognized status symbol :$s"))
+    end
+end
+
 #TODO: make the following more consistent
 let status_dict = (CL_uint => Symbol)[
                    CL_QUEUED => :queued,
@@ -191,15 +205,10 @@ let status_dict = (CL_uint => Symbol)[
     end
 end
 
-#function status(evt_id::CL_event)
-#    st = Array(CL_int, 1)
-#    @check api.clGetEventInfo(evt_id, CL_EVENT_COMMAND_EXECUTION_STATUS,
-#                              sizeof(CL_int), st)
-#    return st[1] 
-#end
-
 function profiling_info(evt::CLEvent, param::CL_profiling_info)
-    if     param == CL_PROFILING_COMMAND_QUEUED
+    time = Array(CL_ulong)
+    if param == CL_PROFILING_COMMAND_QUEUED
+        
     elseif param == CL_PROFILING_COMMAND_SUBMIT
     elseif param == CL_PROFILING_COMMAND_START
     elseif param == CL_PROFILING_COMMAND_END
@@ -214,16 +223,39 @@ end
 
 # cannot use reserved word end as symbol
 function profiling_info(evt::CLEvent, param::Symbol)
-    if     param == :prof_queued
-    elseif param == :prof_submitted
-    elseif param == :prof_start
-    elseif param == :prof_end 
+    if     param == :queued
+    elseif param == :submitted
+    elseif param == :start
+    elseif param == :profile_end 
         return profiling_info(evt, CL_PROFILING_COMMAND_END)
     else
-        throw(CLError(CL_INVALID_VALUE))
+        throw(ArgumentError("Profiling info symol one of [:profile_queued, :profile_submitted, :profile_start, :profile_end]"))
     end
 end
 
+macro profile_info(func, profile_info)
+    quote
+        function $(esc(func))(evt::CLEvent)
+            time = CL_long[0]
+            err_code = api.clGetEventProfilingInfo(evt.id, $profile_info,
+                                                   sizeof(CL_ulong), time, C_NULL)
+            if err != CL_SUCCESS
+                if err == CL_PROFILING_INFO_NOT_AVAILABLE
+                    if evt[:status] != :complete
+                        #TODO: evt must have status complete before it can be profiled
+                        throw(CLError(err_code))
+                    else
+                        #TODO: queue must be create with :profile argument
+                        throw(CLError(err_code))
+                    end
+                end
+                throw(CLError(err_code))
+            end
+            return time[1]
+        end
+    end
+end
+    
 
 let command_queue(evt::CLEvent) = begin
         cmd_q = Array(CL_command_queue, 1)
@@ -257,8 +289,24 @@ let command_queue(evt::CLEvent) = begin
         st = Array(CL_int, 1)
         @check api.clGetEventInfo(evt.id, CL_EVENT_COMMAND_EXECUTION_STATUS,
                                   sizeof(CL_int), st, C_NULL)
-        return st[1]
+        status = st[1]
+        if status == CL_QUEUED
+            return :queued
+        elseif status == CL_SUBMITTED
+            return :submitted
+        elseif status == CL_RUNNING
+            return :running
+        elseif status == CL_COMPLETE
+            return :complete
+        else
+            error("Unknown status value: $status")
+        end
     end
+
+    @profile_info(profile_start,  CL_PROFILING_COMMAND_START)
+    @profile_info(profile_end,    CL_PROFILING_COMMAND_END)
+    @profile_info(profile_queued, CL_PROFILING_COMMAND_QUEUED)
+    @profile_info(profile_submit, CL_PROFILING_COMMAND_SUBMIT)
 
     const info_map = (Symbol => Function)[
         :context => context,
@@ -266,6 +314,10 @@ let command_queue(evt::CLEvent) = begin
         :reference_count => reference_count,
         :command_type => command_type,
         :status => status,
+        :profile_start => profile_start,
+        :profile_end => profile_end,
+        :profile_queued => profile_queued,
+        :profile_submit => profile_submit,
     ]
 
     function info(evt::CLEvent, evt_info::Symbol)

@@ -30,7 +30,6 @@ end
 
 function Program(ctx::Context; source=nothing, binaries=nothing)
     program_id::CL_program
-    
     if source != nothing
         byte_source = [bytestring(source)]
         err_code = Array(CL_int, 1)
@@ -49,11 +48,11 @@ function Program(ctx::Context; source=nothing, binaries=nothing)
         try
             for (i, (dev, bin)) in enumerate(binaries)
                 device_ids[i] = dev.id
-                lens[i] = length(bin)
+                bin_lengths[i] = length(bin)
                 binary_ptrs[i] = convert(Ptr{Uint8}, bin)
             end
             err_code = Array(CL_int, 1)
-            program_id = api.clCreateProgramWithBinary(ctx.id, n_devices, device_ids, lens,
+            program_id = api.clCreateProgramWithBinary(ctx.id, n_devices, device_ids, bin_lengths,
                                                        binary_ptrs, binary_status, err_code)
             if err_code[1] != CL_SUCCESS
                 throw(CLError(err_code[1]))
