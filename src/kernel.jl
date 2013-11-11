@@ -135,6 +135,7 @@ function call(q::CmdQueue, k::Kernel, global_work_size, local_work_size, args...
                          local_work_size=local_work_size,
                          wait_on=wait_on)
     finish(q)
+    return evt
 end
 
 function enqueue_kernel(q::CmdQueue,
