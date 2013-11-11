@@ -83,12 +83,11 @@ function cl_performance(ndatapts::Integer, nworkers::Integer)
 
             # work_group_multiple = kern[:prefered_work_group_size_multiple]
             
-            t1 = time()
             #TODO: this does not work in local size is scalar..
-            cl.call(queue, kern, (ndatapts,), (nworkers,), a_buf, b_buf, c_buf)
-            t2 = time()
-
-            @printf("Execution time of test: %.4f seconds\n", t2 - t1)
+            evt = cl.call(queue, kern, (ndatapts,), (nworkers,), a_buf, b_buf, c_buf)
+            # duration in ns 
+            t = evt[:profile_duration] * 1e-9 
+            @printf("Execution time of test: %.4f seconds\n", t)
 
             c_device = cl.read(queue, c_buf)
             info("Result norm: $(norm(c - c_device))")

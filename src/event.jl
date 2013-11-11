@@ -239,8 +239,8 @@ macro profile_info(func, profile_info)
             time = CL_long[0]
             err_code = api.clGetEventProfilingInfo(evt.id, $profile_info,
                                                    sizeof(CL_ulong), time, C_NULL)
-            if err != CL_SUCCESS
-                if err == CL_PROFILING_INFO_NOT_AVAILABLE
+            if err_code != CL_SUCCESS
+                if err_code == CL_PROFILING_INFO_NOT_AVAILABLE
                     if evt[:status] != :complete
                         #TODO: evt must have status complete before it can be profiled
                         throw(CLError(err_code))
@@ -308,6 +308,10 @@ let command_queue(evt::CLEvent) = begin
     @profile_info(profile_queued, CL_PROFILING_COMMAND_QUEUED)
     @profile_info(profile_submit, CL_PROFILING_COMMAND_SUBMIT)
 
+    profile_duration(evt::Event) = begin
+        return evt[:profile_end] - evt[:profile_start]
+    end
+
     const info_map = (Symbol => Function)[
         :context => context,
         :command_queue => command_queue,
@@ -318,6 +322,7 @@ let command_queue(evt::CLEvent) = begin
         :profile_end => profile_end,
         :profile_queued => profile_queued,
         :profile_submit => profile_submit,
+        :profile_duration => profile_duration,
     ]
 
     function info(evt::CLEvent, evt_info::Symbol)
@@ -325,7 +330,6 @@ let command_queue(evt::CLEvent) = begin
             func = info_map[evt_info]
             func(evt)
         catch err
-            println(err)
             if isa(err, KeyError)
                 error("OpenCL.Event has no info for: $qinfo") 
             else
