@@ -211,11 +211,11 @@ end
 end
 
 function copy!{T}(q::CmdQueue, dst::Array{T}, src::Buffer{T})
-    if length(dist) != length(src)
+    if length(dst) != length(src)
         throw(ArgumentError("Inconsistent array length"))
     end
     nbytes = length(src) * sizeof(T)
-    wait(enqueue_copy_buffer(src, dst, nbytes, uint(0), uint(0), nothing))
+    enqueue_read_buffer(q, src, dst, uint(0), nothing, true)
     return dst
 end
 
@@ -223,8 +223,7 @@ function copy!{T}(q::CmdQueue, dst::Buffer{T}, src::Array{T})
     if length(dst) != length(src)
         throw(ArgumentError("Inconsistent array length"))
     end
-    nbytes = length(src) * sizeof(T)
-    wait(enqueue_copy_buffer(src, dst, nbytes, uint(0), uint(0), nothing))
+    enqueue_write_buffer(q, dst, src, nbytes, unsigned(0), nothing, true)
     return dst
 end
 
