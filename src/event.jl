@@ -155,7 +155,7 @@ function enqueue_marker(q::CmdQueue)
     @return_event evt[1]
 end
 
-#TODO: deprecated...
+#TODO: deprecated... (this throws an error with Vector{CLEvent} for user events? 
 function enqueue_wait_for_events{T<:CLEvent}(q::CmdQueue, wait_for::Vector{T})
     n_wait_events = cl_uint(length(wait_for))
     wait_evt_ids = [evt.id for evt in wait_for]
