@@ -30,32 +30,52 @@ end
 
 Base.getindex(q::CmdQueue, qinfo::Symbol) = info(q, qinfo)
 
-function CmdQueue(ctx::Context, dev::Device; properties=None)
-    ctx_id = ctx.id
-    dev_id = dev.id
-    err_code = Array(CL_int, 1)
-    if properties == None
-        props = cl_command_queue_properties(0)
-    else
-        props = cl_command_queue_properties(properties)
+function CmdQueue(ctx::Context)
+    devs  = devices(ctx)
+    flags = cl_command_queue_properties(0) 
+    if isempty(devs)
+        throw(ArgumentError("OpenCL.CmdQueue Context argument does not have any devices"))
     end
-    queue_id = api.clCreateCommandQueue(ctx_id, dev_id, props, err_code)
-    if err_code[1] != CL_SUCCESS 
+    return CmdQueue(ctx, first(devs), flags)
+end
+
+
+function CmdQueue(ctx::Context, dev::Device)
+    flags = cl_command_queue_properties(0)
+    return CmdQueue(ctx, dev, flags)
+end
+
+function CmdQueue(ctx::Context, dev::Device, prop::Symbol)
+    flags = cl_command_queue_properties(0)
+    if prop == :out_of_order
+        flags |= CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE
+    elseif prop == :profile
+        flags |= CL_QUEUE_PROFILE_ENABLE
+    else
+        throw(ArgumentError("Only :out_of_order and :profile flags are valid, recognized flag $prop"))
+    end
+    return CmdQueue(ctx, dev, flags)
+end
+
+function CmdQueue(ctx::Context, dev::Device, props::NTuple{2,Symbol})
+    if !(:out_of_order in props && :profile in props)
+        throw(ArgumentError("Only :out_of_order and :profile flags are vaid, unrecognized flags $props"))
+    end
+    flags = CL_QUEUE_PROFILE_ENABLE | CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE
+    return CmdQueue(ctx, dev, flags)
+end
+
+function CmdQueue(ctx::Context, dev::Device, props::CL_command_queue_properties)
+    err_code = Array(CL_int, 1)
+    queue_id = api.clCreateCommandQueue(ctx.id, dev.id, props, err_code)
+    if err_code[1] != CL_SUCCESS
         if queue_id != C_NULL
-            @check api.clReleaseCommandQueue(queue_id)
+            api.clReleaseCommandQueue(queue_id)
         end
         throw(CLError(err_code[1]))
     end
     return CmdQueue(queue_id)
 end 
-
-function CmdQueue(ctx::Context; properties=None)
-    devs = devices(ctx)
-    if isempty(devs)
-        error("CmdQueue context does not have any devices")
-    end
-    return CmdQueue(ctx, first(devs); properties=None)
-end
 
 function flush(q::CmdQueue)
     @check api.clFlush(q.id)
