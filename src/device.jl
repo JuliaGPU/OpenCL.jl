@@ -17,35 +17,61 @@ end
 
 Base.getindex(d::Device, dinfo::Symbol) = info(d, dinfo)
 
-#TODO: replace with int_info, str_info, etc...
-macro device_property(func, cl_device_info, return_type)
-    @eval begin
-        function $func(d::Device)
+macro int_info(func, cl_device_info, return_type)
+    quote
+        function $(esc(func))(d::Device)
             result = Array($return_type, 1)
             @check api.clGetDeviceInfo(d.id, $cl_device_info,
                                        sizeof($return_type), result, C_NULL)
-            #TODO: see if there is a better way to do this 
-            if $return_type  == CL_bool
-                return bool(result[1])
-            else
-                return result[1]
-            end
+            return result[1]
         end
     end
 end
 
-function info(d::Device, dinfo::CL_device_info)
-    size = Array(Csize_t, 1)
-    @check api.clGetDeviceInfo(d.id, dinfo, 0, C_NULL, size)
-    result = Array(CL_char, size[1])
-    @check api.clGetDeviceInfo(d.id, dinfo, size[1], result, C_NULL)
-    return bytestring(convert(Ptr{CL_char}, result))
-end
+let extensions(d::Device) = begin
+        size = Array(Csize_t, 1)
+        @check api.clGetDeviceInfo(d.id, CL_DEVICE_EXTENSIONS, 0, C_NULL, size)
+        result = Array(CL_char, size[1])
+        @check api.clGetDeviceInfo(d.id, CL_DEVICE_EXTENSIONS, size[1], result, C_NULL)
+        bs = bytestring(convert(Ptr{CL_char}, result))
+        return split(bs)
+    end
 
-let driver_version(d::Device) = info(d, CL_DRIVER_VERSION)
-    version(d::Device) = info(d, CL_DEVICE_VERSION)
-    profile(d::Device) = info(d, CL_DEVICE_PROFILE)
-    extensions(d::Device) = split(info(d, CL_DEVICE_EXTENSIONS))
+    profile(d::Device) = begin
+        size = Array(Csize_t, 1)
+        @check api.clGetDeviceInfo(d.id, CL_DEVICE_PROFILE, 0, C_NULL, size)
+        result = Array(CL_char, size[1])
+        @check api.clGetDeviceInfo(d.id, CL_DEVICE_PROFILE, size[1], result, C_NULL)
+        bs = bytestring(convert(Ptr{CL_char}, result))
+        return bs 
+    end
+
+    version(d::Device) = begin
+        size = Array(Csize_t, 1)
+        @check api.clGetDeviceInfo(d.id, CL_DEVICE_VERSION, 0, C_NULL, size)
+        result = Array(CL_char, size[1])
+        @check api.clGetDeviceInfo(d.id, CL_DEVICE_VERSION, size[1], result, C_NULL)
+        bs = bytestring(convert(Ptr{CL_char}, result))
+        return bs
+    end
+
+    driver_version(d::Device) = begin
+        size = Array(Csize_t, 1)
+        @check api.clGetDeviceInfo(d.id, CL_DRIVER_VERSION, 0, C_NULL, size)
+        result = Array(CL_char, size[1])
+        @check api.clGetDeviceInfo(d.id, CL_DRIVER_VERSION, size[1], result, C_NULL)
+        bs = bytestring(convert(Ptr{CL_char}, result))
+        return replace(bs, r"\s+", " ")
+    end
+
+    extensions(d::Device) = begin
+        size = Array(Csize_t, 1)
+        @check api.clGetDeviceInfo(d.id, CL_DEVICE_EXTENSIONS, 0, C_NULL, size)
+        result = Array(CL_char, size[1])
+        @check api.clGetDeviceInfo(d.id, CL_DEVICE_EXTENSIONS, size[1], result, C_NULL)
+        bs = bytestring(convert(Ptr{CL_char}, result))
+        return split(bs)
+    end
 
     platform(d::Device) = begin
         result = Array(CL_platform_id, 1)
@@ -53,26 +79,44 @@ let driver_version(d::Device) = info(d, CL_DRIVER_VERSION)
                                    sizeof(CL_platform_id), result, C_NULL)
         return Platform(result[1])
     end
-    
+
     name(d::Device) = begin
         size = Array(Csize_t, 1)
         @check api.clGetDeviceInfo(d.id, CL_DEVICE_NAME, 0, C_NULL, size)
         result = Array(CL_char, size[1])
         @check api.clGetDeviceInfo(d.id, CL_DEVICE_NAME,
                                    size[1] * sizeof(CL_char), result, C_NULL)
-        return bytestring(convert(Ptr{CL_char}, result))
+        n = bytestring(convert(Ptr{Cchar}, result))
+        return replace(n, r"\s+", " ")
     end
 
-    @device_property(device_type, CL_DEVICE_TYPE,     CL_device_type)
-   
+    @int_info(device_type, CL_DEVICE_TYPE, CL_device_type)
+    device_type(d::Device) = begin
+        result = Array(CL_device_type, 1)
+        @check api.clGetDeviceInfo(d.id, CL_DEVICE_TYPE,
+                                   sizeof(CL_device_type), result, C_NULL)
+        result = result[1]
+        if result == CL_DEVICE_TYPE_GPU
+            return :gpu
+        elseif result == CL_DEVICE_TYPE_CPU
+            return :cpu
+        elseif result == CL_DEVICE_TYPE_ACCELERATOR
+            return :accelerator
+        elseif result == CL_DEVICE_TYPE_CUSTOM
+            return :custom
+        else
+            return :unknown
+        end
+    end
+
     has_image_support(d::Device) = begin
-        has_support = clbox(CL_FALSE)
+        has_support = CL_bool[CL_FALSE]
         @check api.clGetDeviceInfo(d.id, CL_DEVICE_IMAGE_SUPPORT,
                                    sizeof(CL_bool), has_support, C_NULL)
-        return bool(unbox(has_support) == CL_TRUE)
+        return has_support[1] == CL_TRUE
     end
 
-    @device_property(queue_properties, CL_DEVICE_QUEUE_PROPERTIES, CL_command_queue_properties)
+    @int_info(queue_properties, CL_DEVICE_QUEUE_PROPERTIES, CL_command_queue_properties)
 
     has_queue_out_of_order_exec(d::Device) =
             bool(queue_properties(d) & CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE)
@@ -87,17 +131,17 @@ let driver_version(d::Device) = info(d, CL_DRIVER_VERSION)
         return bool(result[1] & CL_EXEC_NATIVE_KERNEL)
     end
 
-    @device_property(vendor_id,             CL_DEVICE_VENDOR_ID,                CL_uint)
-    @device_property(max_compute_units,     CL_DEVICE_MAX_COMPUTE_UNITS,        CL_uint)
-    @device_property(max_work_item_dims,    CL_DEVICE_MAX_WORK_ITEM_DIMENSIONS, CL_uint)
-    @device_property(max_clock_frequency,   CL_DEVICE_MAX_CLOCK_FREQUENCY,      CL_uint)
-    @device_property(address_bits,          CL_DEVICE_ADDRESS_BITS,             CL_uint)
-    @device_property(max_read_image_args,   CL_DEVICE_MAX_READ_IMAGE_ARGS,      CL_uint)
-    @device_property(max_write_image_args,  CL_DEVICE_MAX_WRITE_IMAGE_ARGS,     CL_uint)
-    @device_property(global_mem_size,       CL_DEVICE_GLOBAL_MEM_SIZE,          CL_ulong)
-    @device_property(max_mem_alloc_size,    CL_DEVICE_MAX_MEM_ALLOC_SIZE,       CL_ulong)
-    @device_property(max_const_buffer_size, CL_DEVICE_MAX_CONSTANT_BUFFER_SIZE, CL_ulong)
-    @device_property(local_mem_size,        CL_DEVICE_LOCAL_MEM_SIZE,           CL_ulong)
+    @int_info(vendor_id,             CL_DEVICE_VENDOR_ID,                CL_uint)
+    @int_info(max_compute_units,     CL_DEVICE_MAX_COMPUTE_UNITS,        CL_uint)
+    @int_info(max_work_item_dims,    CL_DEVICE_MAX_WORK_ITEM_DIMENSIONS, CL_uint)
+    @int_info(max_clock_frequency,   CL_DEVICE_MAX_CLOCK_FREQUENCY,      CL_uint)
+    @int_info(address_bits,          CL_DEVICE_ADDRESS_BITS,             CL_uint)
+    @int_info(max_read_image_args,   CL_DEVICE_MAX_READ_IMAGE_ARGS,      CL_uint)
+    @int_info(max_write_image_args,  CL_DEVICE_MAX_WRITE_IMAGE_ARGS,     CL_uint)
+    @int_info(global_mem_size,       CL_DEVICE_GLOBAL_MEM_SIZE,          CL_ulong)
+    @int_info(max_mem_alloc_size,    CL_DEVICE_MAX_MEM_ALLOC_SIZE,       CL_ulong)
+    @int_info(max_const_buffer_size, CL_DEVICE_MAX_CONSTANT_BUFFER_SIZE, CL_ulong)
+    @int_info(local_mem_size,        CL_DEVICE_LOCAL_MEM_SIZE,           CL_ulong)
 
     has_local_mem(d::Device) = begin
         result = Array(CL_device_local_mem_type, 1)
@@ -106,23 +150,40 @@ let driver_version(d::Device) = info(d, CL_DRIVER_VERSION)
         return bool(result[1] == CL_LOCAL)
     end
 
-    @device_property(host_unified_memory, CL_DEVICE_HOST_UNIFIED_MEMORY, CL_bool)
-    @device_property(available,           CL_DEVICE_AVAILABLE,           CL_bool)
-    @device_property(compiler_available,  CL_DEVICE_COMPILER_AVAILABLE,  CL_bool)
+    host_unified_memory(d::Device) = begin
+        result = Array(CL_bool, 1)
+        @check api.clGetDeviceInfo(d.id, CL_DEVICE_HOST_UNIFIED_MEMORY, 
+                                   sizeof(CL_bool), result, C_NULL)
+        return bool(result[1])
+    end
+ 
+    available(d::Device) = begin
+        result = Array(CL_bool, 1)
+        @check api.clGetDeviceInfo(d.id, CL_DEVICE_AVAILABLE, 
+                                   sizeof(CL_bool), result, C_NULL)
+        return bool(result[1])
+    end
+       
+    compiler_available(d::Device) = begin
+        result = Array(CL_bool, 1)
+        @check api.clGetDeviceInfo(d.id, CL_DEVICE_COMPILER_AVAILABLE, 
+                                   sizeof(CL_bool), result, C_NULL)
+        return bool(result[1])
+    end
 
-    max_work_item_sizes(d::Device) = begin
+    max_work_item_size(d::Device) = begin
         dims = Array(CL_uint, 1)
         @check api.clGetDeviceInfo(d.id, CL_DEVICE_MAX_WORK_ITEM_DIMENSIONS,
                                    sizeof(CL_uint), dims, C_NULL)
         result = Array(Csize_t, dims[1])
         @check api.clGetDeviceInfo(d.id, CL_DEVICE_MAX_WORK_ITEM_SIZES,
                                    sizeof(Csize_t) * dims[1], result, C_NULL)
-        return [r for r in result]
+        return tuple([int(r) for r in result]...)
     end 
 
-    @device_property(max_workgroup_size, CL_DEVICE_MAX_WORK_GROUP_SIZE, Csize_t)
-    @device_property(max_parameter_size, CL_DEVICE_MAX_PARAMETER_SIZE,  Csize_t)
-    @device_property(profiling_timer_resolution, CL_DEVICE_PROFILING_TIMER_RESOLUTION, Csize_t)
+    @int_info(max_work_group_size, CL_DEVICE_MAX_WORK_GROUP_SIZE, Csize_t)
+    @int_info(max_parameter_size, CL_DEVICE_MAX_PARAMETER_SIZE,  Csize_t)
+    @int_info(profiling_timer_resolution, CL_DEVICE_PROFILING_TIMER_RESOLUTION, Csize_t)
 
     max_image2d_shape(d::Device) = begin
         width  = Array(Csize_t, 1)
@@ -164,7 +225,7 @@ let driver_version(d::Device) = info(d, CL_DRIVER_VERSION)
         :has_native_kernel => has_native_kernel,
         :vendor_id => vendor_id,
         :max_compute_units => max_compute_units, 
-        :max_work_item_sizes => max_work_item_sizes,
+        :max_work_item_size => max_work_item_size,
         :max_clock_frequency => max_clock_frequency, 
         :address_bits => address_bits,
         :max_read_image_args => max_read_image_args,
@@ -177,7 +238,7 @@ let driver_version(d::Device) = info(d, CL_DRIVER_VERSION)
         :host_unified_memory => host_unified_memory,
         :available => available,
         :compiler_available => compiler_available,
-        :max_workgroup_size => max_workgroup_size, 
+        :max_work_group_size => max_work_group_size, 
         :max_parameter_size => max_parameter_size,
         :profiling_timer_resolution => profiling_timer_resolution,
         :max_image2d_shape => max_image2d_shape,
