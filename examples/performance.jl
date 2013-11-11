@@ -83,8 +83,8 @@ function cl_performance(ndatapts::Integer, nworkers::Integer)
 
             # work_group_multiple = kern[:prefered_work_group_size_multiple]
             
-            #TODO: this does not work in local size is scalar..
             evt = cl.call(queue, kern, (ndatapts,), (nworkers,), a_buf, b_buf, c_buf)
+
             # duration in ns 
             t = evt[:profile_duration] * 1e-9 
             @printf("Execution time of test: %.4f seconds\n", t)

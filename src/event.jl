@@ -189,50 +189,6 @@ cl_event_status(s::Symbol) = begin
     end
 end
 
-#TODO: make the following more consistent
-let status_dict = (CL_uint => Symbol)[
-                   CL_QUEUED => :queued,
-                   CL_SUBMITTED => :submitted,
-                   CL_RUNNING => :running,
-                   CL_COMPLETE => :complete]
-
-    function status(evt::CLEvent)
-        status = Array(CL_uint, 1)
-        @check api.clGetEventProfilingInfo(evt.id, 
-                                           CL_EVENT_COMMAND_EXECUTION_STATUS, 
-                                           sizeof(CL_uint), status)
-        return status_dict[status[1]]
-    end
-end
-
-function profiling_info(evt::CLEvent, param::CL_profiling_info)
-    time = Array(CL_ulong)
-    if param == CL_PROFILING_COMMAND_QUEUED
-        
-    elseif param == CL_PROFILING_COMMAND_SUBMIT
-    elseif param == CL_PROFILING_COMMAND_START
-    elseif param == CL_PROFILING_COMMAND_END
-        len = Array(CL_ulong, 1)
-        @check api.clGetEventProfilingInfo(evt.id, param, sizeof(CL_ulong),
-                                           len, C_NULL)
-        return len[1] 
-    else
-        throw(CLError(CL_INVALID_VALUE))
-    end
-end
-
-# cannot use reserved word end as symbol
-function profiling_info(evt::CLEvent, param::Symbol)
-    if     param == :queued
-    elseif param == :submitted
-    elseif param == :start
-    elseif param == :profile_end 
-        return profiling_info(evt, CL_PROFILING_COMMAND_END)
-    else
-        throw(ArgumentError("Profiling info symol one of [:profile_queued, :profile_submitted, :profile_start, :profile_end]"))
-    end
-end
-
 macro profile_info(func, profile_info)
     quote
         function $(esc(func))(evt::CLEvent)
@@ -338,54 +294,3 @@ let command_queue(evt::CLEvent) = begin
         end
     end
 end
-
-# TODO: Profiling...
-#function clGetEventProfilingInfo(evt_id::CL_event,
-#                                 param::CL_profiling_info,
-#                                 param_size::Csize_t,
-#                                 param_val::Ptr{Void},
-#                                 param_value_size_ret::Ptr{Csize_t})
-#    err = ccall((:clGetEventProfilingInfo, libopencl),
-#                CL_int,
-#                (CL_event, CL_profiling_info, Csize_t, Ptr{Void}, Ptr{Csize_t}),
-#                evt_id, param, param_size, param_val, param_value_size_ret)
-#    if err != CL_SUCCESS
-#        if err == CL_PROFILING_INFO_NOT_AVAILABLE
-#            if status(evt_id) != CL_COMPLETE
-#                #TODO: throw
-#                error("Event must have :completed status before it can be profiled")
-#            else
-#                error("Queue must be created with profile=True")
-#            end
-#        error("OpenCL clGetEventProfilingInfo error...")
-#    end
-#    return status
-#end
-#
-#function profile_start(evt::Event)
-#    status = convert(Ptr{Void}, Array(CL_ulong, 1))
-#    clGetEventProfilingInfo(evt.id, CL_PROFILING_COMMAND_START, sizeof(CL_ulong), status, C_NULL)
-#    return unsafe_ref(convert(Ptr{CL_ulong}, status))
-#end
-#
-#function profile_end(evt::Event)
-#    status = convert(Ptr{Void}, Array(CL_ulong, 1))
-#    clGetEventProfilingInfo(evt.id, CL_PROFILING_COMMAND_END, sizeof(CL_ulong), status, C_NULL)
-#    return unsafe_ref(convert(Ptr{CL_ulong}, status))
-#end
-#
-#function duration(evt::Event)
-#    profile_end(evt) - profile_start(evt)
-#end
-#
-#function profile_queued(evt::Event)
-#    status = convert(Ptr{Void}, Array(CL_ulong, 1))
-#    clGetEventProfilingInfo(evt.id, CL_PROFILING_COMMAND_QUEUED, sizeof(CL_ulong), status, C_NULL)
-#    return unsafe_ref(convert(Ptr{CL_ulong}, status))
-#end
-#
-#function profile_submitted(evt::Event)
-#    status = convert(Ptr{Void}, Array(CL_ulong, 1))
-#    clGetEventProfilingInfo(evt.id, CL_PROFILING_COMMAND_SUBMIT, sizeof(CL_ulong), status, C_NULL)
-#    return unsafe_ref(convert(Ptr{CL_ulong}, status))
-#end
