@@ -33,7 +33,6 @@ function cl_performance(ndatapts::Integer, nworkers::Integer)
     @printf("Size of test data: %i MB\n", sizeof(a) / 1024 / 1024)
 
     t1 = time()
-    # speed in normal cpu usage
     for i in 1:ndatapts
         c_temp = a[i] + b[i]
         c_temp = c_temp * c_temp
@@ -43,7 +42,7 @@ function cl_performance(ndatapts::Integer, nworkers::Integer)
 
     @printf("Julia Execution time: %.4f seconds\n", t2 - t1)
 
-    for platform in cl.platforms()[2:end]
+    for platform in cl.platforms()
 
         if platform[:name] == "Portable Computing Language"
             warn("Portable Computing Language platform not yet supported")
@@ -65,6 +64,12 @@ function cl_performance(ndatapts::Integer, nworkers::Integer)
             @printf("Device max compute units: %i\n",   device[:max_compute_units])
             @printf("Device max work group size: %i\n", device[:max_work_group_size])
             @printf("Device max work item size: %s\n",  device[:max_work_item_size])
+
+            if device[:max_mem_alloc_size] <= sizeof(Float32) * ndatapts
+                warn("Requested buffer size exceeds device max alloc size!")
+                warn("Skipping device $(device[:name])...")
+                continue
+            end
 
             ctx   = cl.Context(device)
             queue = cl.CmdQueue(ctx)
@@ -91,5 +96,5 @@ function cl_performance(ndatapts::Integer, nworkers::Integer)
     end
 end
 
-cl_performance(int(2^28), 256)
+cl_performance(int(2^25), 256)
 
