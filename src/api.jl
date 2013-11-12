@@ -2,9 +2,8 @@ module api
 
 include("types.jl")
 
-@unix_only begin
-    const libopencl = "libOpenCL"
-end
+#TODO: need to make sure this works across all platforms.
+const libopencl = "libOpenCL"
 
 macro ocl_func(func, ret_type, arg_types)
     local args_in = Symbol[symbol("arg$i::$T")
