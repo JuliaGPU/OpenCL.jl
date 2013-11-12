@@ -9,7 +9,7 @@ Julia interface for the OpenCL parallel computation API
 This package aims to be a complete solution for OpenCL programming in Julia, similar in scope to [PyOpenCL] for Python.
 It provides a high level api for OpenCL to make programing GPU's and multicore CPU's much less onerous.
 
-####This package is based off the work of others:
+#### This package is based off the work of others:
   * [PyOpenCL] by Andreas Klockner
   * [oclpb]    by Sean Ross
   * [rust-opencl]
@@ -17,11 +17,15 @@ It provides a high level api for OpenCL to make programing GPU's and multicore C
 [PyOpenCL]: http://mathema.tician.de/software/pyopencl/
 [oclpb]: https://github.com/srossross/oclpb
 [rust-opencl]: https://github.com/luqmana/rust-opencl
-### Example Notebooks
 
-TODO
+## Example Notebooks
+  * [OpenCL Fractals]
+  * [GPU Buffer Transpose]
 
-### Quick Example
+[OpenCL Fractals]:http://nbviewer.ipython.org/7436359
+[GPU Buffer Transpose]:http://nbviewer.ipython.org/7436439
+
+## Quick Example
 
 ```julia
 
