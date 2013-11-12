@@ -143,6 +143,10 @@ function call(q::CmdQueue, k::Kernel, global_work_size, local_work_size, args...
     return evt
 end
 
+function enqueue_kernel(q::CmdQueue, k::Kernel, global_work_size)
+    enqueue_kernel(q, k, global_work_size, nothing)
+end
+
 function enqueue_kernel(q::CmdQueue,
                         k::Kernel,
                         global_work_size,

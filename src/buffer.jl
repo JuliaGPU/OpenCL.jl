@@ -227,9 +227,17 @@ function copy!{T}(q::CmdQueue, dst::Buffer{T}, src::Array{T})
     return dst
 end
 
+function copy!{T}(q::CmdQueue, dst::Buffer{T}, src::Buffer{T})
+    if length(dst) != length(src)
+        throw(ArgumentError("Buffers to be copied must be the same length"))
+    end
+    enqueue_copy_buffer(q, src, dst, sizeof(src), unsigned(0), unsigned(0), nothing, true)
+    return dst
+end
+
 # copy bufer into identical buffer object
 function copy{T}(q::CmdQueue, src::Buffer{T})
-   #TODO.... 
+   #TODO:
 end
 
 function empty{T}(::Type{T}, ctx::Context, dims)

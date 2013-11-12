@@ -183,8 +183,7 @@ facts("OpenCL.Context") do
             end
 
             properties = [(cl.CL_CONTEXT_PLATFORM, platform)]
-            @fact @throws_pred(cl.Context(cl.CL_DEVICE_TYPE_CPU,
-                               properties=properties)) => (false, "no error") 
+            @fact @throws_pred(cl.Context(cl.CL_DEVICE_TYPE_CPU, properties=properties)) => (false, "no error") 
             ctx = cl.Context(cl.CL_DEVICE_TYPE_CPU, properties=properties)
             @fact isempty(cl.properties(ctx)) => false
             test_properties = cl.properties(ctx)
