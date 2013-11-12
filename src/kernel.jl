@@ -50,6 +50,11 @@ immutable LocalMemory
     size::Csize_t
 end
 
+LocalMemory(x) = begin
+    @assert x > 0
+    return LocalMemory(convert(Csize_t, x))
+end
+
 function set_arg!(k::Kernel, idx::Integer, arg::Nothing)
     @assert idx > 0
     @check api.clSetKernelArg(k.id, cl_uint(idx-1), sizeof(CL_mem), C_NULL)
@@ -71,7 +76,7 @@ end
 
 function set_arg!(k::Kernel, idx::Integer, arg::LocalMemory)
     @assert idx > 0
-    @check api.clSetKernelArg(k.id, cl_uint(idx-1), loc.size, C_NULL)
+    @check api.clSetKernelArg(k.id, cl_uint(idx-1), arg.size, C_NULL)
     return k
 end
 
@@ -131,8 +136,8 @@ function call(q::CmdQueue, k::Kernel, global_work_size, local_work_size, args...
     set_args!(k, args...)
     evt = enqueue_kernel(q, k, 
                          global_work_size,
+                         local_work_size,
                          global_work_offset=global_work_offset,
-                         local_work_size=local_work_size,
                          wait_on=wait_on)
     finish(q)
     return evt
@@ -140,9 +145,9 @@ end
 
 function enqueue_kernel(q::CmdQueue,
                         k::Kernel,
-                        global_work_size;
+                        global_work_size,
+                        local_work_size;
                         global_work_offset=nothing,
-                        local_work_size=nothing,
                         wait_on::Union(Nothing,Vector{Event})=nothing)
     #TODO: check global work size against max possible global work size
     work_dim = length(global_work_size)
