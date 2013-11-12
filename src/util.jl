@@ -7,3 +7,7 @@ function create_compute_context()
     queue  = CmdQueue(ctx)
     return (device, ctx, queue)
 end
+
+function opencl_version()
+    #TODO: return spec (major, minor) version for turning off certain methods...
+end
