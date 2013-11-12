@@ -46,11 +46,11 @@ end
 type KernelArg
 end
 
-immutable LocalMemory
+immutable LocalMemory 
     size::Csize_t
 end
 
-LocalMemory(x) = begin
+LocalMemory(x::Integer) = begin
     @assert x > 0
     return LocalMemory(convert(Csize_t, x))
 end
