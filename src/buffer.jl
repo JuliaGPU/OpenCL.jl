@@ -214,25 +214,36 @@ function copy!{T}(q::CmdQueue, dst::Array{T}, src::Buffer{T})
     if length(dst) != length(src)
         throw(ArgumentError("Inconsistent array length"))
     end
+    #TODO: change to sizeof
     nbytes = length(src) * sizeof(T)
-    enqueue_read_buffer(q, src, dst, uint(0), nothing, true)
-    return dst
+    evt = enqueue_read_buffer(q, src, dst, uint(0), nothing, true)
+    return evt
 end
 
 function copy!{T}(q::CmdQueue, dst::Buffer{T}, src::Array{T})
     if length(dst) != length(src)
         throw(ArgumentError("Inconsistent array length"))
     end
-    enqueue_write_buffer(q, dst, src, nbytes, unsigned(0), nothing, true)
-    return dst
+    nbytes = convert(Csize_t, sizeof(src))
+    evt = enqueue_write_buffer(q, dst, src, nbytes, unsigned(0), nothing, true)
+    return evt
 end
-
+#function enqueue_write_buffer{T}(q::CmdQueue,
+#                                 buf::Buffer{T},
+#                                 hostbuf::Array{T},
+#                                 byte_count::Csize_t,
+#                                 offset::Csize_t,
+#                                 wait_for::Union(Nothing, Vector{Event}),
+#                                 is_blocking::Bool)
+ 
 function copy!{T}(q::CmdQueue, dst::Buffer{T}, src::Buffer{T})
     if length(dst) != length(src)
         throw(ArgumentError("Buffers to be copied must be the same length"))
     end
-    enqueue_copy_buffer(q, src, dst, sizeof(src), unsigned(0), unsigned(0), nothing, true)
-    return dst
+    #TODO: change to sizeof
+    nbytes = length(src) * sizeof(T)
+    evt = enqueue_copy_buffer(q, src, dst, sizeof(src), unsigned(0), unsigned(0), nothing, true)
+    return evt
 end
 
 # copy bufer into identical buffer object
