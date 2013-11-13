@@ -677,18 +677,17 @@ facts("OpenCL.Kernel") do
 
             count  = 1024
             nbytes = count * sizeof(Float32)
-            
-            A = cl.Buffer(Float32, ctx, :r, nbytes)
-            B = cl.Buffer(Float32, ctx, :r, nbytes)
+           
+            h_ones = ones(Float32, count)
+
+            A = cl.Buffer(Float32, ctx, (:r, :copy), hostbuf=h_ones)
+            B = cl.Buffer(Float32, ctx, (:r, :copy), hostbuf=h_ones)
             C = cl.Buffer(Float32, ctx, :w, nbytes)
 
             # sizeof mem object for buffer in bytes
             @fact sizeof(A.id) => nbytes
             @fact sizeof(B.id) => nbytes
             @fact sizeof(C.id) => nbytes
-            
-            cl.fill!(queue, A, float32(1.0))
-            cl.fill!(queue, B, float32(1.0))
             
             # we use julia's index by one convention
             @fact @throws_pred(cl.set_arg!(k, 1, A))   => (false, "no error")
@@ -706,8 +705,12 @@ facts("OpenCL.Kernel") do
             k2 = cl.Kernel(prg, "sum")
             cl.set_args!(k2, A, B, C, uint32(count))
             
-            cl.enqueue_fill(queue, A, float32(2.0))
-            cl.enqueue_fill(queue, B, float32(2.0))
+            h_twos = fill(float32(2.0), count)
+            cl.copy!(queue, A, h_twos)
+            cl.copy!(queue, B, h_twos)
+            #TODO: check for ocl version, fill is opencl v1.2
+            #cl.enqueue_fill(queue, A, float32(2.0))
+            #cl.enqueue_fill(queue, B, float32(2.0))
             cl.enqueue_kernel(queue, k, count)
             cl.finish(queue)
 
