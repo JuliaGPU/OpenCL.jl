@@ -63,6 +63,8 @@ facts("OpenCL.Platform") do
     end
 end
 
+Base.gc()
+
 facts("OpenCL.Device") do 
     
     context("Device Type") do
@@ -156,6 +158,8 @@ facts("OpenCL.Device") do
         end
     end
 end
+
+Base.gc()
 
 facts("OpenCL.Context") do
 
@@ -347,6 +351,8 @@ facts("OpenCL.Event") do
     end       
 end
 
+Base.gc()
+
 facts("OpenCL.Buffer") do
 
     function create_test_buffer()
@@ -509,6 +515,8 @@ facts("OpenCL.Buffer") do
     end
 end
 
+Base.gc()
+
 facts("OpenCL.Program") do 
     
     test_source = "
@@ -600,6 +608,8 @@ facts("OpenCL.Program") do
         end
     end
 end
+
+Base.gc()
 
 facts("OpenCL.Kernel") do 
 
