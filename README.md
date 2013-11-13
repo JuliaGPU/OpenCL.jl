@@ -21,9 +21,11 @@ It provides a high level api for OpenCL to make programing GPU's and multicore C
 ## Example Notebooks
   * [OpenCL Fractals]
   * [GPU Buffer Transpose]
+  * [Low Level API]
 
 [OpenCL Fractals]:http://nbviewer.ipython.org/7436359
 [GPU Buffer Transpose]:http://nbviewer.ipython.org/7436439
+[Low Level API]:http://nbviewer.ipython.org/7452048
 
 ## Quick Example
 
