@@ -10,6 +10,7 @@ before_install:
   - sudo apt-get install -qq fglrx opencl-headers
   - sudo apt-get install libpcre3-dev julia -y
 script:
+  - julia -e 'Pkg.add("FactCheck");'
   - julia -e 'Pkg.init(); run(`ln -s $(pwd()) $(Pkg.dir())/OpenCL`); Pkg.resolve()'
   - julia -e 'using OpenCL; @assert isdefined(:OpenCL); @assert typeof(OpenCL) === Module'
   - julia test/component_tests.jl
