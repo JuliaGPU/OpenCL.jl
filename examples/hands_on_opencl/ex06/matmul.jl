@@ -17,7 +17,7 @@
 import OpenCL
 const cl = OpenCL
 
-kenel_source = "
+kernel_source = "
 __kernel void mmul(
 	const int Mdim,
 	const int Ndim,
@@ -113,8 +113,8 @@ ctx = cl.create_some_context()
 queue = cl.CmdQueue(ctx, :profile)
 
 # create OpenCL Buffers
-d_a = cl.Buffer(Float32, ctx, (:r,:copy), hostubf=h_A)
-d_b = cl.Buffer(Float32, ctx, (:r,:copy), hostubf=h_B)
+d_a = cl.Buffer(Float32, ctx, (:r,:copy), hostbuf=h_A)
+d_b = cl.Buffer(Float32, ctx, (:r,:copy), hostbuf=h_B)
 d_c = cl.Buffer(Float32, ctx, :w, sizeof(h_C))
 
 prg  = cl.Program(ctx, source=kernel_source) |> cl.build!
@@ -123,14 +123,14 @@ mmul = cl.Kernel(prg, "mmul")
 info("=== OpenCL, matrix mult, C(i, j) per work item, order $Ndim ====")
 
 for i in 1:COUNT
-    fill(h_C, 0.0)
+    fill!(h_C, float32(0.0))
     global_range = (Ndim, Mdim)
-    local_range  = nothin
+    local_range  = nothing
     evt = cl.call(queue, mmul, global_range, local_range,
                   int32(Mdim), int32(Ndim), int32(Pdim),
                   d_a, d_b, d_c)
     # profiling events are measured in ns
-    run_time = evt[:profiling_duration] / 1e9
+    run_time = evt[:profile_duration] / 1e9
     cl.copy!(queue, h_C, d_c)
     results(Mdim, Ndim, Pdim, h_C, run_time)
 end
