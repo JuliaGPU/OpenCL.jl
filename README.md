@@ -12,12 +12,12 @@ It provides a high level api for OpenCL to make programing GPU's and multicore C
 #### This package is based off the work of others:
   * [PyOpenCL] by Andreas Klockner
   * [oclpb]    by Sean Ross
-  * [boost::compute] by Kyle Lutz
+  * [Boost.Compute] by Kyle Lutz
   * [rust-opencl]
 
 [PyOpenCL]: http://mathema.tician.de/software/pyopencl/
 [oclpb]: https://github.com/srossross/oclpb
-[boost::compute]:https://github.com/kylelutz/compute
+[Boost.Compute]:https://github.com/kylelutz/compute
 [rust-opencl]: https://github.com/luqmana/rust-opencl
 
 ## Example Notebooks
