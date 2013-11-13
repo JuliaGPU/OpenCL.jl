@@ -213,7 +213,8 @@ let extensions(d::Device) = begin
     # map inside closure
     const info_map = (Symbol => Function)[
         :driver_version => driver_version,
-        :version => profile,
+        :version => version,
+        :profile => profile,
         :extensions => extensions,
         :platform => platform, 
         :name => name,
