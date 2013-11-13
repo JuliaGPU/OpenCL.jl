@@ -214,6 +214,8 @@ facts("OpenCL.Context") do
     end
 end
 
+Base.gc()
+
 facts("OpenCL.CmdQueue") do 
     context("OpenCL.CmdQueue constructor") do
         @fact @throws_pred(cl.CmdQueue(nothing, nothing)) => (true, "error")
@@ -246,7 +248,9 @@ facts("OpenCL.CmdQueue") do
         for platform in cl.platforms()
             for device in cl.devices(platform)
                 ctx = cl.Context(device)
-                for q in (cl.CmdQueue(ctx), cl.CmdQueue(ctx, device))
+                q1 = cl.CmdQueue(ctx)
+                q2 = cl.CmdQueue(ctx, device)
+                for q in (q1, q2) 
                     @fact q[:context] => ctx
                     @fact q[:device] => device
                     @fact q[:reference_count] > 0 => true
@@ -256,6 +260,8 @@ facts("OpenCL.CmdQueue") do
         end
     end
 end
+
+Base.gc()
 
 facts("OpenCL.Event") do
     context("OpenCL.Event status") do
