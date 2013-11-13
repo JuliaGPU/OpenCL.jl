@@ -287,7 +287,7 @@ let command_queue(evt::CLEvent) = begin
             func(evt)
         catch err
             if isa(err, KeyError)
-                error("OpenCL.Event has no info for: $qinfo") 
+                error("OpenCL.Event has no info for: $evt_info") 
             else
                 throw(err)
             end
