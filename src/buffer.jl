@@ -26,7 +26,7 @@ end
 Base.length{T}(b::Buffer{T}) = int(b.size / sizeof(T))
 Base.ndims(b::Buffer) = 1
 Base.eltype{T}(b::Buffer{T}) = T
-Base.sizeof{T}(b::Buffer{T}) = b.size
+Base.sizeof{T}(b::Buffer{T}) = int(b.size)
 
 function Buffer{T}(::Type{T}, ctx::Context, nbytes=0; hostbuf=nothing)
     Buffer(T, ctx, (:rw, :null), nbytes, hostbuf=hostbuf)
@@ -233,14 +233,18 @@ function copy!{T}(q::CmdQueue, dst::Buffer{T}, src::Buffer{T})
     if sizeof(dst) != sizeof(src)
         throw(ArgumentError("Buffers to be copied must be the same size"))
     end
-    nbytes = sizeof(src) 
-    evt = enqueue_copy_buffer(q, src, dst, sizeof(src), unsigned(0), unsigned(0), nothing, true)
+    nbytes = convert(Csize_t, sizeof(src)) 
+    evt = enqueue_copy_buffer(q, src, dst, nbytes, unsigned(0), unsigned(0), nothing)
+    wait(evt)
     return evt
 end
 
 # copy bufer into identical buffer object
 function copy{T}(q::CmdQueue, src::Buffer{T})
-   #TODO:
+    nbytes = sizeof(src)
+    new_buff = empty_like(q[:context], src)
+    copy!(q, new_buff, src)
+    return new_buff
 end
 
 function empty{T}(::Type{T}, ctx::Context, dims)
@@ -269,6 +273,18 @@ function empty{T}(::Type{T}, ctx::Context, dims)
         throw(err)
     end
 end
+
+function empty_like{T}(ctx::Context, b::Buffer{T})
+    nbytes = sizeof(b)
+    mf = info(b, :mem_flags)
+    if :r in mf
+        return Buffer(T, ctx, :r, nbytes)
+    elseif :w in mf
+        return Buffer(T, ctx, :w, nbytes)
+    else
+        return Buffer(T, ctx, :rw, nbytes)
+    end
+end 
 
 #TODO: enqueue low level functions should match up signature with cl.api
 function write!{T}(q::CmdQueue, buf::Buffer{T}, hostbuf::Array{T})
