@@ -11,7 +11,7 @@
 # Ported to Julia  by Jake Bolewski, Nov 2013
 
 import OpenCL
-const cl = Opencl
+const cl = OpenCL
 
 # tolerance used in floating point comparisons
 TOL = 1e-3
@@ -47,7 +47,7 @@ __kernel void vadd(
 device, ctx, queue = cl.create_compute_context()
 
 # create the compute program and build it
-program = cl.Program(context, source=kernelsource) |> cl.build!
+program = cl.Program(ctx, source=kernelsource) |> cl.build!
 
 #create a, b, e, and g vectors and fill with random float values
 #create empty vectors for c, d, and f
