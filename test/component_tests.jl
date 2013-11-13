@@ -192,21 +192,27 @@ facts("OpenCL.Context") do
             end
 
             properties = [(cl.CL_CONTEXT_PLATFORM, platform)]
-            @fact @throws_pred(cl.Context(cl.CL_DEVICE_TYPE_CPU, properties=properties)) => (false, "no error") 
-            ctx = cl.Context(cl.CL_DEVICE_TYPE_CPU, properties=properties)
-            @fact isempty(cl.properties(ctx)) => false
-            test_properties = cl.properties(ctx)
-            platform_in_properties = false 
-            for (t, v) in test_properties
-                if t == cl.CL_CONTEXT_PLATFORM
-                    @fact v[:name] => platform[:name]
-                    @fact v == platform => true
-                    platform_in_properties = true
-                    break
+            for (cl_dev_type, sym_dev_type) in [(cl.CL_DEVICE_TYPE_CPU, :cpu),
+                                                (cl.CL_DEVICE_TYPE_GPU, :gpu)]
+                if !cl.has_device_type(platform, sym_dev_type)
+                    continue
                 end
+                @fact @throws_pred(cl.Context(sym_dev_type, properties=properties)) => (false, "no error")
+                @fact @throws_pred(cl.Context(cl_dev_type, properties=properties)) => (false, "no error") 
+                ctx = cl.Context(cl_dev_type, properties=properties)
+                @fact isempty(cl.properties(ctx)) => false
+                test_properties = cl.properties(ctx)
+                platform_in_properties = false 
+                for (t, v) in test_properties
+                    if t == cl.CL_CONTEXT_PLATFORM
+                        @fact v[:name] => platform[:name]
+                        @fact v == platform => true
+                        platform_in_properties = true
+                        break
+                    end
+                end
+                @fact platform_in_properties => true 
             end
-            @fact platform_in_properties => true 
-            @fact @throws_pred(cl.Context(:cpu, properties=properties)) => (false, "no error")
             try
                 ctx2 = cl.Context(cl.CL_DEVICE_TYPE_ACCELERATOR,
                                   properties=properties)
