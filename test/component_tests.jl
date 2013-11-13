@@ -31,6 +31,11 @@ immutable TestStruct
     b::cl.CL_float
 end
 
+info(
+"======================================================================
+                              Running Component Tests
+      ======================================================================")
+
 
 facts("OpenCL.Platform") do 
     
