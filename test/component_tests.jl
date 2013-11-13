@@ -226,6 +226,9 @@ end
 Base.gc()
 
 facts("OpenCL.CmdQueue") do 
+    # TODO:
+    # travis builds fail without gc's, throwing host out of memory errors
+    # see if handle to CmdQueue is not being released properly
     context("OpenCL.CmdQueue constructor") do
         @fact @throws_pred(cl.CmdQueue(nothing, nothing)) => (true, "error")
         for platform in cl.platforms()
@@ -243,14 +246,15 @@ facts("OpenCL.CmdQueue") do
                     @fact @throws_pred(cl.CmdQueue(ctx, device, flag)) => (false, "no error")
                 end
                 Base.gc()
-#                @fact @throws_pred(cl.CmdQueue(ctx, :unrecognized_flag)) => (true, "error")
-#                @fact @throws_pred(cl.CmdQueue(ctx, device, :unrecognized_flag)) => (true, "error")
-#                for flag in [:profile, :out_of_order]
-#                    @fact @throws_pred(cl.CmdQueue(ctx, (flag, :unrecognized_flag))) => (true, "error")
-#                    @fact @throws_pred(cl.CmdQueue(ctx, device, (:unrecognized_flag, flag))) => (true, "error")
-#                    @fact @throws_pred(cl.CmdQueue(ctx, (flag, flag))) => (true, "error")
-#                    @fact @throws_pred(cl.CmdQueue(ctx, device, (flag, flag))) => (true, "error")
-#                end
+                @fact @throws_pred(cl.CmdQueue(ctx, :unrecognized_flag)) => (true, "error")
+                @fact @throws_pred(cl.CmdQueue(ctx, device, :unrecognized_flag)) => (true, "error")
+                for flag in [:profile, :out_of_order]
+                    Base.gc()
+                    @fact @throws_pred(cl.CmdQueue(ctx, (flag, :unrecognized_flag))) => (true, "error")
+                    @fact @throws_pred(cl.CmdQueue(ctx, device, (:unrecognized_flag, flag))) => (true, "error")
+                    @fact @throws_pred(cl.CmdQueue(ctx, (flag, flag))) => (true, "error")
+                    @fact @throws_pred(cl.CmdQueue(ctx, device, (flag, flag))) => (true, "error")
+                end
             end
         end
     end
@@ -274,6 +278,7 @@ end
 
 
 facts("OpenCL.Event") do
+
     context("OpenCL.Event status") do
         #TODO: check if this is version 1.2 or greater..
         ctx = cl.create_some_context()
