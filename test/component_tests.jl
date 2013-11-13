@@ -246,6 +246,7 @@ facts("OpenCL.CmdQueue") do
                 end
             end
         end
+    end
     
     #context("OpenCL.CmdQueue info") do
     #    for platform in cl.platforms()
