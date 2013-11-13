@@ -43,7 +43,7 @@ const ctx_callback_ptr = cfunction(ctx_notify_err, Ptr{Void},
                                    (Ptr{Cchar}, Ptr{Void}, Csize_t, Ptr{Void}))
 
 function raise_context_error(error_info, private_info)
-    error("OpenCL.Context error: $err_info")
+    error("OpenCL.Context error: $error_info")
 end
 
 
