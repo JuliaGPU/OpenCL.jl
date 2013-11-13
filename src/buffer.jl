@@ -26,6 +26,7 @@ end
 Base.length{T}(b::Buffer{T}) = int(b.size / sizeof(T))
 Base.ndims(b::Buffer) = 1
 Base.eltype{T}(b::Buffer{T}) = T
+Base.sizeof{T}(b::Buffer{T}) = b.size
 
 function Buffer{T}(::Type{T}, ctx::Context, nbytes=0; hostbuf=nothing)
     Buffer(T, ctx, (:rw, :null), nbytes, hostbuf=hostbuf)
@@ -211,37 +212,28 @@ end
 end
 
 function copy!{T}(q::CmdQueue, dst::Array{T}, src::Buffer{T})
-    if length(dst) != length(src)
-        throw(ArgumentError("Inconsistent array length"))
+    if sizeof(dst) != sizeof(src)
+        throw(ArgumentError("Buffer and Array to be copied must be the same size"))
     end
-    #TODO: change to sizeof
-    nbytes = length(src) * sizeof(T)
+    nbytes = sizeof(src) 
     evt = enqueue_read_buffer(q, src, dst, uint(0), nothing, true)
     return evt
 end
 
 function copy!{T}(q::CmdQueue, dst::Buffer{T}, src::Array{T})
-    if length(dst) != length(src)
-        throw(ArgumentError("Inconsistent array length"))
+    if sizeof(dst) != sizeof(src)
+        throw(ArgumentError("Array and Buffer to be copied must be the same size"))
     end
     nbytes = convert(Csize_t, sizeof(src))
     evt = enqueue_write_buffer(q, dst, src, nbytes, unsigned(0), nothing, true)
     return evt
 end
-#function enqueue_write_buffer{T}(q::CmdQueue,
-#                                 buf::Buffer{T},
-#                                 hostbuf::Array{T},
-#                                 byte_count::Csize_t,
-#                                 offset::Csize_t,
-#                                 wait_for::Union(Nothing, Vector{Event}),
-#                                 is_blocking::Bool)
  
 function copy!{T}(q::CmdQueue, dst::Buffer{T}, src::Buffer{T})
-    if length(dst) != length(src)
-        throw(ArgumentError("Buffers to be copied must be the same length"))
+    if sizeof(dst) != sizeof(src)
+        throw(ArgumentError("Buffers to be copied must be the same size"))
     end
-    #TODO: change to sizeof
-    nbytes = length(src) * sizeof(T)
+    nbytes = sizeof(src) 
     evt = enqueue_copy_buffer(q, src, dst, sizeof(src), unsigned(0), unsigned(0), nothing, true)
     return evt
 end

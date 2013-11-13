@@ -418,8 +418,8 @@ facts("OpenCL.Buffer") do
                                      hostbuf=testarray)) => (false, "no error")
 
         buf = cl.Buffer(Float32, ctx, cl.CL_MEM_USE_HOST_PTR | cl.CL_MEM_READ_WRITE, hostbuf=testarray)
-        @fact buf.size => sizeof(testarray)
-       
+        @fact sizeof(buf) => sizeof(testarray)
+        
         # invalid buffer size should throw error
         @fact @throws_pred(cl.Buffer(Float32, ctx, cl.CL_MEM_ALLOC_HOST_PTR, +0)) => (true, "error")
         @fact @throws_pred(cl.Buffer(Float32, ctx, cl.CL_MEM_ALLOC_HOST_PTR, -1)) => (true, "error")
