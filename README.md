@@ -50,7 +50,7 @@ device, ctx, queue = cl.create_compute_context()
 
 a_buff = cl.Buffer(Float32, ctx, (:r, :copy), hostbuf=a)
 b_buff = cl.Buffer(Float32, ctx, (:r, :copy), hostbuf=b)
-c_buff = cl.Buffer(Float32, ctx, sizeof(a))
+c_buff = cl.Buffer(Float32, ctx, :w, sizeof(a))
 
 p = cl.Program(ctx, source=sum_kernel) |> cl.build!
 k = cl.Kernel(p, "sum")
