@@ -13,5 +13,12 @@ script:
   - julia -e 'Pkg.add("FactCheck");'
   - julia -e 'Pkg.init(); run(`ln -s $(pwd()) $(Pkg.dir())/OpenCL`); Pkg.resolve()'
   - julia -e 'using OpenCL; @assert isdefined(:OpenCL); @assert typeof(OpenCL) === Module'
+  
   - julia test/component_tests.jl
   - julia test/behavior_tests.jl
+  
+  - julia examples/demo.jl
+  - julia examples/performance.jl
+  - julia examples/hands_on_opencl/ex04/vadd_chain.jl
+  - julia examples/hands_on_opencl/ex05/vadd_abc.jl
+  - julia examples/hands_on_opencl/ex06/matmul.jl
