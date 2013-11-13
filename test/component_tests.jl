@@ -246,24 +246,24 @@ facts("OpenCL.CmdQueue") do
                 end
             end
         end
-    end
+    
+    #context("OpenCL.CmdQueue info") do
+    #    for platform in cl.platforms()
+    #        for device in cl.devices(platform)
+    #            ctx = cl.Context(device)
+    #            q1 = cl.CmdQueue(ctx)
+    #            q2 = cl.CmdQueue(ctx, device)
+    #            for q in (q1, q2) 
+    #                @fact q[:context] => ctx
+    #                @fact q[:device] => device
+    #                @fact q[:reference_count] > 0 => true
+    #                @fact typeof(q[:properties]) => cl.CL_command_queue_properties
+    #            end
+    #        end
+    #    end
+    #end
 end
 
-facts("OpenCL.CmdQueue info") do
-    for platform in cl.platforms()
-        for device in cl.devices(platform)
-            ctx = cl.Context(device)
-            q1 = cl.CmdQueue(ctx)
-            q2 = cl.CmdQueue(ctx, device)
-            for q in (q1, q2) 
-                @fact q[:context] => ctx
-                @fact q[:device] => device
-                @fact q[:reference_count] > 0 => true
-                @fact typeof(q[:properties]) => cl.CL_command_queue_properties
-            end
-        end
-    end
-end
 
 facts("OpenCL.Event") do
     context("OpenCL.Event status") do
