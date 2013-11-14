@@ -20,6 +20,18 @@ It provides a high level api for OpenCL to make programing GPU's and multicore C
 [Boost.Compute]:https://github.com/kylelutz/compute
 [rust-opencl]: https://github.com/luqmana/rust-opencl
 
+## Setup
+1. Install an OpenCL driver. If you use OSX, OpenCL is already available
+2. Checkout the packages
+
+     ```julia
+     Pkg.add("FactCheck")
+     Pkg.clone("git://github.com/jakebolewski/OpenCL.jl")
+     ```
+     
+3. OpenCL will be installed in your ``.julia`` directory
+4. ``cd`` into your ``.julia`` directory to run the tests and try out the examples
+
 ## Example Notebooks
   * [OpenCL Fractals]
   * [GPU Buffer Transpose]
