@@ -17,7 +17,7 @@
 import OpenCL
 const cl = OpenCL
 
-kernel_source = "
+const kernel_source = "
 __kernel void mmul(
 	const int Mdim,
 	const int Ndim,

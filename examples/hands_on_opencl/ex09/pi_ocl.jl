@@ -13,6 +13,11 @@
 import OpenCL
 const cl = OpenCL
 
+# get the directory of this file
+# (used for test runner)
+src_dir = dirname(Base.source_path())
+
+#
 # Some constant values
 const INSTEPS = 512*512*512
 const ITERS = 262144
@@ -27,7 +32,7 @@ const niters = ITERS
 # create context, queue and build program
 device, ctx, queue = cl.create_compute_context()
 
-kernelsource = open(readall, "pi_ocl.cl")
+kernelsource = open(readall, joinpath(src_dir, "pi_ocl.cl"))
 program = cl.Program(ctx, source=kernelsource) |> cl.build!
 
 # pi is a julia keyword
@@ -81,4 +86,3 @@ rtime = time() - rtime
 
 println("The calculation ran in $rtime secs")
 println("pi=$pi_res for $nsteps steps")
-

@@ -17,6 +17,10 @@
 import OpenCL
 const cl = OpenCL
 
+# get the directory of this file
+# (used for test runner)
+src_dir = dirname(Base.source_path())
+
 #### Definitions ###
 
 # Order of the square matrices A, B and C
@@ -98,7 +102,7 @@ d_c = cl.Buffer(Float32, ctx, :w, sizeof(h_C))
 # OpenCL matrix multiplication ... Naive
 #--------------------------------------------------------------------------------
 
-kernel_source = open(readall, "C_elem.cl")
+kernel_source = open(readall, joinpath(src_dir, "C_elem.cl"))
 prg  = cl.Program(ctx, source=kernel_source) |> cl.build!
 mmul = cl.Kernel(prg, "mmul")
 
@@ -119,7 +123,7 @@ end
 # OpenCL matrix multiplication ... C row per work item
 #--------------------------------------------------------------------------------
 
-kernel_source = open(readall, "C_row.cl")
+kernel_source = open(readall, joinpath(src_dir, "C_row.cl"))
 prg  = cl.Program(ctx, source=kernel_source) |> cl.build!
 mmul = cl.Kernel(prg, "mmul")
 
@@ -139,7 +143,7 @@ end
 #--------------------------------------------------------------------------------
 # OpenCL matrix multiplication ... C row per work item, A row in pivate memory
 #--------------------------------------------------------------------------------
-kernel_source = open(readall, "C_row_priv_block.cl")
+kernel_source = open(readall, joinpath(src_dir, "C_row_priv_block.cl"))
 prg  = cl.Program(ctx, source=kernel_source) |> cl.build!
 mmul = cl.Kernel(prg, "mmul")
 
@@ -160,7 +164,7 @@ end
 #--------------------------------------------------------------------------------
 # OpenCL matrix multiplication ... C row per work item, A row pivate, B col local
 #--------------------------------------------------------------------------------
-kernel_source = open(readall, "C_block_form.cl")
+kernel_source = open(readall, joinpath(src_dir, "C_block_form.cl"))
 prg  = cl.Program(ctx, source=kernel_source) |> cl.build!
 mmul = cl.Kernel(prg, "mmul")
 
