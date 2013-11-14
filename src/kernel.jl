@@ -105,29 +105,43 @@ function set_args!(k::Kernel, args...)
 end
 
 
-function private_mem_size(k::Kernel, d::Device)
-    ret = Csize_t[0]
-    @check api.clGetKernelWorkGroupInfo(k.id, d.id, 
-                                        CL_KERNEL_PRIVATE_MEM_SIZE,
-                                        sizeof(Csize_t), ret, C_NULL)
-    return int(ret[1])
+function work_group_info(k::Kernel, winfo::CL_kernel_work_group_info, d::Device)
+    if (winfo == CL_KERNEL_LOCAL_MEM_SIZE || 
+        winfo == CL_KERNEL_PRIVATE_MEM_SIZE)
+        result = CL_ulong[0]
+        @check api.clGetKernelWorkGroupInfo(k.id, d.id, winfo, 
+                                            sizeof(CL_ulong), result, C_NULL)
+        return int(result[1])
+    elseif winfo == CL_KERNEL_COMPILE_WORK_GROUP_SIZE
+        size = Array(Csize_t, 1)
+        @check api.clGetKernelWorkGroupInfo(k.id, d.id, winfo, 0, C_NULL, size)
+        result = Array(Csize_t, size[1])
+        @check api.clGetKernelWorkGroupInfo(k.id, d.id, winfo, sizeof(result), result, C_NULL)
+        return int(result)
+    else
+        result = Csize_t[0]
+        @check api.clGetKernelWorkGroupInfo(k.id, d.id, winfo,
+                                            sizeof(CL_ulong), result, C_NULL)
+        return int(result[1])
+    end
 end
 
-function local_mem_size(k::Kernel, d::Device)
-    ret = Csize_t[0]
-    @check api.clGetKernelWorkGroupInfo(k.id, d.id, 
-                                        CL_KERNEL_PRIVATE_MEM_SIZE,
-                                        sizeof(Csize_t), ret, C_NULL)
-    return int(ret[1])
-end
+function work_group_info(k::Kernel, winfo::Symbol, d::Device)
+    if winfo == :size
+        work_group_info(k, CL_KERNEL_WORK_GROUP_SIZE, d)
+    elseif winfo == :compile_size
+        work_group_info(k, CL_KERNEL_COMPILE_WORK_GROUP_SIZE, d)
+    elseif winfo == :local_mem_size
+        work_group_info(k, CL_KERNEL_LOCAL_MEM_SIZE, d)
+    elseif winfo == :private_mem_size
+        work_group_info(k, CL_KERNEL_PRIVATE_MEM_SIZE, d)
+    elseif winfo == :prefered_size_multiple
+        work_group_info(k, CL_KERNEL_PREFERRED_WORK_GROUP_SIZE_MULTIPLE, d)
+    else
+        throw(ArgumentError(("Unknown work_group_info flag: :$winfo")))
+    end
+end 
 
-function work_group_size(k::Kernel, d::Device)
-    ret = Csize_t[0, 0, 0]
-    @check api.clGetKernelWorkGroupInfo(k.id, d.id, 
-                                        CL_KERNEL_COMPILE_WORK_GROUP_SIZE, 
-                                        sizeof(ret), ret, C_NULL)
-    return int(ret)
-end
 
 # blocking kernel call that finishes queue
 function call(q::CmdQueue, k::Kernel, global_work_size, local_work_size, args...;

@@ -66,9 +66,16 @@ facts("OpenCL.Kernel") do
             prg = cl.Program(ctx, source=test_source)
             cl.build!(prg)
             k = cl.Kernel(prg, "sum")
-            @fact @throws_pred(cl.private_mem_size(k, device)) => (false, "no error")
-            @fact @throws_pred(cl.local_mem_size(k, device)) => (false, "no error")
-            @fact @throws_pred(cl.required_work_group_size(k, device)) => (false, "no error")
+            for (sf, clf) in [(:size, cl.CL_KERNEL_WORK_GROUP_SIZE),
+                              (:compile_size, cl.CL_KERNEL_COMPILE_WORK_GROUP_SIZE),
+                              (:local_mem_size, cl.CL_KERNEL_LOCAL_MEM_SIZE),
+                              (:private_mem_size, cl.CL_KERNEL_PRIVATE_MEM_SIZE),
+                              (:prefered_size_multiple, cl.CL_KERNEL_PREFERRED_WORK_GROUP_SIZE_MULTIPLE)]
+                println((cl.work_group_info(k, sf, device)))
+                @fact @throws_pred(cl.work_group_info(k, sf, device)) => (false, "no error")
+                @fact @throws_pred(cl.work_group_info(k, clf, device)) => (false, "no error")
+                @fact cl.work_group_info(k, sf, device) => cl.work_group_info(k, clf, device)
+            end
         end
     end
 
