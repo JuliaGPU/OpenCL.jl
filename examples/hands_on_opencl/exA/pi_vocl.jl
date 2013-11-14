@@ -58,8 +58,8 @@ work_group_size = WGS
 #---------------------------------------------
 #device = first(cl.devices(:gpu))
 #device = first(cl.devices(:cpu))
-#ctx = cl.Context(device)
-ctx = cl.create_some_context()
+device = first(cl.devices())
+ctx = cl.Context(device)
 queue = cl.CmdQueue(ctx)
 
 
