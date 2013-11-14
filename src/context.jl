@@ -3,7 +3,7 @@
 type Context 
     id :: CL_context
     
-    function Context(ctx_id::CL_context; retain=true)
+    function Context(ctx_id::CL_context; retain=false)
         if retain
             @check api.clRetainContext(ctx_id)
         end

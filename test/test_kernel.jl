@@ -73,7 +73,9 @@ facts("OpenCL.Kernel") do
                               (:prefered_size_multiple, cl.CL_KERNEL_PREFERRED_WORK_GROUP_SIZE_MULTIPLE)]
                 @fact @throws_pred(cl.work_group_info(k, sf, device)) => (false, "no error")
                 @fact @throws_pred(cl.work_group_info(k, clf, device)) => (false, "no error")
-                @fact cl.work_group_info(k, sf, device) => cl.work_group_info(k, clf, device)
+                if sf != :compile_size
+                    @fact cl.work_group_info(k, sf, device) => cl.work_group_info(k, clf, device)
+                end
             end
         end
     end

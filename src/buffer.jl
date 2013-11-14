@@ -81,7 +81,11 @@ function Buffer{T}(::Type{T}, ctx::Context, flags::CL_mem_flags, nbytes=0;
         !bool((flags & (CL_MEM_USE_HOST_PTR | CL_MEM_COPY_HOST_PTR))))
         warn("'hostbuf' was passed, but no memory flags to make use of it")
     end
-    
+
+    if flags == (CL_MEM_USE_HOST_PTR | CL_MEM_ALLOC_HOST_PTR)
+        error("Use host pointer flag and alloc host pointer flag are mutually exclusive")
+    end
+
     retain_buf::Union(Nothing, Array{T}) = nothing
     if hostbuf != nothing
         if bool(flags & CL_MEM_USE_HOST_PTR)
