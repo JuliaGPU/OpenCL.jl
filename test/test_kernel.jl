@@ -71,7 +71,6 @@ facts("OpenCL.Kernel") do
                               (:local_mem_size, cl.CL_KERNEL_LOCAL_MEM_SIZE),
                               (:private_mem_size, cl.CL_KERNEL_PRIVATE_MEM_SIZE),
                               (:prefered_size_multiple, cl.CL_KERNEL_PREFERRED_WORK_GROUP_SIZE_MULTIPLE)]
-                println((cl.work_group_info(k, sf, device)))
                 @fact @throws_pred(cl.work_group_info(k, sf, device)) => (false, "no error")
                 @fact @throws_pred(cl.work_group_info(k, clf, device)) => (false, "no error")
                 @fact cl.work_group_info(k, sf, device) => cl.work_group_info(k, clf, device)
