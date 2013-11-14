@@ -4,6 +4,7 @@ type Buffer{T} <: CLMemObject
     valid::Bool
     id::CL_mem
     size::CL_uint
+    #TODO: hostbuf (mem-mapping)
     hostbuf::Union(Nothing, Array{T})
 
     function Buffer(mem_id::CL_mem, retain::Bool, size::CL_uint) #hostbuf
@@ -196,7 +197,6 @@ end
         @check api.clEnqueueFillBuffer(q.id, buf.id, [pattern], 
                                        nbytes_pattern, offset, buf.size,
                                        n_evts, evt_ids, ret_evt)
-        # TODO: nanny evt
         @return_event ret_evt[1]
     end
 
@@ -207,7 +207,9 @@ end
     end
     
     function fill!{T}(q::CmdQueue, buf::Buffer{T}, x::T)
-        wait(enqueue_fill(q, buf, x))
+        evt = enqueue_fill(q, buf, x)
+        wait(evt)
+        return evt
     end
 end
 
@@ -215,7 +217,6 @@ function copy!{T}(q::CmdQueue, dst::Array{T}, src::Buffer{T})
     if sizeof(dst) != sizeof(src)
         throw(ArgumentError("Buffer and Array to be copied must be the same size"))
     end
-    nbytes = sizeof(src) 
     evt = enqueue_read_buffer(q, src, dst, uint(0), nothing, true)
     return evt
 end
