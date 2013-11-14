@@ -12,7 +12,7 @@
 #            Modified by Simon McIntosh-Smith, September 2011
 #            Modified by Tom Deakin and Simon McIntosh-Smith, October 2012
 #            Ported to Python by Tom Deakin, July 2013
-#            Ported to Julia by Jake Bolewsk, Nov 2013
+#            Ported to Julia by Jake Bolewski, Nov 2013
 
 import OpenCL
 const cl = OpenCL
