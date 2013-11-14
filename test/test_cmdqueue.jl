@@ -21,12 +21,14 @@ facts("OpenCL.CmdQueue") do
                 @fact @throws_pred(cl.CmdQueue(ctx)) => (false, "no error")
                 @fact @throws_pred(cl.CmdQueue(ctx, device)) => (false, "no error")
                 for flag in [:profile, :out_of_order, (:profile, :out_of_order)]
+                    Base.gc()
                     @fact @throws_pred(cl.CmdQueue(ctx, flag)) => (false, "no error")
                     @fact @throws_pred(cl.CmdQueue(ctx, device, flag)) => (false, "no error")
                 end
                 @fact @throws_pred(cl.CmdQueue(ctx, :unrecognized_flag)) => (true, "error")
                 @fact @throws_pred(cl.CmdQueue(ctx, device, :unrecognized_flag)) => (true, "error")
                 for flag in [:profile, :out_of_order]
+                    Base.gc()
                     @fact @throws_pred(cl.CmdQueue(ctx, (flag, :unrecognized_flag))) => (true, "error")
                     @fact @throws_pred(cl.CmdQueue(ctx, device, (:unrecognized_flag, flag))) => (true, "error")
                     @fact @throws_pred(cl.CmdQueue(ctx, (flag, flag))) => (true, "error")
