@@ -110,7 +110,7 @@ function private_mem_size(k::Kernel, d::Device)
     @check api.clGetKernelWorkGroupInfo(k.id, d.id, 
                                         CL_KERNEL_PRIVATE_MEM_SIZE,
                                         sizeof(Csize_t), ret, C_NULL)
-    return ret[1] 
+    return int(ret[1])
 end
 
 function local_mem_size(k::Kernel, d::Device)
@@ -118,15 +118,15 @@ function local_mem_size(k::Kernel, d::Device)
     @check api.clGetKernelWorkGroupInfo(k.id, d.id, 
                                         CL_KERNEL_PRIVATE_MEM_SIZE,
                                         sizeof(Csize_t), ret, C_NULL)
-    return ret[1]
+    return int(ret[1])
 end
 
-function required_work_group_size(k::Kernel, d::Device)
+function work_group_size(k::Kernel, d::Device)
     ret = Csize_t[0, 0, 0]
     @check api.clGetKernelWorkGroupInfo(k.id, d.id, 
                                         CL_KERNEL_COMPILE_WORK_GROUP_SIZE, 
                                         sizeof(ret), ret, C_NULL)
-    return ret
+    return int(ret)
 end
 
 # blocking kernel call that finishes queue
