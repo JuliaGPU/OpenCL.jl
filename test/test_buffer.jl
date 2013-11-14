@@ -133,11 +133,6 @@ facts("OpenCL.Buffer") do
      
          end
      end
-        ctx = cl.create_some_context()
-        queue = cl.CmdQueue(ctx)
-        testarray = zeros(Float32, 1000)
-        buf = cl.Buffer(Float32, ctx, (:rw, :copy), hostbuf=testarray)
-        return (queue, buf, testarray)
  
      context("OpenCL.Buffer fill") do
         for device in cl.devices()
