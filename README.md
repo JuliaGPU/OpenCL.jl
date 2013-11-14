@@ -32,7 +32,7 @@ It provides a high level api for OpenCL to make programing GPU's and multicore C
 3. OpenCL will be installed in your ``.julia`` directory
 4. ``cd`` into your ``.julia`` directory to run the tests and try out the examples
 
-## Example Notebooks
+## IJulia Notebooks
   * [OpenCL Fractals]
   * [GPU Buffer Transpose]
   * [Low Level API]
