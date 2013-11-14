@@ -66,8 +66,11 @@ facts("OpenCL.Buffer") do
             @fact @throws_pred(cl.Buffer(Float32, ctx, cl.CL_MEM_ALLOC_HOST_PTR, -1)) => (true, "error")
 
             # invalid flag combinations should throw error
-            @fact @throws_pred(cl.Buffer(Float32, ctx, cl.CL_MEM_USE_HOST_PTR | cl.CL_MEM_ALLOC_HOST_PTR,
-                                         hostbuf=testarray)) => (true, "error")
+            # Apple's implementation does not follow the standard here.
+            if !contains(device[:platform], "Apple")
+                @fact @throws_pred(cl.Buffer(Float32, ctx, cl.CL_MEM_USE_HOST_PTR | cl.CL_MEM_ALLOC_HOST_PTR,
+                                             hostbuf=testarray)) => (true, "error")
+            end
 
             # invalid host pointer should throw error
             @fact @throws_pred(cl.Buffer(Float32, ctx, cl.CL_MEM_COPY_HOST_PTR,
