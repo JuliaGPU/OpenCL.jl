@@ -9,9 +9,6 @@ include("constants.jl")
 # OpenCL low level api 
 include("api.jl")
 
-# Util functions 
-include("util.jl")
-
 # Errors
 include("error.jl")
 
@@ -44,5 +41,9 @@ include("program.jl")
 
 # OpenCL Kernel
 include("kernel.jl")
+
+# Util functions 
+include("util.jl")
+
 
 end # module

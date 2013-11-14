@@ -47,6 +47,8 @@ facts("OpenCL.Platform") do
             for k in [:profile, :version, :name, :vendor, :extensions]
                 @fact p[k] == cl.info(p, k) => true
             end
+            @fact cl.opencl_version(p)[1] => 1
+            @fact 0 <= cl.opencl_version(p)[2] <= 2  => true
          end
      end
      
@@ -512,8 +514,12 @@ facts("OpenCL.Buffer") do
                  @fact all(x -> x == 0.0, testarray) => true
                  @fact buf.valid => true
              catch err
-                #TODO: check to see if device platform implements 1.2 => error else noerror
-                warn("fill is a OpenCL v1.2 command")
+                v = cl.opencl_version(device)
+                if v[1] == 1 && v[2] == 2
+                    # OpenCL fill defined for all implementations  >= 1.2
+                    throw(err)
+                end
+                info("fill is a OpenCL v1.2 command")
             end
         end
     end
