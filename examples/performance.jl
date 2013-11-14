@@ -65,8 +65,14 @@ function cl_performance(ndatapts::Integer, nworkers::Integer)
             @printf("Device max work group size: %i\n", device[:max_work_group_size])
             @printf("Device max work item size: %s\n",  device[:max_work_item_size])
 
-            if device[:max_mem_alloc_size] <= sizeof(Float32) * ndatapts
+            if device[:max_mem_alloc_size] < sizeof(Float32) * ndatapts
                 warn("Requested buffer size exceeds device max alloc size!")
+                warn("Skipping device $(device[:name])...")
+                continue
+            end
+
+            if device[:max_work_group_size] < nworkers
+                warn("Number of workers exceeds the device's max work group size!")
                 warn("Skipping device $(device[:name])...")
                 continue
             end
@@ -82,8 +88,9 @@ function cl_performance(ndatapts::Integer, nworkers::Integer)
             kern = cl.Kernel(prg, "sum")
 
             # work_group_multiple = kern[:prefered_work_group_size_multiple]
-            
-            evt = cl.call(queue, kern, (ndatapts,), (nworkers,), a_buf, b_buf, c_buf)
+            global_size = (ndatapts,)
+            local_size  = (nworkers,)
+            evt = cl.call(queue, kern, global_size, local_size, a_buf, b_buf, c_buf)
 
             # duration in ns 
             t = evt[:profile_duration] * 1e-9 
@@ -95,5 +102,11 @@ function cl_performance(ndatapts::Integer, nworkers::Integer)
     end
 end
 
-cl_performance(int(2^25), 256)
+# Play with these numbers to see performance differences
+# N_DATAPTS has to be a multiple of the number of workers
+# N_WORKERS has to be less than or equal to the device's max work group size
+# ex. N_WORKERS = 1 is non parallel execution on the gpu
 
+const N_DATA_PTS = int(2^23) # ~8 million
+const N_WORKERS  = int(2^7)  
+cl_performance(N_DATA_PTS, N_WORKERS)
