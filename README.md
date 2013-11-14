@@ -22,7 +22,7 @@ It provides a high level api for OpenCL to make programing GPU's and multicore C
 
 ## Setup
 1. Install an OpenCL driver. If you use OSX, OpenCL is already available
-2. Checkout the packages
+2. Checkout the packages from the Julia repl
 
      ```julia
      Pkg.add("FactCheck")
