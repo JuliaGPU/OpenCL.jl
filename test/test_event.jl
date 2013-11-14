@@ -58,7 +58,12 @@ facts("OpenCL.Event") do
                 @fact msg => true
                 continue
             end
-            
+            if contains(platform[:name], "Portable")
+                msg = "Portable Computing Language does not implement User Events"
+                @fact msg => true
+                continue
+            end
+
             for device in cl.devices(platform)
                 callback_called = false
 
