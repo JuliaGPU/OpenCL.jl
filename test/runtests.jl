@@ -1,9 +1,8 @@
-run(`julia test_program.jl`)
-run(`julia test_context.jl`)
-run(`julia test_device.jl`)
-run(`julia test_cmdqueue.jl`)
-run(`julia test_event.jl`)
-run(`julia test_buffer.jl`)
-run(`julia test_kernel.jl`)
-run(`julia test_program.jl`)
-run(`julia behavior_tests.jl`)
+testsdir = dirname(Base.source_path())
+
+for t in [:platform, :context, :device, :cmdqueue, :event, :buffer, :program, :kernel]
+    tfile = joinpath(testsdir, "test_$t.jl")
+    run(`julia $tfile`)
+end
+
+run(`julia $(joinpath(testsdir, "behavior_tests.jl"))`)

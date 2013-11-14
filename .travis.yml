@@ -14,8 +14,15 @@ script:
   - julia -e 'Pkg.init(); run(`ln -s $(pwd()) $(Pkg.dir())/OpenCL`); Pkg.resolve()'
   - julia -e 'using OpenCL; @assert isdefined(:OpenCL); @assert typeof(OpenCL) === Module'
   
-  - julia test/runtests.jl
-  
+  - julia test/test_platform.jl
+  - julia test/test_context.jl
+  - julia test/test_device.jl
+  - julia test/test_buffer.jl
+  - julia test/test_cmdqueue.jl
+  - julia test/test_event.jl
+  - julia test/test_program.jl
+  - julia test/test_kernel.jl
+
   - julia examples/demo.jl
   - julia examples/performance.jl
   - julia examples/hands_on_opencl/ex04/vadd_chain.jl
