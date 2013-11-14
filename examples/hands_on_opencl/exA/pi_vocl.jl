@@ -56,10 +56,10 @@ work_group_size = WGS
 #---------------------------------------------
 # Uncomment to switch between gpu/cpu devices
 #---------------------------------------------
-device = first(cl.devices(:gpu))
+#device = first(cl.devices(:gpu))
 #device = first(cl.devices(:cpu))
-
-ctx = cl.Context(device)
+#ctx = cl.Context(device)
+ctx = cl.create_some_context()
 queue = cl.CmdQueue(ctx)
 
 
