@@ -212,7 +212,7 @@ end
         nbytes_pattern = sizeof(pattern)
         @assert nbytes_pattern > 0
         @check api.clEnqueueFillBuffer(q.id, buf.id, [pattern], 
-                                       nbytes_pattern, offset, buf.size,
+                                       unsigned(nbytes_pattern), offset, buf.size,
                                        n_evts, evt_ids, ret_evt)
         @return_event ret_evt[1]
     end
