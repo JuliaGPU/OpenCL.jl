@@ -31,6 +31,11 @@ It provides a high level api for OpenCL to make programing GPU's and multicore C
      
 3. OpenCL will be installed in your ``.julia`` directory
 4. ``cd`` into your ``.julia`` directory to run the tests and try out the examples
+5. To update to the latest development version, simply:
+      
+      ```julia
+         Pkg.update()
+      ```
 
 ## IJulia Notebooks
   * [OpenCL Fractals]
