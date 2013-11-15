@@ -43,7 +43,7 @@ __kernel void mmul(
 #### Definitions ###
 
 # Order of the square matrices A, B and C
-ORDER = 1024
+ORDER = 512
 
 # A elemetns are constant and equal to AVAL
 AVAL = 3.0
@@ -58,7 +58,7 @@ TOL = 0.001
 DIM = 2
 
 # number of times to do each multiplication
-COUNT = 2
+COUNT = 1
 
 # Helper functions
 include("helper.jl")
@@ -100,7 +100,7 @@ seq_mat_mul_sdot(Mdim, Ndim, Pdim, h_A, h_B, h_C)
 for i in 1:COUNT
     fill!(h_C, 0.0)
     t1 = time()
-    seq_mat_mul_sdot(Mdim, Ndim, Pdim, h_A, h_B, h_C)
+    #seq_mat_mul_sdot(Mdim, Ndim, Pdim, h_A, h_B, h_C)
     t2 = time()
     results(Mdim, Ndim, Pdim, h_C, t2 - t1)
 end
@@ -115,7 +115,7 @@ queue = cl.CmdQueue(ctx, :profile)
 # create OpenCL Buffers
 d_a = cl.Buffer(Float32, ctx, (:r,:copy), hostbuf=h_A)
 d_b = cl.Buffer(Float32, ctx, (:r,:copy), hostbuf=h_B)
-d_c = cl.Buffer(Float32, ctx, :w, sizeof(h_C))
+d_c = cl.Buffer(Float32, ctx, :w, length(h_C))
 
 prg  = cl.Program(ctx, source=kernel_source) |> cl.build!
 mmul = cl.Kernel(prg, "mmul")
@@ -123,7 +123,7 @@ mmul = cl.Kernel(prg, "mmul")
 info("=== OpenCL, matrix mult, C(i, j) per work item, order $Ndim ====")
 
 for i in 1:COUNT
-    fill!(h_C, float32(0.0))
+    fill!(h_C, 0.0)
     global_range = (Ndim, Mdim)
     local_range  = nothing
     evt = cl.call(queue, mmul, global_range, local_range,

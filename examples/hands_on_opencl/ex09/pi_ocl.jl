@@ -61,7 +61,7 @@ h_psum = Array(Float32, nwork_groups)
 println("$nwork_groups work groups of size $work_group_size.")
 println("$nsteps integration steps")
 
-d_partial_sums = cl.Buffer(Float32, ctx, :w, sizeof(h_psum))
+d_partial_sums = cl.Buffer(Float32, ctx, :w, length(h_psum))
 
 # start timer 
 rtime = time() 
@@ -71,7 +71,7 @@ rtime = time()
 # Set the global and local size as tuples
 global_size = (nwork_groups * work_group_size,)
 local_size  = (work_group_size,)
-localmem    = cl.LocalMemory(sizeof(Float32) * work_group_size)
+localmem    = cl.LocalMem(Float32, work_group_size)
 
 cl.call(queue, pi_kernel, global_size, local_size,
         int32(niters), float32(step_size), localmem, d_partial_sums)

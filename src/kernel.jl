@@ -43,17 +43,20 @@ function Kernel(p::Program, kernel_name::String)
     return Kernel(kernel_id, true)
 end
 
-type KernelArg
+immutable LocalMem{T}
+    nbytes::Csize_t
 end
 
-immutable LocalMemory 
-    size::Csize_t
+LocalMem{T}(::Type{T}, len::Integer) = begin
+    @assert len > 0
+    nbytes = sizeof(T) * len
+    return LocalMem{T}(convert(Csize_t, nbytes))
 end
 
-LocalMemory(x::Integer) = begin
-    @assert x > 0
-    return LocalMemory(convert(Csize_t, x))
-end
+Base.ndims(l::LocalMem) = 1
+Base.eltype{T}(l::LocalMem{T}) = T
+Base.sizeof{T}(l::LocalMem{T}) = l.nbytes
+Base.length{T}(l::LocalMem{T}) = int(l.nbytes / sizeof(T))
 
 function set_arg!(k::Kernel, idx::Integer, arg::Nothing)
     @assert idx > 0
@@ -74,9 +77,9 @@ function set_arg!(k::Kernel, idx::Integer, arg::CLMemObject)
     return k
 end
 
-function set_arg!(k::Kernel, idx::Integer, arg::LocalMemory)
+function set_arg!(k::Kernel, idx::Integer, arg::LocalMem)
     @assert idx > 0
-    @check api.clSetKernelArg(k.id, cl_uint(idx-1), arg.size, C_NULL)
+    @check api.clSetKernelArg(k.id, cl_uint(idx-1), arg.nbytes, C_NULL)
     return k
 end
 
@@ -113,7 +116,7 @@ function work_group_info(k::Kernel, winfo::CL_kernel_work_group_info, d::Device)
                                             sizeof(CL_ulong), result, C_NULL)
         return int(result[1])
     elseif winfo == CL_KERNEL_COMPILE_WORK_GROUP_SIZE
-        size = Array(Csize_t, 1)
+        size = Csize_t[0]
         @check api.clGetKernelWorkGroupInfo(k.id, d.id, winfo, 0, C_NULL, size)
         result = Array(Csize_t, size[1])
         @check api.clGetKernelWorkGroupInfo(k.id, d.id, winfo, sizeof(result), result, C_NULL)

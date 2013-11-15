@@ -82,7 +82,7 @@ function cl_performance(ndatapts::Integer, nworkers::Integer)
             
             a_buf = cl.Buffer(Float32, ctx, (:r, :copy), hostbuf=a)
             b_buf = cl.Buffer(Float32, ctx, (:r, :copy), hostbuf=b)
-            c_buf = cl.Buffer(Float32, ctx, :w, sizeof(a))
+            c_buf = cl.Buffer(Float32, ctx, :w, length(a))
 
             prg  = cl.Program(ctx, source=bench_kernel) |> cl.build!
             kern = cl.Kernel(prg, "sum")

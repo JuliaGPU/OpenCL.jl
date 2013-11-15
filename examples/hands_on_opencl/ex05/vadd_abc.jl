@@ -56,7 +56,7 @@ d_b = cl.Buffer(Float32, ctx, (:r, :copy), hostbuf=h_b)
 d_c = cl.Buffer(Float32, ctx, (:r, :copy), hostbuf=h_c)
 
 # create the output (r) buffer in device memory
-d_r = cl.Buffer(Float32, ctx, :w, sizeof(Float32) * LENGTH)
+d_r = cl.Buffer(Float32, ctx, :w, LENGTH)
 
 # create the kernel
 vadd = cl.Kernel(program, "vadd")

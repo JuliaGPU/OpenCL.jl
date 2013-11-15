@@ -73,9 +73,9 @@ d_b = cl.Buffer(Float32, ctx, (:r, :copy), hostbuf=h_b)
 d_e = cl.Buffer(Float32, ctx, (:r, :copy), hostbuf=h_e)
 d_g = cl.Buffer(Float32, ctx, (:r, :copy), hostbuf=h_g)
 # Create the output (c, d, f) array in device memory
-d_c = cl.Buffer(Float32, ctx, :w, sizeof(h_c))
-d_d = cl.Buffer(Float32, ctx, :w, sizeof(h_d))
-d_f = cl.Buffer(Float32, ctx, :w, sizeof(h_f))
+d_c = cl.Buffer(Float32, ctx, :w, LENGTH)
+d_d = cl.Buffer(Float32, ctx, :w, LENGTH)
+d_f = cl.Buffer(Float32, ctx, :w, LENGTH)
 
 # create the kernel
 vadd = cl.Kernel(program, "vadd")
