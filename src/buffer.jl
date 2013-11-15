@@ -219,7 +219,7 @@ end
 
     function enqueue_fill{T}(q::CmdQueue, buf::Buffer{T}, x::T)
         nbytes = sizeof(buf)
-        evt = enqueue_fill_buffer(q, buf, x, unsigned(0), nbytes, nothing)
+        evt = enqueue_fill_buffer(q, buf, x, unsigned(0), unsigned(nbytes), nothing)
         return evt
     end
     
