@@ -102,12 +102,12 @@ facts("OpenCL.Kernel") do
 
             A = cl.Buffer(Float32, ctx, (:r, :copy), hostbuf=h_ones)
             B = cl.Buffer(Float32, ctx, (:r, :copy), hostbuf=h_ones)
-            C = cl.Buffer(Float32, ctx, :w, nbytes)
+            C = cl.Buffer(Float32, ctx, :w, count)
 
             # sizeof mem object for buffer in bytes
-            @fact sizeof(A.id) => nbytes
-            @fact sizeof(B.id) => nbytes
-            @fact sizeof(C.id) => nbytes
+            @fact sizeof(A) => nbytes
+            @fact sizeof(B) => nbytes
+            @fact sizeof(C) => nbytes
             
             # we use julia's index by one convention
             @fact @throws_pred(cl.set_arg!(k, 1, A))   => (false, "no error")

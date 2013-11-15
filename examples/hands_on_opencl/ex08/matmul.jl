@@ -24,7 +24,7 @@ src_dir = dirname(Base.source_path())
 #### Definitions ###
 
 # Order of the square matrices A, B and C
-ORDER = 1024
+ORDER = 512 
 
 # A elemetns are constant and equal to AVAL
 AVAL = 3.0
@@ -39,7 +39,7 @@ TOL = 0.001
 DIM = 2
 
 # number of times to do each multiplication
-COUNT = 3
+COUNT = 1
 
 # Helper functions
 include("helper.jl")
@@ -96,7 +96,7 @@ queue = cl.CmdQueue(ctx, :profile)
 # create OpenCL Buffers
 d_a = cl.Buffer(Float32, ctx, (:r,:copy), hostbuf=h_A)
 d_b = cl.Buffer(Float32, ctx, (:r,:copy), hostbuf=h_B)
-d_c = cl.Buffer(Float32, ctx, :w, sizeof(h_C))
+d_c = cl.Buffer(Float32, ctx, :w, length(h_C))
 
 #--------------------------------------------------------------------------------
 # OpenCL matrix multiplication ... Naive
@@ -109,7 +109,7 @@ mmul = cl.Kernel(prg, "mmul")
 info("=== OpenCL, matrix mult, C(i, j) per work item, order $Ndim ====")
 
 for i in 1:COUNT
-    fill!(h_C, float32(0.0))
+    fill!(h_C, 0.0)
     evt = cl.call(queue, mmul, (Ndim, Mdim), nothing,
                   int32(Mdim), int32(Ndim), int32(Pdim),
                   d_a, d_b, d_c)
@@ -130,7 +130,7 @@ mmul = cl.Kernel(prg, "mmul")
 info("=== OpenCL, matrix mult, C row per work item, order $Ndim ====")
 
 for i in 1:COUNT
-    fill!(h_C, float32(0.0))
+    fill!(h_C, 0.0)
     evt = cl.call(queue, mmul, (Ndim,), (int(ORDER/16),),
                   int32(Mdim), int32(Ndim), int32(Pdim),
                   d_a, d_b, d_c)
@@ -150,8 +150,8 @@ mmul = cl.Kernel(prg, "mmul")
 info("=== OpenCL, matrix mult, C row, priv A, B, cols loc, order $Ndim ====")
 
 for i in 1:COUNT
-    fill!(h_C, float32(0.0))
-    localmem = cl.LocalMemory(sizeof(Float32) * Pdim)
+    fill!(h_C, 0.0)
+    localmem = cl.LocalMem(Float32, Pdim)
     evt = cl.call(queue, mmul, (Ndim,), (int(ORDER/16),),
                   int32(Mdim), int32(Ndim), int32(Pdim),
                   d_a, d_b, d_c, localmem)
@@ -173,8 +173,8 @@ blocksize = 16
 
 for i in 1:COUNT
     fill!(h_C, float32(0.0))
-    localmem1 = cl.LocalMemory(sizeof(Float32) * blocksize^2)
-    localmem2 = cl.LocalMemory(sizeof(Float32) * blocksize^2)
+    localmem1 = cl.LocalMem(Float32, blocksize^2)
+    localmem2 = cl.LocalMem(Float32, blocksize^2)
     evt = cl.call(queue, mmul, (Ndim,), (int(ORDER/16),),
                   int32(Mdim), int32(Ndim), int32(Pdim),
                   d_a, d_b, d_c, localmem1, localmem2)

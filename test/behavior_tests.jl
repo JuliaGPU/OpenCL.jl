@@ -269,12 +269,12 @@ facts("OpenCL Struct Buffer Test") do
         P = [Params(0.5, 10.0, [0.0, 0.0], 3)]
         
         #TODO: constructor for single immutable types.., check if passed parameter isbits
-        P_buf = cl.Buffer(Params, ctx, :r, sizeof(P))
+        P_buf = cl.Buffer(Params, ctx, :r, length(P))
         cl.write!(q, P_buf, P)
         
         X_buf = cl.Buffer(Float32, ctx, (:r, :copy), hostbuf=X)
         Y_buf = cl.Buffer(Float32, ctx, (:r, :copy), hostbuf=Y)
-        R_buf = cl.Buffer(Float32, ctx, :w, sizeof(X))
+        R_buf = cl.Buffer(Float32, ctx, :w, length(X))
         
         global_size = size(X)
         cl.call(q, part3, global_size, nothing, X_buf, Y_buf, R_buf, P_buf)

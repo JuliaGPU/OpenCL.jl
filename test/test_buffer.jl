@@ -26,16 +26,16 @@ facts("OpenCL.Buffer") do
             testarray = zeros(Float32, 1000)
 
             @fact @throws_pred(cl.Buffer(Float32, ctx, cl.CL_MEM_ALLOC_HOST_PTR | cl.CL_MEM_READ_ONLY,
-                                         sizeof(testarray))) => (false, "no error")
+                                         length(testarray))) => (false, "no error")
             
             @fact @throws_pred(cl.Buffer(Float32, ctx, cl.CL_MEM_ALLOC_HOST_PTR | cl.CL_MEM_WRITE_ONLY,
-                                         sizeof(testarray))) => (false, "no error")
+                                         length(testarray))) => (false, "no error")
              
             @fact @throws_pred(cl.Buffer(Float32, ctx, cl.CL_MEM_ALLOC_HOST_PTR | cl.CL_MEM_READ_WRITE,
-                                         sizeof(testarray))) => (false, "no error")
+                                         length(testarray))) => (false, "no error")
 
-            buf = cl.Buffer(Float32, ctx, cl.CL_MEM_ALLOC_HOST_PTR | cl.CL_MEM_READ_WRITE, sizeof(testarray))
-            @fact buf.size => sizeof(testarray)
+            buf = cl.Buffer(Float32, ctx, cl.CL_MEM_ALLOC_HOST_PTR | cl.CL_MEM_READ_WRITE, length(testarray))
+            @fact buf.len => length(testarray)
 
             @fact @throws_pred(cl.Buffer(Float32, ctx, cl.CL_MEM_COPY_HOST_PTR | cl.CL_MEM_READ_ONLY, 
                                          hostbuf=testarray)) => (false, "no error")
@@ -47,7 +47,7 @@ facts("OpenCL.Buffer") do
                                          hostbuf=testarray)) => (false, "no error")
               
             buf = cl.Buffer(Float32, ctx, cl.CL_MEM_COPY_HOST_PTR | cl.CL_MEM_READ_WRITE, hostbuf=testarray)
-            @fact buf.size => sizeof(testarray)
+            @fact buf.len => length(testarray)
             
             @fact @throws_pred(cl.Buffer(Float32, ctx, cl.CL_MEM_USE_HOST_PTR | cl.CL_MEM_READ_ONLY,
                                          hostbuf=testarray)) => (false, "no error")
@@ -59,7 +59,7 @@ facts("OpenCL.Buffer") do
                                          hostbuf=testarray)) => (false, "no error")
 
             buf = cl.Buffer(Float32, ctx, cl.CL_MEM_USE_HOST_PTR | cl.CL_MEM_READ_WRITE, hostbuf=testarray)
-            @fact sizeof(buf) => sizeof(testarray)
+            @fact buf.len => length(testarray)
             
             # invalid buffer size should throw error
             @fact @throws_pred(cl.Buffer(Float32, ctx, cl.CL_MEM_ALLOC_HOST_PTR, +0)) => (true, "error")
@@ -101,19 +101,19 @@ facts("OpenCL.Buffer") do
                              @fact @throws_pred(cl.Buffer(mtype, ctx, (mf1, mf2), 
                                                           hostbuf=testarray)) => (false, "no error")
                              buf = cl.Buffer(mtype, ctx, (mf1, mf2), hostbuf=testarray)
-                             @fact buf.size => sizeof(testarray)
+                             @fact buf.len => length(testarray)
                          elseif mf2 == :alloc
                              @fact @throws_pred(cl.Buffer(mtype, ctx, (mf1, mf2),
-                                                          sizeof(testarray))) => (false, "no error")
-                             buf = cl.Buffer(mtype, ctx, (mf1, mf2), sizeof(testarray))
-                             @fact buf.size => sizeof(testarray)
+                                                          length(testarray))) => (false, "no error")
+                             buf = cl.Buffer(mtype, ctx, (mf1, mf2), length(testarray))
+                             @fact buf.len => length(testarray)
                          end
                      end
                  end
              end
 
              test_array = Array(TestStruct, 100)
-             @fact @throws_pred(cl.Buffer(TestStruct, ctx, :alloc, sizeof(test_array))) => (false, "no error")
+             @fact @throws_pred(cl.Buffer(TestStruct, ctx, :alloc, length(test_array))) => (false, "no error")
              @fact @throws_pred(cl.Buffer(TestStruct, ctx, :copy, hostbuf=test_array))  => (false, "no error")
 
              # invalid buffer size should throw error
@@ -140,7 +140,7 @@ facts("OpenCL.Buffer") do
              queue = cl.CmdQueue(ctx)
              testarray = zeros(Float32, 1000)
              buf = cl.Buffer(Float32, ctx, (:rw, :copy), hostbuf=testarray)
-             @fact buf.size == sizeof(testarray) => true
+             @fact buf.len == length(testarray) => true
              try 
                  cl.fill!(queue, buf, float32(1.0))
                  readback = cl.read(queue, buf)
@@ -164,8 +164,7 @@ facts("OpenCL.Buffer") do
             queue = cl.CmdQueue(ctx)
             testarray = zeros(Float32, 1000)
             buf = cl.Buffer(Float32, ctx, (:rw, :copy), hostbuf=testarray)
-        
-            @fact buf.size == sizeof(testarray) => true
+            @fact buf.len == length(testarray) => true
             cl.write!(queue, buf, ones(Float32, length(testarray)))
             readback = cl.read(queue, buf)
             @fact all(x -> x == 1.0, readback) => true
@@ -173,7 +172,7 @@ facts("OpenCL.Buffer") do
         end
     end
 
-    context("OpenCL.Buffer empty") do
+    context("OpenCL.Buffer empty_like") do
         for device in cl.devices()
             ctx = cl.Context(device)
             queue = cl.CmdQueue(ctx)
@@ -181,17 +180,6 @@ facts("OpenCL.Buffer") do
             buf = cl.Buffer(Float32, ctx, (:rw, :copy), hostbuf=testarray)
            
             @fact sizeof(cl.empty_like(ctx, buf)) => sizeof(testarray)
-
-            @fact @throws_pred(cl.empty(Float32, ctx, -1)) => (true, "error") 
-            empty_buf = cl.empty(Float32, ctx, 1000)
-            @fact empty_buf.size => sizeof(testarray)
-            @fact empty_buf.size => buf.size
-           
-            dims = (100, 100)
-            testarray = zeros(Float32, dims)
-            empty_buf = cl.empty(Float32, ctx, dims)
-            @fact empty_buf.size => sizeof(testarray)
-            @fact empty_buf.valid => true
         end
     end
 
@@ -200,9 +188,9 @@ facts("OpenCL.Buffer") do
             ctx = cl.Context(device)
             queue = cl.CmdQueue(ctx)
             test_array = fill(float32(2.0), 1000)
-            a_buf = cl.Buffer(Float32, ctx, sizeof(test_array))
-            b_buf = cl.Buffer(Float32, ctx, sizeof(test_array))
-            c_arr = Array(Float32, size(test_array))
+            a_buf = cl.Buffer(Float32, ctx, length(test_array))
+            b_buf = cl.Buffer(Float32, ctx, length(test_array))
+            c_arr = Array(Float32, length(test_array))
             # host to device buffer
             cl.copy!(queue, a_buf, test_array)
             # device buffer to device buffer
