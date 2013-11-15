@@ -22,6 +22,7 @@ facts("OpenCL.Buffer") do
 
     context("OpenCL.Buffer constructors") do
         for device in cl.devices()
+
             ctx = cl.Context(device)
             testarray = zeros(Float32, 1000)
 
@@ -77,6 +78,7 @@ facts("OpenCL.Buffer") do
                                          hostbuf=C_NULL)) => (true, "error")
         end
      end
+
      context("OpenCL.Buffer constructors symbols") do
          for device in cl.devices()
              ctx = cl.Context(device)
@@ -136,6 +138,11 @@ facts("OpenCL.Buffer") do
  
      context("OpenCL.Buffer fill") do
         for device in cl.devices()
+             if contains(device[:platform][:name], "Portable")
+                 # the pocl platform claims to implement v1.2 of the spec, but does not
+                 warn("Skipping test OpenCL.Buffer fill for POCL Platform")
+                 continue
+             end
              ctx = cl.Context(device)
              queue = cl.CmdQueue(ctx)
              testarray = zeros(Float32, 1000)

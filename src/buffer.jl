@@ -211,10 +211,8 @@ end
         ret_evt = Array(CL_event, 1)
         nbytes_pattern = sizeof(pattern)
         @assert nbytes_pattern > 0
-        nbytes_buff = sizeof(buf)
-        @assert nbytes_buff > 0
         @check api.clEnqueueFillBuffer(q.id, buf.id, [pattern], 
-                                       unsigned(nbytes_pattern), offset, unsigned(nbytes_buff),
+                                       unsigned(nbytes_pattern), offset, nbytes,
                                        n_evts, evt_ids, ret_evt)
         @return_event ret_evt[1]
     end
