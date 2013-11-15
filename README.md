@@ -25,13 +25,12 @@ It provides a high level api for OpenCL to make programing GPU's and multicore C
 2. Checkout the packages from the Julia repl
 
      ```julia
-     Pkg.add("FactCheck")
      Pkg.clone("git://github.com/jakebolewski/OpenCL.jl")
      ```
      
 3. OpenCL will be installed in your ``.julia`` directory
 4. ``cd`` into your ``.julia`` directory to run the tests and try out the examples
-5. To update to the latest development version, simply:
+5. To update to the latest development version, from the Julia repl:
       
       ```julia
          Pkg.update()
