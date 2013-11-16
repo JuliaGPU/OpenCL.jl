@@ -25,7 +25,7 @@ It provides a high level api for OpenCL to make programing GPU's and multicore C
 2. Checkout the packages from the Julia repl
 
      ```julia
-     Pkg.clone("git://github.com/jakebolewski/OpenCL.jl")
+     Pkg.clone("OpenCL")
      ```
      
 3. OpenCL will be installed in your ``.julia`` directory
