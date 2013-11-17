@@ -12,12 +12,13 @@ type Program
     end
 end
 
+Base.show(io::IO, p::Program) = begin
+    ptr_address = "0x$(hex(unsigned(Base.pointer(p)), WORD_SIZE>>2))"
+    print(io, "<OpenCL.Program $ptr_address>")
+end 
+
 Base.pointer(p::Program) = p.id
 @ocl_object_equality(Program)
-
-function Base.show(io::IO, p::Program)
-    print(io, p)
-end
 
 Base.getindex(p::Program, pinfo::Symbol) = info(p, pinfo)
 
