@@ -16,7 +16,7 @@ Base.pointer(k::Kernel) = k.id
 @ocl_object_equality(Kernel)
 
 Base.show(io::IO, k::Kernel) = begin
-    print(io, "<OpenCL.Kernel :$(k[:name]) nargs=$(k[:num_args])>")
+    print(io, "<OpenCL.Kernel \"$(k[:name])\" nargs=$(k[:num_args])>")
 end 
 
 Base.getindex(k::Kernel, kinfo::Symbol) = info(k, kinfo)
