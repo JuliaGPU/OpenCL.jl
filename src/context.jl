@@ -197,29 +197,37 @@ function devices(ctx::Context)
     return [Device(id) for id in dev_ids]
 end
 
-function create_some_context(;interactive=true)
-    devs = {}
+function create_some_context()
     if isempty(platforms())
         error("No OpenCL.Platform available")
     end
-
-    for platform in platforms()
-        append!(devs, devices(platform))
-    end
-    if isempty(devs)
-        error("No OpenCL.Device available")
-    end
-
-    #TODO: filter devices by performance
-    # sort_est_performance!(devs)
-    for dev in devs
-        local ctx::Context
-        try
-            ctx = Context(dev)
-        catch
-            continue 
+    gpu_devices = devices(:gpu)
+    if !isempty(gpu_devices)
+        for dev in gpu_devices
+            local ctx::Context
+            try
+                ctx = Context(dev)
+            catch
+                continue 
+            end
+            return ctx
         end
-        return ctx
     end
-    error("Unable to create any OpenCL.Context")
+    cpu_devices = devices(:cpu)
+    if !isempty(cpu_devices)
+        for dev in cpu_devices
+            local ctx::Context
+            try
+                ctx = Context(dev)
+            catch
+                continue 
+            end
+            return ctx
+        end
+    end
+    if isempty(gpu_devices) && isempty(cpu_devices)
+        error("Unable to create any OpenCL.Context, no available devices")
+    else
+        error("Unable to create any OpenCL.Context, no devices worked")
+    end
 end
