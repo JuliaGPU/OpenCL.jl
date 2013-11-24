@@ -6,9 +6,12 @@ include("types.jl")
     const libopencl = "/System/Library/Frameworks/OpenCL.framework/OpenCL"
 end
 
-#TODO: need to make sure this works across all remaining platforms.
-if !isdefined(:libopencl)
+@linux_only begin
     const libopencl = "libOpenCL"
+end
+
+@windows_only begin
+    const libopencl = "OpenCL"
 end
 
 macro ocl_func(func, ret_type, arg_types)
