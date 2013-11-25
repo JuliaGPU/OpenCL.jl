@@ -44,8 +44,9 @@ facts("OpenCL.Event") do
 
     context("OpenCL.Event callback") do
         for platform in cl.platforms()
-            if cl.opencl_version(platform)[2] < 2
-                info("skipping user event callback for $(platform[:name]) version < 1.2")
+            v = cl.opencl_version(platform) 
+            if v.major == 1 && v.minor < 2
+                info("Skipping OpenCL.Event callback for $(platform[:name]) version < 1.2")
                 continue
             end
             if contains(platform[:name], "AMD")

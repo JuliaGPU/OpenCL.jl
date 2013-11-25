@@ -148,20 +148,18 @@ facts("OpenCL.Buffer") do
              testarray = zeros(Float32, 1000)
              buf = cl.Buffer(Float32, ctx, (:rw, :copy), hostbuf=testarray)
              @fact buf.len == length(testarray) => true
-             try 
-                 cl.fill!(queue, buf, float32(1.0))
-                 readback = cl.read(queue, buf)
-                 @fact all(x -> x == 1.0, readback) => true
-                 @fact all(x -> x == 0.0, testarray) => true
-                 @fact buf.valid => true
-             catch err
-                v = cl.opencl_version(device)
-                if v[1] == 1 && v[2] == 2
-                    # OpenCL fill defined for all implementations  >= 1.2
-                    throw(err)
-                end
-                info("fill is a OpenCL v1.2 command")
-            end
+             
+             v = cl.opencl_version(device)
+             if v.major == 1 && v.minor < 2
+                 platform_name = device[:platform][:name]
+                 info("Skipping OpenCL.Buffer fill for $platform_name: fill is a v1.2 command")
+                 continue
+             end
+             cl.fill!(queue, buf, float32(1.0))
+             readback = cl.read(queue, buf)
+             @fact all(x -> x == 1.0, readback) => true
+             @fact all(x -> x == 0.0, testarray) => true
+             @fact buf.valid => true
         end
     end
 

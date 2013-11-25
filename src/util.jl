@@ -14,7 +14,7 @@ function opencl_version(p::Platform)
     if mg == nothing
         error("Platform $(p[:name]) return non conformat platform string: $(ver)")
     end
-    return (int(mg.captures[1]), int(mg.captures[2]))
+    return VersionNumber(int(mg.captures[1]), int(mg.captures[2]))
 end 
 
 function opencl_version(d::Device)

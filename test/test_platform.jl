@@ -15,8 +15,9 @@ facts("OpenCL.Platform") do
             for k in [:profile, :version, :name, :vendor, :extensions]
                 @fact p[k] == cl.info(p, k) => true
             end
-            @fact cl.opencl_version(p)[1] => 1
-            @fact 0 <= cl.opencl_version(p)[2] <= 2  => true
+            v = cl.opencl_version(p)
+            @fact v.major => 1
+            @fact 0 <= v.minor <= 2  => true
          end
      end
      
