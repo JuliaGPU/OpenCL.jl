@@ -1,4 +1,7 @@
+module CAst
+
 abstract CAst 
+abstract CType
 
 type CTypeCast <: CAst
     value
@@ -162,5 +165,7 @@ type CBoolOp
     op
     vals
     ctype
+end
+
 end
 
