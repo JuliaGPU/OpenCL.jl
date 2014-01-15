@@ -150,7 +150,7 @@ end
 
 type CAugAssignExpr 
     target
-    op
+     op
     val
     ctype
 end
@@ -168,4 +168,3 @@ type CBoolOp
 end
 
 end
-
