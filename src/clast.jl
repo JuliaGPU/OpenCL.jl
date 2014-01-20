@@ -13,12 +13,17 @@ type CVectorTypeCast <: CAst
     ctype
 end
 
+type CWhile <: CAst
+    test
+    body
+end
+
 type CComment <: CAst
     str::String
 end
 
 type CGroup <: CAst
-    body
+    body::Array{Any,1}
 end
 
 type CTypeName <: CAst
@@ -115,6 +120,10 @@ type CPointerAttribute <: CAstAttribute
     ctype
 end
 
+type CExpr
+    val
+end
+
 type CIfExp
     test
     body
@@ -165,6 +174,12 @@ type CBoolOp
     op
     vals
     ctype
+end
+
+type CContinue
+end
+
+type CBreak
 end
 
 end
