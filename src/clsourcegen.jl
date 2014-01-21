@@ -1,6 +1,5 @@
 module CLSourceGen
 
-
 # see base/show.jl 292 for julia ast printing
 
 Base.show(io::IO, node::CMult) = print(io,"*")

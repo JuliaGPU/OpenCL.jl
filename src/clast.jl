@@ -120,10 +120,6 @@ type CPointerAttribute <: CAstAttribute
     ctype
 end
 
-type CExpr
-    val
-end
-
 type CIfExp
     test
     body
@@ -149,6 +145,11 @@ end
 type CStruct <: CAst
     id
     decl_list
+end
+
+type CAssign
+    targets
+    val
 end
 
 type CAssignExpr
