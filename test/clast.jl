@@ -26,8 +26,8 @@ facts("Generation") do
     code = clsource(ast)
     @fact code => "foo = (1 + 1)"
 
-    ast = CBlock([CFunctionCall("foo"), 
-                  CFunctionCall("bar")])
+    ast = CBlock([CFunctionCall("foo", []), 
+                  CFunctionCall("bar", [])])
     code = clsource(ast) 
     @fact code => "{{\n\tfoo();\n\tbar();\n}}\n"
 

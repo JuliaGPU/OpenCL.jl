@@ -14,19 +14,46 @@ visit(expr::Expr) = begin
 end
 
 visit(n::SymbolNode) = begin
-    #TODO: symbol with no type
     return CName(string(n.name), n.typ)
+end
+
+visit(n::String) = begin
+    error("unimplemented string")
 end
 
 visit(n::Number) = begin
     return CNum(n, typeof(n))
 end
 
+is_linenumber(ex::LineNumberNode) = true
+is_linenumber(ex::Expr) = ex.head === :line
+is_linenumber(ex) = false
+
+visit_block(expr::Expr) = begin
+    @assert expr.head == :body || expr.head == :block
+    body = CAst[]
+    for ex in expr.args
+        if is_linenumber(ex)
+            continue
+        end
+        push!(body, visit(ex))
+    end
+    return CBlock(body)
+end
+
+visit_return(expr::Expr) = begin
+    @assert expr.head == :return
+    @assert length(expr.args) == 1
+    node = visit(expr.args[1])
+    return CReturn(node, node.ctype)
+end
+
 visit_assign(expr::Expr) = begin
     @assert expr.head == :(=)
-    target  = expr.args[1]
-    val     = expr.args[2]
-    return CAssign(target, val) 
+    target   = string(expr.args[1])
+    node     = visit(expr.args[2])
+    ret_type = node.ctype 
+    return CAssign(target, node, ret_type) 
 end
 
 #TODO: this only integer indices 
@@ -36,6 +63,34 @@ visit_index(expr::Expr) = begin
     return CIndex(expr.args[2])
 end
 
+const builtin_funcs = (Symbol => String) [:pow => "pow",
+                                          :powf => "pow"] 
+
+function call_builtin(fname, expr::Expr, ret_type::Type)
+    if !haskey(builtin_funcs, fname)
+        error("unknown builtin function $fname")
+    end
+    if fname === :pow || fname === :powf
+        arg1 = visit(expr.args[5])
+        arg2 = visit(expr.args[7])
+        ret_type = promote_type(arg1.ctype, arg2.ctype)
+        return CLRTCall("pow", [arg1, arg2], ret_type)  
+    end
+end
+
+visit_ccall(expr::Expr) = begin
+    @assert isa(expr.args[1], TopNode)
+    @assert expr.args[1].name == :ccall
+    # get function name
+    fname    = (expr.args[2].args[2])
+    @assert isa(fname, QuoteNode)
+    # get function return type
+    ret_type = eval(expr.args[3])
+    @assert isa(ret_type, DataType) 
+    return call_builtin(fname.value, expr, ret_type)
+end
+
+# builtins
 #ccall, cglobal, abs_float, add_float, add_int, and_int, ashr_int,
 #box, bswap_int, checked_fptosi, checked_fptoui, checked_sadd,
 #checked_smul, checked_ssub, checked_uadd, checked_umul, checked_usub,
@@ -70,11 +125,31 @@ const binary_builtins = (Symbol=>CAst)[
 const unary_builtins = (Symbol=>CAst)[
                                     :neg_float => CUSub(),
                                     :neg_int => CUSub()]
+
 visit_call(expr::Expr) = begin
-    @assert expr.head == :call
+    @assert expr.head === :call
     @assert isa(expr.args[1], TopNode)
     arg1 = first(expr.args)
-    if arg1.name == :box
+    
+    # low level ccall functions
+    if arg1.name === :ccall
+        return visit_ccall(expr)
+
+    # pow for integer exponents >= 4  
+    elseif arg1.name == :power_by_squaring
+        arg1 = visit(expr.args[2])
+        arg2 = visit(expr.args[3])
+        ret_type = promote_type(arg1.ctype, arg2.ctype)
+        if arg2.ctype <: Integer
+            return CLRTCall("pown", [arg1, arg2], ret_type) 
+        elseif arg2.ctype <: FloatingPoint
+            return CLFTCall("pow", [arg1, arg2], ret_type)
+        else
+            error("invalid code path in power_by_squaring")
+        end
+
+    # unbox boxed numbers
+    elseif arg1.name == :box
         # expr.args[2] is a type symbol name
         ret_type = eval(expr.args[2])
         @assert isa(ret_type, DataType)
@@ -85,38 +160,70 @@ visit_call(expr::Expr) = begin
         @assert promote_type(node.ctype, ret_type) == ret_type 
         if node.ctype === ret_type
             return node
+        elseif isa(node, CNum)
+            return CNum(node.val, ret_type)
         else
             return CTypeCast(node, ret_type)
         end
+
     # cast integer to float 
-    elseif arg1.name == :sitofp
-        @show arg1 
+    elseif arg1.name === :sitofp
         ty = expr.args[2]
-        @assert typeof(expr.args[3]) <: Integer
-        return CNum(expr.args[3], ty)
+        @assert ty <: Number
+        n = visit(expr.args[3])
+        if isa(n, Number)
+            return CNum(n, ty)
+        elseif isa(n, CNum)
+            return CNum(convert(ty, n.val), ty)
+        elseif isa(n, CName)
+            n.ctype = ty
+            return n
+        else
+            error("invalid code path in :sitofp")
+        end
+
     # cast signed /unsigned integers
-    elseif (arg1.name == :sext_int ||
-            arg1.name == :zext_int)
+    elseif (arg1.name === :sext_int ||
+            arg1.name === :zext_int)
         node = visit(expr.args[3]) 
         return node
+
+    # cast fp 
+    elseif arg1.name === :fpext
+        node = visit(expr.args[3])
+        return node
+    
+    # truncated fp casting
+    elseif arg1.name === :fptrunc
+        ret_type =  eval(expr.args[2])
+        @assert isa(ret_type, DataType)
+        node = visit(expr.args[3])
+        return CTypeCast(node, ret_type)
+    
+    # binary operations
     elseif haskey(binary_builtins, arg1.name) 
         op = binary_builtins[arg1.name]
         lnode = visit(expr.args[2])
         rnode = visit(expr.args[3])
         ret_type = promote_type(lnode.ctype, rnode.ctype)
-        #TODO: return type checking
-        return CBinOp(lnode, CAdd(), rnode, ret_type)
+        return CBinOp(lnode, op, rnode, ret_type)
+    
+    # unary operations
     elseif haskey(unary_builtins, arg1.name)
         op = unary_builtins[arg1.name]
         node = visit(expr.args[3])
         ret_type = node.ctype
         return CUnaryOp(op, node, ret_type)
     else
+        @show expr
         error("unhandled call function :$(arg1)")
     end
 end
 
-const visitors = (Symbol=>Function)[:(=)  => visit_assign,
-                                    :ref  => visit_index,
-                                    :call => visit_call]
+const visitors = (Symbol=>Function)[:block  => visit_block,
+                                    :body   => visit_block,
+                                    :return => visit_return,
+                                    :(=)    => visit_assign,
+                                    :ref    => visit_index,
+                                    :call   => visit_call]
 end

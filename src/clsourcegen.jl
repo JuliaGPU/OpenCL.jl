@@ -33,7 +33,13 @@ printind(io::IO, str::String, indent::Int) = begin
     print(io, "\t"^indent, str)
 end
 
-for (ty, cty) in [(:Int64, "long"),
+clprint(io::IO, node::String, indent=Int) = begin
+    printind(io, node, indent)
+end
+
+for (ty, cty) in [(:Float64, "double"),
+                  (:Float32, "float"),
+                  (:Int64, "long"),
                   (:Uint64, "unsigned long")]
     @eval begin
         clprint(io::IO, node::Type{$ty}, indent::Int64) = begin
@@ -42,11 +48,19 @@ for (ty, cty) in [(:Int64, "long"),
     end
 end
 
-clprint(io::IO, node::CLAst.CNum,  indent::Int64) = begin
-    printind(io, string(node.val), indent)
+clprint(io::IO, node::Float32, indent::Int) = begin
+    @show node
+    return node
 end
 
-clprint(io::IO, node::CLAst.CName, indent::Int64) = begin
+clprint(io::IO, node::CLAst.CNum,  indent::Int) = begin
+    val = sprint() do io
+        show(io, node.val)
+    end
+    printind(io, "$val", indent)
+end
+
+clprint(io::IO, node::CLAst.CName, indent::Int) = begin
     printind(io, string(node.id), indent)
 end
 
@@ -113,7 +127,10 @@ clprint(io::IO, node::CLAst.CStr, indent::Int) = begin
 end
 
 clprint(io::IO, node::CLAst.CNum, indent::Int) = begin
-    print(io, "$(node.val)")
+    val = sprint() do io
+        show(io, node.val)
+    end
+    print(io, "$val")
 end
 
 print_comma(io, i) = if i > 1; print(io, ", "); end
@@ -149,8 +166,24 @@ clprint(io::IO, node::CLAst.CSubscript, indent::Int) = begin
     printind(io, "$val[$idx]", indent)
 end
 
-clprint(io::IO, node::CLAst.CAttribute, indent::Int) = begin
-    printind(io, "$(node.val).$(node.attr)", indent)
+clprint(io::IO, node::CLRTCall, indent::Int)= begin
+    if node.args == nothing || length(node.args) == 0
+        printind(io, "$(node.name)()", indent)
+    else
+        printind(io, "$(node.name)(", indent)
+        nargs = length(node.args)
+        for (i, arg) in enumerate(node.args)
+            astr = sprint() do io
+                clprint(io, arg, 0)
+            end
+            if i < nargs
+                print(io, "$astr, ")
+            else
+                print(io, "$astr")
+            end
+        end
+        print(") ")
+    end
 end
 
 clprint(io::IO, node::CLAst.CPointerAttribute, indent::Int) = begin
@@ -198,7 +231,10 @@ clprint(io::IO, node::CLAst.CReturn, indent::Int) = begin
     if node.val == nothing
         printind(io, "return;\n", indent)
     else
-        printind(io, "return($(node.val));\n", indent)
+        val = sprint() do io
+            clprint(io, node.val, 0)
+        end
+        printind(io, "return($val)", indent)
     end
 end
 
