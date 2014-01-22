@@ -1,5 +1,9 @@
 module CLAst
 
+export CAst, CAssign, CBlock, CIndex, CTypeCast, CName, CNum, CBinOp,
+       CAdd, CLt, CLtE, CUnaryOp, CUAdd, CFunctionCall, CFor,
+       CSubscript
+
 abstract CAst 
 abstract CType
 
@@ -115,8 +119,10 @@ end
 type CName <: CAst
     id
     #ctx
-    #ctype
+    ctype
 end
+
+CName(id) = CName(id, nothing)
 
 type CBinOp <: CAst
     left

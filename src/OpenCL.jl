@@ -51,4 +51,7 @@ include("clast.jl")
 # Source Gen 
 include("clsourcegen.jl")
 
+# Compiler
+include("clcompiler.jl")
+
 end # module

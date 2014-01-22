@@ -1,6 +1,8 @@
 module CLSourceGen
 
-import ..CLAst 
+using ..CLAst 
+
+export clsource
 
 # see base/show.jl 292 for julia ast printing
 
@@ -262,4 +264,11 @@ clprint(io::IO, node::CLAst.CContinue, indent::Int) = begin
     printind(io, "continue;\n", indent)
 end
 
+function clsource(n::CAst)
+    return sprint() do io
+        clprint(io, n, 0)
+    end
 end 
+
+end
+
