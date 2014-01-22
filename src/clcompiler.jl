@@ -2,7 +2,6 @@ module CLCompiler
 
 using ..CLAst
 
-
 typealias CLType Any
 typealias CLInteger Union(Int16, Int32, Int64)
 
@@ -91,9 +90,10 @@ visit_call(expr::Expr) = begin
         end
     # cast integer to float 
     elseif arg1.name == :sitofp
+        @show arg1 
         ty = expr.args[2]
         @assert typeof(expr.args[3]) <: Integer
-        return CNum(convert(ty, expr.args[3]))
+        return CNum(expr.args[3], ty)
     # cast signed /unsigned integers
     elseif (arg1.name == :sext_int ||
             arg1.name == :zext_int)
