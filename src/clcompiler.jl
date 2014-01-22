@@ -44,8 +44,12 @@ end
 visit_return(expr::Expr) = begin
     @assert expr.head == :return
     @assert length(expr.args) == 1
-    node = visit(expr.args[1])
-    return CReturn(node, node.ctype)
+    if expr.args[1] != nothing
+        node = visit(expr.args[1])
+        return CReturn(node, node.ctype)
+    else
+        return CReturn(nothing, Void)
+    end
 end
 
 visit_assign(expr::Expr) = begin
@@ -220,7 +224,52 @@ visit_call(expr::Expr) = begin
     end
 end
 
-const visitors = (Symbol=>Function)[:block  => visit_block,
+pointee_type{T}(::Type{Ptr{T}}) = T
+
+visit_lambda(expr::Expr) = begin
+    @assert expr.head === :lambda
+
+    # parse variable declarations
+    fargs = Set{Symbol}(expr.args[1]...)
+    ctx = expr.args[2]
+    localvars = Set{Symbol}(ctx[1]...)
+    vartypes  = (Symbol => Type)[]
+    for var in ctx[2]
+        vartypes[var[1]] = var[2]
+    end
+    
+    # parse args
+    args = CAst[]
+    for arg in fargs
+        ty = vartypes[arg]
+        if ty <: Number 
+            push!(args, CTypeDecl(string(arg), ty))
+        else ty <: Ptr
+            push!(args, CPtrDecl(string(arg), ty))
+        end
+    end
+
+    # parse body
+    blocknode = visit(expr.args[end])
+    
+    # return type
+    local ret_type::Type
+    if isa(blocknode.body[end], CReturn)
+        ret_type = blocknode.body[end].ctype
+    else
+        ret_type = Ptr{Void}
+    end
+ 
+    @show args
+    @show typeof(localvars)
+    @show vartypes
+    @show blocknode
+    @show ret_type
+    return CFunctionDef("testx", args, blocknode, ret_type) 
+end
+
+const visitors = (Symbol=>Function)[:lambda => visit_lambda,
+                                    :block  => visit_block,
                                     :body   => visit_block,
                                     :return => visit_return,
                                     :(=)    => visit_assign,

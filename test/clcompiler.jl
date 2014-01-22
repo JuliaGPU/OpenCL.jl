@@ -16,6 +16,11 @@ function test2(x)
     return y ^ 10
 end
 
+function test3(x, y)
+    z = x + y
+    return 
+end
+
 facts("Builtins") do
     for ty in (:Int8, :Uint8, :Int16, :Uint16, :Int32, :Uint32) #:Int64, :Uint64)
         @eval begin
@@ -73,15 +78,23 @@ facts("Builtins") do
         end
     end
 
+    # cast floating point values
     top_expr = first(code_typed(test2, (Float64,)))
     expr = top_expr.args[end].args[2].args[2]
-    @fact visit(expr) => CBinOp(CName("x", Float64),
+    @fact visit(expr) => CBinOp(CTypeCast(CName("x", Float64), Float32),
                                 CAdd(),
-                                CNum(2.0),
-                                Float64)
-    @time clsource(visit(expr))
-    expr = top_expr.args[end].args[2]
-    #@fact clsource(visit(expr)) => "y = (x + 2.0)"
+                                CNum(2.0, Float32),
+                                Float32)
+    @fact clsource(visit(expr)) => "(((float) x) + 2.0f0)"
+
+    # compile block ast nodes
     expr = top_expr.args[end]
-    @time clsource(visit(expr))
+    @fact clsource(visit(expr)) => "{{\n\ty = (((float) x) + 2.0f0);\n\treturn(pow(y, 10.0f0);\n}}\n"
+
+    # compile lambda static functions
+    expr = top_expr 
+    @show clsource(visit(expr))
+
+    expr = first(code_typed(test3, (Float32, Float32)))
+    @show clsource(visit(expr))
 end

@@ -33,11 +33,28 @@ printind(io::IO, str::String, indent::Int) = begin
     print(io, "\t"^indent, str)
 end
 
+pointee_type{T}(::Type{Ptr{T}}) = T
+
+clprint{T}(io::IO, ::Ptr{T}, indent=Int) = begin
+    ty = sprint() do io
+        clprint(io, T, 0)
+    end
+    printind(io, "($ty *) ", indent)
+end
+
+clprint{T}(io::IO, node::Type{Ptr{T}}, indent=Int) = begin
+    ty = sprint() do io
+        clprint(io, T, 0)
+    end
+    printind(io, "($ty *)", indent)
+end
+
 clprint(io::IO, node::String, indent=Int) = begin
     printind(io, node, indent)
 end
 
-for (ty, cty) in [(:Float64, "double"),
+for (ty, cty) in [(:None, "void"),
+                  (:Float64, "double"),
                   (:Float32, "float"),
                   (:Int64, "long"),
                   (:Uint64, "unsigned long")]
@@ -215,21 +232,31 @@ clprint(io::IO, node::CLAst.CFunctionForwardDec, indent::Int) = begin
 end
 
 clprint(io::IO, node::CLAst.CFunctionDef, indent::Int) = begin
-    for decl in node.decl_list
-        printind(io, "$decl\n", indent)
+    #TODO: decl list only for kernels?
+    #for decl in node.decl_list
+    #    printind(io, "$decl\n", indent)
+    #end
+    ret_type = sprint() do io
+        clprint(io, node.ctype, 0)
     end
-    printind(io, "$(node.return_type) $(node.name)($(node.args))", indent)
-    printind(io, "{{\n", indent)
-    for stmnt in node.body
-        clprint(io, stmnt, indent + 1)
+    printind(io, "$ret_type $(node.name)(", indent)
+    nargs = length(node.args)
+    for (i, arg) in enumerate(node.args)
+        a = sprint() do io
+            clprint(io, arg, 0)
+        end
+        if i < nargs
+            print(io, "$a, ")
+        else
+            print(io, "$a)")
+        end
     end
-    printind(io, "\n", indent)
-    printind(io, "}}\n", indent)
+    clprint(io, node.body, indent)
 end
 
 clprint(io::IO, node::CLAst.CReturn, indent::Int) = begin
     if node.val == nothing
-        printind(io, "return;\n", indent)
+        printind(io, "return", indent)
     else
         val = sprint() do io
             clprint(io, node.val, 0)
@@ -238,7 +265,14 @@ clprint(io::IO, node::CLAst.CReturn, indent::Int) = begin
     end
 end
 
-clprint(io::IO, node::CLAst.CVarDec, indent::Int) = begin
+clprint(io::IO, node::CLAst.CTypeDecl, indent::Int) = begin
+    ty = sprint() do io
+        clprint(io, node.ctype, 0)
+    end
+    printind(io, "(($ty) $(node.name))", indent)
+end
+
+clprint(io::IO, node::CLAst.CVarDecl, indent::Int) = begin
     printind(io, "$(node.ctype) $(node.id);\n", indent)
 end
 
