@@ -22,6 +22,7 @@ type COr    <: CAst end
 
 #TODO: 
 type CIndex <: CAst
+    val
 end
 
 #TODO: 
@@ -137,8 +138,8 @@ end
 type CSubscript
     val
     slice
-    ctx
-    ctype
+    #ctx
+    #ctype
 end
 
 abstract CAstAttribute 

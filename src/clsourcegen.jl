@@ -27,6 +27,14 @@ Base.show(io::IO, node::CLAst.COr)  = print(io, "||")
 Base.show(io::IO, node::CLAst.CNum)  = print(io, string(node.val))
 Base.show(io::IO, node::CLAst.CName) = print(io, string(node.id))
 
+clprint(io::IO, node::CLAst.CNum,  indent::Int64) = begin
+    printind(io, string(node.val), indent)
+end
+
+clprint(io::IO, node::CLAst.CName, indent::Int64) = begin
+    printind(io, string(node.id), indent)
+end
+
 clprint(io::IO, node::CLAst.CBoolOp, indent::Int) = begin
     print(io, "(")
     print(io, "$(node.values[1])")
@@ -58,10 +66,13 @@ clprint(io::IO, node::CLAst.CBlock, indent::Int) = begin
 end
 
 clprint(io::IO, node::CLAst.CAssign, indent::Int) = begin
+    target = sprint() do io
+        clprint(io, node.target, 0)
+    end
     val = sprint() do io
         clprint(io, node.val, 0)
     end
-    printind(io, "$(node.target) = $val", indent)
+    printind(io, "$target = $val", indent)
 end
 
 clprint(io::IO, node::CLAst.CAugAssignExpr, indent::Int) = begin
@@ -95,11 +106,17 @@ clprint(io::IO, node::CLAst.CLKernel, indent::Int) = begin
 end
 
 clprint(io::IO, node::CLAst.CIndex, indent::Int) = begin
-    print(io, "$(node.val)")
+    val = sprint() do io
+        clprint(io, node.val, 0)
+    end
+    printind(io, "$val", indent)
 end
 
 clprint(io::IO, node::CLAst.CSubscript, indent::Int) = begin
-    print(io, "$(node.val)[$(node.slice)")
+    idx = sprint() do io
+        clprint(io, node.slice, 0)
+    end
+    print(io, "$(node.val)[$idx]")
 end
 
 clprint(io::IO, node::CLAst.CAttribute, indent::Int) = begin

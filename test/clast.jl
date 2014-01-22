@@ -48,4 +48,13 @@ facts("Generation") do
         clprint(io, ast, 0)
     end
     @fact code => "for (i = 0; (i <= 10); (++(i))) {{\n\ti = 1;\n}}\n"
+
+
+    ast = clast.CAssign(clast.CSubscript(clast.CName("test"),
+                                         clast.CIndex(clast.CNum(1))),
+                        clast.CNum(10))
+    code = sprint() do io
+        clprint(io, ast, 0)
+    end
+    @fact code => "test[1] = 10"
 end
