@@ -259,12 +259,7 @@ visit_lambda(expr::Expr) = begin
     else
         ret_type = Ptr{Void}
     end
- 
-    @show args
-    @show typeof(localvars)
-    @show vartypes
-    @show blocknode
-    @show ret_type
+    #TODO: function name?
     return CFunctionDef("testx", args, blocknode, ret_type) 
 end
 
