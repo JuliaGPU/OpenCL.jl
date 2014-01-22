@@ -7,22 +7,29 @@ import OpenCL.CLSourceGen
 const clprint = OpenCL.CLSourceGen.clprint
 
 facts("Generation") do
-    ast = clast.CBinOp(clast.CNum{Int64}(1), clast.CAdd(), 
-                       clast.CNum{Int64}(1))
+    ast = clast.CBinOp(clast.CNum(1), 
+                       clast.CAdd(), 
+                       clast.CNum(1),
+                       Int64)
     code = sprint() do io
         clprint(io, ast, 0)
     end 
     @fact code => "(1 + 1)"
 
-    ast = clast.CUnaryOp(clast.CUAdd(), clast.CName("foo"))
+    ast = clast.CUnaryOp(clast.CUAdd(), 
+                         clast.CName("foo"), 
+                         Int64)
     code = sprint() do io
         clprint(io, ast, 0)
     end 
     @fact code => "(++(foo))"
 
     ast = clast.CAssign(clast.CName("foo"), 
-                        clast.CBinOp(clast.CNum{Int64}(1), clast.CAdd(),
-                                     clast.CNum{Int64}(1)))
+                        clast.CBinOp(clast.CNum(1),
+                                     clast.CAdd(),
+                                     clast.CNum(1),
+                                     Int64),
+                       Int64)
     code = sprint() do io
         clprint(io, ast, 0)
     end 
@@ -36,14 +43,18 @@ facts("Generation") do
     @fact code => "{{\n\tfoo();\n\tbar();\n}}\n"
 
     ast = clast.CFor(clast.CAssign(clast.CName("i"), 
-                                   clast.CNum{Int64}(0)),
+                                   clast.CNum(0),
+                                   Int64),
                      clast.CBinOp(clast.CName("i"), 
                                   clast.CLtE(), 
-                                  clast.CNum{Int64}(10)),
+                                  clast.CNum(10),
+                                  Int64),
                      clast.CUnaryOp(clast.CUAdd(),
-                                    clast.CName("i")),
+                                    clast.CName("i"),
+                                    Int64),
                      clast.CBlock([clast.CAssign(clast.CName("i"),
-                                                 clast.CNum{Int64}(1))]))
+                                                 clast.CNum(1),
+                                                 Int64)]))
     code = sprint() do io
         clprint(io, ast, 0)
     end
@@ -51,8 +62,9 @@ facts("Generation") do
 
 
     ast = clast.CAssign(clast.CSubscript(clast.CName("test"),
-                                         clast.CIndex(clast.CNum{Int64}(1))),
-                        clast.CNum{Int64}(10))
+                                         clast.CIndex(clast.CNum(1))),
+                        clast.CNum(10),
+                        Int64)
     code = sprint() do io
         clprint(io, ast, 0)
     end

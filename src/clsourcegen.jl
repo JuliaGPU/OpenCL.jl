@@ -27,6 +27,10 @@ Base.show(io::IO, node::CLAst.COr)  = print(io, "||")
 Base.show(io::IO, node::CLAst.CNum)  = print(io, string(node.val))
 Base.show(io::IO, node::CLAst.CName) = print(io, string(node.id))
 
+printind(io::IO, str::String, indent::Int) = begin
+    print(io, "\t"^indent, str)
+end
+
 clprint(io::IO, node::CLAst.CNum,  indent::Int64) = begin
     printind(io, string(node.val), indent)
 end
@@ -113,26 +117,25 @@ clprint(io::IO, node::CLAst.CIndex, indent::Int) = begin
 end
 
 clprint(io::IO, node::CLAst.CSubscript, indent::Int) = begin
+    val = sprint() do io
+        clprint(io, node.val, 0)
+    end
     idx = sprint() do io
         clprint(io, node.slice, 0)
     end
-    print(io, "$(node.val)[$idx]")
+    printind(io, "$val[$idx]", indent)
 end
 
 clprint(io::IO, node::CLAst.CAttribute, indent::Int) = begin
-    print(io, "$(node.val).$(node.attr)")
+    printind(io, "$(node.val).$(node.attr)", indent)
 end
 
 clprint(io::IO, node::CLAst.CPointerAttribute, indent::Int) = begin
-    print(io, "$(node.val)-->$(node.attr)")
+    printind(io, "$(node.val)-->$(node.attr)", indent)
 end
 
 clprint(io::IO, node::CLAst.CIfExp, indent::Int) = begin
-    print(io, "$(node.test) ? $(node.body) : $(node.orelse)")
-end
-
-printind(io::IO, str::String, indent::Int) = begin
-    print(io, "\t"^indent, str)
+    printind(io, "$(node.test) ? $(node.body) : $(node.orelse)", indent)
 end
 
 clprint(io::IO, node::CLAst.CCompare, indent::Int) = begin

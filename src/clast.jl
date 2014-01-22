@@ -23,7 +23,10 @@ type COr    <: CAst end
 #TODO: 
 type CIndex <: CAst
     val
+    ctype
 end
+
+CIndex(val) = CIndex(val, Csize_t)
 
 #TODO: 
 type CLModule <: CAst
@@ -70,16 +73,18 @@ end
 
 type CVarDec <: CAst
     id
-    ctype
+    ctype::Type
 end
 
 type CNum{T} <: CAst
     val::T
+    ctype::Type{T}
 end
+CNum{T}(x::T) = CNum{T}(x, T)
 
 type CStr <: CAst
     val::String
-    ctype
+    ctype::Ptr{Cchar}
 end
 
 type CCall <: CAst
@@ -117,13 +122,13 @@ type CBinOp <: CAst
     left
     op
     right
-    #ctype
+    ctype::Type
 end
 
 type CUnaryOp <: CAst
     op
     operand
-    #ctype
+    ctype
 end
 
 type CKeyword <: CAst
@@ -196,6 +201,7 @@ end
 type CAssign <: CAst
     target
     val
+    ctype
 end
 
 type CAssignExpr
