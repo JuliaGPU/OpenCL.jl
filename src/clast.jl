@@ -7,6 +7,18 @@ export CAst, CAssign, CBlock, CIndex, CTypeCast, CName, CNum, CBinOp,
 abstract CAst 
 abstract CType
 
+Base.isequal(a1::CAst, a2::CAst) = begin
+    if typeof(a1) != typeof(a2)
+        return false
+    end
+    for field in names(a1)
+        if getfield(a1, field) != getfield(a2, field)
+            return false
+        end
+    end
+    return true
+end
+
 type CMult  <: CAst end
 type CAdd   <: CAst end
 type CUAdd  <: CAst end

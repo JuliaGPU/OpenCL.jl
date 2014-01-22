@@ -18,7 +18,7 @@ end
 
 visit(n::SymbolNode) = begin
     #TODO: symbol with no type
-    return CName(n.name, n.typ)
+    return CName(string(n.name), n.typ)
 end
 
 visit(n::Number) = begin
@@ -59,7 +59,6 @@ visit_call(expr::Expr) = begin
         lnode = visit(expr.args[2])
         rnode = visit(expr.args[3])
         ret_type = promote_type(lnode.ctype, rnode.ctype)
-        @show ret_type
         if !(ret_type <: CLInteger)
             error("invalid return type for :add_int")
         end
