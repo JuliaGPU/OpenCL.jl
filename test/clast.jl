@@ -42,9 +42,10 @@ facts("Generation") do
                                   clast.CNum{Int64}(10)),
                      clast.CUnaryOp(clast.CUAdd(),
                                     clast.CName("i")),
-                     clast.CBlock([]))
+                     clast.CBlock([clast.CAssign(clast.CName("i"),
+                                                 clast.CNum{Int64}(1))]))
     code = sprint() do io
         clprint(io, ast, 0)
     end
-    @fact code => "for (i = 0; (i <= 10); (++(i))) {{\n}}\n"
+    @fact code => "for (i = 0; (i <= 10); (++(i))) {{\n\ti = 1;\n}}\n"
 end

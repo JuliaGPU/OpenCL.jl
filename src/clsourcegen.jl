@@ -27,8 +27,6 @@ Base.show(io::IO, node::CLAst.COr)  = print(io, "||")
 Base.show(io::IO, node::CLAst.CNum)  = print(io, string(node.val))
 Base.show(io::IO, node::CLAst.CName) = print(io, string(node.id))
 
-Base.show(io::IO, node::CLAst.CBinOp) = clprint(io, node, 0)
-
 clprint(io::IO, node::CLAst.CBoolOp, indent::Int) = begin
     print(io, "(")
     print(io, "$(node.values[1])")
@@ -60,7 +58,10 @@ clprint(io::IO, node::CLAst.CBlock, indent::Int) = begin
 end
 
 clprint(io::IO, node::CLAst.CAssign, indent::Int) = begin
-    print(io, "$(node.target) = $(node.val)")
+    val = sprint() do io
+        clprint(io, node.val, 0)
+    end
+    printind(io, "$(node.target) = $val", indent)
 end
 
 clprint(io::IO, node::CLAst.CAugAssignExpr, indent::Int) = begin
@@ -180,8 +181,7 @@ clprint(io::IO, node::CLAst.CFor, indent::Int) = begin
     increment = sprint() do io
         clprint(io, node.increment, 0)
     end
-    printind(io, "for ($init; $condition; $increment) {{\n", 
-             indent)
+    printind(io, "for ($init; $condition; $increment) {{\n", indent)
     for stmnt in node.block.body
         clprint(io, stmnt, indent + 1)
         print(io, ";\n") 
