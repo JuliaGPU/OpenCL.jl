@@ -1,7 +1,44 @@
-module CAst
+module CLAst
 
 abstract CAst 
 abstract CType
+
+type CMult  <: CAst end
+type CAdd   <: CAst end
+type CUAdd  <: CAst end
+type CSub   <: CAst end
+type CUSub  <: CAst end
+type CDiv   <: CAst end
+type CMod   <: CAst end
+type CNot   <: CAst end
+type CLt    <: CAst end 
+type CGt    <: CAst end
+type CLtE   <: CAst end
+type CGtE   <: CAst end
+type CEq    <: CAst end
+type CNotEq <: CAst end
+type CAnd   <: CAst end
+type COr    <: CAst end 
+
+#TODO: 
+type CIndex <: CAst
+end
+
+#TODO: 
+type CLModule <: CAst
+end
+
+#TODO: 
+type CExpr <: CAst
+end
+
+type CFunctionCall <: CAst
+    name
+end
+
+type CBlock <: CAst
+    body
+end
 
 type CTypeCast <: CAst
     value
@@ -35,7 +72,7 @@ type CVarDec <: CAst
     ctype
 end
 
-type CNumber{T} <: CAst
+type CNum{T} <: CAst
     val::T
 end
 
@@ -71,21 +108,21 @@ end
 
 type CName <: CAst
     id
-    ctx
-    ctype
+    #ctx
+    #ctype
 end
 
 type CBinOp <: CAst
     left
     op
     right
-    ctype
+    #ctype
 end
 
 type CUnaryOp <: CAst
     op
     operand
-    ctype
+    #ctype
 end
 
 type CKeyword <: CAst
@@ -120,6 +157,12 @@ type CPointerAttribute <: CAstAttribute
     ctype
 end
 
+type CIf
+    test
+    body
+    orelse
+end
+
 type CIfExp
     test
     body
@@ -147,8 +190,8 @@ type CStruct <: CAst
     decl_list
 end
 
-type CAssign
-    targets
+type CAssign <: CAst
+    target
     val
 end
 
@@ -162,7 +205,7 @@ type CAugAssignExpr
     target
      op
     val
-    ctype
+    #ctype
 end
 
 type CArray

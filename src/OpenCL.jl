@@ -45,5 +45,10 @@ include("kernel.jl")
 # Util functions 
 include("util.jl")
 
+# CLAst
+include("clast.jl")
+
+# Source Gen 
+include("clsourcegen.jl")
 
 end # module
