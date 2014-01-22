@@ -51,8 +51,8 @@ facts("Generation") do
 
 
     ast = clast.CAssign(clast.CSubscript(clast.CName("test"),
-                                         clast.CIndex(clast.CNum(1))),
-                        clast.CNum(10))
+                                         clast.CIndex(clast.CNum{Int64}(1))),
+                        clast.CNum{Int64}(10))
     code = sprint() do io
         clprint(io, ast, 0)
     end
