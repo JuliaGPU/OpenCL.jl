@@ -348,11 +348,11 @@ clprint(io::IO, node::CLAst.CGroup, indent::Int) = begin
 end
 
 clprint(io::IO, node::CLAst.CBreak, indent::Int) = begin
-    printind(io, "break;\n", indent)
+    printind(io, "break", indent)
 end
 
 clprint(io::IO, node::CLAst.CContinue, indent::Int) = begin
-    printind(io, "continue;\n", indent)
+    printind(io, "continue", indent)
 end
 
 function clsource(n::CAst)
