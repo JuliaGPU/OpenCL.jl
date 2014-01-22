@@ -1,7 +1,8 @@
 module CLAst
 
 export CAst, CAssign, CBlock, CIndex, CTypeCast, CName, CNum, CBinOp,
-       CAdd, CLt, CLtE, CUnaryOp, CUAdd, CFunctionCall, CFor,
+       CMult, CAdd, CLt, CLtE, CDiv, CEq, CNotEq, CNot, COr, CMod,
+       CUSub, CUnaryOp, CUAdd, CFunctionCall, CFor,
        CSubscript
 
 abstract CAst 
@@ -97,6 +98,7 @@ type CNum{T} <: CAst
     ctype::Type{T}
 end
 CNum{T}(x::T) = CNum{T}(x, T)
+CNum(x, T) = CNum{T}(convert(T, x), T)
 
 type CStr <: CAst
     val::String

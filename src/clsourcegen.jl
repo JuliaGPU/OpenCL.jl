@@ -33,6 +33,15 @@ printind(io::IO, str::String, indent::Int) = begin
     print(io, "\t"^indent, str)
 end
 
+for (ty, cty) in [(:Int64, "long"),
+                  (:Uint64, "unsigned long")]
+    @eval begin
+        clprint(io::IO, node::Type{$ty}, indent::Int64) = begin
+            printind(io, $("$cty"), indent)
+        end
+    end
+end
+
 clprint(io::IO, node::CLAst.CNum,  indent::Int64) = begin
     printind(io, string(node.val), indent)
 end
@@ -51,7 +60,13 @@ clprint(io::IO, node::CLAst.CBoolOp, indent::Int) = begin
 end
 
 clprint(io::IO, node::CLAst.CBinOp, indent::Int) = begin
-    printind(io, "($(node.left) $(node.op) $(node.right))", indent)
+    left = sprint() do io
+        clprint(io, node.left, 0)
+    end
+    right = sprint() do io
+        clprint(io, node.right, 0)
+    end
+    printind(io, "($left $(node.op) $right)", indent)
 end
 
 clprint(io::IO, node::CLAst.CUnaryOp, indent::Int) = begin
@@ -104,7 +119,13 @@ end
 print_comma(io, i) = if i > 1; print(io, ", "); end
 
 clprint(io::IO, node::CLAst.CTypeCast, indent::Int) = begin
-    print(io, "($(node.ctype)) $(node.value)")
+    ty = sprint() do io
+        clprint(io, node.ctype, indent)
+    end
+    val = sprint() do io
+        clprint(io, node.value, indent)
+    end
+    printind(io, "(($ty) $val)", indent)
 end
 
 clprint(io::IO, node::CLAst.CLKernel, indent::Int) = begin
