@@ -181,9 +181,11 @@ type CFor <: CAst
     init
     condition
     increment
-    body
+    block
     orelse
 end
+
+CFor(init, cond, inc, body) = CFor(init, cond, inc, body, nothing)
 
 type CStruct <: CAst
     id

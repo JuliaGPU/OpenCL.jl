@@ -56,7 +56,7 @@ clprint(io::IO, node::CLAst.CBlock, indent::Int) = begin
         clprint(io, stmnt, indent + 1)
         print(io, ";\n")
     end
-    printind(io, "}}", indent)
+    printind(io, "}}\n", indent)
 end
 
 clprint(io::IO, node::CLAst.CAssign, indent::Int) = begin
@@ -171,11 +171,21 @@ clprint(io::IO, node::CLAst.CStruct, indent::Int) = begin
 end
 
 clprint(io::IO, node::CLAst.CFor, indent::Int) = begin
-    printind(io, "for ($(node.init); $(node.condition); $(node.increment)) {{\n", indent)
-    for stmnt in node.body
-        clprint(io, stmnt, indent + 1)
+    init = sprint() do io
+        clprint(io, node.init, 0)
     end
-    printind(io, "\n", indent + 1)
+    condition = sprint() do io
+        clprint(io, node.condition, 0)
+    end
+    increment = sprint() do io
+        clprint(io, node.increment, 0)
+    end
+    printind(io, "for ($init; $condition; $increment) {{\n", 
+             indent)
+    for stmnt in node.block.body
+        clprint(io, stmnt, indent + 1)
+        print(io, ";\n") 
+    end
     printind(io, "}}\n", indent)
 end
 

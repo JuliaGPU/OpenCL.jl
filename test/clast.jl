@@ -33,5 +33,18 @@ facts("Generation") do
     code = sprint() do io
         clprint(io, ast, 0)
     end 
-    @fact code => "{{\n\tfoo();\n\tbar();\n}}"
+    @fact code => "{{\n\tfoo();\n\tbar();\n}}\n"
+
+    ast = clast.CFor(clast.CAssign(clast.CName("i"), 
+                                   clast.CNum{Int64}(0)),
+                     clast.CBinOp(clast.CName("i"), 
+                                  clast.CLtE(), 
+                                  clast.CNum{Int64}(10)),
+                     clast.CUnaryOp(clast.CUAdd(),
+                                    clast.CName("i")),
+                     clast.CBlock([]))
+    code = sprint() do io
+        clprint(io, ast, 0)
+    end
+    @fact code => "for (i = 0; (i <= 10); (++(i))) {{\n}}\n"
 end
