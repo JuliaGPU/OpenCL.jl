@@ -29,6 +29,10 @@ is_linenumber(ex::LineNumberNode) = true
 is_linenumber(ex::Expr) = ex.head === :line
 is_linenumber(ex) = false
 
+ipointee_type{T}(::Type{Ptr{T}}) = T
+array_type{T, N}(::Type{Array{T, N}}) = T
+
+
 visit_block(expr::Expr) = begin
     @assert expr.head == :body || expr.head == :block
     body = CAst[]
@@ -58,6 +62,15 @@ visit_assign(expr::Expr) = begin
     node     = visit(expr.args[2])
     ret_type = node.ctype 
     return CAssign(target, node, ret_type) 
+end
+
+visit_arrayset(expr::Expr) = begin
+    @assert expr.args[1] === :arrayset
+    target = visit(expr.args[2])
+    val = visit(expr.args[3])
+    idx = visit(expr.args[4])
+    return CAssign(CSubscript(target, CIndex(idx)),
+                   val, target.ctype)
 end
 
 #TODO: this only integer indices 
@@ -132,13 +145,16 @@ const unary_builtins = (Symbol=>CAst)[
 
 visit_call(expr::Expr) = begin
     @assert expr.head === :call
-    @assert isa(expr.args[1], TopNode)
     arg1 = first(expr.args)
+    if arg1 === :arrayset
+        return visit_arrayset(expr)
+    end
+    @assert isa(expr.args[1], TopNode)
     
     # low level ccall functions
     if arg1.name === :ccall
         return visit_ccall(expr)
-
+    
     # pow for integer exponents >= 4  
     elseif arg1.name == :power_by_squaring
         arg1 = visit(expr.args[2])
@@ -224,8 +240,6 @@ visit_call(expr::Expr) = begin
     end
 end
 
-pointee_type{T}(::Type{Ptr{T}}) = T
-
 visit_lambda(expr::Expr) = begin
     @assert expr.head === :lambda
 
@@ -237,28 +251,58 @@ visit_lambda(expr::Expr) = begin
     for var in ctx[2]
         vartypes[var[1]] = var[2]
     end
-    
+
     # parse args
     args = CAst[]
     for arg in fargs
         ty = vartypes[arg]
         if ty <: Number 
             push!(args, CTypeDecl(string(arg), ty))
-        else ty <: Ptr
+        elseif ty <: Ptr
             push!(args, CPtrDecl(string(arg), ty))
+        elseif ty <: Array
+            T = array_type(ty)
+            push!(args, CPtrDecl(string(arg), Ptr{T}))
+        else
+            error("unhandled code path in visit_lambda parse_args")
+        end
+    end
+    reverse!(args)
+
+    # predeclare local variables
+    vars = CAst[]
+    for var in localvars 
+        ty = vartypes[var]
+        if ty <: Number
+            push!(vars, CVarDecl(string(var), ty))
+        elseif ty <: Ptr
+            push!(vars, CPtrDecl(string(var), ty))
+        elseif ty <: Array
+            #TODO: arrays need to be fixed size
+            push!(vars, CArrayDecl(string(var), ty))
+        else
+            error("unknown code path in visit_lambda loc vars")
         end
     end
 
     # parse body
     blocknode = visit(expr.args[end])
+
+    # prepend variable declarations in body
+    prepend!(blocknode.body, reverse!(vars))
     
     # return type
     local ret_type::Type
     if isa(blocknode.body[end], CReturn)
         ret_type = blocknode.body[end].ctype
+        if ret_type <: Array
+            T = array_type(ret_type)
+            ret_type = Ptr{T}
+        end
     else
         ret_type = Ptr{Void}
     end
+
     #TODO: function name?
     return CFunctionDef("testx", args, blocknode, ret_type) 
 end

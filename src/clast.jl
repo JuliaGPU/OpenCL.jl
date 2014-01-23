@@ -3,7 +3,8 @@ module CLAst
 export CAst, CAssign, CBlock, CIndex, CTypeCast, CName, CNum, CBinOp,
        CMult, CAdd, CLt, CLtE, CDiv, CEq, CNotEq, CNot, COr, CMod,
        CUSub, CUnaryOp, CUAdd, CFunctionCall, CFor, CReturn,
-       CSubscript, CLRTCall, CTypeDecl, CFunctionDef
+       CSubscript, CLRTCall, CTypeDecl, CFunctionDef,
+       CPtrDecl, CVarDecl, CArrayDecl
 
 abstract CAst 
 abstract CType
@@ -96,17 +97,17 @@ type CTypeName <: CAst
 end
 
 type CPtrDecl <:CAst
-    id
+    name
     ctype::Type
 end
 
 type CArrayDecl <: CAst
-    id
+    name::String
     ctype::Type
 end
 
 type CVarDecl <: CAst
-    id
+    name::String
     ctype::Type
 end
 

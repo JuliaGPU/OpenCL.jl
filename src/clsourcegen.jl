@@ -199,7 +199,7 @@ clprint(io::IO, node::CLRTCall, indent::Int)= begin
                 print(io, "$astr")
             end
         end
-        print(") ")
+        print(io, ")")
     end
 end
 
@@ -248,7 +248,7 @@ clprint(io::IO, node::CLAst.CFunctionDef, indent::Int) = begin
         if i < nargs
             print(io, "$a, ")
         else
-            print(io, "$a)")
+            print(io, "$a) ")
         end
     end
     clprint(io, node.body, indent)
@@ -265,6 +265,13 @@ clprint(io::IO, node::CLAst.CReturn, indent::Int) = begin
     end
 end
 
+clprint(io::IO, node::CLAst.CPtrDecl, indent::Int) = begin
+    ty = sprint() do io
+        clprint(io, node.ctype, 0)
+    end
+    printind(io, "($ty $(node.name))", indent)
+end
+
 clprint(io::IO, node::CLAst.CTypeDecl, indent::Int) = begin
     ty = sprint() do io
         clprint(io, node.ctype, 0)
@@ -272,8 +279,12 @@ clprint(io::IO, node::CLAst.CTypeDecl, indent::Int) = begin
     printind(io, "(($ty) $(node.name))", indent)
 end
 
+#TODO: Array Decl
 clprint(io::IO, node::CLAst.CVarDecl, indent::Int) = begin
-    printind(io, "$(node.ctype) $(node.id);\n", indent)
+    ty = sprint() do io 
+        clprint(io, node.ctype, 0)
+    end
+    printind(io, "$ty $(node.name)", indent)
 end
 
 clprint(io::IO, node::CLAst.CStruct, indent::Int) = begin

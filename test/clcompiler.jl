@@ -3,10 +3,10 @@ using FactCheck
 using OpenCL.CLAst
 
 using OpenCL.CLSourceGen
-
 import OpenCL.CLCompiler
 const visit = OpenCL.CLCompiler.visit
 
+# test functions
 function test1(x)
     return x += 1
 end
@@ -19,6 +19,12 @@ end
 function test3(x, y)
     z = x + y
     return 
+end
+
+function test4(x::Array{Float64, 1}, y)
+    gid = 1
+    x[gid] = y
+    return x
 end
 
 facts("Builtins") do
@@ -89,12 +95,15 @@ facts("Builtins") do
 
     # compile block ast nodes
     expr = top_expr.args[end]
-    @fact clsource(visit(expr)) => "{{\n\ty = (((float) x) + 2.0f0);\n\treturn(pow(y, 10.0f0);\n}}\n"
+    @fact clsource(visit(expr)) => "{{\n\ty = (((float) x) + 2.0f0);\n\treturn(pow(y, 10.0f0));\n}}\n"
 
     # compile lambda static functions
     expr = top_expr 
-    @show clsource(visit(expr))
+    #@show clsource(visit(expr))
 
     expr = first(code_typed(test3, (Float32, Float32)))
-    @show clsource(visit(expr))
+    #@show clsource(visit(expr))
+    expr = first(code_typed(test4, (Array{Float64,1},Float32)))
+    str = clsource(visit(expr))
+    println(str)
 end
