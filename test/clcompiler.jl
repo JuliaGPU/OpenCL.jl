@@ -5,7 +5,7 @@ using OpenCL.CLAst
 using OpenCL.CLSourceGen
 import OpenCL.CLCompiler
 const visit = OpenCL.CLCompiler.visit
-
+const rmline = OpenCL.CLCompiler.rm_linenum!
 # test functions
 function test1(x)
     return x += 1
@@ -104,6 +104,6 @@ facts("Builtins") do
     expr = first(code_typed(test3, (Float32, Float32)))
     #@show clsource(visit(expr))
     expr = first(code_typed(test4, (Array{Float64,1},Float32)))
-    str = clsource(visit(expr))
-    println(str)
+    println(clsource(visit(expr)))
+
 end

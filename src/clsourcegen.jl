@@ -26,6 +26,8 @@ Base.show(io::IO, node::CLAst.CNotEq) = print(io, "!=")
 Base.show(io::IO, node::CLAst.CAnd) = print(io, "&&")
 Base.show(io::IO, node::CLAst.COr)  = print(io, "||")
 
+#TODO: bit shift operations
+
 Base.show(io::IO, node::CLAst.CNum)  = print(io, string(node.val))
 Base.show(io::IO, node::CLAst.CName) = print(io, string(node.id))
 

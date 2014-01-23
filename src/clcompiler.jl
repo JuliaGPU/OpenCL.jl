@@ -5,7 +5,25 @@ using ..CLAst
 typealias CLType Any
 typealias CLInteger Union(Int16, Int32, Int64)
 
+function rm_linenum!(expr::Expr)
+    new_args = {}
+    for ex in expr.args
+        if is_linenumber(ex)
+            continue
+        end
+        push!(new_args, ex)
+    end
+    for ex in new_args
+        if isa(ex, Expr)
+            rm_linenum!(ex)
+        end
+    end
+    expr.args = new_args
+    return expr
+end
+
 visit(expr::Expr) = begin
+    expr = rm_linenum!(expr)
     if haskey(visitors, expr.head)
         visitors[expr.head](expr)
     else
