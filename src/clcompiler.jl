@@ -5,6 +5,11 @@ using ..CLAst
 typealias CLType Any
 typealias CLInteger Union(Int16, Int32, Int64)
 
+type GotoIfNot
+    cond
+    label
+end
+
 function rm_linenum!(expr::Expr)
     new_args = {}
     for ex in expr.args
@@ -53,7 +58,7 @@ array_type{T, N}(::Type{Array{T, N}}) = T
 
 visit_block(expr::Expr) = begin
     @assert expr.head == :body || expr.head == :block
-    body = CAst[]
+    body = {}
     for ex in expr.args
         if is_linenumber(ex)
             continue
@@ -61,6 +66,12 @@ visit_block(expr::Expr) = begin
         push!(body, visit(ex))
     end
     return CBlock(body)
+end
+
+visit_gotoifnot(expr::Expr) = begin
+    @assert expr.head == :gotoifnot
+    node = visit(expr.args[1])
+    return GotoIfNot(node, expr.args[2])
 end
 
 visit_return(expr::Expr) = begin
@@ -173,19 +184,6 @@ visit_call(expr::Expr) = begin
     if arg1.name === :ccall
         return visit_ccall(expr)
     
-    # pow for integer exponents >= 4  
-    elseif arg1.name == :power_by_squaring
-        arg1 = visit(expr.args[2])
-        arg2 = visit(expr.args[3])
-        ret_type = promote_type(arg1.ctype, arg2.ctype)
-        if arg2.ctype <: Integer
-            return CLRTCall("pown", [arg1, arg2], ret_type) 
-        elseif arg2.ctype <: FloatingPoint
-            return CLFTCall("pow", [arg1, arg2], ret_type)
-        else
-            error("invalid code path in power_by_squaring")
-        end
-
     # unbox boxed numbers
     elseif arg1.name == :box
         # expr.args[2] is a type symbol name
@@ -202,6 +200,19 @@ visit_call(expr::Expr) = begin
             return CNum(node.val, ret_type)
         else
             return CTypeCast(node, ret_type)
+        end
+
+    # pow for integer exponents >= 4  
+    elseif arg1.name == :power_by_squaring
+        arg1 = visit(expr.args[2])
+        arg2 = visit(expr.args[3])
+        ret_type = promote_type(arg1.ctype, arg2.ctype)
+        if arg2.ctype <: Integer
+            return CLRTCall("pown", [arg1, arg2], ret_type) 
+        elseif arg2.ctype <: FloatingPoint
+            return CLFTCall("pow", [arg1, arg2], ret_type)
+        else
+            error("invalid code path in power_by_squaring")
         end
 
     # cast integer to float 
@@ -231,6 +242,12 @@ visit_call(expr::Expr) = begin
         node = visit(expr.args[3])
         return node
     
+    # less than if
+    elseif arg1.name == :ltfsi64
+        val = visit(expr.args[2])
+        var = visit(expr.args[3])
+        return CBinOp(val, CLt(), var, Cint)
+
     # truncated fp casting
     elseif arg1.name === :fptrunc
         ret_type =  eval(expr.args[2])
@@ -252,6 +269,7 @@ visit_call(expr::Expr) = begin
         node = visit(expr.args[3])
         ret_type = node.ctype
         return CUnaryOp(op, node, ret_type)
+    
     else
         @show expr
         error("unhandled call function :$(arg1)")
@@ -281,6 +299,8 @@ visit_lambda(expr::Expr) = begin
         elseif ty <: Array
             T = array_type(ty)
             push!(args, CPtrDecl(string(arg), Ptr{T}))
+        elseif ty === Any
+            error("cannot compile type unstable function")
         else
             error("unhandled code path in visit_lambda parse_args")
         end
@@ -331,5 +351,6 @@ const visitors = (Symbol=>Function)[:lambda => visit_lambda,
                                     :return => visit_return,
                                     :(=)    => visit_assign,
                                     :ref    => visit_index,
-                                    :call   => visit_call]
+                                    :call   => visit_call,
+                                    :gotoifnot => visit_gotoifnot,]
 end

@@ -27,6 +27,15 @@ function test4(x::Array{Float64, 1}, y)
     return x
 end
 
+function test5(x)
+    if x > 10
+        x = x < 5 ? 1 : 2
+    else
+        x += 2
+    end
+    return x
+end
+
 facts("Builtins") do
     for ty in (:Int8, :Uint8, :Int16, :Uint16, :Int32, :Uint32) #:Int64, :Uint64)
         @eval begin
@@ -106,4 +115,6 @@ facts("Builtins") do
     expr = first(code_typed(test4, (Array{Float64,1},Float32)))
     println(clsource(visit(expr)))
 
+    expr = first(code_typed(test5, (Float64,)))
+    println(clsource(visit(expr)))
 end
