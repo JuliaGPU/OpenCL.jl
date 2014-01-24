@@ -6,30 +6,30 @@ export clsource
 
 # see base/show.jl 292 for julia ast printing
 
-Base.show(io::IO, node::CLAst.CMult) = print(io,"*")
-Base.show(io::IO, node::CLAst.CAdd)  = print(io, "+")
-Base.show(io::IO, node::CLAst.CUAdd) = print(io, "++")
-Base.show(io::IO, node::CLAst.CSub)  = print(io, "-")
-Base.show(io::IO, node::CLAst.CUSub) = print(io, "--")
-Base.show(io::IO, node::CLAst.CDiv)  = print(io, "/")
-Base.show(io::IO, node::CLAst.CMod)  = print(io, "%")
-Base.show(io::IO, node::CLAst.CNot)  = print(io, "!")
+clprint(io::IO, node::CLAst.CMult, indent::Int) = print(io,"*")
+clprint(io::IO, node::CLAst.CAdd, indent::Int)  = print(io, "+")
+clprint(io::IO, node::CLAst.CUAdd, indent::Int) = print(io, "++")
+clprint(io::IO, node::CLAst.CSub, indent::Int)  = print(io, "-")
+clprint(io::IO, node::CLAst.CUSub, indent::Int) = print(io, "--")
+clprint(io::IO, node::CLAst.CDiv, indent::Int)  = print(io, "/")
+clprint(io::IO, node::CLAst.CMod, indent::Int)  = print(io, "%")
+clprint(io::IO, node::CLAst.CNot, indent::Int)  = print(io, "!")
 #TODO: bitwise
 
-Base.show(io::IO, node::CLAst.CLt)  = print(io, "<")
-Base.show(io::IO, node::CLAst.CGt)  = print(io, ">")
-Base.show(io::IO, node::CLAst.CLtE) = print(io, "<=")
-Base.show(io::IO, node::CLAst.CGtE) = print(io, ">=")
-Base.show(io::IO, node::CLAst.CEq)  = print(io, "==")
-Base.show(io::IO, node::CLAst.CNotEq) = print(io, "!=")
+clprint(io::IO, node::CLAst.CLt, indent::Int)  = print(io, "<")
+clprint(io::IO, node::CLAst.CGt, indent::Int)  = print(io, ">")
+clprint(io::IO, node::CLAst.CLtE, indent::Int) = print(io, "<=")
+clprint(io::IO, node::CLAst.CGtE, indent::Int) = print(io, ">=")
+clprint(io::IO, node::CLAst.CEq, indent::Int)  = print(io, "==")
+clprint(io::IO, node::CLAst.CNotEq, indent::Int) = print(io, "!=")
 
-Base.show(io::IO, node::CLAst.CAnd) = print(io, "&&")
-Base.show(io::IO, node::CLAst.COr)  = print(io, "||")
+clprint(io::IO, node::CLAst.CAnd, indent::Int) = print(io, "&&")
+clprint(io::IO, node::CLAst.COr, indent::Int)  = print(io, "||")
 
 #TODO: bit shift operations
 
-Base.show(io::IO, node::CLAst.CNum)  = print(io, string(node.val))
-Base.show(io::IO, node::CLAst.CName) = print(io, string(node.id))
+#Base.show(io::IO, node::CLAst.CNum)  = print(io, string(node.val))
+#Base.show(io::IO, node::CLAst.CName) = print(io, string(node.id))
 
 printind(io::IO, str::String, indent::Int) = begin
     print(io, "\t"^indent, str)
@@ -41,14 +41,14 @@ clprint{T}(io::IO, ::Ptr{T}, indent=Int) = begin
     ty = sprint() do io
         clprint(io, T, 0)
     end
-    printind(io, "($ty *) ", indent)
+    printind(io, "$ty *", indent)
 end
 
 clprint{T}(io::IO, node::Type{Ptr{T}}, indent=Int) = begin
     ty = sprint() do io
         clprint(io, T, 0)
     end
-    printind(io, "($ty *)", indent)
+    printind(io, "$ty *", indent)
 end
 
 clprint(io::IO, node::String, indent=Int) = begin
@@ -58,6 +58,7 @@ end
 for (ty, cty) in [(:None, "void"),
                   (:Float64, "double"),
                   (:Float32, "float"),
+                  (:Uint32, "unsigned int"),
                   (:Int64, "long"),
                   (:Uint64, "unsigned long")]
     @eval begin
@@ -67,16 +68,24 @@ for (ty, cty) in [(:None, "void"),
     end
 end
 
-clprint(io::IO, node::Float32, indent::Int) = begin
-    @show node
-    return node
+clprint(io::IO, node::Float64, indent::Int) = begin
+    printind(io, string(node), 0)
 end
 
-clprint(io::IO, node::CLAst.CNum,  indent::Int) = begin
-    val = sprint() do io
-        show(io, node.val)
-    end
-    printind(io, "$val", indent)
+clprint(io::IO, node::Float32, indent::Int) = begin
+    printind(io, string(node) * "f", 0)
+end
+
+clprint(io::IO, node::Int64, indent::Int) = begin
+    printind(io, string(node), 0)
+end
+
+clprint(io::IO, node::Uint64, indent::Int) = begin
+    printind(io, string(node) * "u", 0)
+end
+
+clprint{T}(io::IO, node::CLAst.CNum{T},  indent::Int) = begin
+    clprint(io, node.val, 0)
 end
 
 clprint(io::IO, node::CLAst.CName, indent::Int) = begin
@@ -96,18 +105,40 @@ clprint(io::IO, node::CLAst.CBinOp, indent::Int) = begin
     left = sprint() do io
         clprint(io, node.left, 0)
     end
+    op = sprint() do io
+        clprint(io, node.op, 0)
+    end
     right = sprint() do io
         clprint(io, node.right, 0)
     end
-    printind(io, "($left $(node.op) $right)", indent)
+    printind(io, "$left $op $right", indent)
 end
 
 clprint(io::IO, node::CLAst.CUnaryOp, indent::Int) = begin
-    printind(io, "($(node.op)($(node.operand)))", indent)
+    op = sprint() do io
+        clprint(io, node.op, 0)
+    end
+    operand = sprint() do io
+        clprint(io, node.operand, 0)
+    end
+    printind(io, "$op($operand)", indent)
 end
 
 clprint(io::IO, node::CLAst.CFunctionCall, indent::Int) = begin
-    printind(io, "$(node.name)()", indent)
+    printind(io, "$(node.name)(", indent)
+    if node.args != nothing
+        nargs = length(node.args)
+        for (i, arg) in enumerate(node.args)
+            a = sprint() do io
+                clprint(io, arg, 0)
+            end
+            printind(io, a, 0)
+            if i < nargs
+                printind(io, ", ", 0)
+            end
+        end
+    end
+    printind(io, ")", 0)
 end
 
 clprint(io::IO, node::CLAst.CBlock, indent::Int) = begin
@@ -241,16 +272,16 @@ clprint(io::IO, node::CLAst.CFunctionDef, indent::Int) = begin
     ret_type = sprint() do io
         clprint(io, node.ctype, 0)
     end
-    printind(io, "$ret_type $(node.name)(", indent)
+    printind(io, "__kernel $ret_type $(node.name)(\n\t", indent)
     nargs = length(node.args)
     for (i, arg) in enumerate(node.args)
         a = sprint() do io
             clprint(io, arg, 0)
         end
         if i < nargs
-            print(io, "$a, ")
+            print(io, "$a,\n\t")
         else
-            print(io, "$a) ")
+            print(io, "$a)\n")
         end
     end
     clprint(io, node.body, indent)
@@ -271,14 +302,14 @@ clprint(io::IO, node::CLAst.CPtrDecl, indent::Int) = begin
     ty = sprint() do io
         clprint(io, node.ctype, 0)
     end
-    printind(io, "($ty $(node.name))", indent)
+    printind(io, "__global $ty$(node.name)", indent)
 end
 
 clprint(io::IO, node::CLAst.CTypeDecl, indent::Int) = begin
     ty = sprint() do io
         clprint(io, node.ctype, 0)
     end
-    printind(io, "(($ty) $(node.name))", indent)
+    printind(io, "$ty $(node.name)", indent)
 end
 
 #TODO: Array Decl
@@ -320,24 +351,20 @@ clprint(io::IO, node::CLAst.CExpr, indent::Int) = begin
 end
 
 clprint(io::IO, node::CLAst.CIf, indent::Int) = begin
-    printind(io, "if ($(node.test)) {{\n", indent)
-    for stmnt in node.body
-        clprint(io, stmnt, indent + 1)
+    test = sprint() do io
+        clprint(io, node.test, 0)
     end
-    printind(io, "}}", indent)
-    if node.orelse == nothing
-        print(io, "\n")
-    else
-        for orelse in node.orelse
-            printind(io, " else ", indent)
-            if isa(orelse, CIf)
-                clprint(io, orelse, indent)
-            else
-                printind(io, "{{", indent)
-                clprint(io, orelse, indent + 1)
-                printind(io, "}}\n", indent)
-            end
+    ifbody = sprint() do io
+        clprint(io, node.body, 0)
+    end
+    printind(io, "if ($test) ", indent)
+    printind(io, ifbody, 0)
+    if node.orelse != nothing
+        printind(io, "else ", indent)
+        elsebody = sprint() do io
+            clprint(io, node.orelse, 0)
         end
+        printind(io, elsebody, 0)
     end
 end
 
@@ -366,6 +393,14 @@ end
 
 clprint(io::IO, node::CLAst.CContinue, indent::Int) = begin
     printind(io, "continue", indent)
+end
+
+clprint(io::IO, node::CLAst.CLabel, indent::Int) = begin
+    printind(io, node.name * ":", indent)
+end
+
+clprint(io::IO, node::CLAst.CGoto, indent::Int) = begin
+    printind(io, "goto " * node.label, indent)
 end
 
 function clsource(n::CAst)

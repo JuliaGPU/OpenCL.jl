@@ -5,8 +5,12 @@ using ..CLAst
 typealias CLType Any
 typealias CLInteger Union(Int16, Int32, Int64)
 
+#TODO: run pass to convert goto statements into if / else statements
+
+#TODO: pass to remove unnecessary array index casts
+
 type GotoIfNot
-    cond
+    test 
     label
 end
 
@@ -27,6 +31,21 @@ function rm_linenum!(expr::Expr)
     return expr
 end
 
+isconditional(n::GotoIfNot) = true
+isconditional(n) = false
+
+rm_goto_pass(ast::CAst) = begin
+    for ex in ast.body
+        if isconditional(ex)
+            ifnode = CIf(ex.test, {}, {}, nothing)
+            while !(isa(ex, LabelNode)) && ex.label != ex.label
+                push!(ifnode.body, ex)
+            end
+            # skip node
+        end
+    end
+end
+
 visit(expr::Expr) = begin
     expr = rm_linenum!(expr)
     if haskey(visitors, expr.head)
@@ -37,15 +56,25 @@ visit(expr::Expr) = begin
 end
 
 visit(n::SymbolNode) = begin
-    return CName(string(n.name), n.typ)
+    return CName(cname(n.name), n.typ)
 end
 
 visit(n::String) = begin
-    error("unimplemented string")
+    error("unimplemented (visit) string")
 end
 
 visit(n::Number) = begin
     return CNum(n, typeof(n))
+end
+
+visit(n::GotoNode) = begin
+    labelname = "label" * string(n.label)
+    return CGoto(labelname)
+end
+
+visit(n::LabelNode) = begin
+    labelname = "label" * string(n.label)
+    return CLabel(labelname)
 end
 
 is_linenumber(ex::LineNumberNode) = true
@@ -55,6 +84,10 @@ is_linenumber(ex) = false
 ipointee_type{T}(::Type{Ptr{T}}) = T
 array_type{T, N}(::Type{Array{T, N}}) = T
 
+cname(s) = begin
+    s = string(s)
+    return s[1] == '#' ? s[2:end] : s
+end
 
 visit_block(expr::Expr) = begin
     @assert expr.head == :body || expr.head == :block
@@ -71,7 +104,10 @@ end
 visit_gotoifnot(expr::Expr) = begin
     @assert expr.head == :gotoifnot
     node = visit(expr.args[1])
-    return GotoIfNot(node, expr.args[2])
+    return CIf(CUnaryOp(CNot(), node, Bool), 
+               CGoto("label$(expr.args[2])"), 
+               nothing)
+    #return GotoIfNot(node, expr.args[2])
 end
 
 visit_return(expr::Expr) = begin
@@ -87,7 +123,7 @@ end
 
 visit_assign(expr::Expr) = begin
     @assert expr.head == :(=)
-    target   = string(expr.args[1])
+    target   = cname(expr.args[1])
     node     = visit(expr.args[2])
     ret_type = node.ctype 
     return CAssign(target, node, ret_type) 
@@ -98,8 +134,20 @@ visit_arrayset(expr::Expr) = begin
     target = visit(expr.args[2])
     val = visit(expr.args[3])
     idx = visit(expr.args[4])
-    return CAssign(CSubscript(target, CIndex(idx)),
-                   val, target.ctype)
+    ty  = target.ctype
+    return CAssign(CSubscript(target, CIndex(idx), ty),
+                   val, ty)
+end
+
+visit_arrayref(expr::Expr) = begin
+    @assert expr.args[1] == :arrayref
+    #TODO: check that ref is a local var
+    target = visit(expr.args[2])
+    #TODO: do we need to pass around the global scope
+    # as well?  we need to ensure 
+    idx = visit(expr.args[3])
+    ty = array_type(target.ctype)
+    return CSubscript(target, CIndex(idx), ty)
 end
 
 #TODO: this only integer indices 
@@ -160,6 +208,7 @@ const binary_builtins = (Symbol=>CAst)[
                                     :le_int => CLtE(),
                                     :lt_float => CLt(),
                                     :lt_int => CLt(),
+                                    :ult_int => CLt(),
                                     :mul_float => CMult(),
                                     :mul_int => CMult(),
                                     :ne_float => CNotEq(),
@@ -172,20 +221,38 @@ const unary_builtins = (Symbol=>CAst)[
                                     :neg_float => CUSub(),
                                     :neg_int => CUSub()]
 
+const runtime_funcs = Set{Symbol}(:get_global_id)
+
 visit_call(expr::Expr) = begin
     @assert expr.head === :call
     arg1 = first(expr.args)
     if arg1 === :arrayset
         return visit_arrayset(expr)
     end
-    @assert isa(expr.args[1], TopNode)
+    if arg1 === :arrayref
+        return visit_arrayref(expr)
+    end
+
+    #TODO: handle runtime functions
+    if arg1 in runtime_funcs
+        args = CAst[]
+        for arg in expr.args[2:end]
+            push!(args, visit(arg))
+        end
+        return CFunctionCall(cname(arg1), args, Csize_t)
+    end
+
+    if !(isa(expr.args[1], TopNode))
+        @show expr
+        error("top node error")
+    end
     
     # low level ccall functions
     if arg1.name === :ccall
         return visit_ccall(expr)
-    
+     
     # unbox boxed numbers
-    elseif arg1.name == :box
+    elseif arg1.name === :box
         # expr.args[2] is a type symbol name
         ret_type = eval(expr.args[2])
         @assert isa(ret_type, DataType)
@@ -193,7 +260,11 @@ visit_call(expr::Expr) = begin
             error("invalid cast to type $ret_type")
         end
         node = visit(expr.args[3])
-        @assert promote_type(node.ctype, ret_type) == ret_type 
+        if !(promote_type(node.ctype, ret_type) == ret_type)
+            @show node, ret_type
+            error("ERR promote type")
+        end
+
         if node.ctype === ret_type
             return node
         elseif isa(node, CNum)
@@ -201,9 +272,21 @@ visit_call(expr::Expr) = begin
         else
             return CTypeCast(node, ret_type)
         end
+    
+    # type assertions get translated to casts
+    elseif arg1.name === :typeassert
+        val = visit(expr.args[2])
+        ty  = eval(expr.args[3])
+        if val.ctype != nothing
+            if isa(val.ctype, ty)
+                # no op
+                return val
+            end
+        end
+        return CTypeCast(val, ty)
 
     # pow for integer exponents >= 4  
-    elseif arg1.name == :power_by_squaring
+    elseif arg1.name === :power_by_squaring
         arg1 = visit(expr.args[2])
         arg2 = visit(expr.args[3])
         ret_type = promote_type(arg1.ctype, arg2.ctype)
@@ -243,7 +326,8 @@ visit_call(expr::Expr) = begin
         return node
     
     # less than if
-    elseif arg1.name == :ltfsi64
+    elseif arg1.name === :ltfsi64 || 
+           arg1.name === :slt_int
         val = visit(expr.args[2])
         var = visit(expr.args[3])
         return CBinOp(val, CLt(), var, Cint)
@@ -280,8 +364,8 @@ visit_lambda(expr::Expr) = begin
     @assert expr.head === :lambda
 
     # parse variable declarations
-    fargs = Set{Symbol}(expr.args[1]...)
-    ctx = expr.args[2]
+    fargs = copy(expr.args[1])
+    ctx = copy(expr.args[2])
     localvars = Set{Symbol}(ctx[1]...)
     vartypes  = (Symbol => Type)[]
     for var in ctx[2]
@@ -293,32 +377,34 @@ visit_lambda(expr::Expr) = begin
     for arg in fargs
         ty = vartypes[arg]
         if ty <: Number 
-            push!(args, CTypeDecl(string(arg), ty))
+            push!(args, CTypeDecl(cname(arg), ty))
         elseif ty <: Ptr
-            push!(args, CPtrDecl(string(arg), ty))
+            push!(args, CPtrDecl(cname(arg), ty))
         elseif ty <: Array
             T = array_type(ty)
-            push!(args, CPtrDecl(string(arg), Ptr{T}))
+            push!(args, CPtrDecl(cname(arg), Ptr{T}))
         elseif ty === Any
+            #TODO: look for unions in return types
             error("cannot compile type unstable function")
         else
             error("unhandled code path in visit_lambda parse_args")
         end
     end
-    reverse!(args)
+    #reverse!(args)
 
     # predeclare local variables
     vars = CAst[]
     for var in localvars 
         ty = vartypes[var]
         if ty <: Number
-            push!(vars, CVarDecl(string(var), ty))
+            push!(vars, CVarDecl(cname(var), ty))
         elseif ty <: Ptr
-            push!(vars, CPtrDecl(string(var), ty))
+            push!(vars, CPtrDecl(cname(var), ty))
         elseif ty <: Array
             #TODO: arrays need to be fixed size
-            push!(vars, CArrayDecl(string(var), ty))
+            push!(vars, CArrayDecl(cname(var), ty))
         else
+            @show var
             error("unknown code path in visit_lambda loc vars")
         end
     end
@@ -333,7 +419,7 @@ visit_lambda(expr::Expr) = begin
     local ret_type::Type
     if isa(blocknode.body[end], CReturn)
         ret_type = blocknode.body[end].ctype
-        if ret_type <: Array
+        if ret_type <: Array && ret_type != None
             T = array_type(ret_type)
             ret_type = Ptr{T}
         end
@@ -342,7 +428,7 @@ visit_lambda(expr::Expr) = begin
     end
 
     #TODO: function name?
-    return CFunctionDef("testx", args, blocknode, ret_type) 
+    return CFunctionDef("testcl", args, blocknode, ret_type) 
 end
 
 const visitors = (Symbol=>Function)[:lambda => visit_lambda,

@@ -1,12 +1,17 @@
 using FactCheck 
 
+import OpenCL
+const cl = OpenCL
+
 using OpenCL.CLAst
 
 using OpenCL.CLSourceGen
 import OpenCL.CLCompiler
+
 const visit = OpenCL.CLCompiler.visit
 const rmline = OpenCL.CLCompiler.rm_linenum!
-# test functions
+
+#---- test functions ---
 function test1(x)
     return x += 1
 end
@@ -34,6 +39,35 @@ function test5(x)
         x += 2
     end
     return x
+end
+
+function get_global_id(x)
+    x + 2
+    y + 3
+    return uint32(1)
+end
+
+function test6(a::Vector{Float32}, 
+               b::Vector{Float32}, 
+               c::Vector{Float32}, 
+               count::Cuint)
+    gid = get_global_id(0)
+    if gid < count
+        c[gid] = a[gid] + b[gid]
+    end
+    return
+end
+
+#--------------------------
+
+function can_compile(src)
+    try
+        ctx = cl.create_some_context()
+        p = cl.Program(ctx, source=src) |> cl.build!
+        return true
+    catch err
+        return false
+    end
 end
 
 facts("Builtins") do
@@ -100,11 +134,11 @@ facts("Builtins") do
                                 CAdd(),
                                 CNum(2.0, Float32),
                                 Float32)
-    @fact clsource(visit(expr)) => "(((float) x) + 2.0f0)"
+    @fact clsource(visit(expr)) => "((float) x) + 2.0f"
 
     # compile block ast nodes
     expr = top_expr.args[end]
-    @fact clsource(visit(expr)) => "{{\n\ty = (((float) x) + 2.0f0);\n\treturn(pow(y, 10.0f0));\n}}\n"
+    @fact clsource(visit(expr)) => "{{\n\ty = ((float) x) + 2.0f;\n\treturn(pow(y, 10.0f));\n}}\n"
 
     # compile lambda static functions
     expr = top_expr 
@@ -115,6 +149,11 @@ facts("Builtins") do
     expr = first(code_typed(test4, (Array{Float64,1},Float32)))
     println(clsource(visit(expr)))
 
-    expr = first(code_typed(test5, (Float64,)))
-    println(clsource(visit(expr)))
+    expr = first(code_typed(test6, (Array{Float32},
+                                    Array{Float32},
+                                    Array{Float32},
+                                    Cuint)))
+    src = clsource(visit(expr))
+    println(src)
+    @fact can_compile(src) => true
 end
