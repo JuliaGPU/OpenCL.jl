@@ -145,9 +145,20 @@ visit_arrayref(expr::Expr) = begin
     target = visit(expr.args[2])
     #TODO: do we need to pass around the global scope
     # as well?  we need to ensure 
-    idx = visit(expr.args[3])
+    idx_node = visit(expr.args[3])
     ty = array_type(target.ctype)
-    return CSubscript(target, CIndex(idx), ty)
+    if isa(idx_node, CTypeCast)
+        cast_ty = idx_node.ctype
+        val_ty = idx_node.value.ctype
+        if cast_ty != Uint32
+            if val_ty == Uint32
+                idx_node = idx_node.value
+            else
+                idx_node = CTypeCast(idx_node.value, Uint32)
+            end
+        end
+    end
+    return CSubscript(target, CIndex(idx_node), ty)
 end
 
 #TODO: this only integer indices 
