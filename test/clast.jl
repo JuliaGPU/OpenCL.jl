@@ -9,13 +9,13 @@ facts("Generation") do
                  CNum(1),
                  Int64)
     code = clsource(ast) 
-    @fact code => "(1 + 1)"
+    @fact code => "1 + 1"
 
     ast = CUnaryOp(CUAdd(), 
                    CName("foo"), 
                    Int64)
     code = clsource(ast) 
-    @fact code => "(++(foo))"
+    @fact code => "++(foo)"
 
     ast = CAssign(CName("foo"), 
                   CBinOp(CNum(1),
@@ -24,10 +24,10 @@ facts("Generation") do
                          Int64),
                   Int64)
     code = clsource(ast)
-    @fact code => "foo = (1 + 1)"
+    @fact code => "foo = 1 + 1"
 
-    ast = CBlock([CFunctionCall("foo", []), 
-                  CFunctionCall("bar", [])])
+    ast = CBlock([CFunctionCall("foo", [], Void), 
+                  CFunctionCall("bar", [], Void)])
     code = clsource(ast) 
     @fact code => "{{\n\tfoo();\n\tbar();\n}}\n"
 
@@ -45,10 +45,11 @@ facts("Generation") do
                                      CNum(1),
                                      Int64)]))
     code = clsource(ast) 
-    @fact code => "for (i = 0; (i <= 10); (++(i))) {{\n\ti = 1;\n}}\n"
+    @fact code => "for (i = 0; i <= 10; ++(i)) {{\n\ti = 1;\n}}\n"
 
     ast = CAssign(CSubscript(CName("test"),
-                             CIndex(CNum(1))),
+                             CIndex(CNum(1)),
+                             Int),
                   CNum(10),
                   Int64)
     code = clsource(ast) 
