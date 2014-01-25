@@ -147,6 +147,7 @@ visit_arrayref(expr::Expr) = begin
     # as well?  we need to ensure 
     idx_node = visit(expr.args[3])
     ty = array_type(target.ctype)
+    @show idx_node
     if isa(idx_node, CTypeCast)
         cast_ty = idx_node.ctype
         val_ty = idx_node.value.ctype

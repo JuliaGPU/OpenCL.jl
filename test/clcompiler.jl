@@ -49,7 +49,7 @@ end
 
 function test6(a::Vector{Float32}, 
                b::Vector{Float32}, 
-               c::Vector{Float32}, 
+               c::Vector{Float64}, 
                count::Cuint)
     gid = get_global_id(0)
     if gid < count
@@ -151,8 +151,9 @@ facts("Builtins") do
 
     expr = first(code_typed(test6, (Array{Float32},
                                     Array{Float32},
-                                    Array{Float32},
+                                    Array{Float64},
                                     Cuint)))
+    @show rmline(expr)
     src = clsource(visit(expr))
     println(src)
     @fact can_compile(src) => true
