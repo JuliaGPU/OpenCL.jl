@@ -19,9 +19,6 @@ a_buff = cl.Buffer(Float32, ctx, (:r, :copy), hostbuf=a)
 b_buff = cl.Buffer(Float32, ctx, (:r, :copy), hostbuf=b)
 c_buff = cl.Buffer(Float32, ctx, :w, length(a))
 
-p = cl.Program(ctx, source=sum_kernel) |> cl.build!
-k = cl.Kernel(p, "sum")
-
 cl.call(queue, k, size(a), nothing, a_buff, b_buff, c_buff)
 
 r = cl.read(queue, c_buff)

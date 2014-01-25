@@ -47,16 +47,66 @@ function get_global_id(x)
     return uint32(1)
 end
 
-function test6(a::Vector{Float32}, 
-               b::Vector{Float32}, 
-               c::Vector{Float64}, 
-               count::Cuint)
+device, ctx, queue = cl.create_compute_context()
+
+macro clkernel(func)
+    f, n = gensym("func"), gensym("n")
+    # swap out function name as it is
+    # evaled in global scope
+    # TODO: this can probably be made to work without
+    # evaluation
+    orig_name = func.args[1].args[1]
+    func.args[1].args[1] = symbol(f)
+    quote
+        local func = eval($(esc(func)))
+        local name = func.env.name
+        local expr = first(code_typed(eval(name), 
+                                    (Array{Float32},
+                                     Array{Float32},
+                                     Array{Float32},
+                                     Cuint)))
+        local src = clsource(visit(expr))
+        println(src)
+        local p = cl.Program(ctx, source=src) |> cl.build!
+        global const $(orig_name) = cl.Kernel(p, "testcl")
+    end
+end
+
+@clkernel test6(a::Vector{Float32}, 
+                b::Vector{Float32}, 
+                c::Vector{Float32},
+                count::Cuint) = begin
     gid = get_global_id(0)
+    i = 0
     if gid < count
-        c[gid] = a[gid] + b[gid]
+       while i < 20
+            c[gid] = a[gid] + b[gid]
+            i += 1
+        end
     end
     return
 end
+
+const test7 = """__kernel void testcl(
+                     __global float *a,
+                     __global float *b, 
+                     __global float *c,
+                     unsigned int count)
+    {
+      int gid = get_global_id(0);
+      long i;
+      i = 0;
+      if (gid < count) {
+          while (i < 20) {
+            c[gid] = a[gid] + b[gid];
+            ++i;
+          }
+      }
+      return;
+    }
+"""
+
+@assert isa(test6, cl.Kernel)
 
 #--------------------------
 
@@ -147,14 +197,55 @@ facts("Builtins") do
     expr = first(code_typed(test3, (Float32, Float32)))
     #@show clsource(visit(expr))
     expr = first(code_typed(test4, (Array{Float64,1},Float32)))
-    println(clsource(visit(expr)))
+    #println(clsource(visit(expr)))
 
-    expr = first(code_typed(test6, (Array{Float32},
-                                    Array{Float32},
-                                    Array{Float64},
-                                    Cuint)))
-    @show rmline(expr)
-    src = clsource(visit(expr))
-    println(src)
-    @fact can_compile(src) => true
+   # expr = first(code_typed(test6, (Array{Float32},
+   #                                 Array{Float32},
+   #                                 Array{Float32},
+   #                                 Cuint)))
+   # src = clsource(visit(expr))
+   # println(src)
+   # @fact can_compile(src) => true
+
+a = rand(Float32, 5_000_000)
+b = rand(Float32, 5_000_000)
+
+a_buff = cl.Buffer(Float32, ctx, (:rw, :copy), hostbuf=a)
+b_buff = cl.Buffer(Float32, ctx, (:rw, :copy), hostbuf=b)
+c_buff = cl.Buffer(Float32, ctx, :rw, length(a))
+
+c = zeros(Float32, length(a))
+@time begin
+    for i in 1:length(a)
+        j = 0
+        while j < 100
+            c[i] = a[i] + b[i]
+            j += 1 
+        end
+    end
+end
+
+println("TEST 6")
+
+for i = 1:10
+    tic()
+    cl.call(queue, test6, size(a), nothing,
+            a_buff, b_buff, c_buff, int32(length(a))) 
+    r = cl.read(queue, c_buff)
+    toc()
+end
+
+println("TEST 7")
+
+p = cl.Program(ctx, source=test7) |> cl.build!
+t7 = cl.Kernel(p, "testcl")
+for i = 1:10
+    tic()
+    cl.call(queue, t7, size(a), nothing,
+            a_buff, b_buff, c_buff, int32(length(a))) 
+    r = cl.read(queue, c_buff)
+    toc()
+end
+
+#@fact isapprox(norm(r - (a+b)), zero(Float32)) => true
 end

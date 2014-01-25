@@ -405,6 +405,7 @@ end
 
 function clsource(n::CAst)
     return sprint() do io
+        #println(io, "#pragma OPENCL EXTENSION cl_khr_fp64: enable")
         clprint(io, n, 0)
     end
 end 
