@@ -34,18 +34,6 @@ end
 isconditional(n::GotoIfNot) = true
 isconditional(n) = false
 
-rm_goto_pass(ast::CAst) = begin
-    for ex in ast.body
-        if isconditional(ex)
-            ifnode = CIf(ex.test, {}, {}, nothing)
-            while !(isa(ex, LabelNode)) && ex.label != ex.label
-                push!(ifnode.body, ex)
-            end
-            # skip node
-        end
-    end
-end
-
 visit(expr::Expr) = begin
     expr = rm_linenum!(expr)
     if haskey(visitors, expr.head)
@@ -135,31 +123,38 @@ visit_arrayset(expr::Expr) = begin
     val = visit(expr.args[3])
     idx = visit(expr.args[4])
     ty  = target.ctype
+    if isa(idx, CTypeCast)
+        cast_ty = idx.ctype
+        val_ty  = idx.value.ctype
+        if cast_ty != Uint32
+            if val_ty == Uint32
+                idx = idx.value
+            else
+                idx = CTypeCast(idx.value, Uint32)
+            end
+        end
+    end
     return CAssign(CSubscript(target, CIndex(idx), ty),
                    val, ty)
 end
 
 visit_arrayref(expr::Expr) = begin
     @assert expr.args[1] == :arrayref
-    #TODO: check that ref is a local var
     target = visit(expr.args[2])
-    #TODO: do we need to pass around the global scope
-    # as well?  we need to ensure 
-    idx_node = visit(expr.args[3])
-    ty = array_type(target.ctype)
-    @show idx_node
-    if isa(idx_node, CTypeCast)
-        cast_ty = idx_node.ctype
-        val_ty = idx_node.value.ctype
+    idx = visit(expr.args[3])
+    ty  = array_type(target.ctype)
+    if isa(idx, CTypeCast)
+        cast_ty = idx.ctype
+        val_ty = idx.value.ctype
         if cast_ty != Uint32
             if val_ty == Uint32
-                idx_node = idx_node.value
+                idx = idx.value
             else
-                idx_node = CTypeCast(idx_node.value, Uint32)
+                idx = CTypeCast(idx.value, Uint32)
             end
         end
     end
-    return CSubscript(target, CIndex(idx_node), ty)
+    return CSubscript(target, CIndex(idx), ty)
 end
 
 #TODO: this only integer indices 
