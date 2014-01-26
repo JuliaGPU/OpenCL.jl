@@ -60,11 +60,16 @@ macro clkernel(func)
     quote
         local func = eval($(esc(func)))
         local name = func.env.name
-        local expr = first(code_typed(eval(name), 
-                                    (Array{Float32},
-                                     Array{Float32},
-                                     Array{Float32},
-                                     Cuint)))
+        if length(func.env) != 1
+            error("more than one kernel with name $name")
+        end
+        local typs = func.env.defs.sig
+        for ty in typs
+            if !isleaftype(ty)
+                error("function signature nonleaftype $ty")
+            end
+        end
+        local expr = first(code_typed(func, typs))
         local src = clsource(visit(expr))
         println(src)
         local p = cl.Program(ctx, source=src) |> cl.build!
@@ -81,6 +86,9 @@ end
     if gid < count
        while i < 20
             c[gid] = a[gid] + b[gid]
+            #if i == 15
+            #    break
+            #end
             i += 1
         end
     end
@@ -99,6 +107,7 @@ const test7 = """__kernel void testcl(
       if (gid < count) {
           while (i < 20) {
             c[gid] = a[gid] + b[gid];
+            //if (i == 15) break;
             ++i;
           }
       }
@@ -239,6 +248,7 @@ println("TEST 7")
 
 p = cl.Program(ctx, source=test7) |> cl.build!
 t7 = cl.Kernel(p, "testcl")
+
 for i = 1:10
     tic()
     cl.call(queue, t7, size(a), nothing,

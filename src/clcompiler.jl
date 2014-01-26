@@ -300,7 +300,7 @@ visit_call(expr::Expr) = begin
         if arg2.ctype <: Integer
             return CLRTCall("pown", [arg1, arg2], ret_type) 
         elseif arg2.ctype <: FloatingPoint
-            return CLFTCall("pow", [arg1, arg2], ret_type)
+            return CLRTCall("pow", [arg1, arg2], ret_type)
         else
             error("invalid code path in power_by_squaring")
         end
