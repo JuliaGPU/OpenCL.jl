@@ -4,7 +4,8 @@ export CAst, CAssign, CBlock, CIndex, CTypeCast, CName, CNum, CBinOp,
        CMult, CAdd, CLt, CLtE, CDiv, CEq, CNotEq, CNot, COr, CMod,
        CUSub, CUnaryOp, CUAdd, CFunctionCall, CFor, CReturn,
        CSubscript, CLRTCall, CTypeDecl, CFunctionDef, CIf,
-       CPtrDecl, CVarDecl, CArrayDecl, CGoto, CLabel
+       CPtrDecl, CVarDecl, CArrayDecl, CGoto, CLabel, CArray,
+       CStructRef, CAssignList
 
 abstract CAst 
 abstract CType
@@ -249,6 +250,10 @@ type CAssign <: CAst
     ctype
 end
 
+type CAssignList <: CAst
+    list::Vector{CAssign}
+end
+
 type CAssignExpr
     targets
     val
@@ -270,6 +275,12 @@ end
 
 type CArrayRef
     name
+end
+
+type CStructRef
+    name
+    field
+    ctype
 end
 
 type CBoolOp

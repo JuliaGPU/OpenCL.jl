@@ -68,6 +68,39 @@ for (ty, cty) in [(:None, "void"),
     end
 end
 
+clprint{T}(io::IO, node::Type{Range{T}}, indent::Int) = begin
+    printind(io, "Range", indent)
+end
+
+clprint(io::IO, node::Type{(NTuple{2, Int64})}, indent::Int) = begin
+    printind(io, "int2", indent)
+end
+
+clprint(io::IO, node::CLAst.CArray, indent::Int) = begin
+    printind(io, "{", indent)
+    nelts = length(node.elts)
+    for (i, n) in enumerate(node.elts)
+        el = sprint() do io
+            clprint(io, n, 0)
+        end
+        if i < nelts
+            printind(io, "$el,", 0)
+        else
+            printind(io, "$el}", 0)
+        end
+    end
+end
+
+clprint(io::IO, node::CLAst.CStructRef, indent::Int) = begin
+    name = sprint() do io
+        clprint(io, node.name, 0)
+    end
+    field = sprint() do io
+        clprint(io, node.field, 0)
+    end
+    printind(io, "$name.$field", indent)
+end
+
 clprint(io::IO, node::Float64, indent::Int) = begin
     printind(io, string(node), 0)
 end
@@ -148,6 +181,16 @@ clprint(io::IO, node::CLAst.CBlock, indent::Int) = begin
         print(io, ";\n")
     end
     printind(io, "}}\n", indent)
+end
+
+clprint(io::IO, node::CLAst.CAssignList, indent::Int) = begin
+    nassign = length(node.list)
+    for (i, a) in enumerate(node.list)
+        clprint(io, a, indent);
+        if i < nassign
+            printind(io, ";\n", 0)
+        end
+    end
 end
 
 clprint(io::IO, node::CLAst.CAssign, indent::Int) = begin
@@ -268,10 +311,12 @@ clprint(io::IO, node::CLAst.CFunctionDef, indent::Int) = begin
     #TODO: decl list only for kernels?
     #for decl in node.decl_list
     #    printind(io, "$decl\n", indent)
-    #end
+    #end 
     ret_type = sprint() do io
         clprint(io, node.ctype, 0)
     end
+    print(io, "typedef struct Range {long start; long step; long len; } Range;\n")
+
     printind(io, "__kernel $ret_type $(node.name)(\n\t", indent)
     nargs = length(node.args)
     for (i, arg) in enumerate(node.args)

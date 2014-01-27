@@ -59,10 +59,12 @@ macro clkernel(func)
     func.args[1].args[1] = symbol(f)
     quote
         local func = eval($(esc(func)))
+        # lookup method name from method table
         local name = func.env.name
         if length(func.env) != 1
             error("more than one kernel with name $name")
         end
+        # lookup method signature from first method in method table
         local typs = func.env.defs.sig
         for ty in typs
             if !isleaftype(ty)
@@ -70,6 +72,7 @@ macro clkernel(func)
             end
         end
         local expr = first(code_typed(func, typs))
+        #println(expr)
         local src = clsource(visit(expr))
         println(src)
         local p = cl.Program(ctx, source=src) |> cl.build!
@@ -82,37 +85,54 @@ end
                 c::Vector{Float32},
                 count::Cuint) = begin
     gid = get_global_id(0)
-    i = 0
     if gid < count
-       while i < 20
-            c[gid] = a[gid] + b[gid]
-            #if i == 15
-            #    break
-            #end
-            i += 1
+       for i = 0:2:6
+           for j = 0:2:6
+               c[gid] = a[gid] + b[gid]
+           end
         end
     end
     return
 end
 
-const test7 = """__kernel void testcl(
-                     __global float *a,
+const test7 = """
+typedef struct Range {
+   long start;
+   long step;
+   long len;
+} Range;
+
+__kernel void testcl(__global float *a,
                      __global float *b, 
                      __global float *c,
                      unsigned int count)
-    {
-      int gid = get_global_id(0);
-      long i;
-      i = 0;
-      if (gid < count) {
-          while (i < 20) {
-            c[gid] = a[gid] + b[gid];
-            //if (i == 15) break;
-            ++i;
+{
+
+  long i, j;
+  Range ri;
+  Range rj;
+  long _var1;
+  long _var0;
+  unsigned int gid;
+  float s756;
+  long s758;
+  int2 s757;
+  gid = get_global_id(0);
+  if (gid < count) {
+      ri.start = 0;
+      ri.step  = 2;
+      ri.len   = 12;
+      for (i=ri.start; i <= ri.len; i += ri.step) {
+          rj.start = 0;
+          rj.step  = 2;
+          rj.len   = 12;
+          for (j=rj.start; j <= rj.len; j += rj.step) {
+                c[gid] = a[gid] + b[gid];
           }
       }
-      return;
-    }
+  }
+  return;
+}
 """
 
 @assert isa(test6, cl.Kernel)
@@ -236,7 +256,7 @@ end
 
 println("TEST 6")
 
-for i = 1:10
+for i = 1:3
     tic()
     cl.call(queue, test6, size(a), nothing,
             a_buff, b_buff, c_buff, int32(length(a))) 
@@ -249,7 +269,7 @@ println("TEST 7")
 p = cl.Program(ctx, source=test7) |> cl.build!
 t7 = cl.Kernel(p, "testcl")
 
-for i = 1:10
+for i = 1:3
     tic()
     cl.call(queue, t7, size(a), nothing,
             a_buff, b_buff, c_buff, int32(length(a))) 

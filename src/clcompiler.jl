@@ -47,6 +47,10 @@ visit(n::SymbolNode) = begin
     return CName(cname(n.name), n.typ)
 end
 
+visit(n::Symbol) = begin
+    return CName(cname(n), Void)
+end
+
 visit(n::String) = begin
     error("unimplemented (visit) string")
 end
@@ -92,10 +96,15 @@ end
 visit_gotoifnot(expr::Expr) = begin
     @assert expr.head == :gotoifnot
     node = visit(expr.args[1])
-    return CIf(CUnaryOp(CNot(), node, Bool), 
-               CGoto("label$(expr.args[2])"), 
-               nothing)
-    #return GotoIfNot(node, expr.args[2])
+    #if isa(node, CUnaryOp) && isa(node.op, CNot)
+    #    return CIf(node.operand,
+    #               CGoto("label$(expr.args[2])"),
+    #               nothing)
+    #else
+        return CIf(CUnaryOp(CNot(), node, Bool), 
+                   CGoto("label$(expr.args[2])"), 
+                   nothing)
+    #end
 end
 
 visit_return(expr::Expr) = begin
@@ -112,9 +121,43 @@ end
 visit_assign(expr::Expr) = begin
     @assert expr.head == :(=)
     target   = cname(expr.args[1])
-    node     = visit(expr.args[2])
-    ret_type = node.ctype 
-    return CAssign(target, node, ret_type) 
+    if !isa(expr.args[2], Expr)
+        node     = visit(expr.args[2])
+        ret_type = node.ctype 
+        return CAssign(target, node, ret_type) 
+    else
+        if !(expr.args[2].typ <: Range)
+            node     = visit(expr.args[2])
+            ret_type = node.ctype 
+            return CAssign(target, node, ret_type) 
+        else
+            ty = expr.args[2].typ
+            start = visit(expr.args[2].args[2])
+            step  = visit(expr.args[2].args[3]) 
+            len   = visit(expr.args[2].args[4])
+            return CAssignList([CAssign(CStructRef(CName(target, ty),
+                                                   CName("start", Int), Int),
+                                        start, 
+                                        start.ctype),
+                                CAssign(CStructRef(CName(target, ty),
+                                                   CName("step", Int), Int),
+                                        step,
+                                        step.ctype),
+                                CAssign(CStructRef(CName(target, ty),
+                                                   CName("len", Int), Int),
+                                        len,
+                                        len.ctype)])
+        end
+    end
+end
+
+visit_colon(expr::Expr) = begin
+    @assert expr.args[1] == :colon
+    @assert length(expr.args) == 4
+    start = visit(expr.args[2])
+    step  = visit(expr.args[3]) 
+    len   = visit(expr.args[4])
+    return CArray([start, step, len], nothing, Range)
 end
 
 visit_arrayset(expr::Expr) = begin
@@ -157,6 +200,13 @@ visit_arrayref(expr::Expr) = begin
     return CSubscript(target, CIndex(idx), ty)
 end
 
+visit_is(expr::Expr) = begin
+    @assert expr.args[1] == :(===)
+    lnode = visit(expr.args[2])
+    rnode = visit(expr.args[3])
+    return CBinOp(lnode, CEq(), rnode, Bool)
+end 
+ 
 #TODO: this only integer indices 
 visit_index(expr::Expr) = begin
     @assert expr.head == :ref
@@ -213,6 +263,7 @@ const binary_builtins = (Symbol=>CAst)[
                                     :eq_int => CEq(),
                                     :le_float => CLtE(),
                                     :le_int => CLtE(),
+                                    :sle_int => CLtE(),
                                     :lt_float => CLt(),
                                     :lt_int => CLt(),
                                     :ult_int => CLt(),
@@ -220,11 +271,11 @@ const binary_builtins = (Symbol=>CAst)[
                                     :mul_int => CMult(),
                                     :ne_float => CNotEq(),
                                     :ne_int => CNotEq(),
-                                    :not_int => CNot(),
                                     :or_int => COr(), 
                                     :smod_int => CMod()]
 
 const unary_builtins = (Symbol=>CAst)[
+                                    :not_int => CNot(),
                                     :neg_float => CUSub(),
                                     :neg_int => CUSub()]
 
@@ -233,13 +284,19 @@ const runtime_funcs = Set{Symbol}(:get_global_id)
 visit_call(expr::Expr) = begin
     @assert expr.head === :call
     arg1 = first(expr.args)
+    
+    if arg1 == :colon
+        return visit_colon(expr)
+    end
     if arg1 === :arrayset
         return visit_arrayset(expr)
     end
     if arg1 === :arrayref
         return visit_arrayref(expr)
     end
-
+    if arg1 === :(===)
+        return visit_is(expr)
+    end
     #TODO: handle runtime functions
     if arg1 in runtime_funcs
         args = CAst[]
@@ -268,7 +325,8 @@ visit_call(expr::Expr) = begin
         end
         node = visit(expr.args[3])
         if !(promote_type(node.ctype, ret_type) == ret_type)
-            @show node, ret_type
+            @show expr.args[3]
+            @show node.ctype, ret_type
             error("ERR promote type")
         end
 
@@ -279,7 +337,7 @@ visit_call(expr::Expr) = begin
         else
             return CTypeCast(node, ret_type)
         end
-    
+   
     # type assertions get translated to casts
     elseif arg1.name === :typeassert
         val = visit(expr.args[2])
@@ -291,7 +349,17 @@ visit_call(expr::Expr) = begin
             end
         end
         return CTypeCast(val, ty)
-
+    
+    elseif arg1.name === :getfield
+        @show typeof(expr.args[2])
+        @show typeof(expr.args[3])
+        ty     = expr.typ
+        sname  = visit(expr.args[2])
+        sfield = expr.args[3]
+        @assert isa(sfield, QuoteNode)
+        sfield = CName(cname(sfield.value), ty) 
+        return CStructRef(sname, sfield, ty)
+    
     # pow for integer exponents >= 4  
     elseif arg1.name === :power_by_squaring
         arg1 = visit(expr.args[2])
@@ -351,14 +419,17 @@ visit_call(expr::Expr) = begin
         op = binary_builtins[arg1.name]
         lnode = visit(expr.args[2])
         rnode = visit(expr.args[3])
-        ret_type = promote_type(lnode.ctype, rnode.ctype)
+        ret_type = expr.typ
+        if ret_type === Any
+            ret_type = promote_type(lnode.ctype, rnode.ctype)
+        end
         return CBinOp(lnode, op, rnode, ret_type)
     
     # unary operations
     elseif haskey(unary_builtins, arg1.name)
         op = unary_builtins[arg1.name]
-        node = visit(expr.args[3])
-        ret_type = node.ctype
+        node = visit(expr.args[2])
+        ret_type = node.ctype #node.ctype
         return CUnaryOp(op, node, ret_type)
     
     else
@@ -410,8 +481,12 @@ visit_lambda(expr::Expr) = begin
         elseif ty <: Array
             #TODO: arrays need to be fixed size
             push!(vars, CArrayDecl(cname(var), ty))
+        elseif ty <: NTuple
+            push!(vars, CVarDecl(cname(var), ty))
+        elseif ty <: Range
+            push!(vars, CVarDecl(cname(var), ty))
         else
-            @show var
+            @show var, ty
             error("unknown code path in visit_lambda loc vars")
         end
     end
