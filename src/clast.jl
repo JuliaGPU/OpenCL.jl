@@ -1,11 +1,11 @@
 module CLAst
 
 export CAst, CAssign, CBlock, CIndex, CTypeCast, CName, CNum, CBinOp,
-       CMult, CAdd, CLt, CLtE, CGt, CGtE, CDiv, CEq, CNotEq, CNot, COr, CMod,
-       CUSub, CUnaryOp, CUAdd, CFunctionCall, CFor, CReturn,
+       CMult, CAdd, CLt, CLtE, CGt, CGtE, CAnd, CDiv, CEq, CNotEq, CNot, COr, CMod,
+       CUSub, CUnaryOp, CUAdd, CFunctionCall, CFor, CReturn, CSub,
        CSubscript, CLRTCall, CTypeDecl, CFunctionDef, CIf,
        CPtrDecl, CVarDecl, CArrayDecl, CGoto, CLabel, CArray,
-       CStructRef, CAssignList, CWhile
+       CStructRef, CAssignList, CWhile, CBitShiftLeft, CBitShiftRight
 
 abstract CAst 
 abstract CType
@@ -38,6 +38,9 @@ type CEq    <: CAst end
 type CNotEq <: CAst end
 type CAnd   <: CAst end
 type COr    <: CAst end 
+
+type CBitShiftLeft  <: CAst end
+type CBitShiftRight <: CAst end
 
 #TODO: 
 type CIndex <: CAst
@@ -168,7 +171,7 @@ type CBinOp <: CAst
     left
     op
     right
-    ctype::Type
+    ctype
 end
 
 type CUnaryOp <: CAst

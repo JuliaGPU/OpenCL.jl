@@ -26,6 +26,9 @@ clprint(io::IO, node::CLAst.CNotEq, indent::Int) = print(io, "!=")
 clprint(io::IO, node::CLAst.CAnd, indent::Int) = print(io, "&&")
 clprint(io::IO, node::CLAst.COr, indent::Int)  = print(io, "||")
 
+clprint(io::IO, node::CLAst.CBitShiftRight, indent::Int)  = print(io, ">>")
+clprint(io::IO, node::CLAst.CBitShiftLeft,  indent::Int)  = print(io, "<<")
+
 #TODO: bit shift operations
 
 #Base.show(io::IO, node::CLAst.CNum)  = print(io, string(node.val))

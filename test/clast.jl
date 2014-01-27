@@ -58,6 +58,21 @@ facts("Generation") do
 end
 
 facts("Parse Expr") do
+    expr = :(i * 1)
+    @fact clsource(visit(expr)) => "i * 1"
+
+    expr = :(i / 1)
+    @fact clsource(visit(expr)) => "i / 1"
+    
+    expr = :(i + 1)
+    @fact clsource(visit(expr)) => "i + 1"
+    
+    expr = :(i - 1)
+    @fact clsource(visit(expr)) => "i - 1"
+    
+    expr = :(i % 1)
+    @fact clsource(visit(expr)) => "i % 1"
+
     expr = :(i < 1) 
     @fact clsource(visit(expr)) => "i < 1"
     
@@ -76,6 +91,33 @@ facts("Parse Expr") do
     expr = :(i != 1)
     @fact clsource(visit(expr)) => "i != 1"
 
+    expr = :(i || 1)
+    @fact clsource(visit(expr)) => "i || 1"
+
+    expr = :(i && 1)
+    @fact clsource(visit(expr)) => "i && 1"
+    
+    expr = :(!(i))
+    @fact clsource(visit(expr)) => "!(i)"
+
+    expr = :(i += 1)
+    @fact clsource(visit(expr)) => "i = i + 1"
+
+    expr = :(i -= 1)
+    @fact clsource(visit(expr)) => "i = i - 1"
+    
+    expr = :(i *= 1)
+    @fact clsource(visit(expr)) => "i = i * 1"
+    
+    expr = :(i /= 1)
+    @fact clsource(visit(expr)) => "i = i / 1"
+
+    expr = :(i << 1)
+    @fact clsource(visit(expr)) => "i << 1"
+    
+    expr = :(i >> 1)
+    @fact clsource(visit(expr)) => "i >> 1"
+    
     expr = :(for i in 0:10; end)
     @fact clsource(visit(expr)) => "for (int i = 0; i <= 10; i = i + 1) {{\n}}\n" 
     

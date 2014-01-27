@@ -21,6 +21,23 @@ visit(node::Expr) = begin
     end
 end
 
+const unops  = (Symbol => CAst)[:(!)  => CNot()]
+
+const binops = (Symbol => CAst)[:(*)  => CMult(),
+                                :(+)  => CAdd(),
+                                :(-)  => CSub(),
+                                :(/)  => CDiv(),
+                                :(%)  => CMod(),
+                                :(==) => CEq(),
+                                :(!=) => CNotEq(),
+                                :(<)  => CLt(),
+                                :(<=) => CLtE(),
+                                :(>)  => CGt(),
+                                :(>=) => CGtE(),
+                                :(>>) => CBitShiftRight(),
+                                :(<<) => CBitShiftLeft()]
+
+
 visit(node::Symbol) = begin
     return CName(string(node), nothing)
 end
@@ -39,12 +56,78 @@ visit(node::Number) = begin
     end
 end
 
-const binops = (Symbol => CAst)[:(==) => CEq(),
-                                :(!=) => CNotEq(),
-                                :(<)  => CLt(),
-                                :(<=) => CLtE(),
-                                :(>)  => CGt(),
-                                :(>=) => CGtE()]
+visit_call(expr::Expr) = begin
+    @assert expr.head == :call
+    arg1 = expr.args[1]
+    if haskey(unops, arg1)
+        op = unops[arg1]
+        node = visit(expr.args[2])
+        #TODO: correct types
+        if isa(op, CNot)
+            return CUnaryOp(op, node, Bool)
+        else
+            error("unhandled code path")
+        end
+    end
+    if haskey(binops, arg1)
+        op = binops[arg1]
+        arg1 = visit(expr.args[2])
+        arg2 = visit(expr.args[3])
+        return CBinOp(arg1, op, arg2, arg1.ctype)
+    end
+    error("unhandled code path in call")
+end
+
+visit_and(expr::Expr) = begin
+    @assert expr.head == :(&&)
+    arg1 = visit(expr.args[1])
+    arg2 = visit(expr.args[2])
+    return CBinOp(arg1, CAnd(), arg2, Bool)
+end
+
+visit_or(expr::Expr) = begin 
+    @assert expr.head == :(||)
+    arg1 = visit(expr.args[1])
+    arg2 = visit(expr.args[2])
+    return CBinOp(arg1, COr(), arg2, Bool)
+end
+
+visit_add(expr::Expr) = begin
+    @assert expr.head == :(+=)
+    arg1 = visit(expr.args[1])
+    arg2 = visit(expr.args[2])
+    return CAssign(arg1,
+                   CBinOp(arg1, CAdd(), arg2, nothing),
+                   nothing)
+end
+
+visit_sub(expr::Expr) = begin
+    @assert expr.head == :(-=)
+    arg1 = visit(expr.args[1])
+    arg2 = visit(expr.args[2])
+    return CAssign(arg1,
+                   CBinOp(arg1, CSub(), arg2, nothing),
+                   nothing)
+end
+
+visit_mult(expr::Expr) = begin
+    @assert expr.head == :(*=)
+    arg1 = visit(expr.args[1])
+    arg2 = visit(expr.args[2])
+    return CAssign(arg1,
+                   CBinOp(arg1, CMult(), arg2, nothing),
+                   nothing)
+
+end
+
+visit_div(expr::Expr) = begin
+    @assert expr.head == :(/=)
+    arg1 = visit(expr.args[1])
+    arg2 = visit(expr.args[2])
+    return CAssign(arg1,
+                   CBinOp(arg1, CDiv(), arg2, nothing),
+                   nothing)
+end
 
 visit_comparison(expr::Expr) = begin
     @assert expr.head == :comparison
@@ -131,10 +214,17 @@ visit_colon(expr::Expr) = begin
     end
 end
 
-const visitors = (Symbol=>Function)[:comparison => visit_comparison,
+const visitors = (Symbol=>Function)[:call   => visit_call,
+                                    :comparison => visit_comparison,
                                     :for    => visit_for,
                                     :(=)    => visit_assign,
                                     :(:)    => visit_colon,
+                                    :(&&)   => visit_and,
+                                    :(||)   => visit_or,
+                                    :+=     => visit_add,
+                                    :-=     => visit_sub,
+                                    :*=     => visit_mult,
+                                    :/=     => visit_div,
                                     :block  => visit_block,
                                     :while  => visit_while]
 end
