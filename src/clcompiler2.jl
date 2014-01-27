@@ -25,32 +25,70 @@ visit(node::Symbol) = begin
     return CName(string(node), nothing)
 end
 
+visit(node::Number) = begin
+    if isa(node, Integer)
+        if isa(node, Int)
+            return CNum(clint(node))
+        else
+            return CNum(node)
+        end
+    elseif isa(node, FloatingPoint)
+        return CNum(node)
+    else
+        error("Unhandled CNum type $(typeof(node))")
+    end
+end
+
+const binops = (Symbol => CAst)[:(==) => CEq(),
+                                :(!=) => CNotEq(),
+                                :(<)  => CLt(),
+                                :(<=) => CLtE(),
+                                :(>)  => CGt(),
+                                :(>=) => CGtE()]
+
+visit_comparison(expr::Expr) = begin
+    @assert expr.head == :comparison
+    sym_cmp = expr.args[2]
+    if !(haskey(binops, sym_cmp))
+        error("Unknown comparison $sym_cmp")
+    end
+    arg1 = visit(expr.args[1])
+    cmp  = binops[sym_cmp]
+    arg2 = visit(expr.args[3])
+    return CBinOp(arg1, cmp, arg2, Bool)
+end
+
+visit_while(expr::Expr) = begin
+    @assert expr.head == :while
+    node  = visit(expr.args[1])
+    block = visit(expr.args[2])
+    return CWhile(node, block)
+end
+
 visit_for(expr::Expr) = begin
     @assert expr.head == :for
     node = visit(expr.args[1])
+    body = visit(expr.args[2])
     if isa(node, CAssign) && isa(node.val, Range)
         name = node.target.name
         ty   = node.target.ctype
-        ast = CFor(CAssign(node.target,
-                           CNum(node.val.start), 
-                           ty),
-                   CBinOp(name,
-                          CLtE(), 
-                          CNum(node.val.len),
-                          Bool),
-                   CAssign(name,
-                           CBinOp(name,
-                                  CAdd(),
-                                  CNum(node.val.step),
-                                  ty),
-                           ty),
-                   CBlock([]))
-     end
+        init = CAssign(node.target, CNum(node.val.start), ty)
+        cond = CBinOp(name, CLtE(), CNum(node.val.len), Bool)
+        incr = CAssign(name, CBinOp(name, CAdd(), CNum(node.val.step), ty), ty)
+        block  = body
+        return CFor(init, cond, incr, block)
+    else
+        error("unhandled for path")
+    end
 end
 
 visit_block(expr::Expr) = begin
     @assert expr.head == :block
-    @show expr.args
+    if length(expr.args) == 0
+        return CBlock([])
+    else
+        error("unhandled code path in block")
+    end
 end
 
 visit_assign(expr::Expr) = begin
@@ -93,8 +131,10 @@ visit_colon(expr::Expr) = begin
     end
 end
 
-const visitors = (Symbol=>Function)[:for    => visit_for,
+const visitors = (Symbol=>Function)[:comparison => visit_comparison,
+                                    :for    => visit_for,
                                     :(=)    => visit_assign,
                                     :(:)    => visit_colon,
-                                    :block  => visit_block]
+                                    :block  => visit_block,
+                                    :while  => visit_while]
 end

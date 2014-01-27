@@ -1,11 +1,11 @@
 module CLAst
 
 export CAst, CAssign, CBlock, CIndex, CTypeCast, CName, CNum, CBinOp,
-       CMult, CAdd, CLt, CLtE, CDiv, CEq, CNotEq, CNot, COr, CMod,
+       CMult, CAdd, CLt, CLtE, CGt, CGtE, CDiv, CEq, CNotEq, CNot, COr, CMod,
        CUSub, CUnaryOp, CUAdd, CFunctionCall, CFor, CReturn,
        CSubscript, CLRTCall, CTypeDecl, CFunctionDef, CIf,
        CPtrDecl, CVarDecl, CArrayDecl, CGoto, CLabel, CArray,
-       CStructRef, CAssignList
+       CStructRef, CAssignList, CWhile
 
 abstract CAst 
 abstract CType
@@ -83,7 +83,7 @@ end
 
 type CWhile <: CAst
     test
-    body
+    block
 end
 
 type CComment <: CAst
@@ -234,10 +234,7 @@ type CFor <: CAst
     condition
     increment
     block
-    orelse
 end
-
-CFor(init, cond, inc, body) = CFor(init, cond, inc, body, nothing)
 
 type CStruct <: CAst
     id

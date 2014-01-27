@@ -423,8 +423,11 @@ clprint(io::IO, node::CLAst.CIf, indent::Int) = begin
 end
 
 clprint(io::IO, node::CLAst.CWhile, indent::Int) = begin
-    printind(io, "while ($(node.test)) {{\n", indent)
-    for stmnt in node.body
+    test = sprint() do io
+        clprint(io, node.test, 0)
+    end
+    printind(io, "while ($test) {{\n", indent)
+    for stmnt in node.block.body
         clprint(io, stmnt, indent + 1)
     end
     printind(io, "}}\n", indent)

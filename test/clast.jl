@@ -57,7 +57,31 @@ facts("Generation") do
     @fact code => "test[1] = 10"
 end
 
-facts("Parse AST") do
-    expr = :(for i = 1:2:10; end)
-    println(clsource(visit(expr)))
+facts("Parse Expr") do
+    expr = :(i < 1) 
+    @fact clsource(visit(expr)) => "i < 1"
+    
+    expr = :(i <= 1) 
+    @fact clsource(visit(expr)) => "i <= 1"
+    
+    expr = :(i > 1) 
+    @fact clsource(visit(expr)) => "i > 1"
+    
+    expr = :(i >= 1) 
+    @fact clsource(visit(expr)) => "i >= 1"
+
+    expr = :(i == 1)
+    @fact clsource(visit(expr)) => "i == 1"
+
+    expr = :(i != 1)
+    @fact clsource(visit(expr)) => "i != 1"
+
+    expr = :(for i in 0:10; end)
+    @fact clsource(visit(expr)) => "for (int i = 0; i <= 10; i = i + 1) {{\n}}\n" 
+    
+    expr = :(for i in 0:2:10; end)
+    @fact clsource(visit(expr)) => "for (int i = 0; i <= 10; i = i + 2) {{\n}}\n" 
+
+    expr = :(while i < 10; end)
+    @fact clsource(visit(expr)) => "while (i < 10) {{\n}}\n"
 end
