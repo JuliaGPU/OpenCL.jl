@@ -52,6 +52,6 @@ include("clast.jl")
 include("clsourcegen.jl")
 
 # Compiler
-include("clcompiler.jl")
+include("clcompiler2.jl")
 
 end # module

@@ -59,6 +59,7 @@ for (ty, cty) in [(:None, "void"),
                   (:Float64, "double"),
                   (:Float32, "float"),
                   (:Uint32, "unsigned int"),
+                  (:Int32, "int"),
                   (:Int64, "long"),
                   (:Uint64, "unsigned long")]
     @eval begin
@@ -112,6 +113,11 @@ end
 clprint(io::IO, node::Int64, indent::Int) = begin
     printind(io, string(node), 0)
 end
+
+clprint(io::IO, node::Int32, indent::Int) = begin
+    printind(io, string(node), 0)
+end
+
 
 clprint(io::IO, node::Uint64, indent::Int) = begin
     printind(io, string(node) * "u", 0)
@@ -362,7 +368,10 @@ clprint(io::IO, node::CLAst.CVarDecl, indent::Int) = begin
     ty = sprint() do io 
         clprint(io, node.ctype, 0)
     end
-    printind(io, "$ty $(node.name)", indent)
+    name = sprint() do io
+        clprint(io, node.name, 0)
+    end
+    printind(io, "$ty $name", indent)
 end
 
 clprint(io::IO, node::CLAst.CStruct, indent::Int) = begin

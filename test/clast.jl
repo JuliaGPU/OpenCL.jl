@@ -2,6 +2,7 @@ using FactCheck
 
 using OpenCL.CLAst 
 using OpenCL.CLSourceGen
+using OpenCL.CLCompiler2
 
 facts("Generation") do
     ast = CBinOp(CNum(1), 
@@ -54,4 +55,9 @@ facts("Generation") do
                   Int64)
     code = clsource(ast) 
     @fact code => "test[1] = 10"
+end
+
+facts("Parse AST") do
+    expr = :(for i = 1:2:10; end)
+    println(clsource(visit(expr)))
 end

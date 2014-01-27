@@ -109,12 +109,12 @@ type CArrayDecl <: CAst
 end
 
 type CVarDecl <: CAst
-    name::String
+    name
     ctype::Type
 end
 
 type CTypeDecl <: CAst
-    name::String
+    name
     ctype::Type
 end
 
