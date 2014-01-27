@@ -30,7 +30,7 @@ facts("Generation") do
     ast = CBlock([CFunctionCall("foo", [], Void), 
                   CFunctionCall("bar", [], Void)])
     code = clsource(ast) 
-    @fact code => "{{\n\tfoo();\n\tbar();\n}}\n"
+    @fact code => "{{\n  foo();\n  bar();\n}}\n"
 
     ast = CFor(CAssign(CName("i"), 
                        CNum(0),
@@ -46,7 +46,7 @@ facts("Generation") do
                                      CNum(1),
                                      Int64)]))
     code = clsource(ast) 
-    @fact code => "for (i = 0; i <= 10; ++(i)) {{\n\ti = 1;\n}}\n"
+    @fact code => "for (i = 0; i <= 10; ++(i)) {{\n  i = 1;\n}}\n"
 
     ast = CAssign(CSubscript(CName("test"),
                              CIndex(CNum(1)),
@@ -128,11 +128,11 @@ facts("Parse Expr") do
     @fact clsource(visit(expr)) => "while (i < 10) {{\n}}\n"
 
     expr = :(if i == 1; i += 2; end)
-    @fact clsource(visit(expr)) => "if (i == 1) {{\n\ti = i + 2;\n}}\n"
+    @fact clsource(visit(expr)) => "if (i == 1) {{\n  i = i + 2;\n}}\n"
     
     expr = :(if i == 1; i += 2; else; i += 3; end)
     @fact clsource(visit(expr)) => 
-        "if (i == 1) {{\n\ti = i + 2;\n}}\nelse {{\n\ti = i + 3;\n}}\n"
+        "if (i == 1) {{\n  i = i + 2;\n}}\nelse {{\n  i = i + 3;\n}}\n"
     
     expr = :(if i == 1 
                i += 2 
@@ -144,5 +144,7 @@ facts("Parse Expr") do
              else
                i += 4
              end)
-    println(clsource(visit(expr)))
+    @fact clsource(visit(expr)) =>
+        "if (i == 1) {{\n  i = i + 2;\n}}\nelse {{\n  if (i == 2) {{\n    if (i == 2) {{\n      i == 4;\n    }}\n    i = i + 3;\n  }}\n  else {{\n    i = i + 4;\n  }}\n}}\n"
+
 end

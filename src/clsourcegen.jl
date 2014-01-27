@@ -35,7 +35,7 @@ clprint(io::IO, node::CLAst.CBitShiftLeft,  indent::Int)  = print(io, "<<")
 #Base.show(io::IO, node::CLAst.CName) = print(io, string(node.id))
 
 printind(io::IO, str::String, indent::Int) = begin
-    print(io, "    "^indent, str)
+    print(io, "  "^indent, str)
 end
 
 pointee_type{T}(::Type{Ptr{T}}) = T
