@@ -124,6 +124,9 @@ facts("Parse Expr") do
     expr = :(for i in 0:2:10; end)
     @fact clsource(visit(expr)) => "for (int i = 0; i <= 10; i = i + 2) {{\n}}\n" 
 
+    expr = :(for i in 10:-1:0; end)
+    @fact clsource(visit(expr)) => "for (int i = 10; i >= 0; i = i - 1) {{\n}}\n" 
+    
     expr = :(while i < 10; end)
     @fact clsource(visit(expr)) => "while (i < 10) {{\n}}\n"
 
@@ -144,6 +147,7 @@ facts("Parse Expr") do
              else
                i += 4
              end)
+
     @fact clsource(visit(expr)) =>
         "if (i == 1) {{\n  i = i + 2;\n}}\nelse {{\n  if (i == 2) {{\n    if (i == 2) {{\n      i == 4;\n    }}\n    i = i + 3;\n  }}\n  else {{\n    i = i + 4;\n  }}\n}}\n"
 

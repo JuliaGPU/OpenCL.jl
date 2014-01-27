@@ -172,8 +172,15 @@ visit_for(expr::Expr) = begin
         name = node.target.name
         ty   = node.target.ctype
         init = CAssign(node.target, CNum(node.val.start), ty)
-        cond = CBinOp(name, CLtE(), CNum(node.val.len), Bool)
-        incr = CAssign(name, CBinOp(name, CAdd(), CNum(node.val.step), ty), ty)
+        if node.val.len >= node.val.start  
+            cond = CBinOp(name, CLtE(), CNum(node.val.len), Bool)
+            incr = CAssign(name, CBinOp(name, CAdd(), CNum(node.val.step), ty), ty)
+        elseif node.val.step < 0
+            cond = CBinOp(name, CGtE(), CNum(node.val.len), Bool)
+            incr = CAssign(name, CBinOp(name, CSub(), CNum(abs(node.val.step)), ty), ty)
+        else
+            error("invalid for loop, step must be negative")
+        end
         block  = body
         return CFor(init, cond, incr, block)
     else
