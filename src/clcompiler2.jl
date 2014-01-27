@@ -21,6 +21,10 @@ visit(node::Expr) = begin
     end
 end
 
+is_linenumber(ex::LineNumberNode) = true
+is_linenumber(ex::Expr) = ex.head === :line
+is_linenumber(ex) = false
+
 const unops  = (Symbol => CAst)[:(!)  => CNot()]
 
 const binops = (Symbol => CAst)[:(*)  => CMult(),
@@ -141,6 +145,18 @@ visit_comparison(expr::Expr) = begin
     return CBinOp(arg1, cmp, arg2, Bool)
 end
 
+visit_if(expr::Expr) = begin
+    @assert expr.head == :if
+    cond   = visit(expr.args[1])
+    block  = visit(expr.args[2])
+    if length(expr.args) == 3
+        orelse = visit(expr.args[3])
+    else
+        orelse = nothing
+    end
+    return CIf(cond, block, orelse) 
+end
+
 visit_while(expr::Expr) = begin
     @assert expr.head == :while
     node  = visit(expr.args[1])
@@ -170,7 +186,13 @@ visit_block(expr::Expr) = begin
     if length(expr.args) == 0
         return CBlock([])
     else
-        error("unhandled code path in block")
+        body = CAst[]
+        for node in expr.args
+            if !(is_linenumber(node))
+                push!(body, visit(node))
+            end
+        end
+        return CBlock(body)
     end
 end
 
@@ -217,6 +239,7 @@ end
 const visitors = (Symbol=>Function)[:call   => visit_call,
                                     :comparison => visit_comparison,
                                     :for    => visit_for,
+                                    :if     => visit_if,
                                     :(=)    => visit_assign,
                                     :(:)    => visit_colon,
                                     :(&&)   => visit_and,

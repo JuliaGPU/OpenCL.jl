@@ -212,7 +212,7 @@ type CPointerAttribute <: CAstAttribute
     ctype
 end
 
-type CIf
+type CIf <: CAst
     test
     body
     orelse

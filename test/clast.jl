@@ -126,4 +126,23 @@ facts("Parse Expr") do
 
     expr = :(while i < 10; end)
     @fact clsource(visit(expr)) => "while (i < 10) {{\n}}\n"
+
+    expr = :(if i == 1; i += 2; end)
+    @fact clsource(visit(expr)) => "if (i == 1) {{\n\ti = i + 2;\n}}\n"
+    
+    expr = :(if i == 1; i += 2; else; i += 3; end)
+    @fact clsource(visit(expr)) => 
+        "if (i == 1) {{\n\ti = i + 2;\n}}\nelse {{\n\ti = i + 3;\n}}\n"
+    
+    expr = :(if i == 1 
+               i += 2 
+             elseif i == 2 
+                 if i == 2
+                    i == 4
+                 end
+               i += 3; 
+             else
+               i += 4
+             end)
+    println(clsource(visit(expr)))
 end

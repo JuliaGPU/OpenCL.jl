@@ -35,7 +35,7 @@ clprint(io::IO, node::CLAst.CBitShiftLeft,  indent::Int)  = print(io, "<<")
 #Base.show(io::IO, node::CLAst.CName) = print(io, string(node.id))
 
 printind(io::IO, str::String, indent::Int) = begin
-    print(io, "\t"^indent, str)
+    print(io, "    "^indent, str)
 end
 
 pointee_type{T}(::Type{Ptr{T}}) = T
@@ -184,10 +184,17 @@ clprint(io::IO, node::CLAst.CFunctionCall, indent::Int) = begin
 end
 
 clprint(io::IO, node::CLAst.CBlock, indent::Int) = begin
-    printind(io, "{{\n", indent)
-    for stmnt in node.body
-        clprint(io, stmnt, indent + 1)
-        print(io, ";\n")
+    printind(io, "{{\n", 0)
+    nstmnts = length(node.body)
+    for (i, stmnt) in enumerate(node.body)
+        s = sprint() do io
+            clprint(io, stmnt, indent + 1)
+        end
+        if !endswith(s, "\n")
+            printind(io, "$s;\n",0)
+        else
+            printind(io, s, 0)
+        end
     end
     printind(io, "}}\n", indent)
 end
@@ -412,16 +419,23 @@ clprint(io::IO, node::CLAst.CIf, indent::Int) = begin
         clprint(io, node.test, 0)
     end
     ifbody = sprint() do io
-        clprint(io, node.body, 0)
+        clprint(io, node.body, indent)
     end
     printind(io, "if ($test) ", indent)
     printind(io, ifbody, 0)
     if node.orelse != nothing
-        printind(io, "else ", indent)
-        elsebody = sprint() do io
-            clprint(io, node.orelse, 0)
+        if false #isa(node.orelse.body[1], CIf) && length(node.orelse.body) == 1
+            body = sprint() do io
+                clprint(io, node.orelse.body[1], 0)
+            end
+            printind(io, "else $body", indent)
+        else
+            printind(io, "else ", indent)
+            elsebody = sprint() do io
+                clprint(io, node.orelse, indent)
+            end
+            printind(io, elsebody, 0)
         end
-        printind(io, elsebody, 0)
     end
 end
 
