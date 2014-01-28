@@ -49,11 +49,6 @@ facts("OpenCL.Event") do
                 info("Skipping OpenCL.Event callback for $(platform[:name]) version < 1.2")
                 continue
             end
-            if contains(platform[:name], "AMD")
-                msg = "AMD Segfaults on User Event"
-                @fact msg => true
-                continue
-            end
             if contains(platform[:name], "Apple")
                 msg = "Apple Segfaults on User Event"
                 @fact msg => true
