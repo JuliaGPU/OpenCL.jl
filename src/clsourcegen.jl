@@ -1,4 +1,4 @@
-module CLSourceGen
+module SourceGen
 
 using ..CLAst 
 

@@ -1,7 +1,8 @@
 using FactCheck 
 
 using OpenCL.CLAst 
-using OpenCL.CLSourceGen
+using OpenCL.SourceGen
+using OpenCL.Compiler
 
 facts("Generation") do
     ast = CBinOp(CNum(1), 

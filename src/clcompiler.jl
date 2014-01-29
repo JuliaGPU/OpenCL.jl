@@ -1,18 +1,10 @@
-module CLCompiler
+module Compiler
 
 using ..CLAst
+export build_kernel, visit
 
 typealias CLType Any
 typealias CLInteger Union(Int16, Int32, Int64)
-
-#TODO: run pass to convert goto statements into if / else statements
-
-#TODO: pass to remove unnecessary array index casts
-
-type GotoIfNot
-    test 
-    label
-end
 
 function rm_linenum!(expr::Expr)
     new_args = {}
@@ -30,9 +22,6 @@ function rm_linenum!(expr::Expr)
     expr.args = new_args
     return expr
 end
-
-isconditional(n::GotoIfNot) = true
-isconditional(n) = false
 
 visit(expr::Expr) = begin
     expr = rm_linenum!(expr)
@@ -272,7 +261,8 @@ const binary_builtins = (Symbol=>CAst)[
                                     :ne_float => CNotEq(),
                                     :ne_int => CNotEq(),
                                     :or_int => COr(), 
-                                    :smod_int => CMod()]
+                                    :smod_int => CMod(),
+                                    ]
 
 const unary_builtins = (Symbol=>CAst)[
                                     :not_int => CNot(),
@@ -280,6 +270,61 @@ const unary_builtins = (Symbol=>CAst)[
                                     :neg_int => CUSub()]
 
 const runtime_funcs = Set{Symbol}(:get_global_id)
+
+visit_pow(expr::Expr) = begin
+    arg1 = visit(expr.args[2])
+    arg2 = visit(expr.args[3])
+    ret_type = promote_type(arg1.ctype, arg2.ctype)
+    if arg2.ctype <: Integer
+        return CLRTCall("pown", [arg1, arg2], ret_type) 
+    elseif arg2.ctype <: FloatingPoint
+        return CLRTCall("pow", [arg1, arg2], ret_type)
+    else
+        error("invalid code path in power_by_squaring")
+    end
+end
+
+visit_binaryop(expr::Expr) = begin
+    local op::CAst
+    local arg1 = expr.args[1]
+    if isa(arg1, SymbolNode) || isa(arg1, TopNode)
+        op = binary_builtins[arg1.name]
+    elseif isa(arg1, Symbol)
+        op = binary_builtins[arg1]
+    else
+        error("unhandled code path in binaryop")
+    end
+    lnode = visit(expr.args[2])
+    rnode = visit(expr.args[3])
+    ret_type = expr.typ
+    if ret_type === Any
+        ret_type = promote_type(lnode.ctype, rnode.ctype)
+    end
+    return CBinOp(lnode, op, rnode, ret_type)
+end
+
+visit_unaryop(expr::Expr) = begin
+    local opname::Symbol
+    local arg1::CAst = expr.args[1]
+    if isa(arg1, TopNode) || isa(arg1, SymbolNode)
+        opname = arg1.name
+    elseif isa(arg1, Symbol)
+        opname = arg1
+    else
+        error("unhandled code path in unaryop")
+    end
+    local op::CAst
+    if haskey(builtin_funcs, opname)
+        op = builtin_funcs[opname]
+    elseif haskey(runtime_funcs, opname)
+        op = runtime_funcs[opname]
+    else
+        error("unhandled binary function $opname")
+    end
+    node = visit(expr.args[2])
+    ret_type = node.ctype 
+    return CUnaryOp(op, node, ret_type)
+end
 
 visit_call(expr::Expr) = begin
     @assert expr.head === :call
@@ -297,6 +342,10 @@ visit_call(expr::Expr) = begin
     if arg1 === :(===)
         return visit_is(expr)
     end
+    if arg1 == :(^)
+        return visit_pow(expr)
+    end
+
     #TODO: handle runtime functions
     if arg1 in runtime_funcs
         args = CAst[]
@@ -415,30 +464,24 @@ visit_call(expr::Expr) = begin
         return CTypeCast(node, ret_type)
     
     # binary operations
-    elseif haskey(binary_builtins, arg1.name) 
-        op = binary_builtins[arg1.name]
-        lnode = visit(expr.args[2])
-        rnode = visit(expr.args[3])
-        ret_type = expr.typ
-        if ret_type === Any
-            ret_type = promote_type(lnode.ctype, rnode.ctype)
-        end
-        return CBinOp(lnode, op, rnode, ret_type)
-    
+    elseif haskey(binary_builtins, arg1.name)
+        visit_binaryop(expr)
+      
     # unary operations
     elseif haskey(unary_builtins, arg1.name)
-        op = unary_builtins[arg1.name]
-        node = visit(expr.args[2])
-        ret_type = node.ctype #node.ctype
-        return CUnaryOp(op, node, ret_type)
-    
+        visit_unaryop(expr)
     else
         @show expr
         error("unhandled call function :$(arg1)")
     end
 end
 
-visit_lambda(expr::Expr) = begin
+visit_lambda(node::Expr) = begin
+    error("visit_lambda unimplemented")
+end
+
+
+function build_kernel(name::String, expr::Expr)
     @assert expr.head === :lambda
 
     # parse variable declarations
@@ -508,9 +551,7 @@ visit_lambda(expr::Expr) = begin
     else
         ret_type = Ptr{Void}
     end
-
-    #TODO: function name?
-    return CFunctionDef("testcl", args, blocknode, ret_type) 
+    return CFunctionDef(name, args, blocknode, ret_type) 
 end
 
 const visitors = (Symbol=>Function)[:lambda => visit_lambda,
