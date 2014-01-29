@@ -48,6 +48,14 @@ end
 
 device, ctx, queue = cl.create_compute_context()
 
+uncompressed_ast(l::LambdaStaticData) = begin
+    if isa(l.ast,Expr)
+        return l.ast
+    else
+        return ccall(:jl_uncompress_ast, Any, (Any,Any), l, l.ast) 
+    end
+end
+
 macro clkernel(func)
     f, n = gensym("func"), gensym("n")
     
@@ -275,6 +283,18 @@ facts("Builtins") do
         r = cl.read(queue, c_buff)
         toc()
     end
+
+    function compile_anonfunc(f, types)
+        if isgeneric(f) || (isdefined(f, :env) && isa(f.env, Symbol))
+            error("not an anonymous function")
+        end
+        (tree, ty) = Base.typeinf(f.code, types,())
+        ast = ccall(:jl_uncompress_ast, Any, (Any, Any), f.code, tree)
+        return (ast, ty)
+    end
+        
+    f = (x) -> x + 2
+    @show compile_anonfunc(f, (Int32,)) 
 
     #@fact isapprox(norm(r - (a+b)), zero(Float32)) => true
 end
