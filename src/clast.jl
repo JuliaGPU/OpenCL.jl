@@ -1,11 +1,11 @@
 module CLAst
 
 export CAst, CAssign, CBlock, CIndex, CTypeCast, CName, CNum, CBinOp,
-       CMult, CAdd, CLt, CLtE, CDiv, CEq, CNotEq, CNot, COr, CMod,
-       CUSub, CUnaryOp, CUAdd, CFunctionCall, CFor, CReturn,
+       CMult, CAdd, CLt, CLtE, CGt, CGtE, CAnd, CDiv, CEq, CNotEq, CNot, COr, CMod,
+       CUSub, CUnaryOp, CUAdd, CFunctionCall, CFor, CReturn, CSub,
        CSubscript, CLRTCall, CTypeDecl, CFunctionDef, CIf,
        CPtrDecl, CVarDecl, CArrayDecl, CGoto, CLabel, CArray,
-       CStructRef, CAssignList
+       CStructRef, CAssignList, CWhile, CBitShiftLeft, CBitShiftRight
 
 abstract CAst 
 abstract CType
@@ -38,6 +38,9 @@ type CEq    <: CAst end
 type CNotEq <: CAst end
 type CAnd   <: CAst end
 type COr    <: CAst end 
+
+type CBitShiftLeft  <: CAst end
+type CBitShiftRight <: CAst end
 
 #TODO: 
 type CIndex <: CAst
@@ -83,7 +86,7 @@ end
 
 type CWhile <: CAst
     test
-    body
+    block
 end
 
 type CComment <: CAst
@@ -109,12 +112,12 @@ type CArrayDecl <: CAst
 end
 
 type CVarDecl <: CAst
-    name::String
+    name
     ctype::Type
 end
 
 type CTypeDecl <: CAst
-    name::String
+    name
     ctype::Type
 end
 
@@ -168,7 +171,7 @@ type CBinOp <: CAst
     left
     op
     right
-    ctype::Type
+    ctype
 end
 
 type CUnaryOp <: CAst
@@ -209,7 +212,7 @@ type CPointerAttribute <: CAstAttribute
     ctype
 end
 
-type CIf
+type CIf <: CAst
     test
     body
     orelse
@@ -234,10 +237,7 @@ type CFor <: CAst
     condition
     increment
     block
-    orelse
 end
-
-CFor(init, cond, inc, body) = CFor(init, cond, inc, body, nothing)
 
 type CStruct <: CAst
     id
