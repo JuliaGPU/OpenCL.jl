@@ -29,7 +29,7 @@ facts("Generation") do
     ast = CBlock([CFunctionCall("foo", [], Void), 
                   CFunctionCall("bar", [], Void)])
     code = clsource(ast) 
-    @fact code => "{{\n\tfoo();\n\tbar();\n}}\n"
+    @fact code => "{{\n  foo();\n  bar();\n}}\n"
 
     ast = CFor(CAssign(CName("i"), 
                        CNum(0),
@@ -45,7 +45,7 @@ facts("Generation") do
                                      CNum(1),
                                      Int64)]))
     code = clsource(ast) 
-    @fact code => "for (i = 0; i <= 10; ++(i)) {{\n\ti = 1;\n}}\n"
+    @fact code => "for (i = 0; i <= 10; ++(i)) {{\n  i = 1;\n}}\n"
 
     ast = CAssign(CSubscript(CName("test"),
                              CIndex(CNum(1)),
