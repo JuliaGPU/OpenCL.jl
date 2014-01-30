@@ -1,11 +1,13 @@
 module CLAst
 
-export CAst, CAssign, CBlock, CIndex, CTypeCast, CName, CNum, CBinOp,
+export CAst, CLKernelDef, CAssign, CBlock, CIndex, CTypeCast, CName, CNum, CBinOp,
        CMult, CAdd, CLt, CLtE, CGt, CGtE, CAnd, CDiv, CEq, CNotEq, CNot, COr, CMod,
        CUSub, CUnaryOp, CUAdd, CFunctionCall, CFor, CReturn, CSub,
        CSubscript, CLRTCall, CTypeDecl, CFunctionDef, CIf,
        CPtrDecl, CVarDecl, CArrayDecl, CGoto, CLabel, CArray,
-       CStructRef, CAssignList, CWhile, CBitShiftLeft, CBitShiftRight
+       CStructRef, CAssignList, CWhile, CBitNot, CBitAnd,
+       CBitOr, CBitXor, CBitShiftRight, CBitShiftLeft  
+
 
 abstract CAst 
 abstract CType
@@ -39,8 +41,12 @@ type CNotEq <: CAst end
 type CAnd   <: CAst end
 type COr    <: CAst end 
 
-type CBitShiftLeft  <: CAst end
+type CBitNot <: CAst end
+type CBitAnd <: CAst end
+type CBitOr <: CAst  end 
+type CBitXor <: CAst end 
 type CBitShiftRight <: CAst end
+type CBitShiftLeft  <: CAst end
 
 #TODO: 
 type CIndex <: CAst
@@ -186,10 +192,14 @@ type CKeyword <: CAst
     ctype
 end
 
-type CLKernel <: CAst
+type CLKernelDef <: CAst
+    name
+    args
+    body
+    ctype
 end
 
-type CSubscript
+type CSubscript <: CAst
     val
     slice
     #ctx

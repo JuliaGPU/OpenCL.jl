@@ -26,6 +26,10 @@ clprint(io::IO, node::CLAst.CNotEq, indent::Int) = print(io, "!=")
 clprint(io::IO, node::CLAst.CAnd, indent::Int) = print(io, "&&")
 clprint(io::IO, node::CLAst.COr, indent::Int)  = print(io, "||")
 
+clprint(io::IO, node::CLAst.CBitNot, indent::Int)  = print(io, "~")
+clprint(io::IO, node::CLAst.CBitAnd, indent::Int)  = print(io, "&")
+clprint(io::IO, node::CLAst.CBitOr,  indent::Int)  = print(io, "|")
+clprint(io::IO, node::CLAst.CBitXor, indent::Int)  = print(io, "^")
 clprint(io::IO, node::CLAst.CBitShiftRight, indent::Int)  = print(io, ">>")
 clprint(io::IO, node::CLAst.CBitShiftLeft,  indent::Int)  = print(io, "<<")
 
@@ -59,6 +63,7 @@ clprint(io::IO, node::String, indent=Int) = begin
 end
 
 for (ty, cty) in [(:None, "void"),
+                  (:Nothing, "void"),
                   (:Float64, "double"),
                   (:Float32, "float"),
                   (:Uint32, "unsigned int"),
@@ -72,12 +77,28 @@ for (ty, cty) in [(:None, "void"),
     end
 end
 
+clprint{T}(io::IO, node::Type{Range1{T}}, indent::Int) = begin
+    printind(io, "Range", indent)
+end
+
 clprint{T}(io::IO, node::Type{Range{T}}, indent::Int) = begin
     printind(io, "Range", indent)
 end
 
 clprint(io::IO, node::Type{(NTuple{2, Int64})}, indent::Int) = begin
+    printind(io, "long2", indent)
+end
+
+clprint(io::IO, node::Type{(NTuple{2, Int32})}, indent::Int) = begin
     printind(io, "int2", indent)
+end
+
+clprint(io::IO, node::Type{(NTuple{2, Uint32})}, indent::Int) = begin
+    printind(io, "uint2", indent)
+end
+
+clprint(io::IO, node::Type{(NTuple{2, Uint64})}, indent::Int) = begin
+    printind(io, "ulong2", indent)
 end
 
 clprint(io::IO, node::CLAst.CArray, indent::Int) = begin
@@ -114,7 +135,11 @@ clprint(io::IO, node::Float32, indent::Int) = begin
 end
 
 clprint(io::IO, node::Int64, indent::Int) = begin
-    printind(io, string(node), 0)
+    printind(io, string(node) * "l", 0)
+end
+
+clprint(io::IO, node::Uint32, indent::Int) = begin
+    printind(io, string(node) * "u", 0)
 end
 
 clprint(io::IO, node::Int32, indent::Int) = begin
@@ -251,11 +276,26 @@ clprint(io::IO, node::CLAst.CTypeCast, indent::Int) = begin
     val = sprint() do io
         clprint(io, node.value, indent)
     end
-    printind(io, "(($ty) $val)", indent)
+    printind(io, "(($ty) ($val))", indent)
 end
 
-clprint(io::IO, node::CLAst.CLKernel, indent::Int) = begin
-    print(io, "__kernel")
+clprint(io::IO, node::CLAst.CLKernelDef, indent::Int) = begin
+    ret_type = sprint() do io
+        clprint(io, node.ctype, 0)
+    end
+    printind(io, "__kernel $ret_type $(node.name)(\n\t", indent)
+    nargs = length(node.args)
+    for (i, arg) in enumerate(node.args)
+        a = sprint() do io
+            clprint(io, arg, 0)
+        end
+        if i < nargs
+            print(io, "$a,\n\t")
+        else
+            print(io, "$a)\n")
+        end
+    end
+    clprint(io, node.body, indent)
 end
 
 clprint(io::IO, node::CLAst.CIndex, indent::Int) = begin
@@ -324,16 +364,10 @@ clprint(io::IO, node::CLAst.CFunctionForwardDec, indent::Int) = begin
 end
 
 clprint(io::IO, node::CLAst.CFunctionDef, indent::Int) = begin
-    #TODO: decl list only for kernels?
-    #for decl in node.decl_list
-    #    printind(io, "$decl\n", indent)
-    #end 
     ret_type = sprint() do io
         clprint(io, node.ctype, 0)
     end
-    print(io, "typedef struct Range {long start; long step; long len; } Range;\n")
-
-    printind(io, "__kernel $ret_type $(node.name)(\n\t", indent)
+    printind(io, "$ret_type $(node.name)(\n\t", indent)
     nargs = length(node.args)
     for (i, arg) in enumerate(node.args)
         a = sprint() do io
@@ -479,10 +513,13 @@ end
 
 function clsource(n::CAst)
     return sprint() do io
-        #println(io, "#pragma OPENCL EXTENSION cl_khr_fp64: enable")
         clprint(io, n, 0)
     end
 end 
+
+function clsource(io::IO, n::CAst)
+    return clprint(io, n, 0)
+end
 
 end
 

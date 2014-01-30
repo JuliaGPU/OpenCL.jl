@@ -46,6 +46,11 @@ function get_global_id(x)
     return uint32(1)
 end
 
+device = cl.devices()[end-1]
+@show device[:platform]
+
+ctx = cl.Context(device)
+queue = cl.CmdQueue(ctx)
 device, ctx, queue = cl.create_compute_context()
 
 uncompressed_ast(l::LambdaStaticData) = begin
@@ -84,8 +89,17 @@ macro clkernel(func)
             error("more than one typed ast produced!")
         end
         local expr = first(exprs)
-        local src = clsource(build_kernel($("$orig_name"), expr))
-        
+        println(expr)
+
+        kern_ctx, kernel = build_kernel($("$orig_name"), expr)
+        local io  = IOBuffer()
+        print(io, "typedef struct Range {int start; int step; int len;} Range;\n")
+        for n in unique(keys(kern_ctx.funcs))
+            clsource(io, kern_ctx.funcs[n])
+            println(io)
+        end
+        clsource(io, kernel)
+        local src = bytestring(io.data)
         println(src)
         
         # TODO: return a fucntion that takes a context
@@ -95,18 +109,47 @@ macro clkernel(func)
     end
 end
 
-@clkernel test6(a::Vector{Float32}, 
-                b::Vector{Float32}, 
-                c::Vector{Float32},
+function juliaref{T}(a::Vector{T},
+                     b::Vector{T},
+                     c::Vector{T},
+                     count::Cuint)
+   for gid in 1:count
+       c[gid] = exp(a[gid]) + log(b[gid])
+   end
+   return
+end
+
+function testadd3(a)
+    a * 2.0
+    return a * 2.0
+end
+
+function testadd2(a, b)
+    test1 = a
+    test2 = b
+    a * b
+    return testadd3(a) + testadd3(b)
+end
+
+function testadd(a, b)
+    test1 = exp(a)
+    test2 = log(b)
+    return testadd2(test1, test2)
+end
+
+@assert isa(eval(:testadd), Function)
+
+@clkernel test6(a::Vector{Float64}, 
+                b::Vector{Float64}, 
+                c::Vector{Float64},
                 count::Cuint) = begin
     gid = get_global_id(0)
     if gid < count
-        c[gid] = a[gid] + b[gid]
+        c[gid] = exp(a[gid]) + log(b[gid])
     end
     return
 end
 
-@show "got here"
 
 const test7 = """
 typedef struct Range {
@@ -115,34 +158,15 @@ typedef struct Range {
    long len;
 } Range;
 
-__kernel void testcl(__global float *a,
-                     __global float *b, 
-                     __global float *c,
+__kernel void testcl(__global double *a,
+                     __global double *b, 
+                     __global double *c,
                      unsigned int count)
 {
 
-  long i, j;
-  Range ri;
-  Range rj;
-  long _var1;
-  long _var0;
-  unsigned int gid;
-  float s756;
-  long s758;
-  int2 s757;
-  gid = get_global_id(0);
+  size_t gid = get_global_id(0);
   if (gid < count) {
-      ri.start = 0;
-      ri.step  = 2;
-      ri.len   = 12;
-      for (i=ri.start; i <= ri.len; i += ri.step) {
-          rj.start = 0;
-          rj.step  = 2;
-          rj.len   = 12;
-          for (j=rj.start; j <= rj.len; j += rj.step) {
-                c[gid] = a[gid] + b[gid];
-          }
-      }
+      c[gid] = exp(a[gid]) + log(b[gid]);
   }
   return;
 }
@@ -163,138 +187,189 @@ function can_compile(src)
 end
 
 facts("Builtins") do
-    for ty in (:Int8, :Uint8, :Int16, :Uint16, :Int32, :Uint32) #:Int64, :Uint64)
-        @eval begin
-            expr = first(code_typed(test1, ($ty,)))
-            expr = expr.args[end].args[2].args[2]
-            ast1 = visit(expr)
-            code1 = clsource(ast1)
-            ast2 = CBinOp(CTypeCast(CName("x", $ty), Int64),
-                          CAdd(),
-                          CNum(1, Int64),
-                          Int64)
-            @fact ast1 => ast2
-            code2 = clsource(ast2) 
-            @fact code1 => code2
-        end
-    end
-    
-    expr = first(code_typed(test1, (Int64,)))
-    expr = expr.args[end].args[2].args[2]
-    ast1 = visit(expr)
-    code1 = clsource(ast1)
-    ast2 = CBinOp(CName("x", Int64),
-                  CAdd(),
-                  CNum(1, Int64),
-                  Int64)
-    @fact ast1 => ast2
-    code2 = clsource(ast2) 
-    @fact code1 => code2
+#    for ty in (:Int8, :Uint8, :Int16, :Uint16, :Int32, :Uint32) #:Int64, :Uint64)
+#        @eval begin
+#            expr = first(code_typed(test1, ($ty,)))
+#            expr = expr.args[end].args[2].args[2]
+#            ast1 = visit(expr)
+#            code1 = clsource(ast1)
+#            ast2 = CBinOp(CTypeCast(CName("x", $ty), Int64),
+#                          CAdd(),
+#                          CNum(1, Int64),
+#                          Int64)
+#            @fact ast1 => ast2
+#            code2 = clsource(ast2) 
+#            @fact code1 => code2
+#        end
+#    end
+#    
+#    expr = first(code_typed(test1, (Int64,)))
+#    expr = expr.args[end].args[2].args[2]
+#    ast1 = visit(expr)
+#    code1 = clsource(ast1)
+#    ast2 = CBinOp(CName("x", Int64),
+#                  CAdd(),
+#                  CNum(1, Int64),
+#                  Int64)
+#    @fact ast1 => ast2
+#    code2 = clsource(ast2) 
+#    @fact code1 => code2
+#
+#    expr = first(code_typed(test1, (Uint64,)))
+#    expr = expr.args[end].args[2].args[2]
+#    ast1 = visit(expr)
+#    code1 = clsource(ast1)
+#    ast2 = CBinOp(CName("x", Uint64),
+#                  CAdd(),
+#                  CNum(1, Uint64),
+#                  Uint64)
+#    @fact ast1 => ast2
+#    code2 = clsource(ast2) 
+#    @fact code1 => code2
+#
+#    for ty in (:Float32, :Float64)
+#        @eval begin 
+#            expr = first(code_typed(test1, ($ty,)))
+#            expr = expr.args[end].args[2].args[2]
+#            ast1 = visit(expr)
+#            code1 = clsource(ast1) 
+#            ast2 = CBinOp(CName("x", $ty),
+#                          CAdd(),
+#                          CNum(1, $ty),
+#                          $ty)
+#            @fact ast1 => ast2
+#            code2 = clsource(ast2)
+#            @fact code1 => code2
+#        end
+#    end
+#
+#    # cast floating point values
+#    top_expr = first(code_typed(test2, (Float64,)))
+#    expr = top_expr.args[end].args[2].args[2]
+#    @fact visit(expr) => CBinOp(CTypeCast(CName("x", Float64), Float32),
+#                                CAdd(),
+#                                CNum(2.0, Float32),
+#                                Float32)
+#    @fact clsource(visit(expr)) => "((float) x) + 2.0f"
+#
+#    # compile block ast nodes
+#    expr = top_expr.args[end]
+#    @fact clsource(visit(expr)) => "{{\n  y = ((float) x) + 2.0f;\n  return(pown(y, 10));\n}}\n"
+#
+#    # compile lambda static functions
+#    expr = top_expr 
+#    #@show clsource(visit(expr))
+#
+#    expr = first(code_typed(test3, (Float32, Float32)))
+#    #@show clsource(visit(expr))
+#    expr = first(code_typed(test4, (Array{Float64,1},Float32)))
+#    #println(clsource(visit(expr)))
 
-    expr = first(code_typed(test1, (Uint64,)))
-    expr = expr.args[end].args[2].args[2]
-    ast1 = visit(expr)
-    code1 = clsource(ast1)
-    ast2 = CBinOp(CName("x", Uint64),
-                  CAdd(),
-                  CNum(1, Uint64),
-                  Uint64)
-    @fact ast1 => ast2
-    code2 = clsource(ast2) 
-    @fact code1 => code2
+    a = rand(Float64,  500_000)
+    b = rand(Float64,  500_000)
+    c = zeros(Float64, 500_000)
 
-    for ty in (:Float32, :Float64)
-        @eval begin 
-            expr = first(code_typed(test1, ($ty,)))
-            expr = expr.args[end].args[2].args[2]
-            ast1 = visit(expr)
-            code1 = clsource(ast1) 
-            ast2 = CBinOp(CName("x", $ty),
-                          CAdd(),
-                          CNum(1, $ty),
-                          $ty)
-            @fact ast1 => ast2
-            code2 = clsource(ast2)
-            @fact code1 => code2
-        end
-    end
-
-    # cast floating point values
-    top_expr = first(code_typed(test2, (Float64,)))
-    expr = top_expr.args[end].args[2].args[2]
-    @fact visit(expr) => CBinOp(CTypeCast(CName("x", Float64), Float32),
-                                CAdd(),
-                                CNum(2.0, Float32),
-                                Float32)
-    @fact clsource(visit(expr)) => "((float) x) + 2.0f"
-
-    # compile block ast nodes
-    expr = top_expr.args[end]
-    @fact clsource(visit(expr)) => "{{\n  y = ((float) x) + 2.0f;\n  return(pown(y, 10.0f));\n}}\n"
-
-    # compile lambda static functions
-    expr = top_expr 
-    #@show clsource(visit(expr))
-
-    expr = first(code_typed(test3, (Float32, Float32)))
-    #@show clsource(visit(expr))
-    expr = first(code_typed(test4, (Array{Float64,1},Float32)))
-    #println(clsource(visit(expr)))
-
-    a = rand(Float32, 100_000)
-    b = rand(Float32, 100_000)
-
-    a_buff = cl.Buffer(Float32, ctx, (:rw, :copy), hostbuf=a)
-    b_buff = cl.Buffer(Float32, ctx, (:rw, :copy), hostbuf=b)
-    c_buff = cl.Buffer(Float32, ctx, :rw, length(a))
+    a_buff = cl.Buffer(Float64, ctx, (:rw, :copy), hostbuf=a)
+    b_buff = cl.Buffer(Float64, ctx, (:rw, :copy), hostbuf=b)
+    c_buff = cl.Buffer(Float64, ctx, :rw, length(a))
 
     println("TEST Julia")
 
-    c = zeros(Float32, length(a))
-    @time begin
-        for i in 1:length(a)
-            j = 0
-            while j < 100
-                c[i] = a[i] + b[i]
-                j += 1 
-            end
-        end
+    for _ = 1:1
+        @time juliaref(a, b, c, uint32(length(a)))
     end
 
-    println("TEST 6")
+#    p = cl.Program(ctx, source=test7) |> cl.build!
+#    t7 = cl.Kernel(p, "testcl")
 
-    for i = 1:3
+#    for i = 1:2
+#        tic()
+#        cl.call(queue, t7, size(a), nothing,
+#                a_buff, b_buff, c_buff, uint32(length(a))) 
+#        r = cl.read(queue, c_buff)
+#        toc()
+#    end
+
+    println("TEST 6")
+    local r::Vector{Float32}
+    for i = 1:2
         tic()
         cl.call(queue, test6, size(a), nothing,
                 a_buff, b_buff, c_buff, int32(length(a))) 
         r = cl.read(queue, c_buff)
         toc()
     end
-
-    println("TEST 7")
-
-    p = cl.Program(ctx, source=test7) |> cl.build!
-    t7 = cl.Kernel(p, "testcl")
-
-    for i = 1:3
-        tic()
-        cl.call(queue, t7, size(a), nothing,
-                a_buff, b_buff, c_buff, int32(length(a))) 
-        r = cl.read(queue, c_buff)
-        toc()
-    end
-
-    function compile_anonfunc(f, types)
-        if isgeneric(f) || (isdefined(f, :env) && isa(f.env, Symbol))
-            error("not an anonymous function")
-        end
-        (tree, ty) = Base.typeinf(f.code, types,())
-        ast = ccall(:jl_uncompress_ast, Any, (Any, Any), f.code, tree)
-        return (ast, ty)
-    end
-        
-    f = (x) -> x + 2
-    @show compile_anonfunc(f, (Int32,)) 
-
-    #@fact isapprox(norm(r - (a+b)), zero(Float32)) => true
+    @show norm(r - (exp(a) + log(b)))
+    @fact isapprox(norm(r - (exp(a) + log(b))), zero(Float32)) => true
 end
+
+function compile_anonfunc(f, types)
+    if isgeneric(f) || (isdefined(f, :env) && isa(f.env, Symbol))
+        error("not an anonymous function")
+    end
+    (tree, ty) = Base.typeinf(f.code, types,())
+    ast = ccall(:jl_uncompress_ast, Any, (Any, Any), f.code, tree)
+    return (ast, ty)
+end
+    
+f = (x) -> x + 2
+@show compile_anonfunc(f, (Int32,)) 
+
+function twiddle(u::Uint32, v::Uint32)
+    t1 = ((u & 0x80000000) | (v & 0x7FFFFFFF)) >> int32(1)
+    local t2::Uint32
+    if (v & uint32(1)) == zero(Uint32)
+        t2 = uint32(0x0)
+    else
+        t2 = uint32(0x9908B0DF)
+    end
+    return t1 $ t2
+end
+
+function generate_state(state::Vector{Uint32})
+    n = uint32(624)
+    m = uint32(397)
+    for i = int32(0:(n - m - 1))
+        state[i] = state[i] + m
+    end
+    for i = int32(0:(n - m - 1))
+        state[i] = state[i+m] $ twiddle(state[i], state[i+1])
+    end
+    for i = int32((n - m):(n - 2))
+        state[i] = state[i+m-n] $ twiddle(state[i], state[i+1])
+    end
+    state[n-1] = state[m-1] $ twiddle(state[n-1], state[0])
+    return
+end
+
+@clkernel seed(s::Uint32, state::Vector{Uint32}) = begin
+    n = uint32(624)
+    m = uint32(397)
+    state[0] = s & 0xFFFFFFFF
+    for i = 1:(n-1)
+        state[i] = 1812433253 * (state[i-1] $ (state[i-1] >> int32(30))) + uint32(i)
+        state[i] = state[i] & 0xFFFFFFFF
+    end
+    generate_state(state)
+end
+
+@assert isa(seed, cl.Kernel)
+
+function random_number(state::Vector{Uint32}, p::Cuint)
+    x = state[p]
+    x $= (x >> int32(11))
+    x $= (x << int32(7)) & 0x9D2C5680
+    x $= (x << int32(15)) & 0xEFC60000
+    return x $ (x >> int32(8))
+end
+    
+@clkernel fill(state::Vector{Uint32},
+               vector::Vector{Uint32},
+               offset::Cuint) = begin
+    i = get_global_id(0)
+    vector[offset+i] = random_number(state, i)
+    return
+end
+
+@assert isa(fill, cl.Kernel)
+
