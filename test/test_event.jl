@@ -55,12 +55,12 @@ facts("OpenCL.Event") do
             end
             if contains(platform[:name], "Apple")
                 msg = "Apple Segfaults on User Event"
-                @fact msg => true
+                warn(msg)
                 continue
             end
             if contains(platform[:name], "Portable")
                 msg = "Portable Computing Language does not implement User Events"
-                @fact msg => true
+                warn(msg)
                 continue
             end
 
