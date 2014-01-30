@@ -82,7 +82,7 @@ facts("OpenCL.Event") do
                 cl.add_callback(mkr_evt, test_callback)
 
                 @fact usr_evt[:status] => :submitted
-                @fact mkr_evt[:status] => :queued
+                @fact mkr_evt[:status] => :submitted
                 @fact callback_called => false
                 
                 cl.complete(usr_evt)
