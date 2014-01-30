@@ -87,6 +87,13 @@ facts("OpenCL.Device") do
                 for k in device_info_keys
                     @fact @throws_pred(d[k]) => (false, "no error")
                     @fact d[k] => cl.info(d, k)
+                    if d[k] != cl.info(d, k)
+                        @show p
+                        @show d
+                        @show k
+                        @show d[k]
+                        @show cl.info(d, k)
+                    end
                     if k == :extensions
                         @fact isa(d[k], Vector{String}) => true 
                     elseif k == :platform
