@@ -74,6 +74,11 @@ facts("OpenCL.Device") do
                 :max_image3d_shape,
             ]
         for p in cl.platforms()
+            if contains(p[:name], "Portable")
+                msg = "Skipping Device Info tests for Portable Computing Language Platform "
+                warn(msg)
+                continue
+            end
             @fact isa(p, cl.Platform) => true
             @fact @throws_pred(p[:zjdlkf]) => (true, "error")
             for d in cl.devices(p)
@@ -82,6 +87,13 @@ facts("OpenCL.Device") do
                 for k in device_info_keys
                     @fact @throws_pred(d[k]) => (false, "no error")
                     @fact d[k] => cl.info(d, k)
+                    if d[k] != cl.info(d, k)
+                        @show p
+                        @show d
+                        @show k
+                        @show d[k]
+                        @show cl.info(d, k)
+                    end
                     if k == :extensions
                         @fact isa(d[k], Vector{String}) => true 
                     elseif k == :platform
