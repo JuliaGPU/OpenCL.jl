@@ -84,6 +84,8 @@ is_linenumber(ex) = false
 
 ipointee_type{T}(::Type{Ptr{T}}) = T
 array_type{T, N}(::Type{Array{T, N}}) = T
+range_type{T}(::Type{Range1{T}}) = T
+range_type{T}(::Type{Range{T}}) = T
 
 cname(s) = begin
     s = string(s)
