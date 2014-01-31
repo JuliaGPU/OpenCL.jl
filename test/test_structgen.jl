@@ -15,7 +15,7 @@ ctypename(t) = begin
     end
 end
 
-facts("Range Generation") do
+facts("Range generation") do
     for ty in [Int64, Uint64, Int32, Uint32, Int16, Uint16, Int8, Uint8]
         func = symbol(lowercase(string(ty)))
         cty = symbol(ctypename(ty))
@@ -41,7 +41,7 @@ type Test1{X, Y}
     y::Y
 end
 
-facts("Parametric Struct Generation") do
+facts("Structs with parametric types") do
     for xty in [Int64, Uint64, Int32, Uint32, Int16, Uint16, Int8, Uint8]
         for yty in [Int64, Uint64, Int32, Uint32, Int16, Uint16, Int8, Uint8]
             xcty = symbol(ctypename(xty))
@@ -55,14 +55,14 @@ facts("Parametric Struct Generation") do
 end
 
 type Test2{X, Y}
-    x::Ptr{X}
+    x::X
     y::Ptr{Y}
 end
 
-facts("Parametric Struct Pointer Generation") do
+facts("Structs with pointers") do
     for xty in [Int64, Uint64, Int32, Uint32, Int16, Uint16, Int8, Uint8]
         for yty in [Int64, Uint64, Int32, Uint32, Int16, Uint16, Int8, Uint8]
-            xcty = symbol(ctypename(Ptr{xty}))
+            xcty = symbol(ctypename(xty))
             ycty = symbol(ctypename(Ptr{yty}))
             @eval begin
                 src = clsource(structgen(Test2{$xty, $yty}))
@@ -72,4 +72,23 @@ facts("Parametric Struct Pointer Generation") do
     end
 end
 
+type Test3{T}
+    x::T
+end
 
+type Test4{T}
+    x::Test3{T}
+end
+
+facts("Structs of structs") do
+    src = clsource(structgen(Test4{Int32}))
+    @fact src => "typedef struct {{\n\tTest3_Int32 x;\n}} Test4_Int32;\n"
+end
+
+type Test5
+    x::Test5
+end
+
+facts("Error on self referential field types") do
+    @fact_throws structgen(Test5)
+end

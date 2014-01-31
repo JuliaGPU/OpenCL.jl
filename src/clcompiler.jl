@@ -55,6 +55,14 @@ function structgen{T}(::Type{T})
     end
     decl_list = CAst[]
     for (name, ty) in zip(names(T), T.types)
+        if Base.isstructtype(ty)
+            #TODO: generate with context and push dependent struct types
+            #similar to function generation
+            #ty = structgen(ty)
+        end
+        if ty == T
+            error("structgen error, c struct fields cannot have self referential struct types")
+        end
         push!(decl_list, CTypeDecl(cname(name), ty))
     end
     sname = cstruct_name(T) 

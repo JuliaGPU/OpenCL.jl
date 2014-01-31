@@ -47,18 +47,18 @@ end
 
 pointee_type{T}(::Type{Ptr{T}}) = T
 
-clprint{T}(io::IO, ::Ptr{T}, indent=Int) = begin
+clprint{T}(io::IO, ::Ptr{T}, indent::Int) = begin
     ty = sprint() do io
         clprint(io, T, 0)
     end
     printind(io, "$ty *", indent)
 end
 
-clprint(io::IO, node::TypeName, indent=Int) = begin
+clprint(io::IO, node::TypeName, indent::Int) = begin
     printind(io, "TYPENAME", indent)
 end
 
-clprint{T}(io::IO, node::Type{Ptr{T}}, indent=Int) = begin
+clprint{T}(io::IO, node::Type{Ptr{T}}, indent::Int) = begin
     ty = sprint() do io
         clprint(io, T, 0)
     end
@@ -116,6 +116,19 @@ end
 
 clprint(io::IO, node::Type{(NTuple{2, Uint64})}, indent::Int) = begin
     printind(io, "ulong2", indent)
+end
+
+function cstruct_name{T}(::Type{T})
+    s = split(string(T), ['{', ',', '}'], false)
+    return join(s, "_")
+end
+
+clprint{T}(io::IO, node::Type{T}, indent::Int) = begin
+    if Base.isstructtype(T)
+        printind(io, cstruct_name(T), indent)
+    else
+        error("no method clprint(IOBuffer, Type{$T}, Int)")
+    end
 end
 
 clprint(io::IO, node::CLAst.CArray, indent::Int) = begin
