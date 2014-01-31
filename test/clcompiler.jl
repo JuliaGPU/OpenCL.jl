@@ -43,15 +43,19 @@ end
 function get_global_id(x)
     x + 2
     y + 3
-    return uint32(1)
+    return uint32(x)::Uint32
 end
 
-#device = cl.devices()[end-1]
-#show device[:platform]
+function get_global_size(x)
+    x + 2
+    y + 3
+    return uint32(x)::Uint32
+end
 
-#ctx = cl.Context(device)
-#queue = cl.CmdQueue(ctx)
-device, ctx, queue = cl.create_compute_context()
+device = cl.devices()[1]
+ctx = cl.Context(device)
+queue = cl.CmdQueue(ctx)
+#device, ctx, queue = cl.create_compute_context()
 @show device[:platform]
 
 uncompressed_ast(l::LambdaStaticData) = begin
@@ -82,6 +86,8 @@ macro clkernel(func)
                 error("function signature nonleaftype $ty")
             end
         end
+        println($("$orig_name compile time:"))
+        @time begin
         local exprs = code_typed(func, typs)
         if length(exprs) == 0
             error("function could not be compiled for attribute types:: $typs")
@@ -107,6 +113,7 @@ macro clkernel(func)
         # build the source and store in global cache
         local p = cl.Program(ctx, source=src) |> cl.build!
         global $(orig_name) = cl.Kernel(p, $("$orig_name"))
+    end
     end
 end
 
@@ -438,10 +445,148 @@ function test_fill{T}(b::Vector{T})
     return cl.read(queue, buffer)
 end
 
-z = zeros(Float32, 1_000_000)
-@time rand(Float32, 1_000_000)
-for _ = 1:10
-    @time test_fill(z)
+#z = zeros(Float32, 1_000_000)
+#@time rand(Float32, 1_000_000)
+#for _ = 1:10
+#    @time test_fill(z)
+#end
+
+#@show test_fill(z)[1:50]
+
+@clkernel generate_sin(a::Vector{Float32}, b::Vector{Float32}) = begin
+    gid = get_global_id(0)
+    n   = get_global_size(0)
+
+    r = float32(gid) / float32(n)
+
+    # sin wave with 8 oscillations
+    y = r * (16.0f0 * 2.1415f0)
+
+    # x is a range from -1 to 1
+    a[gid] = r * 2.0f0 - 1.0f0
+
+    # y is a sin wave
+    b[gid] = sin(y)
+
+    return
 end
 
-@show test_fill(z)[1:50]
+function comp_func(a::Vector{Float32}, b::Vector{Float32})
+    n = length(a)
+    for gid in 1:n
+        r = float32(gid) / float32(n)
+        # sin wave with 8 oscillations
+        y = r * (16.0f0 * 2.1415f0)
+        # x is a range from -1 to 1
+        a[gid] = r * 2.0f0 - 1.0f0
+        # y is a sin wave
+        b[gid] = sin(y)
+    end
+    return deepcopy(b)
+end
+       
+#n = 1_000_000
+#a = cl.Buffer(Float32, ctx, n)
+#b = cl.Buffer(Float32, ctx, n)
+
+#info("OpenCL")
+#@time begin
+#for _ in 1:1
+#        evt = cl.call(queue, generate_sin, (n,), nothing, a, b)
+#        r = cl.read(queue, b)
+#    end
+#end
+
+#info("JUlia")
+#a = Array(Float32, n)
+#b = Array(Float32, n)
+#@time begin
+#for _ in 1:1
+#    comp_func(a, b)
+#end
+#end
+
+
+@clkernel juliat(r::Vector{Float32}, 
+                i::Vector{Float32},
+                output::Vector{Uint16},
+                maxiter::Int32,
+                len::Int32) = begin
+    gid = get_global_id(0)
+    if gid < len 
+        nreal = 0.0f0
+        real = r[gid]
+        imag = i[gid]
+        output[gid] = uint16(0)
+        
+        for curiter = 1:maxiter
+            if (real * real + imag * imag < 4.0)
+                output[gid] = uint16(curiter - 1)
+            end
+            nreal = real*real - imag*imag - 0.5f0
+            imag = 2.0f0 * real * imag + 0.75f0
+            real = nreal
+        end
+    end
+    return
+end
+
+test_julia(r::Vector{Float32}, 
+           i::Vector{Float32},
+           output::Array{Uint16, 2},
+           maxiter::Int32) = begin
+    for gid = 1:length(output) 
+        nreal = 0.0f0
+        real = r[gid]
+        imag = i[gid]
+        output[gid] = 0
+        
+        for curiter = 1:maxiter
+            if (real * real + imag * imag > 4.0)
+                output[gid] = uint16(curiter - 1)
+            end
+            nreal = real*real - imag*imag - 0.5f0
+            imag = 2.0f0 * real * imag + 0.75f0
+            real = nreal
+        end
+    end
+end
+
+
+@show isa(juliat, cl.Kernel)
+
+
+function julia_opencl(q::Array{Complex64}, maxiter::Int64)
+    prg = cl.Program(ctx, source=open(readall("test2.cl")))
+    cl.build!(prg)
+    juliat = cl.Kernel(prg, "juliat")
+
+    r = [real(i) for i in q]
+    i = [imag(i) for i in q]
+   
+    r_buff = cl.Buffer(Float32, ctx, (:rw, :copy), hostbuf=r)
+    i_buff = cl.Buffer(Float32, ctx, (:rw, :copy), hostbuf=i)
+    o_buff = cl.Buffer(Uint16,   ctx, :rw, length(q))
+    
+    cl.call(queue, juliat, length(q), nothing, r_buff, i_buff, o_buff, int32(maxiter), int32(length(q)))
+    #cl.copy!(queue, out, o_buff)
+    out = cl.read(queue, o_buff)
+    return reshape(out, size(q))
+end
+
+using PyPlot
+w = 2048 * 2;
+h = 2048 * 2;
+q = [complex64(r,i) for i=1:-(2.0/w):-1, r=-1.5:(3.0/h):1.5];
+m = nothing
+for _= 1:5
+    @time m = julia_opencl(q, 200);
+end
+
+#const m = Array(Uint16, size(q))
+#const r = Float32[real(i) for i in q]
+#const i = Float32[imag(i) for i in q]
+#for _ = 1:3
+#    @time test_julia(r, i, m, int32(200))
+#end
+imshow(m, cmap="RdGy", extent=[-1.5,1.5,-1,1]);

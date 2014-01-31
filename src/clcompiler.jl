@@ -57,7 +57,8 @@ visit(ctx, n::SymbolNode) = begin
 end
 
 visit(ctx, n::Symbol) = begin
-    return CName(cname(n), Void)
+    ty = get(ctx.var_types, n, Void)
+    return CName(cname(n), ty)
 end
 
 visit(ctx, n::String) = begin
@@ -107,15 +108,30 @@ end
 visit_gotoifnot(ctx, expr::Expr) = begin
     @assert expr.head == :gotoifnot
     node = visit(ctx, expr.args[1])
-    #if isa(node, CUnaryOp) && isa(node.op, CNot)
-    #    return CIf(node.operand,
-    #               CGoto("label$(expr.args[2])"),
-    #               nothing)
-    #else
+    # switch comp ops because AMD compiler has a bug
+    # where !(cmp) yields incorrect behavior (works on Intel)
+    #if isa(node, CBinOp)
+    #    if isa(node.op, CLt) ||
+    ##       isa(node.op, CGt) ||
+    #       isa(node.op, CLtE) ||
+    #       isa(node.op, CGtE)
+    #       tmp = node.left
+    #       node.left = node.right
+    #       node.right = tmp
+    #       return CIf(node, 
+    #                 CGoto("label$(expr.args[2])"),
+    #                 nothing)
+    #    end
+    #end
+    if isa(node, CUnaryOp) && isa(node.op, CNot)
+        return CIf(node.operand,
+                   CGoto("label$(expr.args[2])"),
+                   nothing)
+    else
         return CIf(CUnaryOp(CNot(), node, Bool), 
                    CGoto("label$(expr.args[2])"), 
                    nothing)
-    #end
+    end
 end
 
 visit_return(ctx, expr::Expr) = begin
@@ -256,7 +272,8 @@ const builtin_funcs = (Symbol => String) [:pow  => "pow",
                                           :expf => "exp",
                                           :logf => "log",
                                           :log  => "log",
-                                          :exp  => "exp"] 
+                                          :exp  => "exp",
+                                          :sinf => "sin"] 
 
 function call_builtin(ctx, fname, expr::Expr, ret_type::Type)
     if !haskey(builtin_funcs, fname)
@@ -275,6 +292,10 @@ function call_builtin(ctx, fname, expr::Expr, ret_type::Type)
     if fname == :logf || fname == :log
         arg1 = visit(ctx, expr.args[5])
         return CLRTCall("log", [arg1,], ret_type)
+    end
+    if fname == :sinf || fname == :sin
+        arg1 = visit(ctx, expr.args[5])
+        return CLRTCall("sin", [arg1,], ret_type)
     end
     error("unhanded builtin $fname")
 end
@@ -354,7 +375,7 @@ const binary_builtins = (Symbol=>CAst)[
                                     :add_float => CAdd(),
                                     :sub_int   => CSub(),
                                     :sub_float => CSub(),
-                                    :div_lfoat => CDiv(),
+                                    :div_float => CDiv(),
                                     :eq_float => CEq(),
                                     :eq_int => CEq(),
                                     :le_float => CLtE(),
@@ -380,7 +401,7 @@ const unary_builtins = (Symbol=>CAst)[
                                     :neg_float => CUSub(),
                                     :neg_int => CUSub()]
 
-const runtime_funcs = Set{Symbol}(:get_global_id)
+const runtime_funcs = Set{Symbol}(:get_global_id, :get_global_size)
 
 visit_pow(ctx, expr::Expr) = begin
     arg1 = visit(ctx, expr.args[2])
@@ -600,6 +621,12 @@ visit_call(ctx, expr::Expr) = begin
         else
             error("invalid code path in :sitofp")
         end
+    
+    # cast unsigned int to floating point
+    elseif arg1.name === :uitofp
+        ty = expr.args[2]::DataType
+        node = visit(ctx, expr.args[3])
+        return CTypeCast(node, ty)
 
     # cast signed /unsigned integers
     elseif (arg1.name === :sext_int ||

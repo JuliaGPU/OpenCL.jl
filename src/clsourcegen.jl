@@ -51,6 +51,10 @@ clprint{T}(io::IO, ::Ptr{T}, indent=Int) = begin
     printind(io, "$ty *", indent)
 end
 
+clprint(io::IO, node::TypeName, indent=Int) = begin
+    printind(io, "TYPENAME", indent)
+end
+
 clprint{T}(io::IO, node::Type{Ptr{T}}, indent=Int) = begin
     ty = sprint() do io
         clprint(io, T, 0)
@@ -67,7 +71,9 @@ for (ty, cty) in [(:None, "void"),
                   (:Float64, "double"),
                   (:Float32, "float"),
                   (:Uint32, "unsigned int"),
+                  (:Uint16, "unsigned short"),
                   (:Int32, "int"),
+                  (:Bool, "bool"),
                   (:Int64, "long"),
                   (:Uint64, "unsigned long")]
     @eval begin
@@ -146,6 +152,9 @@ clprint(io::IO, node::Int32, indent::Int) = begin
     printind(io, string(node), 0)
 end
 
+clprint(io::IO, node::Uint16, indent::Int) = begin
+    printind(io, string(node), 0)
+end
 
 clprint(io::IO, node::Uint64, indent::Int) = begin
     printind(io, string(node) * "u", 0)
@@ -178,7 +187,11 @@ clprint(io::IO, node::CLAst.CBinOp, indent::Int) = begin
     right = sprint() do io
         clprint(io, node.right, 0)
     end
-    printind(io, "$left $op $right", indent)
+    if isa(node.op, CEq)
+        printind(io, "$left $op $right", indent)
+    else
+        printind(io, "($left) $op ($right)", indent)
+    end
 end
 
 clprint(io::IO, node::CLAst.CUnaryOp, indent::Int) = begin
@@ -188,7 +201,7 @@ clprint(io::IO, node::CLAst.CUnaryOp, indent::Int) = begin
     operand = sprint() do io
         clprint(io, node.operand, 0)
     end
-    printind(io, "$op($operand)", indent)
+    printind(io, "($op($operand))", indent)
 end
 
 clprint(io::IO, node::CLAst.CFunctionCall, indent::Int) = begin
