@@ -564,7 +564,7 @@ function julia_opencl(q::Array{Complex64}, maxiter::Int64)
    
     r_buff = cl.Buffer(Float32, ctx, (:rw, :copy), hostbuf=r)
     i_buff = cl.Buffer(Float32, ctx, (:rw, :copy), hostbuf=i)
-    o_buff = cl.Buffer(Uint16,   ctx, :rw, length(q))
+    o_buff = cl.Buffer(Uint16,  ctx, :rw, length(q))
     
     cl.call(queue, juliat, length(q), nothing, r_buff, i_buff, o_buff, int32(maxiter), int32(length(q)))
     #cl.copy!(queue, out, o_buff)

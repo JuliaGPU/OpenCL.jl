@@ -2,7 +2,7 @@ module SourceGen
 
 using ..CLAst 
 
-export clsource
+export clsource, clprint
 
 # see base/show.jl 292 for julia ast printing
 
@@ -38,7 +38,7 @@ clprint(io::IO, node::CLAst.CBitShiftLeft,  indent::Int)  = print(io, "<<")
 #Base.show(io::IO, node::CLAst.CNum)  = print(io, string(node.val))
 #Base.show(io::IO, node::CLAst.CName) = print(io, string(node.id))
 printind(io::IO, str::String, indent::Int) = begin
-    print(io, "  "^indent, str)
+    print(io, "\t"^indent, str)
 end
 
 clprint(io::IO, node::Bool, indent::Int) = begin
@@ -69,19 +69,27 @@ clprint(io::IO, node::String, indent=Int) = begin
     printind(io, node, indent)
 end
 
-for (ty, cty) in [(:None, "void"),
+for (ty, cty) in [(:None,    "void"),
                   (:Nothing, "void"),
                   (:Float64, "double"),
                   (:Float32, "float"),
-                  (:Uint32, "unsigned int"),
-                  (:Uint16, "unsigned short"),
-                  (:Int32, "int"),
-                  (:Bool, "bool"),
-                  (:Int64, "long"),
-                  (:Uint64, "unsigned long")]
+                  (:Int64,   "long"),
+                  (:Uint64,  "unsigned long"),
+                  (:Int32,   "int",),
+                  (:Uint32,  "unsigned int"),
+                  (:Int16,   "short"),
+                  (:Uint16,  "unsigned short"),
+                  (:Int8,    "char"),
+                  (:Uint8,   "unsigned char"),
+                  (:Bool,    "boolean"),
+                  ]
     @eval begin
         clprint(io::IO, node::Type{$ty}, indent::Int64) = begin
             printind(io, $("$cty"), indent)
+        end
+
+        clprint(io::IO, node::Type{Ptr{$ty}}, indent::Int64) = begin
+            printind(io, $("$cty *"), indent)
         end
     end
 end
@@ -438,11 +446,12 @@ clprint(io::IO, node::CLAst.CVarDecl, indent::Int) = begin
 end
 
 clprint(io::IO, node::CLAst.CStruct, indent::Int) = begin
-    printind(io, "typedef struct {{", indent)
+    printind(io, "typedef struct {{\n", indent)
     for decl in node.decl_list
         clprint(io, decl, indent + 1)
+        print(io, ";\n")
     end
-    printind(io, "}} $(node.id);\n\n", indent)
+    printind(io, "}} $(node.id);\n", indent)
 end
 
 clprint(io::IO, node::CLAst.CFor, indent::Int) = begin

@@ -6,7 +6,7 @@ export CAst, CLKernelDef, CAssign, CBlock, CIndex, CTypeCast, CName, CNum, CBinO
        CSubscript, CLRTCall, CTypeDecl, CFunctionDef, CIf,
        CPtrDecl, CVarDecl, CArrayDecl, CGoto, CLabel, CArray,
        CStructRef, CAssignList, CWhile, CBitNot, CBitAnd,
-       CBitOr, CBitXor, CBitShiftRight, CBitShiftLeft, CStr
+       CBitOr, CBitXor, CBitShiftRight, CBitShiftLeft, CStr, CStruct
 
 
 abstract CAst 

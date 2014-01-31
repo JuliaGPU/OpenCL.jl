@@ -4,7 +4,7 @@ using DataStructures
 using ..CLAst
 using ..SourceGen
 
-export build_kernel, visit
+export build_kernel, visit, structgen
 
 type CLContext
     func_args::Array
@@ -41,6 +41,24 @@ function rm_linenum!(expr::Expr)
     end
     expr.args = new_args
     return expr
+end
+
+# TODO: this is incomplete but it works for now
+function cstruct_name{T}(::Type{T})
+    s = split(string(T), ['{', ',', '}'], false)
+    return join(s, "_")
+end
+
+function structgen{T}(::Type{T})
+    if !(Base.isstructtype(T))
+        error("structgen error, type $T is not a valid struct type")
+    end
+    decl_list = CAst[]
+    for (name, ty) in zip(names(T), T.types)
+        push!(decl_list, CTypeDecl(cname(name), ty))
+    end
+    sname = cstruct_name(T) 
+    return CStruct(sname, decl_list)
 end
 
 visit(ctx::CLContext, expr::Expr) = begin
@@ -84,10 +102,11 @@ is_linenumber(ex::Expr) = ex.head === :line
 is_linenumber(ex) = false
 
 ipointee_type{T}(::Type{Ptr{T}}) = T
-array_type{T, N}(::Type{Array{T, N}}) = T
-range_type{T}(::Type{Range1{T}}) = T
-range_type{T}(::Type{Range{T}}) = T
+array_elemtype{T,N}(::Type{Array{T, N}}) = T
+range_elemtype{T}(::Type{Range1{T}}) = T
+range_elemtype{T}(::Type{Range{T}}) = T
 
+# TODO: this
 cname(s) = begin
     s = string(s)
     return s[1] == '#' ? s[2:end] : s
@@ -238,7 +257,7 @@ visit_arrayref(ctx, expr::Expr) = begin
     @assert expr.args[1] == :arrayref
     target = visit(ctx, expr.args[2])
     idx = visit(ctx, expr.args[3])
-    ty  = array_type(target.ctype)
+    ty  = array_elemtype(target.ctype)
     if isa(idx, CTypeCast)
         cast_ty = idx.ctype
         val_ty = idx.value.ctype
@@ -730,7 +749,7 @@ function build_function(name::String, expr::Expr; iskernel=false)
         elseif ty <: Ptr
             push!(args, CPtrDecl(cname(arg), ty))
         elseif ty <: Array
-            T = array_type(ty)
+            T = array_elemtype(ty)
             push!(args, CPtrDecl(cname(arg), Ptr{T}))
         elseif ty === Any
             #TODO: look for unions in return types
@@ -775,7 +794,7 @@ function build_function(name::String, expr::Expr; iskernel=false)
     if isa(blocknode.body[end], CReturn)
         ret_type = blocknode.body[end].ctype
         if ret_type <: Array && ret_type != None
-            T = array_type(ret_type)
+            T = array_elemtype(ret_type)
             ret_type = Ptr{T}
         end
     else
