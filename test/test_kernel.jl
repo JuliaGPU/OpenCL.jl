@@ -82,7 +82,7 @@ facts("OpenCL.Kernel") do
 
 
     context("OpenCL.Kernel set_arg!/set_args!") do
-         for device in cl.devices()
+        for device in cl.devices()
             
             if device[:platform][:name] == "Portable Computing Language"
                 warn("Skipping OpenCL.Kernel mem/workgroup size for Portable Computing Language Platform")
