@@ -52,7 +52,7 @@ function get_global_size(x)
     return uint32(x)::Uint32
 end
 
-device = cl.devices()[1]
+device = cl.devices()[4]
 ctx = cl.Context(device)
 queue = cl.CmdQueue(ctx)
 #device, ctx, queue = cl.create_compute_context()
@@ -100,6 +100,7 @@ macro clkernel(func)
 
         kern_ctx, kernel = build_kernel($("$orig_name"), expr)
         local io  = IOBuffer()
+        print(io, "#pragma OPENCL EXTENSION cl_amd_printf : enable\n")
         print(io, "typedef struct Range {long start; long step; long len;} Range;\n")
         for n in unique(keys(kern_ctx.funcs))
             clsource(io, kern_ctx.funcs[n])
@@ -518,13 +519,13 @@ end
         real = r[gid]
         imag = i[gid]
         output[gid] = uint16(0)
-        
         for curiter = 1:maxiter
-            if (real * real + imag * imag < 4.0)
+            tmp = abs(real*real + imag*imag)
+            if (tmp > 4.0f0) && !(isnan(tmp))
                 output[gid] = uint16(curiter - 1)
             end
             nreal = real*real - imag*imag - 0.5f0
-            imag = 2.0f0 * real * imag + 0.75f0
+            imag = 2.0f0*real*imag + 0.75f0
             real = nreal
         end
     end
@@ -542,7 +543,8 @@ test_julia(r::Vector{Float32},
         output[gid] = 0
         
         for curiter = 1:maxiter
-            if (real * real + imag * imag > 4.0)
+            tmp = real * real + imag * imag 
+            if (tmp > 4.0) && !(isnan(tmp))
                 output[gid] = uint16(curiter - 1)
             end
             nreal = real*real - imag*imag - 0.5f0
@@ -557,10 +559,6 @@ end
 
 
 function julia_opencl(q::Array{Complex64}, maxiter::Int64)
-    prg = cl.Program(ctx, source=open(readall("test2.cl")))
-    cl.build!(prg)
-    juliat = cl.Kernel(prg, "juliat")
-
     r = [real(i) for i in q]
     i = [imag(i) for i in q]
    
@@ -575,18 +573,18 @@ function julia_opencl(q::Array{Complex64}, maxiter::Int64)
 end
 
 using PyPlot
-w = 2048 * 2;
-h = 2048 * 2;
+w = 2048 * 3;
+h = 2048 * 3;
 q = [complex64(r,i) for i=1:-(2.0/w):-1, r=-1.5:(3.0/h):1.5];
 m = nothing
 for _= 1:5
     @time m = julia_opencl(q, 200);
 end
 
-#const m = Array(Uint16, size(q))
-#const r = Float32[real(i) for i in q]
-#const i = Float32[imag(i) for i in q]
-#for _ = 1:3
-#    @time test_julia(r, i, m, int32(200))
-#end
+m = Array(Uint16, size(q))
+r = Float32[real(i) for i in q]
+i = Float32[imag(i) for i in q]
+for _ = 1:3
+    @time test_julia(r, i, m, int32(200))
+end
 imshow(m, cmap="RdGy", extent=[-1.5,1.5,-1,1]);

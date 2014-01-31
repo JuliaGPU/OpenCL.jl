@@ -6,7 +6,7 @@ export CAst, CLKernelDef, CAssign, CBlock, CIndex, CTypeCast, CName, CNum, CBinO
        CSubscript, CLRTCall, CTypeDecl, CFunctionDef, CIf,
        CPtrDecl, CVarDecl, CArrayDecl, CGoto, CLabel, CArray,
        CStructRef, CAssignList, CWhile, CBitNot, CBitAnd,
-       CBitOr, CBitXor, CBitShiftRight, CBitShiftLeft  
+       CBitOr, CBitXor, CBitShiftRight, CBitShiftLeft, CStr
 
 
 abstract CAst 
@@ -137,7 +137,7 @@ CNum(x, T) = CNum{T}(convert(T, x), T)
 
 type CStr <: CAst
     val::String
-    ctype::Ptr{Cchar}
+    ctype
 end
 
 type CCall <: CAst

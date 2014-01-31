@@ -62,7 +62,7 @@ visit(ctx, n::Symbol) = begin
 end
 
 visit(ctx, n::String) = begin
-    error("unimplemented (visit) string")
+    return CStr(n, Ptr{Cchar})
 end
 
 visit(ctx, n::Number) = begin
@@ -508,7 +508,17 @@ visit_call(ctx, expr::Expr) = begin
         end
         return CFunctionCall(cname(arg1), args, Csize_t)
     end
-   
+    
+    if isa(arg1, Symbol) && arg1 === :clprintf
+        @show expr
+        @show expr.args
+        args = CAst[]
+        for arg in expr.args[2:end]
+            push!(args, visit(ctx, arg))
+        end
+        return CLRTCall("printf", args, Void)
+    end
+
     if isa(arg1, Symbol) && isfunction(arg1)
         return visit_callfunction(ctx, expr)
     end
@@ -593,6 +603,10 @@ visit_call(ctx, expr::Expr) = begin
         sfield = CName(cname(sfield.value), ty) 
         return CStructRef(sname, sfield, ty)
     
+    elseif arg1.name === :abs_float
+        node = visit(ctx, expr.args[2])
+        return CLRTCall("fabs", [node,], node.ctype)
+
     # pow for integer exponents >= 4  
     elseif arg1.name === :power_by_squaring
         arg1 = visit(ctx, expr.args[2])

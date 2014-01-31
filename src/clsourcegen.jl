@@ -37,9 +37,12 @@ clprint(io::IO, node::CLAst.CBitShiftLeft,  indent::Int)  = print(io, "<<")
 
 #Base.show(io::IO, node::CLAst.CNum)  = print(io, string(node.val))
 #Base.show(io::IO, node::CLAst.CName) = print(io, string(node.id))
-
 printind(io::IO, str::String, indent::Int) = begin
     print(io, "  "^indent, str)
+end
+
+clprint(io::IO, node::Bool, indent::Int) = begin
+    printind(io, string(node), indent)
 end
 
 pointee_type{T}(::Type{Ptr{T}}) = T
@@ -270,7 +273,10 @@ clprint(io::IO, node::CLAst.CAssignExpr, indent::Int) = begin
 end
 
 clprint(io::IO, node::CLAst.CStr, indent::Int) = begin
-    print(io, "/"$(node.str)/"")
+    v = sprint() do io
+        show(io, node.val)
+    end
+    printind(io, v, indent)
 end
 
 clprint(io::IO, node::CLAst.CNum, indent::Int) = begin
