@@ -92,3 +92,14 @@ end
 facts("Error on self referential field types") do
     @fact_throws structgen(Test5)
 end
+
+type NoFields end
+
+type Test6
+    x::NoFields
+end
+
+facts("Error with struct of structs with no fields") do
+    @fact_throws structgen(Test6)
+end
+

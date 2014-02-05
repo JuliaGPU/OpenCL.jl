@@ -6,6 +6,14 @@ using ..SourceGen
 
 export build_kernel, visit, structgen
 
+type CLModule
+    pragmas
+    constants
+    structs
+    functions
+    kernels
+end
+
 type CLContext
     func_args::Array
     local_vars::Set{Symbol}
@@ -56,6 +64,9 @@ function structgen{T}(::Type{T})
     decl_list = CAst[]
     for (name, ty) in zip(names(T), T.types)
         if Base.isstructtype(ty)
+            if length(names(ty)) == 0
+                error("structgen error, type $ty has no fields")
+            end
             #TODO: generate with context and push dependent struct types
             #similar to function generation
             #ty = structgen(ty)
