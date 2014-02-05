@@ -4,16 +4,39 @@ using DataStructures
 using ..CLAst
 using ..SourceGen
 
-export build_kernel, visit, structgen
+export build_kernel, visit, structgen!
 
+typealias CLScalarTypes Union(Bool,
+                              Int8,
+                              Uint8,
+                              Int16,
+                              Uint16,
+                              Int32,
+                              Uint32,
+                              Int64,
+                              Uint64,
+                              Int128,
+                              Uint128,
+                              Uint64,
+                              Float16,
+                              Float32,
+                              Float64,
+                              Complex64,
+                              Complex128,
+                              Void)
 type CLModule
-    pragmas
-    constants
-    structs
-    functions
-    kernels
+    pragmas::Set
+    constants::Set
+    structs::OrderedDict{Type, CStruct}
+    functions::OrderedDict{Symbol, CFunctionDef}
+    kernels::OrderedDict{Symbol, CLKernelDef}
 end
 
+CLModule() = CLModule(Set(),
+                      Set(),
+                      OrderedDict{Type, CStruct}(),
+                      OrderedDict{Symbol, CFunctionDef}(),
+                      OrderedDict{Symbol, CLKernelDef}())
 type CLContext
     func_args::Array
     local_vars::Set{Symbol}
@@ -26,13 +49,23 @@ end
 CLContext() = CLContext({}, 
                       Set{Symbol}(), 
                       Dict{Symbol, Type}(), 
-                      #Dict{Symbol, CAst}(), 
                       OrderedDict{Symbol, CAst}(),
                       Dict{Type, CAst}(),
                       {})
 
 typealias CLType Any
 typealias CLInteger Union(Int16, Int32, Int64)
+
+pointer_type{T}(::Type{Ptr{T}}) = T
+array_elemtype{T,N}(::Type{Array{T, N}}) = T
+range_elemtype{T}(::Type{Range1{T}}) = T
+range_elemtype{T}(::Type{Range{T}}) = T
+
+# TODO: this
+cname(s) = begin
+    s = string(s)
+    return s[1] == '#' ? s[2:end] : s
+end
 
 function rm_linenum!(expr::Expr)
     new_args = {}
@@ -57,27 +90,44 @@ function cstruct_name{T}(::Type{T})
     return join(s, "_")
 end
 
-function structgen{T}(::Type{T})
+function isvalid_clstruct(ty::DataType, parent_type::Type=None)
     if !(Base.isstructtype(T))
         error("structgen error, type $T is not a valid struct type")
     end
+    if length(ty.types) == 0
+        error("type $ty has no fields")
+    end
+    for (fname, fty) in zip(names(ty), ty.types)
+        if ty === fty || ty === parent_type
+            error("c struct fields cannot have self referential struct types")
+        end
+        if Base.isstructtype(fty)
+           isvalid_clstruct(fty, ty)
+        elseif fty <: Ptr
+            if !(pointer_type(fty) <: CLScalarTypes)
+                error("c struct field $fname has invalid CLType $fty")
+            end
+        elseif !(fty <: CLScalarTypes)
+                error("c struct field $fname has invalid CLType $fty")
+        end
+   end
+   return true
+end
+
+function structgen!{T}(clmod::CLModule, ::Type{T})
     decl_list = CAst[]
     for (name, ty) in zip(names(T), T.types)
         if Base.isstructtype(ty)
-            if length(names(ty)) == 0
-                error("structgen error, type $ty has no fields")
+            if !haskey(clmod.structs, ty)
+                structgen!(clmod, ty)
             end
-            #TODO: generate with context and push dependent struct types
-            #similar to function generation
-            #ty = structgen(ty)
-        end
-        if ty == T
-            error("structgen error, c struct fields cannot have self referential struct types")
         end
         push!(decl_list, CTypeDecl(cname(name), ty))
     end
     sname = cstruct_name(T) 
-    return CStruct(sname, decl_list)
+    @assert haskey(clmod.structs, T) == false
+    clmod.structs[T] = CStruct(sname, decl_list)
+    return 
 end
 
 visit(ctx::CLContext, expr::Expr) = begin
@@ -119,17 +169,6 @@ end
 is_linenumber(ex::LineNumberNode) = true
 is_linenumber(ex::Expr) = ex.head === :line
 is_linenumber(ex) = false
-
-ipointee_type{T}(::Type{Ptr{T}}) = T
-array_elemtype{T,N}(::Type{Array{T, N}}) = T
-range_elemtype{T}(::Type{Range1{T}}) = T
-range_elemtype{T}(::Type{Range{T}}) = T
-
-# TODO: this
-cname(s) = begin
-    s = string(s)
-    return s[1] == '#' ? s[2:end] : s
-end
 
 visit_block(ctx, expr::Expr) = begin
     @assert expr.head == :body || expr.head == :block
