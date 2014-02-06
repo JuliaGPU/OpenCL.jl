@@ -81,7 +81,7 @@ for (ty, cty) in [(:None,    "void"),
                   (:Uint16,  "unsigned short"),
                   (:Int8,    "char"),
                   (:Uint8,   "unsigned char"),
-                  (:Bool,    "boolean"),
+                  (:Bool,    "bool"),
                   ]
     @eval begin
         clprint(io::IO, node::Type{$ty}, indent::Int64) = begin

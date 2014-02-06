@@ -52,7 +52,7 @@ function get_global_size(x)
     return uint32(x)::Uint32
 end
 
-device = cl.devices()[4]
+device = cl.devices()[1]
 ctx = cl.Context(device)
 queue = cl.CmdQueue(ctx)
 #device, ctx, queue = cl.create_compute_context()
@@ -96,7 +96,7 @@ macro clkernel(func)
             error("more than one typed ast produced!")
         end
         local expr = first(exprs)
-        println(expr)
+        #println(expr)
 
         kern_ctx, kernel = build_kernel($("$orig_name"), expr)
         local io  = IOBuffer()
@@ -108,7 +108,7 @@ macro clkernel(func)
         end
         clsource(io, kernel)
         local src = bytestring(io.data)
-        println(src)
+        #println(src)
         
         # TODO: return a fucntion that takes a context
         # build the source and store in global cache
@@ -454,10 +454,11 @@ end
 
 #@show test_fill(z)[1:50]
 
-@clkernel generate_sin(a::Vector{Float32}, b::Vector{Float32}) = begin
+@clkernel generate_sin(a::Vector{Float32}, 
+                       b::Vector{Float32}) = begin
     gid = get_global_id(0)
     n   = get_global_size(0)
-
+    
     r = float32(gid) / float32(n)
 
     # sin wave with 8 oscillations
@@ -572,19 +573,142 @@ function julia_opencl(q::Array{Complex64}, maxiter::Int64)
     return reshape(out, size(q))
 end
 
-using PyPlot
-w = 2048 * 3;
-h = 2048 * 3;
-q = [complex64(r,i) for i=1:-(2.0/w):-1, r=-1.5:(3.0/h):1.5];
-m = nothing
-for _= 1:5
-    @time m = julia_opencl(q, 200);
+#using PyPlot
+#w = 2048 * 3;
+#h = 2048 * 3;
+#q = [complex64(r,i) for i=1:-(2.0/w):-1, r=-1.5:(3.0/h):1.5];
+#m = nothing
+#for _= 1:5
+#    @time m = julia_opencl(q, 200);
+#end
+
+#m = Array(Uint16, size(q))
+#r = Float32[real(i) for i in q]
+#i = Float32[imag(i) for i in q]
+#for _ = 1:3
+#    @time test_julia(r, i, m, int32(200))
+#end
+#imshow(m, cmap="RdGy", extent=[-1.5,1.5,-1,1]);
+
+
+const RISKFREE = 0.02
+const VOLATILITY = 0.30
+
+function cnd(d)
+    #TODO: global variables
+    A1 = 0.31938153
+    A2 = -0.356563782
+    A3 = 1.781477937
+    A4 = -1.821255978
+    A5 = 1.330274429
+    RSQRT2PI = 0.39894228040143267793994605993438
+
+    K = 1.0 / (1.0 + 0.2316419 * abs(d))
+    ret_val = (RSQRT2PI * exp(-0.5 * d * d) *
+               (K * (A1 + K * (A2 + K * (A3 + K * (A4 + K * A5))))))
+    if d > 0.0
+        ret_val = 1.0 - ret_val
+    end
+    return ret_val
 end
 
-m = Array(Uint16, size(q))
-r = Float32[real(i) for i in q]
-i = Float32[imag(i) for i in q]
-for _ = 1:3
-    @time test_julia(r, i, m, int32(200))
+@clkernel black_scholes_ocl(call_result::Vector{Cdouble},
+                            put_result::Vector{Cdouble},
+                            S::Vector{Cdouble},
+                            X::Vector{Cdouble},
+                            T::Vector{Cdouble},
+                            R::Cdouble,
+                            V::Cdouble,
+                            len::Int) = begin
+    i = get_global_id(0)
+    if i >= len
+        return
+    end
+    sqrtT = sqrt(T[i])
+    d1 = (log(S[i] / X[i]) + (R + 0.5 * V * V) * T[i]) / (V * sqrtT)
+    d2 = d1 - V * sqrtT
+    cndd1 = cnd(d1)
+    cndd2 = cnd(d2)
+    expRT = exp((-1. * R) * T[i])
+    call_result[i] = S[i] * cndd1 - X[i] * expRT * cndd2
+    put_result[i]  = X[i] * expRT * (1.0 - cndd2) - S[i] * (1.0 - cndd1)
+    return
 end
-imshow(m, cmap="RdGy", extent=[-1.5,1.5,-1,1]);
+
+# TODO: if setindex! is called when array variable is misnamed
+# check global scope 
+
+black_scholes_julia(call_result::Vector{Cdouble},
+                    put_result::Vector{Cdouble},
+                    S::Vector{Cdouble},
+                    X::Vector{Cdouble},
+                    T::Vector{Cdouble},
+                    R::Cdouble,
+                    V::Cdouble,
+                    len::Int) = begin
+    for i = 1:len
+        sqrtT = sqrt(T[i])
+        d1 = (log(S[i] / X[i]) + (R + 0.5 * V * V) * T[i]) / (V * sqrtT)
+        d2 = d1 - V * sqrtT
+        cndd1 = cnd(d1)
+        cndd2 = cnd(d2)
+        expRT = exp((-1. * R) * T[i])
+        call_result[i] = (S[i] * cndd1 - X[i] * expRT * cndd2)
+        put_result[i]  = (X[i] * expRT * (1.0 - cndd2) - S[i] * (1.0 - cndd1))
+    end
+    return
+end
+
+function randfloat(rand_var, low, high)
+    return (1.0 - rand_var) * low + rand_var * high
+end
+
+function test_sholes()
+    OPT_N = 1_000_000
+    iterations = 1000
+    
+    stockPrice   = randfloat(rand(Cdouble, OPT_N), 5.0, 30.0)
+    optionStrike = randfloat(rand(Cdouble, OPT_N), 1.0, 100.0)
+    optionYears  = randfloat(rand(Cdouble, OPT_N), 0.25, 10.0)
+
+    callResultJulia = zeros(Cdouble, OPT_N)
+    putResultJulia  = -ones(Cdouble, OPT_N)
+
+    tic()
+    for i in 1:iterations
+        black_scholes_julia(callResultJulia, putResultJulia, stockPrice,
+                            optionStrike, optionYears, RISKFREE, VOLATILITY, OPT_N)
+    end
+    t = toc()
+    info("Julia Time: $((1000 * t) / iterations) msec per iteration")
+    
+    callResultOpenCL = zeros(Cdouble, OPT_N)
+    putResultOpenCL  = -ones(Cdouble, OPT_N)
+    
+    d_callResult   = cl.Buffer(Cdouble, ctx, :rw, length(callResultOpenCL))
+    d_putResult    = cl.Buffer(Cdouble, ctx, :rw, length(putResultOpenCL))
+    d_stockPrice   = cl.Buffer(Cdouble, ctx, (:r, :copy), hostbuf=stockPrice)
+    d_optionStrike = cl.Buffer(Cdouble, ctx, (:r, :copy), hostbuf=optionStrike)
+    d_optionYears  = cl.Buffer(Cdouble, ctx, (:r, :copy), hostbuf=optionYears)
+    
+    tic()
+    for i = 1:iterations
+        cl.call(queue, black_scholes_ocl, (OPT_N,), nothing,
+                d_callResult, d_putResult, d_stockPrice, d_optionStrike, d_optionYears, 
+                RISKFREE, VOLATILITY, OPT_N)
+        cl.enqueue_barrier(queue)
+    end
+    cl.copy!(queue, callResultOpenCL, d_callResult)
+    cl.copy!(queue, putResultOpenCL,  d_putResult)
+    t = toc()
+    
+    info("OpenCL Time: $((1000 * t) / iterations) msec per iteration")
+    
+    delta  = abs(callResultJulia - callResultOpenCL)
+    L1norm = sum(delta) / sum(abs(callResultOpenCL))
+    
+    info("L1 norm (OpenCL): $L1norm")
+    info("Max absolute error: $(maximum(delta))")
+end
+
+test_sholes()

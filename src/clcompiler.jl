@@ -350,7 +350,8 @@ const builtin_funcs = (Symbol => String) [:pow  => "pow",
                                           :logf => "log",
                                           :log  => "log",
                                           :exp  => "exp",
-                                          :sinf => "sin"] 
+                                          :sinf => "sin",
+                                          :sqrt => "sqrt"] 
 
 function call_builtin(ctx, fname, expr::Expr, ret_type::Type)
     if !haskey(builtin_funcs, fname)
@@ -361,18 +362,18 @@ function call_builtin(ctx, fname, expr::Expr, ret_type::Type)
         arg2 = visit(ctx, expr.args[7])
         ret_type = promote_type(arg1.ctype, arg2.ctype)
         return CLRTCall("pow", [arg1, arg2], ret_type)  
-    end
-    if fname == :expf || fname == :exp
+    elseif fname == :expf || fname == :exp
         arg1 = visit(ctx, expr.args[5])
         return CLRTCall("exp", [arg1,], ret_type)
-    end
-    if fname == :logf || fname == :log
+    elseif fname == :logf || fname == :log
         arg1 = visit(ctx, expr.args[5])
         return CLRTCall("log", [arg1,], ret_type)
-    end
-    if fname == :sinf || fname == :sin
+    elseif fname == :sinf || fname == :sin
         arg1 = visit(ctx, expr.args[5])
         return CLRTCall("sin", [arg1,], ret_type)
+    elseif fname == :sqrt
+        arg1 = visit(ctx, expr.args[5])
+        return CLRTCall("sqrt", [arg1,], ret_type)
     end
     error("unhanded builtin $fname")
 end
@@ -461,6 +462,7 @@ const binary_builtins = (Symbol=>CAst)[
                                     :lt_float => CLt(),
                                     :lt_int => CLt(),
                                     :ult_int => CLt(),
+                                    :ule_int => CLtE(),
                                     :mul_float => CMult(),
                                     :mul_int => CMult(),
                                     :ne_float => CNotEq(),
@@ -587,8 +589,6 @@ visit_call(ctx, expr::Expr) = begin
     end
     
     if isa(arg1, Symbol) && arg1 === :clprintf
-        @show expr
-        @show expr.args
         args = CAst[]
         for arg in expr.args[2:end]
             push!(args, visit(ctx, arg))
