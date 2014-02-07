@@ -28,16 +28,7 @@ macro int_info(func, cl_device_info, return_type)
     end
 end
 
-let extensions(d::Device) = begin
-        size = Array(Csize_t, 1)
-        @check api.clGetDeviceInfo(d.id, CL_DEVICE_EXTENSIONS, 0, C_NULL, size)
-        result = Array(CL_char, size[1])
-        @check api.clGetDeviceInfo(d.id, CL_DEVICE_EXTENSIONS, size[1], result, C_NULL)
-        bs = bytestring(convert(Ptr{CL_char}, result))
-        return split(bs)
-    end
-
-    profile(d::Device) = begin
+let profile(d::Device) = begin
         size = Array(Csize_t, 1)
         @check api.clGetDeviceInfo(d.id, CL_DEVICE_PROFILE, 0, C_NULL, size)
         result = Array(CL_char, size[1])
@@ -61,7 +52,7 @@ let extensions(d::Device) = begin
         result = Array(CL_char, size[1])
         @check api.clGetDeviceInfo(d.id, CL_DRIVER_VERSION, size[1], result, C_NULL)
         bs = bytestring(convert(Ptr{CL_char}, result))
-        return replace(bs, r"\s+", " ")
+        return string(replace(bs, r"\s+", " "))
     end
 
     extensions(d::Device) = begin
@@ -70,7 +61,7 @@ let extensions(d::Device) = begin
         result = Array(CL_char, size[1])
         @check api.clGetDeviceInfo(d.id, CL_DEVICE_EXTENSIONS, size[1], result, C_NULL)
         bs = bytestring(convert(Ptr{CL_char}, result))
-        return split(bs)
+        return String[string(s) for s in split(bs)]
     end
 
     platform(d::Device) = begin
@@ -87,7 +78,7 @@ let extensions(d::Device) = begin
         @check api.clGetDeviceInfo(d.id, CL_DEVICE_NAME,
                                    size[1] * sizeof(CL_char), result, C_NULL)
         n = bytestring(convert(Ptr{Cchar}, result))
-        return replace(n, r"\s+", " ")
+        return string(replace(n, r"\s+", " "))
     end
 
     @int_info(device_type, CL_DEVICE_TYPE, CL_device_type)
