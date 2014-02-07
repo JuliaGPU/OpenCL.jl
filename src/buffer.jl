@@ -17,7 +17,7 @@ type Buffer{T} <: CLMemObject
         buff = new(true, mem_id, len, nothing)
         finalizer(buff, mem_obj -> begin 
             if !mem_obj.valid
-                error("attempted to double free $mem_obj")
+                throw(CLMemoryError("attempted to double free $mem_obj"))
             end
             release!(mem_obj)
             mem_obj.valid   = false
@@ -81,13 +81,12 @@ end
 function Buffer{T}(::Type{T}, ctx::Context, flags::CL_mem_flags, len::Integer=0;
                    hostbuf::Union(Nothing, Array{T})=nothing)
 
-    if (hostbuf != nothing && 
-        !bool((flags & (CL_MEM_USE_HOST_PTR | CL_MEM_COPY_HOST_PTR))))
+    if (hostbuf != nothing && !bool((flags & (CL_MEM_USE_HOST_PTR | CL_MEM_COPY_HOST_PTR))))
         warn("'hostbuf' was passed, but no memory flags to make use of it")
     end
 
     if flags == (CL_MEM_USE_HOST_PTR | CL_MEM_ALLOC_HOST_PTR)
-        error("Use host pointer flag and alloc host pointer flag are mutually exclusive")
+        ArgumentError("Use host pointer flag and alloc host pointer flag are mutually exclusive")
     end
 
     nbytes = 0
@@ -98,7 +97,7 @@ function Buffer{T}(::Type{T}, ctx::Context, flags::CL_mem_flags, len::Integer=0;
             retain_buf = hostbuf
         end
         if len > length(hostbuf)
-            error("OpenCL.Buffer specified size greater than host buffer size")
+            ArgumentError("OpenCL.Buffer specified size greater than host buffer size")
         end
         if len == 0
             len = length(hostbuf)
@@ -108,7 +107,7 @@ function Buffer{T}(::Type{T}, ctx::Context, flags::CL_mem_flags, len::Integer=0;
         end 
     else
         if len <= 0
-            error("OpenCL.Buffer specified length is <= 0")
+            ArgumentError("OpenCL.Buffer specified length is <= 0")
         end
         nbytes = len * sizeof(T)
     end

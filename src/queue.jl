@@ -25,7 +25,7 @@ Base.pointer(q::CmdQueue) = q.id
 
 function Base.show(io::IO, q::CmdQueue)
     ptr_address = "0x$(hex(unsigned(Base.pointer(q)), WORD_SIZE>>2))"
-    print(io, "<OpenCL.CmdQueue @$ptr_address>")
+    print(io, "OpenCL.CmdQueue(@$ptr_address)")
 end
 
 Base.getindex(q::CmdQueue, qinfo::Symbol) = info(q, qinfo)
@@ -144,7 +144,7 @@ let context(q::CmdQueue) = begin
             func(q)
         catch err
             if isa(err, KeyError)
-                error("OpenCL.CmdQueue has no info for: $qinfo") 
+                throw(ArgumentError("OpenCL.CmdQueue has no info for: $qinfo"))
             else
                 throw(err)
             end

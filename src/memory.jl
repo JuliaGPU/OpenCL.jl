@@ -27,7 +27,7 @@ end
 
 function release!(mem::CLMemObject)
     if !mem.valid
-        error("OpenCL.MemObject relase! error: trying to double unref mem object")
+        throw(CLMemoryError("attempted to double free mem object $mem"))
     end
     if mem.id != C_NULL
         @check_release api.clReleaseMemObject(mem.id)
@@ -113,7 +113,7 @@ let mem_type(m::CLMemObject) = begin
             func(mem)
         catch err
             if isa(err, KeyError)
-                error("OpenCL.MemObject has no info for: $minfo")
+                throw(ArgumentError("OpenCL.MemObject has no info for: $minfo"))
             else
                 throw(err)
             end

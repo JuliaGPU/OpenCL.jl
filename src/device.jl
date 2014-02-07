@@ -243,7 +243,7 @@ let profile(d::Device) = begin
             func(d)
         catch err
             if isa(err, KeyError)
-                error("OpenCL.Device has no info for: $s")
+                throw(ArgumentError("OpenCL.Device has no info for: $s"))
             else
                 throw(err)
             end
@@ -265,7 +265,7 @@ function cl_device_type(dtype::Symbol)
     elseif dtype == :default
         cl_dtype = CL_DEVICE_TYPE_DEFAULT
     else
-        error("Unknown device type: $dtype")
+        throw(ArgumentError("Unknown device type: $dtype"))
     end
     return cl_dtype
 end
