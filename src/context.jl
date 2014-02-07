@@ -43,7 +43,7 @@ const ctx_callback_ptr = cfunction(ctx_notify_err, Ptr{Void},
                                    (Ptr{Cchar}, Ptr{Void}, Csize_t, Ptr{Void}))
 
 function raise_context_error(error_info, private_info)
-    error("OpenCL.Context error: $error_info")
+    throw(OpenCLException("OpenCL.Context error: $error_info"))
 end
 
 
@@ -51,7 +51,7 @@ function Context(devs::Vector{Device};
                  properties=nothing,
                  callback::Union(Nothing, Function)=nothing)
     if isempty(devs)
-        error("No devices specified for context")
+        ArgumentError("No devices specified for context")
     end
     if properties != nothing
         ctx_properties = _parse_properties(properties)
@@ -154,7 +154,7 @@ function _parse_properties(props)
     cl_props = Array(CL_context_properties, 0)
     for prop_tuple in props
         if length(prop_tuple) != 2
-            error("Context property tuple must have length 2")
+            ArgumentError("Context property tuple must have length 2")
         end
         prop = prop_tuple[1]
         push!(cl_props, cl_context_properties(prop))
@@ -172,7 +172,7 @@ function _parse_properties(props)
             ptr = convert(Ptr{Void}, prop_tuple[2])
             push!(cl_props, cl_context_properties(ptr))
         else
-            error("Invalid OpenCL Context property")
+            throw(OpenCLException("Invalid OpenCL Context property"))
         end
     end
     push!(cl_props, cl_context_properties(C_NULL))
@@ -199,7 +199,7 @@ end
 
 function create_some_context()
     if isempty(platforms())
-        error("No OpenCL.Platform available")
+        throw(OpenCLException("No OpenCL.Platform available"))
     end
     gpu_devices = devices(:gpu)
     if !isempty(gpu_devices)
@@ -226,8 +226,8 @@ function create_some_context()
         end
     end
     if isempty(gpu_devices) && isempty(cpu_devices)
-        error("Unable to create any OpenCL.Context, no available devices")
+        throw(OpenCLException("Unable to create any OpenCL.Context, no available devices"))
     else
-        error("Unable to create any OpenCL.Context, no devices worked")
+        throw(OpenCLException("Unable to create any OpenCL.Context, no devices worked"))
     end
 end
