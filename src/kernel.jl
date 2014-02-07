@@ -157,7 +157,7 @@ function call(q::CmdQueue, k::Kernel, global_work_size, local_work_size, args...
                          local_work_size,
                          global_work_offset=global_work_offset,
                          wait_on=wait_on)
-    finish(q)
+    #finish(q)
     return evt
 end
 

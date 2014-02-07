@@ -52,7 +52,7 @@ function get_global_size(x)
     return uint32(x)::Uint32
 end
 
-device = cl.devices()[1]
+device = cl.devices()[end-1]
 ctx = cl.Context(device)
 queue = cl.CmdQueue(ctx)
 #device, ctx, queue = cl.create_compute_context()
@@ -195,7 +195,7 @@ function can_compile(src)
     end
 end
 
-facts("Builtins") do
+#facts("Builtins") do
 #    for ty in (:Int8, :Uint8, :Int16, :Uint16, :Int32, :Uint32) #:Int64, :Uint64)
 #        @eval begin
 #            expr = first(code_typed(test1, ($ty,)))
@@ -274,19 +274,19 @@ facts("Builtins") do
 #    expr = first(code_typed(test4, (Array{Float64,1},Float32)))
 #    #println(clsource(visit(expr)))
 
-    a = rand(Float64,  500_000)
-    b = rand(Float64,  500_000)
-    c = zeros(Float64, 500_000)
+#    a = rand(Float64,  500_000)
+#    b = rand(Float64,  500_000)
+#    c = zeros(Float64, 500_000)
 
-    a_buff = cl.Buffer(Float64, ctx, (:rw, :copy), hostbuf=a)
-    b_buff = cl.Buffer(Float64, ctx, (:rw, :copy), hostbuf=b)
-    c_buff = cl.Buffer(Float64, ctx, :rw, length(a))
+#    a_buff = cl.Buffer(Float64, ctx, (:rw, :copy), hostbuf=a)
+#    b_buff = cl.Buffer(Float64, ctx, (:rw, :copy), hostbuf=b)
+#    c_buff = cl.Buffer(Float64, ctx, :rw, length(a))
 
-    println("TEST Julia")
+#    println("TEST Julia")
 
-    for _ = 1:1
-        @time juliaref(a, b, c, uint32(length(a)))
-    end
+#    for _ = 1:1
+#        @time juliaref(a, b, c, uint32(length(a)))
+#    end
 
 #    p = cl.Program(ctx, source=test7) |> cl.build!
 #    t7 = cl.Kernel(p, "testcl")
@@ -299,18 +299,18 @@ facts("Builtins") do
 #        toc()
 #    end
 
-    println("TEST 6")
-    local r::Vector{Float32}
-    for i = 1:2
-        tic()
-        cl.call(queue, test6, size(a), nothing,
-                a_buff, b_buff, c_buff, int32(length(a))) 
-        r = cl.read(queue, c_buff)
-        toc()
-    end
-    @show norm(r - (exp(a) + log(b)))
-    @fact isapprox(norm(r - (exp(a) + log(b))), zero(Float32)) => true
-end
+#    println("TEST 6")
+#    local r::Vector{Float32}
+#    for i = 1:2
+#        tic()
+##        cl.call(queue, test6, size(a), nothing,
+#                a_buff, b_buff, c_buff, int32(length(a))) 
+##        r = cl.read(queue, c_buff)
+#        toc()
+#    end
+#    @show norm(r - (exp(a) + log(b)))
+#    #@fact isapprox(norm(r - (exp(a) + log(b))), zero(Float32)) => #true
+#end
 
 function compile_anonfunc(f, types)
     if isgeneric(f) || (isdefined(f, :env) && isa(f.env, Symbol))
@@ -321,8 +321,8 @@ function compile_anonfunc(f, types)
     return (ast, ty)
 end
     
-f = (x) -> x + 2
-@show compile_anonfunc(f, (Int32,)) 
+#f = (x) -> x + 2
+#@show compile_anonfunc(f, (Int32,)) 
 
 function twiddle(u::Uint32, v::Uint32)
     t1 = ((u & 0x80000000) | (v & 0x7FFFFFFF)) >> int32(1)
@@ -399,9 +399,9 @@ end
 @assert isa(fill, cl.Kernel)
 
 
-src = open(readall, "test.cl")
-prg = cl.Program(ctx, source=src) |> cl.build!
-generate_state = cl.Kernel(prg, "generate_state")
+#src = open(readall, "test.cl")
+#prg = cl.Program(ctx, source=src) |> cl.build!
+#generate_state = cl.Kernel(prg, "generate_state")
 #seed = cl.Kernel(prg, "seed")
 #fill = cl.Kernel(prg, "fill")
 
@@ -664,8 +664,8 @@ function randfloat(rand_var, low, high)
 end
 
 function test_sholes()
-    OPT_N = 1_000_000
-    iterations = 1000
+    OPT_N = 10_000_000
+    iterations = 100
     
     stockPrice   = randfloat(rand(Cdouble, OPT_N), 5.0, 30.0)
     optionStrike = randfloat(rand(Cdouble, OPT_N), 1.0, 100.0)
@@ -676,8 +676,8 @@ function test_sholes()
 
     tic()
     for i in 1:iterations
-        black_scholes_julia(callResultJulia, putResultJulia, stockPrice,
-                            optionStrike, optionYears, RISKFREE, VOLATILITY, OPT_N)
+        #black_scholes_julia(callResultJulia, putResultJulia, stockPrice,
+        #                    optionStrike, optionYears, RISKFREE, VOLATILITY, OPT_N)
     end
     t = toc()
     info("Julia Time: $((1000 * t) / iterations) msec per iteration")

@@ -64,7 +64,14 @@ range_elemtype{T}(::Type{Range{T}}) = T
 # TODO: this
 cname(s) = begin
     s = string(s)
-    return s[1] == '#' ? s[2:end] : s
+    s = s[1] == '#' ? s[2:end] : s
+    if !isalpha(s[1])
+        s = "ssa_" * s
+    end
+    if length(s) >= 3 && s[end-1] == '#'
+        s = s[1:end-2]
+    end
+    return s
 end
 
 function rm_linenum!(expr::Expr)
@@ -543,7 +550,6 @@ visit_getfield(ctx, expr::Expr) = begin
     if fnode.value == Base.Math
         if fnode.name in intrinsic_check_arithmetic
             # pass through for checked arithmetic
-            #println(expr.args)
             node = visit(ctx, expr.args[2])
             return node
         end
