@@ -1,4 +1,36 @@
 # --- OpenCL Buffer ---
+type MapMem{T}
+    isvalid::Bool 
+    queue::CmdQueue
+    d_mem::CLMemObject
+    h_mem::Array{T}
+
+    MapMem(q::CmdQueue, mem::CLMemObject) = begin
+        m = new(true, q, mem)
+        finalizer(m, x -> begin
+            if x.isvalid
+                unmap!(x.queue, x.d_mem.id, x.h_mem)
+                x.isvalid = false
+            end
+        end)
+        return m
+    end
+end
+
+function enqueue_unmap(q::CmdQueue, d_mem::CLMemObject, h_mem,
+                       wait_for::Union(Nothing, Vector{Event})=nothing)
+    n_evts  = wait_for == nothing ? 0 : length(wait_for) 
+    evt_ids = wait_for == nothing ? C_NULL : [evt.id for evt in wait_for]
+    ret_evt = Array(CL_event, 1)
+    @check api.clEnqueueUnmapMemObject(q.id, d_mem.id, h_mem, 
+                                       n_evts, evt_ids, ret_evt) 
+    @return_event ret_evt[1]
+end
+
+function unmap!(q::CmdQueue, d_mem::CLMemObject, h_mem)
+    evt = enqueue_unmap(q, d_mem, h_mem)
+    return wait(evt)
+end
 
 type Buffer{T} <: CLMemObject
     valid::Bool
@@ -191,9 +223,27 @@ function enqueue_copy_buffer{T}(q::CmdQueue,
     @return_event ret_evt[1] 
 end
 
-function enqueue_map_buffer(q::CmdQueue, b::Buffer, flags, offset, shape,
-                            wait_for=nothing, is_blocking=false)
-#TODO:
+function enqueue_map_buffer{T}(q::CmdQueue, 
+                               b::Buffer{T}, 
+                               flags, 
+                               offset::Integer, 
+                               dims::Dims,
+                               wait_for=nothing, 
+                               is_blocking=false)
+    n_evts  = wait_for == nothing ? uint(0) : length(wait_for) 
+    evt_ids = wait_for == nothing ? C_NULL  : [evt.id for evt in wait_for]
+    nbytes  = prod(dims) * sizeof(T)     
+    status  = Cint[0]
+    #TODO: create api function && add tests
+    mapped  = api.clEnqueueMapBuffer(q.id, b.id, isblocking? 1:0, 
+                                     flags, offset, size_in_bytes,
+                                     n_evts, evt_ids, status) 
+    if status[1] != CL_SUCCESS
+        throw(CLError(status[1]))
+    end
+    mapped = convert(Ptr{T}, mapped)
+    # julia owns pointer to mapped memory
+    return pointer_to_array(mapped, dims, true)
 end
 
 @ocl_v1_2_only begin
