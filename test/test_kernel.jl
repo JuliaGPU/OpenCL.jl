@@ -166,6 +166,12 @@ facts("OpenCL.Kernel") do
             
             r = cl.read(q, d_buff) 
             @fact r[1] => 2
+
+            # alternative kernel call syntax
+            test_kernel = k
+            test_kernel[q, (1,), (1,)](d_buff)
+            r = cl.read(q, d_buff)
+            @fact r[1] => 3 
         end
     end
 end

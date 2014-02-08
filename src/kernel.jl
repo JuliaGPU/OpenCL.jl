@@ -146,6 +146,27 @@ function work_group_info(k::Kernel, winfo::Symbol, d::Device)
 end 
 
 
+Base.getindex(k::Kernel, args...) = begin
+    if length(args) < 2 || length(args) > 3
+        throw(ArgumentError("TODO:"))
+    end
+    if !(isa(args[1], CmdQueue))
+        throw(ArgumentError("TODO:"))
+    end
+    if !(isa(args[2], Dims))
+        throw(ArgumentError("TODO:"))
+    end
+    if length(args) == 3 && !(isa(args[3], Dims))
+        throw(ArgumentError("TODO:"))
+    end
+    queue = args[1]
+    global_size = args[2]
+    local_size  = length(args) == 3 ? args[3] : nothing
+    # TODO: we cannot pass keywords in anon functions yet
+    # return kernel call thunk 
+    return (args...) -> call(queue, k, global_size, local_size, args...)
+end
+    
 # blocking kernel call that finishes queue
 function call(q::CmdQueue, k::Kernel, global_work_size, local_work_size, args...;
               global_work_offset=nothing,
