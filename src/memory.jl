@@ -1,27 +1,18 @@
 abstract CLMemObject
 
 #This should be implemented by all subtypes
-#type MemObject <: CLMemory
-#    valid :: Bool
-#    ptr   :: CL_mem
-#    hostbuf
-#
-#    function CLMemObject(mem_ptr::CL_mem; retain=true, hostbuf=nothing)
-#        if retain
-#            @check api.clRetainMemObject(mem_ptr)
-#        end
-#        m = new(true, mem_ptr, hostbuf)
-#        finalizer(m, mem -> if mem.valid; release!(mem); end)
-#        return m
-#    end
-#
-#end
+# type CLMemType <: CLMemObject
+#     valid::Bool
+#     id::CL_mem
+#     ...
+# end
 
 Base.pointer(mem::CLMemObject) = mem.id
 
 Base.sizeof(mem::CL_mem) = begin
     val = Csize_t[0,]
-    @check api.clGetMemObjectInfo(mem, CL_MEM_SIZE, sizeof(Csize_t), val, C_NULL)
+    @check api.clGetMemObjectInfo(mem, CL_MEM_SIZE, sizeof(Csize_t), 
+                                  val, C_NULL)
     return val[1]
 end
 
