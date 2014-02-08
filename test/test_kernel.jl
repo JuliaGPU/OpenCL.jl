@@ -168,10 +168,15 @@ facts("OpenCL.Kernel") do
             @fact r[1] => 2
 
             # alternative kernel call syntax
-            test_kernel = k
-            test_kernel[q, (1,), (1,)](d_buff)
+            k[q, (1,), (1,)](d_buff)
             r = cl.read(q, d_buff)
             @fact r[1] => 3 
+
+            # enqueue task is an alias for calling 
+            # a kernel with a global/local size of 1
+            evt = cl.enqueue_task(q, k)
+            r = cl.read(q, d_buff)
+            @fact r[1] => 4
         end
     end
 end
