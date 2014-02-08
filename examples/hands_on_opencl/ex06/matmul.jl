@@ -124,11 +124,12 @@ info("=== OpenCL, matrix mult, C(i, j) per work item, order $Ndim ====")
 
 for i in 1:COUNT
     fill!(h_C, 0.0)
+    
     global_range = (Ndim, Mdim)
-    local_range  = nothing
-    evt = cl.call(queue, mmul, global_range, local_range,
-                  int32(Mdim), int32(Ndim), int32(Pdim),
-                  d_a, d_b, d_c)
+    mmul_ocl = mmul[queue, global_range]
+    
+    evt = mmul_ocl(int32(Mdim), int32(Ndim), int32(Pdim), d_a, d_b, d_c)
+    
     # profiling events are measured in ns
     run_time = evt[:profile_duration] / 1e9
     cl.copy!(queue, h_C, d_c)

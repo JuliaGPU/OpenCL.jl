@@ -62,7 +62,7 @@ d_r = cl.Buffer(Float32, ctx, :w, LENGTH)
 vadd = cl.Kernel(program, "vadd")
 
 # execute the kernel over the entire range of the input
-cl.call(queue, vadd, size(h_a), nothing, d_a, d_b, d_c, d_r, uint32(LENGTH))
+vadd[queue, size(h_a)](d_a, d_b, d_c, d_r, uint32(LENGTH))
 
 # read the results back from the compute device
 # by convention..

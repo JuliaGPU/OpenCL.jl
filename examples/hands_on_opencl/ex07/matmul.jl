@@ -131,9 +131,10 @@ info("=== OpenCL, matrix mult, C row per work item, order $Ndim ====")
 
 for i in 1:COUNT
     fill!(h_C, 0.0)
-    evt = cl.call(queue, mmul, (Ndim,), (int(ORDER/16),),
-                  int32(Mdim), int32(Ndim), int32(Pdim),
-                  d_a, d_b, d_c)
+    mmul_ocl = mmul[queue, (Ndim,), (div(ORDER, 16),)]
+
+    evt = mmul_ocl(int32(Mdim), int32(Ndim), int32(Pdim), d_a, d_b, d_c)
+    
     # profiling events are measured in ns
     run_time = evt[:profile_duration] / 1e9
     cl.copy!(queue, h_C, d_c)

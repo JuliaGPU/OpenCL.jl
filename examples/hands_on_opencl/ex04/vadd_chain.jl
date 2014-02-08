@@ -89,9 +89,12 @@ vadd = cl.Kernel(program, "vadd")
 # for simple kernels
 cl.call(queue, vadd, size(h_a), nothing, d_a, d_b, d_c, uint32(LENGTH))
 
-# call the kernel again with different arguments
-cl.call(queue, vadd, size(h_e), nothing, d_e, d_c, d_d, uint32(LENGTH))
-cl.call(queue, vadd, size(h_g), nothing, d_g, d_d, d_f, uint32(LENGTH))
+# an alternative syntax is to create an partial function to cl.call
+# by julia's getindex syntax for Kernel types.
+# here the queue, global_size, and (optional) local_size are passed in which
+# returns a partial cl.call function with these parameters set.
+vadd[queue, size(h_e)](d_e, d_c, d_d, uint32(LENGTH))
+vadd[queue, size(h_g)](d_g, d_d, d_f, uint32(LENGTH))
 
 # copy back the results from the compute device
 # copy!(queue, dst, src) follows same interface as julia's built in copy!

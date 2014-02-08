@@ -15,20 +15,23 @@ b = rand(Float32, 50_000)
 
 device, ctx, queue = cl.create_compute_context()
 
+# create opencl buffer objects
+# copies to the device initiated when the kernel function is called
 a_buff = cl.Buffer(Float32, ctx, (:r, :copy), hostbuf=a)
 b_buff = cl.Buffer(Float32, ctx, (:r, :copy), hostbuf=b)
 c_buff = cl.Buffer(Float32, ctx, :w, length(a))
 
+# build the program and construct a kernel object
 p = cl.Program(ctx, source=sum_kernel_src) |> cl.build!
-#k = cl.Kernel(p, "sum")
-
 sum_kernel = cl.Kernel(p, "sum")
+
+# call the kernel object with global size set to the size our arrays
 sum_kernel[queue, size(a)](a_buff, b_buff, c_buff)
 
-#cl.call(queue, k, size(a), nothing, a_buff, b_buff, c_buff)
-
+# perform a blocking read of the result from the device
 r = cl.read(queue, c_buff)
 
+# check to see if our result is what we expect!
 if isapprox(norm(r - (a+b)), zero(Float32))
     info("Success!")
 else
