@@ -64,6 +64,11 @@ Base.eltype{T}(b::Buffer{T}) = T
 Base.length{T}(b::Buffer{T}) = int(b.len)
 Base.sizeof{T}(b::Buffer{T}) = int(b.len * sizeof(T))
 
+Base.show{T}(io::IO, b::Buffer{T}) = begin 
+    ptr_address = "0x$(hex(unsigned(Base.pointer(b)), WORD_SIZE>>2))"
+    print(io, "Buffer{$T}($ptr_address)")
+end 
+
 function Buffer{T}(::Type{T}, ctx::Context, len::Integer=0; hostbuf=nothing)
     Buffer(T, ctx, (:rw, :null), len, hostbuf=hostbuf)
 end
@@ -229,6 +234,9 @@ function enqueue_map_buffer{T}(q::CmdQueue,
                                dims::Dims,
                                wait_for=nothing, 
                                is_blocking=false)
+    if length(b) < prod(dims) + offset
+        throw(ArgumentError("Buffer length must be greater than or equal to prod(dims) + offset"))
+    end
     n_evts  = wait_for == nothing ? uint(0) : length(wait_for) 
     evt_ids = wait_for == nothing ? C_NULL  : [evt.id for evt in wait_for]
     nbytes  = prod(dims) * sizeof(T)     
