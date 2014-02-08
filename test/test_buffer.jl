@@ -205,4 +205,27 @@ facts("OpenCL.Buffer") do
             @fact all(x -> isapprox(x, 2.0), c_arr) => true
         end
     end
+
+    context("OpenCL.Buffer map/unmap") do
+        for device in cl.devices()
+            ctx = cl.Context(device)
+            queue = cl.CmdQueue(ctx)
+            b = cl.Buffer(Float32, ctx, :rw, 100)
+            for f in (:r, :w, :rw)
+                a, evt = cl.enqueue_map_mem(queue, b, f, 0, (10,10))
+                @fact size(a) => (10,10)
+                @fact typeof(a) => Array{Float32,2}
+                cl.unmap!(queue, b, a)
+                @fact cl.ismapped(b) => false
+                # cannot unmap an unmapped buffer
+                @fact @throws_pred(cl.unmap!(queue, b, a)) => (true, "error")
+            end
+            @fact cl.ismapped(b) => false
+            a, evt = cl.enqueue_map_mem(queue, b, :rw, 0, (10,10))
+            @fact cl.ismapped(b) => true 
+            evt = cl.enqueue_unmap_mem(queue, b, a, wait_for=evt)
+            cl.wait(evt)
+            @fact cl.ismapped(b) => false
+        end
+    end
 end

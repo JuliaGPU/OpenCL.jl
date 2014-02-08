@@ -143,7 +143,7 @@ immutable CLMemoryError <: Exception
     msg::String
 end
 
-Base.show(io::IO, err::CLMemoryError) = Base.print(io, "OpenCL.MemObject Error: $(err.msg)")
+Base.show(io::IO, err::CLMemoryError) = Base.print(io, "OpenCL.MemObject: $(err.msg)")
 
 immutable OpenCLException <: Exception
     msg::String
