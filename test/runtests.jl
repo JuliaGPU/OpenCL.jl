@@ -9,3 +9,7 @@ for t in [:platform, :context, :device, :cmdqueue, :event, :buffer, :program, :k
 end
 
 run(`julia $(joinpath(testsdir, "behavior_tests.jl"))`)
+
+cd("./compiler")
+run(`julia runtests.jl`)
+
