@@ -199,9 +199,6 @@ let profile(d::Device) = begin
         return (width[1], height[1], depth[1])
     end
 
-    #TODO: support haskeys, and keys by having
-    # keys list on outsize of closure and generate 
-    # map inside closure
     const info_map = (Symbol => Function)[
         :driver_version => driver_version,
         :version => version,
