@@ -118,6 +118,10 @@ macro clkernel(func)
     end
 end
 
+macro cljit(func)
+    @clkernel(func)
+end
+
 function juliaref{T}(a::Vector{T},
                      b::Vector{T},
                      c::Vector{T},
@@ -509,11 +513,11 @@ end
 #end
 
 
-@clkernel juliat(r::Vector{Float32}, 
-                i::Vector{Float32},
-                output::Vector{Uint16},
-                maxiter::Int32,
-                len::Int32) = begin
+@cljit juliat(r::Vector{Float32}, 
+              i::Vector{Float32},
+              output::Vector{Uint16},
+              maxiter::Int32,
+              len::Int32) = begin
     gid = get_global_id(0)
     if gid < len 
         nreal = 0.0f0
@@ -612,14 +616,14 @@ function cnd(d)
     return ret_val
 end
 
-@clkernel black_scholes_ocl(call_result::Vector{Cdouble},
-                            put_result::Vector{Cdouble},
-                            S::Vector{Cdouble},
-                            X::Vector{Cdouble},
-                            T::Vector{Cdouble},
-                            R::Cdouble,
-                            V::Cdouble,
-                            len::Int) = begin
+@cljit black_scholes(call_result::Vector{Cdouble},
+                     put_result::Vector{Cdouble},
+                     S::Vector{Cdouble},
+                     X::Vector{Cdouble},
+                     T::Vector{Cdouble},
+                     R::Cdouble,
+                     V::Cdouble,
+                     len::Int) = begin
     i = get_global_id(0)
     if i >= len
         return
@@ -664,8 +668,8 @@ function randfloat(rand_var, low, high)
 end
 
 function test_sholes()
-    OPT_N = 10_000_000
-    iterations = 100
+    OPT_N = 100_000
+    iterations = 1
     
     stockPrice   = randfloat(rand(Cdouble, OPT_N), 5.0, 30.0)
     optionStrike = randfloat(rand(Cdouble, OPT_N), 1.0, 100.0)
@@ -676,8 +680,8 @@ function test_sholes()
 
     tic()
     for i in 1:iterations
-        #black_scholes_julia(callResultJulia, putResultJulia, stockPrice,
-        #                    optionStrike, optionYears, RISKFREE, VOLATILITY, OPT_N)
+        black_scholes_julia(callResultJulia, putResultJulia, stockPrice,
+                            optionStrike, optionYears, RISKFREE, VOLATILITY, OPT_N)
     end
     t = toc()
     info("Julia Time: $((1000 * t) / iterations) msec per iteration")
@@ -690,12 +694,14 @@ function test_sholes()
     d_stockPrice   = cl.Buffer(Cdouble, ctx, (:r, :copy), hostbuf=stockPrice)
     d_optionStrike = cl.Buffer(Cdouble, ctx, (:r, :copy), hostbuf=optionStrike)
     d_optionYears  = cl.Buffer(Cdouble, ctx, (:r, :copy), hostbuf=optionYears)
-    
+   
+    # create a kernel function with queue, global size OPT_N
+    black_sholes_ocl = black_sholes[queue, (OPT_N,)]
+
     tic()
     for i = 1:iterations
-        cl.call(queue, black_scholes_ocl, (OPT_N,), nothing,
-                d_callResult, d_putResult, d_stockPrice, d_optionStrike, d_optionYears, 
-                RISKFREE, VOLATILITY, OPT_N)
+        black_sholes_ocl(d_callResult, d_putResult, d_stockPrice, 
+                         d_optionStrike, d_optionYears, RISKFREE, VOLATILITY, OPT_N)
         cl.enqueue_barrier(queue)
     end
     cl.copy!(queue, callResultOpenCL, d_callResult)
