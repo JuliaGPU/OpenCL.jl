@@ -215,8 +215,14 @@ facts("OpenCL.Buffer") do
                 a, evt = cl.enqueue_map_mem(queue, b, f, 0, (10,10))
                 @fact size(a) => (10,10)
                 @fact typeof(a) => Array{Float32,2}
+
+                # cannot unmap a buffer without same host array
+                bad = similar(a)
+                @fact @throws_pred(cl.unmap!(queue, b, bad)) => (true, "error")
+
                 cl.unmap!(queue, b, a)
                 @fact cl.ismapped(b) => false
+
                 # cannot unmap an unmapped buffer
                 @fact @throws_pred(cl.unmap!(queue, b, a)) => (true, "error")
             end

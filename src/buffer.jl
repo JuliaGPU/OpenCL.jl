@@ -13,7 +13,7 @@ type Buffer{T} <: CLMemObject
             @check api.clRetainMemObject(mem_id)
         end
         nbytes = sizeof(T) * len
-        buff = new(true, mem_id, len, false, nothing)
+        buff = new(true, mem_id, len, false, C_NULL)
         finalizer(buff, mem_obj -> begin 
             if !mem_obj.valid
                 throw(CLMemoryError("attempted to double free $mem_obj"))
@@ -21,7 +21,7 @@ type Buffer{T} <: CLMemObject
             release!(mem_obj)
             mem_obj.valid   = false
             mem_obj.mapped  = false
-            mem_obj.hostbuf = nothing
+            mem_obj.hostbuf = C_NULL
         end)
         return buff
     end
@@ -169,7 +169,6 @@ function enqueue_write_buffer{T}(q::CmdQueue,
     @check api.clEnqueueWriteBuffer(q.id, buf.id, cl_bool(is_blocking),
                                     offset, nbytes, hostbuf,
                                     n_evts, evt_ids, ret_evt)
-    buf.len = length(nbytes)
     @return_nanny_event(ret_evt[1], hostbuf)
 end
 
