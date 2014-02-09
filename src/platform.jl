@@ -16,16 +16,6 @@ function Base.show(io::IO, p::Platform)
     print(io, "<OpenCL.Platform '$platform_name @$ptr_address>")
 end
 
-#Base.keys(p::Platform) = [k for k in keys(info_map)]
-#Base.haskey(p::Platform, s::Symbol) = begin
-#    for (k, _) in info_map
-#        if k == s
-#            return true
-#        end
-#    end
-#    return false
-#end
-
 function platforms()
     nplatforms = Array(CL_uint, 1)
     @check api.clGetPlatformIDs(0, C_NULL, nplatforms)
@@ -67,7 +57,7 @@ let info_map = (Symbol => CL_platform_info)[
             end
         catch err
             if isa(err, KeyError)
-                error("OpenCL.Platform has no info for: $pinfo")
+                throw(ArgumentError("OpenCL.Platform has no info for: $pinfo"))
             else
                 throw(err)
             end

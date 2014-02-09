@@ -4,6 +4,7 @@ type Buffer{T} <: CLMemObject
     valid::Bool
     id::CL_mem
     len::Int
+    mapped::Bool
     #TODO: hostbuf (mem-mapping)
     hostbuf::Union(Nothing, Array{T})
 
@@ -14,13 +15,14 @@ type Buffer{T} <: CLMemObject
             @check api.clRetainMemObject(mem_id)
         end
         nbytes = sizeof(T) * len
-        buff = new(true, mem_id, len, nothing)
+        buff = new(true, mem_id, len, false, nothing)
         finalizer(buff, mem_obj -> begin 
             if !mem_obj.valid
-                error("attempted to double free $mem_obj")
+                throw(CLMemoryError("attempted to double free $mem_obj"))
             end
             release!(mem_obj)
             mem_obj.valid   = false
+            mem_obj.mapped  = false
             mem_obj.hostbuf = nothing
         end)
         return buff
@@ -31,6 +33,11 @@ Base.ndims(b::Buffer) = 1
 Base.eltype{T}(b::Buffer{T}) = T
 Base.length{T}(b::Buffer{T}) = int(b.len)
 Base.sizeof{T}(b::Buffer{T}) = int(b.len * sizeof(T))
+
+Base.show{T}(io::IO, b::Buffer{T}) = begin 
+    ptr_address = "0x$(hex(unsigned(Base.pointer(b)), WORD_SIZE>>2))"
+    print(io, "Buffer{$T}($ptr_address)")
+end 
 
 function Buffer{T}(::Type{T}, ctx::Context, len::Integer=0; hostbuf=nothing)
     Buffer(T, ctx, (:rw, :null), len, hostbuf=hostbuf)
@@ -81,13 +88,12 @@ end
 function Buffer{T}(::Type{T}, ctx::Context, flags::CL_mem_flags, len::Integer=0;
                    hostbuf::Union(Nothing, Array{T})=nothing)
 
-    if (hostbuf != nothing && 
-        !bool((flags & (CL_MEM_USE_HOST_PTR | CL_MEM_COPY_HOST_PTR))))
+    if (hostbuf != nothing && !bool((flags & (CL_MEM_USE_HOST_PTR | CL_MEM_COPY_HOST_PTR))))
         warn("'hostbuf' was passed, but no memory flags to make use of it")
     end
 
     if flags == (CL_MEM_USE_HOST_PTR | CL_MEM_ALLOC_HOST_PTR)
-        error("Use host pointer flag and alloc host pointer flag are mutually exclusive")
+        ArgumentError("Use host pointer flag and alloc host pointer flag are mutually exclusive")
     end
 
     nbytes = 0
@@ -98,7 +104,7 @@ function Buffer{T}(::Type{T}, ctx::Context, flags::CL_mem_flags, len::Integer=0;
             retain_buf = hostbuf
         end
         if len > length(hostbuf)
-            error("OpenCL.Buffer specified size greater than host buffer size")
+            ArgumentError("OpenCL.Buffer specified size greater than host buffer size")
         end
         if len == 0
             len = length(hostbuf)
@@ -108,7 +114,7 @@ function Buffer{T}(::Type{T}, ctx::Context, flags::CL_mem_flags, len::Integer=0;
         end 
     else
         if len <= 0
-            error("OpenCL.Buffer specified length is <= 0")
+            ArgumentError("OpenCL.Buffer specified length is <= 0")
         end
         nbytes = len * sizeof(T)
     end
@@ -191,9 +197,103 @@ function enqueue_copy_buffer{T}(q::CmdQueue,
     @return_event ret_evt[1] 
 end
 
-function enqueue_map_buffer(q::CmdQueue, b::Buffer, flags, offset, shape,
-                            wait_for=nothing, is_blocking=false)
-#TODO:
+ismapped(b::Buffer) = b.mapped
+
+function enqueue_unmap_mem{T}(q::CmdQueue, 
+                              b::Buffer{T}, 
+                              a::Array{T};
+                              wait_for=nothing)
+    if b.mapped == false
+        throw(CLMemoryError("$b has already been unmapped"))
+    end
+    n_evts  = 0
+    evt_ids = C_NULL
+    if wait_for != nothing
+        if isa(wait_for, Event)
+            n_evts = 1
+            evt_ids = [wait_for.id]
+        else
+            @assert all([isa(evt, Event) for evt in wait_for])
+            n_evts = length(wait_for)
+            evt_ids = [evt.id for evt in wait_for]
+        end
+    end
+    ret_evt = Array(CL_event, 1)
+    @check api.clEnqueueUnmapMemObject(q.id, b.id, a, 
+                                       n_evts, evt_ids, ret_evt)
+    b.mapped = false
+    @return_event ret_evt[1]
+end
+
+function unmap!(q::CmdQueue, d_mem::CLMemObject, h_mem)
+    evt = enqueue_unmap_mem(q, d_mem, h_mem)
+    return wait(evt)
+end
+
+function enqueue_map_mem{T}(q::CmdQueue, 
+                            b::Buffer{T}, 
+                            flags::Symbol, 
+                            offset::Integer, 
+                            dims::Dims,
+                            wait_for=nothing, 
+                            is_blocking=false)
+    local f::CL_map_flags
+    if flags === :r
+        f = CL_MAP_READ
+    elseif flags === :w
+        f = CL_MAP_WRITE
+    elseif flags === :rw
+        f = CL_MAP_READ | CL_MAP_WRITE
+    else
+        throw(ArgumentError("enqueue_unmap can have flags of :r, :w, or :rw, got :$flags"))
+    end
+    return enqueue_map_mem(q, b, f, offset, dims, wait_for, is_blocking)
+end
+
+function enqueue_map_mem{T}(q::CmdQueue, 
+                            b::Buffer{T}, 
+                            flags::CL_map_flags, 
+                            offset::Integer, 
+                            dims::Dims,
+                            wait_for=nothing, 
+                            is_blocking=false)
+    if length(b) < prod(dims) + offset
+        throw(ArgumentError("Buffer length must be greater than or 
+                             equal to prod(dims) + offset"))
+    end
+    n_evts  = wait_for == nothing ? cl_uint(0) : cl_uint(length(wait_for))
+    evt_ids = wait_for == nothing ? C_NULL  : [evt.id for evt in wait_for]
+    flags   = cl_map_flags(flags)
+    offset  = unsigned(offset)
+    nbytes  = unsigned(prod(dims) * sizeof(T))
+    ret_evt = Array(CL_event, 1)
+    status  = Cint[0]
+    mapped  = api.clEnqueueMapBuffer(q.id, b.id, cl_bool(is_blocking? 1:0), 
+                                     flags, offset, nbytes,
+                                     n_evts, evt_ids, ret_evt, status) 
+    if status[1] != CL_SUCCESS
+        throw(CLError(status[1]))
+    end
+    mapped = convert(Ptr{T}, mapped)
+    N = length(dims)
+    local mapped_arr::Array{T, N}
+    try
+        # julia owns pointer to mapped memory
+        mapped_arr = pointer_to_array(mapped, dims, true)
+        # when array is gc'd, unmap buffer
+        b.mapped = true
+        finalizer(mapped_arr, x -> begin
+            if b.mapped
+                enqueue_unmap(q, b, x)
+            end
+        end)
+    catch err
+        api.clEnqueueUnmapMemObject(q.id, b.id, mapped, 
+                                    unsigned(0), C_NULL, C_NULL)
+        b.mapped = false
+        rethrow(err)
+    end
+    return (mapped_arr, Event(ret_evt[1]))
 end
 
 @ocl_v1_2_only begin

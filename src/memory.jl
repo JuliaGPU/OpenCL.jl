@@ -1,33 +1,24 @@
 abstract CLMemObject
 
 #This should be implemented by all subtypes
-#type MemObject <: CLMemory
-#    valid :: Bool
-#    ptr   :: CL_mem
-#    hostbuf
-#
-#    function CLMemObject(mem_ptr::CL_mem; retain=true, hostbuf=nothing)
-#        if retain
-#            @check api.clRetainMemObject(mem_ptr)
-#        end
-#        m = new(true, mem_ptr, hostbuf)
-#        finalizer(m, mem -> if mem.valid; release!(mem); end)
-#        return m
-#    end
-#
-#end
+# type CLMemType <: CLMemObject
+#     valid::Bool
+#     id::CL_mem
+#     ...
+# end
 
 Base.pointer(mem::CLMemObject) = mem.id
 
 Base.sizeof(mem::CL_mem) = begin
     val = Csize_t[0,]
-    @check api.clGetMemObjectInfo(mem, CL_MEM_SIZE, sizeof(Csize_t), val, C_NULL)
+    @check api.clGetMemObjectInfo(mem, CL_MEM_SIZE, sizeof(Csize_t), 
+                                  val, C_NULL)
     return val[1]
 end
 
 function release!(mem::CLMemObject)
     if !mem.valid
-        error("OpenCL.MemObject relase! error: trying to double unref mem object")
+        throw(CLMemoryError("attempted to double free mem object $mem"))
     end
     if mem.id != C_NULL
         @check_release api.clReleaseMemObject(mem.id)
@@ -113,7 +104,7 @@ let mem_type(m::CLMemObject) = begin
             func(mem)
         catch err
             if isa(err, KeyError)
-                error("OpenCL.MemObject has no info for: $minfo")
+                throw(ArgumentError("OpenCL.MemObject has no info for: $minfo"))
             else
                 throw(err)
             end

@@ -147,6 +147,27 @@ function work_group_info(k::Kernel, winfo::Symbol, d::Device)
 end 
 
 
+Base.getindex(k::Kernel, args...) = begin
+    if length(args) < 2 || length(args) > 3
+        throw(ArgumentError("kernel must be called with a queue & global size as arguments"))
+    end
+    if !(isa(args[1], CmdQueue))
+        throw(ArgumentError("kernel first argument must a a CmdQueue"))
+    end
+    if !(isa(args[2], Dims)) || length(args[2]) > 3
+        throw(ArgumentError("kernel global size must be of Dims type (dim <= 3)"))
+    end
+    if length(args) == 3 && (!(isa(args[3], Dims)) || length(args[3]) > 3)
+        throw(ArgumentError("kernel local size must be of Dims type (dim <= 3)"))
+    end
+    queue = args[1]
+    global_size = args[2]
+    local_size  = length(args) == 3 ? args[3] : nothing
+    # TODO: we cannot pass keywords in anon functions yet
+    # return kernel call thunk 
+    return (args...) -> call(queue, k, global_size, local_size, args...)
+end
+    
 # blocking kernel call that finishes queue
 function call(q::CmdQueue, k::Kernel, global_work_size, local_work_size, args...;
               global_work_offset=nothing,
@@ -224,7 +245,27 @@ function enqueue_kernel(q::CmdQueue,
                                       n_events, wait_event_ids, ret_event)
     return Event(ret_event[1], retain=false)
 end
-     
+    
+
+function enqueue_task(q::CmdQueue, k::Kernel; wait_for=nothing)
+    n_evts  = 0
+    evt_ids = C_NULL
+    #TODO: this should be split out into its own function
+    if wait_for != nothing
+        if isa(wait_for, Event)
+            n_evts = 1
+            evt_ids = [wait_for.id]
+        else
+            @assert all([isa(evt, Event) for evt in wait_for])
+            n_evts = length(wait_for)
+            evt_ids = [evt.id for evt in wait_for]
+        end
+    end
+    ret_event = Array(CL_event, 1)
+    @check api.clEnqueueTask(q.id, k.id, n_evts, evt_ids, ret_event)
+    return ret_event[1]
+end
+
 #TODO: replace with macros...
 let name(k::Kernel) = begin
         size = Array(Csize_t, 1)

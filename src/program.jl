@@ -14,7 +14,7 @@ end
 
 Base.show(io::IO, p::Program) = begin
     ptr_address = "0x$(hex(unsigned(Base.pointer(p)), WORD_SIZE>>2))"
-    print(io, "<OpenCL.Program $ptr_address>")
+    print(io, "OpenCL.Program(@$ptr_address)")
 end 
 
 Base.pointer(p::Program) = p.id
@@ -202,7 +202,7 @@ let num_devices(p::Program) = begin
             func(p)
         catch err
             if isa(err, KeyError)
-                error("OpenCL.Program has no info for $pinfo")
+                throw(ArgumentError("OpenCL.Program has no info for $pinfo"))
             else
                 throw(err)
             end

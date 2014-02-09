@@ -90,7 +90,9 @@ function cl_performance(ndatapts::Integer, nworkers::Integer)
             # work_group_multiple = kern[:prefered_work_group_size_multiple]
             global_size = (ndatapts,)
             local_size  = (nworkers,)
-            evt = cl.call(queue, kern, global_size, local_size, a_buf, b_buf, c_buf)
+            
+            # call the kernel
+            evt = kern[queue, global_size, local_size](a_buf, b_buf, c_buf)
 
             # duration in ns 
             t = evt[:profile_duration] * 1e-9 
