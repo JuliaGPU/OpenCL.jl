@@ -149,7 +149,7 @@ function enqueue_marker(q::CmdQueue)
     @check api.clEnqueueMarker(q.id, evt)
     @return_event evt[1]
 end
-@deprecated enqueue_marker enqueue_marker_with_wait_list
+@deprecate enqueue_marker enqueue_marker_with_wait_list
 
 function enqueue_wait_for_events{T<:CLEvent}(q::CmdQueue, wait_for::Vector{T})
     n_wait_events = cl_uint(length(wait_for))
@@ -166,7 +166,7 @@ function enqueue_barrier(q::CmdQueue)
     @check api.clEnqueueBarrier(q.id)
     return q
 end
-@deprecated enqueue_barrier enqueue_barrier_with_wait_list
+@deprecate enqueue_barrier enqueue_barrier_with_wait_list
 
 cl_event_status(s::Symbol) = begin
     if s == :queued
