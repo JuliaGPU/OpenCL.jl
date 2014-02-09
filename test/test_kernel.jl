@@ -173,7 +173,7 @@ facts("OpenCL.Kernel") do
             @fact @throws_pred(cl.call(q, k, bad, d_buff)) => (true, "error")
 
             # devices have finite work sizes
-            @fact @throws_pred(cl.call(q, k, (typemax(Int),) d_buff)) => (true, "error")
+            @fact @throws_pred(cl.call(q, k, (typemax(Int),), d_buff)) => (true, "error")
 
             # blocking call to kernel finishes cmd queue
             cl.call(q, k, 1, 1, d_buff)
