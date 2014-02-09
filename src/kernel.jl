@@ -1,4 +1,3 @@
-
 type Kernel
     id :: CL_kernel
 
@@ -16,7 +15,7 @@ Base.pointer(k::Kernel) = k.id
 @ocl_object_equality(Kernel)
 
 Base.show(io::IO, k::Kernel) = begin
-    print(io, "<OpenCL.Kernel \"$(k[:name])\" nargs=$(k[:num_args])>")
+    print(io, "OpenCL.Kernel(\"$(k[:name])\" nargs=$(k[:num_args]))")
 end 
 
 Base.getindex(k::Kernel, kinfo::Symbol) = info(k, kinfo)
@@ -85,7 +84,7 @@ function set_arg!(k::Kernel, idx::Integer, arg::LocalMem)
 end
 
 #TODO: vector types...
-#TODO: type safe calling of set args for kernel
+#TODO: type safe calling of set args for kernel (with clang)
 
 # set scalar/vector kernel args
 for cl_type in [:CL_char, :CL_uchar, :CL_short, :CL_ushort,
@@ -95,8 +94,7 @@ for cl_type in [:CL_char, :CL_uchar, :CL_short, :CL_ushort,
         function set_arg!(k::Kernel, idx::Integer, arg::$cl_type)
             @assert idx > 0
             boxed_arg = $cl_type[arg,]
-            @check api.clSetKernelArg(k.id, cl_uint(idx-1),
-                                      sizeof($cl_type), boxed_arg)
+            @check api.clSetKernelArg(k.id, cl_uint(idx-1), sizeof($cl_type), boxed_arg)
             return k
         end
     end
@@ -107,7 +105,6 @@ function set_args!(k::Kernel, args...)
         set_arg!(k, i, a)
     end
 end
-
 
 function work_group_info(k::Kernel, winfo::CL_kernel_work_group_info, d::Device)
     if (winfo == CL_KERNEL_LOCAL_MEM_SIZE || 
@@ -146,7 +143,7 @@ function work_group_info(k::Kernel, winfo::Symbol, d::Device)
     end
 end 
 
-
+# produce a cl.call thunk with kernel queue, global/local sizes 
 Base.getindex(k::Kernel, args...) = begin
     if length(args) < 2 || length(args) > 3
         throw(ArgumentError("kernel must be called with a queue & global size as arguments"))
@@ -163,8 +160,7 @@ Base.getindex(k::Kernel, args...) = begin
     queue = args[1]
     global_size = args[2]
     local_size  = length(args) == 3 ? args[3] : nothing
-    # TODO: we cannot pass keywords in anon functions yet
-    # return kernel call thunk 
+    # TODO: we cannot pass keywords in anon functions yet, return kernel call thunk 
     return (args...) -> call(queue, k, global_size, local_size, args...)
 end
     
@@ -192,10 +188,11 @@ function enqueue_kernel(q::CmdQueue,
                         local_work_size;
                         global_work_offset=nothing,
                         wait_on::Union(Nothing,Vector{Event})=nothing)
-    #TODO: check global work size against max possible global work size
-    work_dim = length(global_work_size)
-    if work_dim > 3
-        throw(AttributeError("global_work_size has max dim of 3"))
+    device = q[:device]
+    max_work_dim = device[:max_work_item_dims] 
+    work_dim     = length(global_work_size)
+    if work_dim > max_work_dim
+        throw(ArgumentError("global_work_size has max dim of $max_work_dim"))
     end
     gsize = Array(Csize_t, work_dim)
     for (i, s) in enumerate(global_work_size)
@@ -204,11 +201,11 @@ function enqueue_kernel(q::CmdQueue,
 
     goffset = C_NULL 
     if global_work_offset != nothing 
-        if length(global_work_offset) > 3
-            throw(AttributeError("global_work_offset has max dim of 3"))
+        if length(global_work_offset) > max_work_dim
+            throw(ArgumentError("global_work_offset has max dim of $max_work_dim"))
         end
         if length(global_work_offset) != work_dim 
-            throw(AttributeError("global_work_offset dim must match global_work_size dim"))
+            throw(ArgumentError("global_work_size and global_work_offset have differing dims"))
         end
         goffset = Array(Csize_t, work_dim)
         for (i, o) in enumerate(global_work_offset)
@@ -218,12 +215,11 @@ function enqueue_kernel(q::CmdQueue,
 
     lsize = C_NULL
     if local_work_size != nothing
-        #TODO: check local work size against max possible local work size....
-        if length(local_work_size) > 3
-            throw(AttributeError("local_work_offset has max dim of 3"))
+        if length(local_work_size) > max_work_dim
+            throw(ArgumentError("local_work_offset has max dim of $max_work_dim"))
         end
         if length(local_work_size) != work_dim
-            throw(AttributeError("global/local work sizes have differing dimensions"))
+            throw(ArgumentError("global_work_size and local_work_size have differing dims")) 
         end
         lsize = Array(Csize_t, work_dim)
         for (i, s) in enumerate(local_work_size)
@@ -240,8 +236,7 @@ function enqueue_kernel(q::CmdQueue,
     end
 
     ret_event = Array(CL_event, 1)
-    #TODO: Support offsets??? hardcoded to NULL for the time being...
-    @check api.clEnqueueNDRangeKernel(q.id, k.id, cl_uint(work_dim), C_NULL, gsize, lsize,
+    @check api.clEnqueueNDRangeKernel(q.id, k.id, cl_uint(work_dim), goffset, gsize, lsize,
                                       n_events, wait_event_ids, ret_event)
     return Event(ret_event[1], retain=false)
 end
@@ -266,7 +261,6 @@ function enqueue_task(q::CmdQueue, k::Kernel; wait_for=nothing)
     return ret_event[1]
 end
 
-#TODO: replace with macros...
 let name(k::Kernel) = begin
         size = Array(Csize_t, 1)
         @check api.clGetKernelInfo(k.id, CL_KERNEL_FUNCTION_NAME,
@@ -333,11 +327,7 @@ let name(k::Kernel) = begin
     end
 end
 
-
-
 #TODO set_arg sampler...
-#TODO: local_memory
+# OpenCL 1.2 function
 #TODO: get_arg_info(k::Kernel, idx, param)
-#TODO: ?macro capture_call
-#TODO: enqueue_task(q::Queue, k::Kernel; wait_for=None)
 #TODO: enqueue_async_kernel()

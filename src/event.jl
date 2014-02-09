@@ -1,5 +1,4 @@
 # --- low level OpenCL Event ---
-
 abstract CLEvent
 
 type Event <: CLEvent
@@ -15,7 +14,6 @@ type Event <: CLEvent
     end
 end
 
-# changed to ManagedEvent
 # wait for completion before running finalizer
 type NannyEvent <: CLEvent
     id::CL_event
@@ -44,7 +42,6 @@ function release!(evt::CLEvent)
     end
 end
 
-#TODO: object_id(x) --> cl_object.id
 Base.pointer(evt::CLEvent) = evt.id
 @ocl_object_equality(CLEvent)
 
@@ -147,15 +144,13 @@ end
     end
 end
 
-# internal (pre 1.2 contexts)
-#TODO: deprecated...
 function enqueue_marker(q::CmdQueue)
     evt = Array(CL_event, 1)
     @check api.clEnqueueMarker(q.id, evt)
     @return_event evt[1]
 end
+@deprecate enqueue_marker enqueue_marker_with_wait_list
 
-#TODO: deprecated... (this throws an error with Vector{CLEvent} for user events? 
 function enqueue_wait_for_events{T<:CLEvent}(q::CmdQueue, wait_for::Vector{T})
     n_wait_events = cl_uint(length(wait_for))
     wait_evt_ids = [evt.id for evt in wait_for]
@@ -163,17 +158,15 @@ function enqueue_wait_for_events{T<:CLEvent}(q::CmdQueue, wait_for::Vector{T})
                                       isempty(wait_evt_ids) ? C_NULL : wait_evt_ids)
 end
 
-#TODO: function enqueue_wait_for_events(q, evts..)
-#TODO: deprecated...
 function enqueue_wait_for_events(q::CmdQueue, wait_for::CLEvent)
     enqueue_wait_for_events(q, [wait_for])
 end
 
-#TODO: deprecated...
 function enqueue_barrier(q::CmdQueue)
     @check api.clEnqueueBarrier(q.id)
     return q
 end
+@deprecate enqueue_barrier enqueue_barrier_with_wait_list
 
 cl_event_status(s::Symbol) = begin
     if s == :queued

@@ -110,7 +110,7 @@ let context(q::CmdQueue) = begin
     end
                                           
     device(q::CmdQueue) = begin
-        dev_id = Array(CL_device_id)
+        dev_id = Array(CL_device_id, 1)
         @check api.clGetCommandQueueInfo(q.id, CL_QUEUE_DEVICE, 
                                          sizeof(CL_device_id), dev_id, C_NULL)
         Device(dev_id[1])
