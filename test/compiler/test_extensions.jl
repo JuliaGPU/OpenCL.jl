@@ -48,5 +48,5 @@ facts("Test printf platform extension") do
     @fact true => true
     @fact true => true
     # check source gen for correct extensions
-    @fact => true
+    @fact true => true
 end
