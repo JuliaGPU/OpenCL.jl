@@ -45,7 +45,6 @@ macro clkernel(func)
             end
         end
         println($("$orig_name compile time:"))
-        @time begin
         local exprs = code_typed(func, typs)
         if length(exprs) == 0
             error("function could not be compiled for attribute types:: $typs")
@@ -69,7 +68,6 @@ macro clkernel(func)
         # build the source and store in global cache
         local prg  = OpenCL.Program($(esc(:ctx)), source=src) |> OpenCL.build!
         const $(esc(orig_name)) = OpenCL.Kernel(prg, $("$orig_name"))
-        end
     end
 end
 
