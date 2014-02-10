@@ -54,4 +54,7 @@ include("clsourcegen.jl")
 # Compiler
 include("clcompiler.jl")
 
+# Runtime
+include("clruntime.jl")
+
 end # module
