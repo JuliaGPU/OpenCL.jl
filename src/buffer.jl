@@ -297,7 +297,7 @@ function enqueue_map_mem{T}(q::CmdQueue,
         b.hostbuf = mapped
         finalizer(mapped_arr, x -> begin
             if b.mapped
-                enqueue_unmap(q, b, x)
+                enqueue_unmap_mem(q, b, x)
             end
         end)
     catch err
