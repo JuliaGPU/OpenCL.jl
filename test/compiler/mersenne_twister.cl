@@ -1,5 +1,5 @@
-
 typedef struct Range {long start; long step; long len;} Range;
+
 uint twiddle(uint u, uint v)
 {
     return (((u & 0x80000000U) | (v & 0x7FFFFFFFU)) >> 1) ^ ((v & 1U) ? 0x9908B0DFU : 0x0U);

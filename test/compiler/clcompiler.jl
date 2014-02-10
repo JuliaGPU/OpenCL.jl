@@ -355,7 +355,7 @@ end
     return
 end
 
-function generate_state2(state::Vector{Uint32})
+function generate_state_julia(state::Vector{Uint32})
     n = uint32(624)
     m = uint32(397)
     for i = int32(0:(n - m - 1))
@@ -386,10 +386,10 @@ end
 
 function random_number(state::Vector{Uint32}, p::Cuint)
     x = state[p]
-    x $= (x >> int32(11))
-    x $= (x << int32(7)) & 0x9D2C5680
-    x $= (x << int32(15)) & 0xEFC60000
-    return x $ (x >> int32(8))
+    x $= (x >>> int32(11))
+    x $= (x <<< int32(7)) & 0x9D2C5680
+    x $= (x <<< int32(15)) & 0xEFC60000
+    return x $ (x >>> int32(8))
 end
     
 @clkernel fill(state::Vector{Uint32},
@@ -477,7 +477,7 @@ end
     return
 end
 
-function comp_func(a::Vector{Float32}, b::Vector{Float32})
+function generate_sin_julia(a::Vector{Float32}, b::Vector{Float32})
     n = length(a)
     for gid in 1:n
         r = float32(gid) / float32(n)
