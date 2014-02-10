@@ -42,7 +42,7 @@ facts("Test example generate sin wave") do
     a = cl.Buffer(Float32, ctx, n)
     b = cl.Buffer(Float32, ctx, n)
 
-    evt  = generate_sin[queue, (n,), (1,)](a, b)
+    evt  = generate_sin[queue, (n,)](a, b)
     rocl = cl.read(queue, b)
 
     a = Array(Float32, n)
