@@ -1,5 +1,4 @@
 # --- low level OpenCL Event ---
-
 abstract CLEvent
 
 type Event <: CLEvent
@@ -44,7 +43,6 @@ function release!(evt::CLEvent)
     end
 end
 
-#TODO: object_id(x) --> cl_object.id
 Base.pointer(evt::CLEvent) = evt.id
 @ocl_object_equality(CLEvent)
 
@@ -201,7 +199,7 @@ macro profile_info(func, profile_info)
                         #TODO: evt must have status complete before it can be profiled
                         throw(CLError(err_code))
                     else
-                        #TODO: queue must be create with :profile argument
+                        #TODO: queue must be created with :profile argument
                         throw(CLError(err_code))
                     end
                 end
