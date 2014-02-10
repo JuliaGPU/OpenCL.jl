@@ -83,7 +83,7 @@ Base.getindex(evt::CLEvent, evt_info::Symbol) = info(evt, evt_info)
 
     function Base.show(io::IO, evt::UserEvent)
         ptr_address = "0x$(hex(unsigned(Base.pointer(evt)), WORD_SIZE>>2))"
-        print(io, "<OpenCL.UserEvent @$ptr_address>")
+        print(io, "OpenCL.UserEvent(@$ptr_address)")
     end
 
     function complete(evt::UserEvent)
