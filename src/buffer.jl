@@ -290,7 +290,7 @@ function enqueue_map_mem{T}(q::CmdQueue,
     N = length(dims)
     local mapped_arr::Array{T, N}
     try
-        # julia owns pointer to mapped memory
+        # julia does not own pointer to mapped memory
         mapped_arr = pointer_to_array(mapped, dims, false)
         # when array is gc'd, unmap buffer
         b.mapped  = true
