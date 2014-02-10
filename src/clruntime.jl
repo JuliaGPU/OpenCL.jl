@@ -44,7 +44,6 @@ macro clkernel(func)
                 error("function signature nonleaftype $ty")
             end
         end
-        println($("$orig_name compile time:"))
         local exprs = code_typed(func, typs)
         if length(exprs) == 0
             error("function could not be compiled for attribute types:: $typs")
