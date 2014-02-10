@@ -213,6 +213,7 @@ facts("OpenCL.Buffer") do
             b = cl.Buffer(Float32, ctx, :rw, 100)
             for f in (:r, :w, :rw)
                 a, evt = cl.enqueue_map_mem(queue, b, f, 0, (10,10))
+                cl.wait(evt)
                 @fact size(a) => (10,10)
                 @fact typeof(a) => Array{Float32,2}
 
@@ -220,11 +221,15 @@ facts("OpenCL.Buffer") do
                 bad = similar(a)
                 @fact @throws_pred(cl.unmap!(queue, b, bad)) => (true, "error")
 
+                @fact cl.ismapped(b) => true
                 cl.unmap!(queue, b, a)
                 @fact cl.ismapped(b) => false
 
                 # cannot unmap an unmapped buffer
                 @fact @throws_pred(cl.unmap!(queue, b, a)) => (true, "error")
+                
+                # gc here quickly force any memory errors
+                Base.gc()
             end
             @fact cl.ismapped(b) => false
             a, evt = cl.enqueue_map_mem(queue, b, :rw, 0, (10,10))
