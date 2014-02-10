@@ -3,10 +3,7 @@ using FactCheck
 import OpenCL
 const cl = OpenCL
 
-using OpenCL.CLAst
-
-using OpenCL.SourceGen
-using OpenCL.Compiler
+using OpenCL.Runtime
 
 device, ctx, queue = cl.create_compute_context()
 
@@ -37,7 +34,7 @@ end
     return
 end
 
-function generate_state_julia(state::Vector{Uint32})
+function generate_state2(state::Vector{Uint32})
     n = uint32(624)
     m = uint32(397)
     for i = int32(0:(n - m - 1))
@@ -68,15 +65,13 @@ end
 
 function random_number(state::Vector{Uint32}, p::Cuint)
     x = state[p]
-    x $= (x >>> int32(11))
-    x $= (x <<< int32(7)) & 0x9D2C5680
-    x $= (x <<< int32(15)) & 0xEFC60000
-    return x $ (x >>> int32(8))
+    x $= (x >> int32(11))
+    x $= (x << int32(7)) & 0x9D2C5680
+    x $= (x << int32(15)) & 0xEFC60000
+    return x $ (x >> int32(8))
 end
     
-@clkernel fill(state::Vector{Uint32},
-               vector::Vector{Uint32},
-               offset::Cuint) = begin
+@clkernel fill(state::Vector{Uint32}, vector::Vector{Uint32}, offset::Cuint) = begin
     i = get_global_id(0)
     vector[offset + i] = random_number(state, i)
     return
@@ -84,22 +79,13 @@ end
 
 @assert isa(fill, cl.Kernel)
 
-
-#src = open(readall, "test.cl")
-#prg = cl.Program(ctx, source=src) |> cl.build!
-#generate_state = cl.Kernel(prg, "generate_state")
-#seed = cl.Kernel(prg, "seed")
-#fill = cl.Kernel(prg, "fill")
-
 function seed_mersenne!{T}(state_buffer::cl.Buffer{T})
     n = length(state_buffer)
-    cl.call(queue, seed, n, nothing, uint32(n), state_buffer)
+    seed[queue, (n,)](uint32(n), state_buffer)
     return
 end
 
-#seed_mersenne(Float32)
-
-function test_fill{T}(b::Vector{T})
+function test_fill!{T}(b::Vector{T}, seed_kernel, fill_kernel, generate_state_kernel)
     n = 624
     m = 397 
     len = length(b)
@@ -107,10 +93,10 @@ function test_fill{T}(b::Vector{T})
     buffer = cl.Buffer(T, ctx, (:rw, :copy), hostbuf=b)
     
     state_buffer = cl.Buffer(T, ctx, :rw, n)
-    seed_mersenne!(state_buffer)
+    seed_kernel[queue, (n,)](uint32(n), state_buffer)
     
-    cl.set_arg!(fill, 1, state_buffer)
-    cl.set_arg!(fill, 2, buffer)
+    cl.set_arg!(fill_kernel, 1, state_buffer)
+    cl.set_arg!(fill_kernel, 2, buffer)
     
     p = 0
     while true
@@ -120,24 +106,32 @@ function test_fill{T}(b::Vector{T})
         else
             cnt = len - p
         end
-        cl.set_arg!(fill, 3, uint32(p))
-        cl.enqueue_kernel(queue, fill, (cnt,))
+        cl.set_arg!(fill_kernel, 3, uint32(p))
+        cl.enqueue_kernel(queue, fill_kernel, (cnt,))
         p += n
         if p >= len
             break
         end
-        cl.set_arg!(generate_state, 1, state_buffer)
-        cl.enqueue_kernel(queue, generate_state, (1,), (1,))
+        cl.set_arg!(generate_state_kernel, 1, state_buffer)
+        cl.enqueue_kernel(queue, generate_state_kernel, (1,), (1,))
     end
     return cl.read(queue, buffer)
 end
 
-#z = zeros(Float32, 1_000_000)
-#@time rand(Float32, 1_000_000)
-#for _ = 1:10
-#    @time test_fill(z)
-#end
+facts("Test example generate mersenne") do
+    z = zeros(Float32, 1000_000)
+    rjulia = test_fill!(z, seed, fill, generate_state)
 
-#@show test_fill(z)[1:50]
-
-
+    src = open(readall, "mersenne_twister.cl")
+    prg = cl.Program(ctx, source=src) |> cl.build!
+    
+    generate_state_comp = cl.Kernel(prg, "generate_state")
+    seed_comp = cl.Kernel(prg, "seed")
+    fill_comp = cl.Kernel(prg, "fill")
+   
+    z = zeros(Float32, 1000_000)
+    rocl  = test_fill!(z, seed_comp, fill_comp, generate_state_comp)
+    
+    delta  = abs(rjulia - rocl)
+    @fact isapprox(sum(delta), 0.0f0) => true
+end
