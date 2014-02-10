@@ -109,12 +109,12 @@ facts("Test example black scholes") do
     d_optionYears  = cl.Buffer(Cdouble, ctx, (:r, :copy), hostbuf=optionYears)
    
     # create a kernel function with queue, global size OPT_N
-    black_sholes_ocl = black_sholes[queue, (OPT_N,)]
+    black_scholes_ocl = black_scholes[queue, (OPT_N,)]
 
     tic()
     for i = 1:iterations
-        black_sholes_ocl(d_callResult, d_putResult, d_stockPrice, 
-                         d_optionStrike, d_optionYears, RISKFREE, VOLATILITY, OPT_N)
+        black_scholes_ocl(d_callResult, d_putResult, d_stockPrice, 
+                          d_optionStrike, d_optionYears, RISKFREE, VOLATILITY, OPT_N)
         cl.enqueue_barrier(queue)
     end
     cl.copy!(queue, callResultOpenCL, d_callResult)
@@ -130,6 +130,6 @@ facts("Test example black scholes") do
     info("L1 norm (OpenCL): $L1norm")
     info("Max absolute error: $Maxabs")
 
-    @fact L1norm < 1e16 => true
-    @fact Maxabs < 1e16 => true
+    @fact L1norm < 1e-17 => true
+    @fact Maxabs < 1e-13=> true
 end
