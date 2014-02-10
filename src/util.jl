@@ -17,14 +17,6 @@ function opencl_version(p::Platform)
     return VersionNumber(int(mg.captures[1]), int(mg.captures[2]))
 end 
 
-function opencl_version(d::Device)
-    return opencl_version(d[:platform])
-end
-
-function opencl_version(c::Context)
-    return opencl_version(first(devices(c)))
-end
-
-function opencl_version(q::CmdQueue)
-    return opencl_version(q[:context])
-end
+opencl_version(d::Device)   = opencl_version(d[:platform])
+opencl_version(c::Context)  = opencl_version(first(devices(c)))
+opencl_version(q::CmdQueue) = opencl_version(q[:context])

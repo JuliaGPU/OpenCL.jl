@@ -27,13 +27,13 @@ function Base.show(io::IO, ctx::Context)
     dev_strs = [replace(d[:name], r"\s+", " ") for d in devices(ctx)]
     devs_str = join(dev_strs, ",")
     ptr_address = "0x$(hex(unsigned(Base.pointer(ctx)), WORD_SIZE>>2))"
-    print(io, "<OpenCL.Context @$ptr_address on $devs_str>")
+    print(io, "OpenCL.Context(@$ptr_address on $devs_str)")
 end
 
 function ctx_notify_err(err_info::Ptr{Cchar}, priv_info::Ptr{Void},
                         cb::Csize_t, julia_func::Ptr{Void})
     err = bytestring(err_info)
-    private = bytestring(convert(Ptr{Cchar}, err_info))
+    private  = bytestring(convert(Ptr{Cchar}, err_info))
     callback = unsafe_pointer_to_objref(julia_func)::Function
     callback(err, private)::Ptr{Void}
 end

@@ -47,7 +47,7 @@ Base.pointer(evt::CLEvent) = evt.id
 
 function Base.show(io::IO, evt::Event)
     ptr_address = "0x$(hex(unsigned(Base.pointer(evt)), WORD_SIZE>>2))"
-    print(io, "<OpenCL.Event @$ptr_address>")
+    print(io, "OpenCL.Event(@$ptr_address)")
 end
 
 Base.getindex(evt::CLEvent, evt_info::Symbol) = info(evt, evt_info)
@@ -83,7 +83,7 @@ Base.getindex(evt::CLEvent, evt_info::Symbol) = info(evt, evt_info)
 
     function Base.show(io::IO, evt::UserEvent)
         ptr_address = "0x$(hex(unsigned(Base.pointer(evt)), WORD_SIZE>>2))"
-        print(io, "<OpenCL.UserEvent @$ptr_address>")
+        print(io, "OpenCL.UserEvent(@$ptr_address)")
     end
 
     function complete(evt::UserEvent)
@@ -194,7 +194,7 @@ macro profile_info(func, profile_info)
                         #TODO: evt must have status complete before it can be profiled
                         throw(CLError(err_code))
                     else
-                        #TODO: queue must be create with :profile argument
+                        #TODO: queue must be created with :profile argument
                         throw(CLError(err_code))
                     end
                 end
