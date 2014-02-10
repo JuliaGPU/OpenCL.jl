@@ -34,7 +34,7 @@ Base.sizeof{T}(b::Buffer{T}) = int(b.len * sizeof(T))
 
 Base.show{T}(io::IO, b::Buffer{T}) = begin 
     ptr_address = "0x$(hex(unsigned(Base.pointer(b)), WORD_SIZE>>2))"
-    print(io, "Buffer{$T}($ptr_address)")
+    print(io, "Buffer{$T}(@$ptr_address)")
 end 
 
 # high level  Buffer constructors with symbol flags 
