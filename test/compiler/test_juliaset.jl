@@ -70,7 +70,7 @@ function julia_opencl(q::Array{Complex64}, maxiter::Int64)
 end
 
 #TODO: diff results using pyplot
-facts("Test example generate sin wave") do
+facts("Test example generate julia set") do
     w = 512;
     h = 512;
     q = [complex64(r,i) for i=1:-(2.0/w):-1, r=-1.5:(3.0/h):1.5];
