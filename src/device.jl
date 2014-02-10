@@ -12,7 +12,7 @@ function Base.show(io::IO, d::Device)
     device_name = replace(d[:name], strip_extra_whitespace, " ")
     platform_name = replace(d[:platform][:name], strip_extra_whitespace, " ")
     ptr_address = "0x$(hex(unsigned(Base.pointer(d)), WORD_SIZE>>2))"
-    print(io, "OpenCL.Device('$device_name' on '$platform_name' @$ptr_address)")
+    print(io, "OpenCL.Device($device_name on $platform_name @$ptr_address)")
 end
 
 Base.getindex(d::Device, dinfo::Symbol) = info(d, dinfo)
