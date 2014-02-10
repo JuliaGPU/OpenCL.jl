@@ -25,7 +25,12 @@ Base.pointer(q::CmdQueue) = q.id
 
 function Base.show(io::IO, q::CmdQueue)
     ptr_address = "0x$(hex(unsigned(Base.pointer(q)), WORD_SIZE>>2))"
-    print(io, "OpenCL.CmdQueue(@$ptr_address)")
+    profiling   = bool(q[:properties] & CL_QUEUE_PROFILING_ENABLE)
+    if profiling
+        print(io, "OpenCL.CmdQueue(@$ptr_address, :profile)")
+    else 
+        print(io, "OpenCL.CmdQueue(@$ptr_address)")
+    end
 end
 
 Base.getindex(q::CmdQueue, qinfo::Symbol) = info(q, qinfo)
@@ -63,9 +68,9 @@ end
 function CmdQueue(ctx::Context, dev::Device, prop::Symbol)
     flags = cl_command_queue_properties(0)
     if prop == :out_of_order
-        flags |= CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE
+        flags = CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE
     elseif prop == :profile
-        flags |= CL_QUEUE_PROFILING_ENABLE
+        flags = CL_QUEUE_PROFILING_ENABLE
     else
         throw(ArgumentError("Only :out_of_order and :profile flags are valid, recognized flag $prop"))
     end
