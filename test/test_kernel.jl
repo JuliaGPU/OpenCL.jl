@@ -128,9 +128,11 @@ facts("OpenCL.Kernel") do
             h_twos = fill(float32(2.0), count)
             cl.copy!(queue, A, h_twos)
             cl.copy!(queue, B, h_twos)
+            
             #TODO: check for ocl version, fill is opencl v1.2
             #cl.enqueue_fill(queue, A, float32(2.0))
             #cl.enqueue_fill(queue, B, float32(2.0))
+            
             cl.enqueue_kernel(queue, k, count)
             cl.finish(queue)
 
@@ -160,7 +162,19 @@ facts("OpenCL.Kernel") do
             p = cl.Program(ctx, source=simple_kernel) |> cl.build!
             k = cl.Kernel(p, "test")
             q = cl.CmdQueue(ctx)
-            
+           
+            # dimensions must be the same size
+            @fact @throws_pred(cl.call(q, k, (1,), (1,1), d_buff)) => (true, "error")
+            @fact @throws_pred(cl.call(q, k, (1,1), (1,), d_buff)) => (true, "error")
+
+            # dimensions are bounded
+            max_work_dim = device[:max_work_item_dims]
+            bad = tuple([1 for _ in 1:(max_work_dim + 1)])
+            @fact @throws_pred(cl.call(q, k, bad, d_buff)) => (true, "error")
+
+            # devices have finite work sizes
+            @fact @throws_pred(cl.call(q, k, (typemax(Int),), d_buff)) => (true, "error")
+
             # blocking call to kernel finishes cmd queue
             cl.call(q, k, 1, 1, d_buff)
             

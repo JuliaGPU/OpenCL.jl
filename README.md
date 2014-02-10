@@ -20,6 +20,10 @@ It provides a high level api for OpenCL to make programing GPU's and multicore C
 [Boost.Compute]:https://github.com/kylelutz/compute
 [rust-opencl]: https://github.com/luqmana/rust-opencl
 
+#### Future
+I'm working on being able to compile a subset of Julia to OpenCL.  I have a prototype
+compiler working on the `clcompiler` branch. Check it out! 
+
 ## Setup
 1. Install an OpenCL driver. If you use OSX, OpenCL is already available
 2. Checkout the packages from the Julia repl

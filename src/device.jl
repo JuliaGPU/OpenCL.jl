@@ -12,7 +12,7 @@ function Base.show(io::IO, d::Device)
     device_name = replace(d[:name], strip_extra_whitespace, " ")
     platform_name = replace(d[:platform][:name], strip_extra_whitespace, " ")
     ptr_address = "0x$(hex(unsigned(Base.pointer(d)), WORD_SIZE>>2))"
-    print(io, "<OpenCL.Device '$device_name' on '$platform_name' @$ptr_address>")
+    print(io, "OpenCL.Device('$device_name' on '$platform_name' @$ptr_address)")
 end
 
 Base.getindex(d::Device, dinfo::Symbol) = info(d, dinfo)
@@ -199,9 +199,6 @@ let profile(d::Device) = begin
         return (width[1], height[1], depth[1])
     end
 
-    #TODO: support haskeys, and keys by having
-    # keys list on outsize of closure and generate 
-    # map inside closure
     const info_map = (Symbol => Function)[
         :driver_version => driver_version,
         :version => version,
@@ -231,6 +228,7 @@ let profile(d::Device) = begin
         :available => available,
         :compiler_available => compiler_available,
         :max_work_group_size => max_work_group_size, 
+        :max_work_item_dims => max_work_item_dims,
         :max_parameter_size => max_parameter_size,
         :profiling_timer_resolution => profiling_timer_resolution,
         :max_image2d_shape => max_image2d_shape,
