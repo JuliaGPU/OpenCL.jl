@@ -208,6 +208,11 @@ facts("OpenCL.Buffer") do
 
     context("OpenCL.Buffer map/unmap") do
         for device in cl.devices()
+             if contains(device[:platform][:name], "Portable")
+                 # the pocl platform claims to implement v1.2 of the spec, but does not
+                 warn("Skipping test OpenCL.Buffer map/unmap for POCL Platform")
+                 continue
+             end
             ctx = cl.Context(device)
             queue = cl.CmdQueue(ctx)
             b = cl.Buffer(Float32, ctx, :rw, 100)
