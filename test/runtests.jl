@@ -10,6 +10,6 @@ end
 
 run(`julia $(joinpath(testsdir, "behavior_tests.jl"))`)
 
-cd("./compiler")
+cd(joinpath(testsdir, "compiler"))
 run(`julia runtests.jl`)
 
