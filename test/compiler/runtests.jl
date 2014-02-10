@@ -5,7 +5,7 @@ info(
                               Running Compiler Tests
       ======================================================================")
 
- for t in [:clast, :extensions, :structgen]
+ for t in [:clast, :extensions, :structgen, :gensin]
     tfile = joinpath(testsdir, "test_$t.jl")
     run(`julia $tfile`)
 end
