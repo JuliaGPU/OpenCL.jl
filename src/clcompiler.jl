@@ -61,7 +61,8 @@ array_elemtype{T,N}(::Type{Array{T, N}}) = T
 range_elemtype{T}(::Type{Range1{T}}) = T
 range_elemtype{T}(::Type{Range{T}}) = T
 
-# TODO: this
+# TODO: this is a mess
+# match for pound and replace with char?
 cname(s) = begin
     s = string(s)
     s = s[1] == '#' ? s[2:end] : s
@@ -237,6 +238,7 @@ visit_assign(ctx, expr::Expr) = begin
         ret_type = node.ctype 
         return CAssign(target, node, ret_type) 
     else
+        #TODO: lowered assignments to Struct fields should be generic
         if !(expr.args[2].typ <: Range || expr.args[2].typ <: Range1)
             node     = visit(ctx, expr.args[2])
             ret_type = node.ctype 
@@ -766,13 +768,15 @@ visit_call(ctx, expr::Expr) = begin
         else
             return CTypeCast(node, ret_type)
         end
-
+    
+    #TODO: this doesn't follow Julia's behavior
     elseif arg1.name === :checked_ssub
         lnode = visit(ctx, expr.args[2])
         rnode = visit(ctx, expr.args[3])
         ret_type = promote_type(lnode.ctype, rnode.ctype)
         return CBinOp(lnode, CSub(), rnode, ret_type)
 
+    #TODO: this doesn't follow Julia's behavior
     elseif arg1.name === :checked_sadd
         lnode = visit(ctx, expr.args[2])
         rnode = visit(ctx, expr.args[3])
