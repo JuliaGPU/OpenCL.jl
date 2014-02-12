@@ -472,6 +472,7 @@ const binary_builtins = (Symbol=>CAst)[
                                     :ule_int => CLtE(),
                                     :mul_float => CMult(),
                                     :mul_int => CMult(),
+                                    :urem_int => CMod(),
                                     :ne_float => CNotEq(),
                                     :ne_int => CNotEq(),
                                     :or_int => COr(), 
@@ -581,10 +582,9 @@ visit_call(ctx, expr::Expr) = begin
     if arg1 === :(===)
         return visit_is(ctx, expr)
     end
-    if arg1 == :(^)
+    if arg1 === :(^)
         return visit_pow(ctx, expr)
     end
-
     #TODO: handle runtime functions
     if arg1 in runtime_funcs
         args = CAst[]
@@ -707,14 +707,17 @@ visit_call(ctx, expr::Expr) = begin
     elseif arg1.name === :sitofp
         ty = expr.args[2]
         @assert ty <: Number
-        n = visit(ctx, expr.args[3])
-        if isa(n, Number)
-            return CNum(n, ty)
-        elseif isa(n, CNum)
-            return CNum(convert(ty, n.val), ty)
-        elseif isa(n, CName)
-            n.ctype = ty
-            return n
+        node = visit(ctx, expr.args[3])
+        if isa(node, Number)
+            return CNum(node, ty)
+        elseif isa(node, CNum)
+            return CNum(convert(ty, node.val), ty)
+        elseif isa(node, CName)
+            node.ctype = ty
+            return node
+        #TODO: CExpr abstract type?
+        elseif isa(node, CBinOp)
+            return CTypeCast(node, ty)
         else
             error("invalid code path in :sitofp")
         end
@@ -775,7 +778,14 @@ visit_call(ctx, expr::Expr) = begin
         rnode = visit(ctx, expr.args[3])
         ret_type = promote_type(lnode.ctype, rnode.ctype)
         return CBinOp(lnode, CAdd(), rnode, ret_type)
-
+    
+    elseif arg1.name === :flipsign_int
+        @assert length(expr.args) == 3 
+        arg1 = visit(ctx, expr.args[2])
+        arg2 = visit(ctx, expr.args[3])
+        #TODO: this is wrong but might work
+        return CUnaryOp(CSub(), arg2, arg2.ctype)
+    
     # binary operations
     elseif haskey(binary_builtins, arg1.name)
         visit_binaryop(ctx, expr)

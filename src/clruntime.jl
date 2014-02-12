@@ -45,6 +45,7 @@ macro clkernel(func)
             end
         end
         local exprs = code_typed(func, typs)
+        @show exprs
         if length(exprs) == 0
             error("function could not be compiled for attribute types:: $typs")
         end
