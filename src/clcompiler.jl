@@ -328,6 +328,7 @@ visit_arrayref(ctx, expr::Expr) = begin
     if isa(idx, CTypeCast)
         cast_ty = idx.ctype
         val_ty = idx.value.ctype
+        #TODO: this should be device dependent
         if cast_ty != Uint32
             if val_ty == Uint32
                 idx = idx.value
@@ -463,6 +464,8 @@ const binary_builtins = (Symbol=>CAst)[
                                     :sub_int   => CSub(),
                                     :sub_float => CSub(),
                                     :div_float => CDiv(),
+                                    :udiv_int => CDiv(),
+                                    :sdiv_int => CDiv(),
                                     :eq_float => CEq(),
                                     :eq_int => CEq(),
                                     :le_float => CLtE(),
@@ -470,11 +473,13 @@ const binary_builtins = (Symbol=>CAst)[
                                     :sle_int => CLtE(),
                                     :lt_float => CLt(),
                                     :lt_int => CLt(),
+                                    :ltsif64 => CLt(),
                                     :ult_int => CLt(),
                                     :ule_int => CLtE(),
                                     :mul_float => CMult(),
                                     :mul_int => CMult(),
                                     :urem_int => CMod(),
+                                    :srem_int => CMod(),
                                     :ne_float => CNotEq(),
                                     :ne_int => CNotEq(),
                                     :or_int => COr(), 
@@ -741,6 +746,16 @@ visit_call(ctx, expr::Expr) = begin
         node = visit(ctx, expr.args[3])
         return node
     
+    # todo: need to implement the same logic
+    # for checked floating point casts here
+    # checked floating point to signed integer 
+    elseif (arg1.name == :checked_fptosi ||
+            arg1.name == :checked_fptoui)
+        ty = expr.args[2]
+        @assert ty <: Number
+        node = visit(ctx, expr.args[3])
+        return CTypeCast(node, ty)
+
     # less than if
     elseif arg1.name === :ltfsi64 || 
            arg1.name === :slt_int
@@ -789,7 +804,14 @@ visit_call(ctx, expr::Expr) = begin
         arg2 = visit(ctx, expr.args[3])
         #TODO: this is wrong but might work
         return CUnaryOp(CSub(), arg2, arg2.ctype)
-    
+   
+    # round to nearest signed integer
+    elseif arg1.name == :fpsiround
+        #TODO: need to get the integer type
+        ty = Int
+        node = visit(ctx, expr.args[2]) 
+        return CLRTCall("convert_long_rte", [node,], ty)   
+
     # binary operations
     elseif haskey(binary_builtins, arg1.name)
         visit_binaryop(ctx, expr)

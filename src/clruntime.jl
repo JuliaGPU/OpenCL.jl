@@ -64,6 +64,7 @@ macro clkernel(func)
         end
         SourceGen.clsource(io, kernel)
         local src = bytestring(io.data)
+        println(src)
         # TODO: return a fucntion that takes a context
         # build the source and store in global cache
         local prg  = OpenCL.Program($(esc(:ctx)), source=src) |> OpenCL.build!

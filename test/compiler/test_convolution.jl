@@ -12,8 +12,8 @@ device, ctx, queue = cl.create_compute_context()
                             img_out::Vector{Uint8},
                             w::Int,
                             h::Int) = begin
-    x = get_global_id(0) % (w * 3)
-    y = get_global_id(0) / (w * 3)
+    x = mod(get_global_id(0), (w * 3))
+    y = div(get_global_id(0), (w * 3))
     if x > 3 && x < (w * 3 - 3) && y > 1 && y < (h - 1)
         accum = 0f0
         count = 0
@@ -32,13 +32,13 @@ end
 
 facts("Test example convolution") do
     w = h = 512
-    test_arr = ones(Uint8, (w, h))
+    test_img = ones(Uint8, (w, h))
     conv_ker = [0f0,  -10f0,  0f0,
                -10f0,  40f0, -10f0,
                 0f0,  -10f0,  0f0]
     conv_mat = cl.Buffer(Float32, ctx, :copy, hostbuf=conv_ker) 
-    img_in   = cl.Buffer(Uint8, ctx, :copy, hostbuf=test_arr)
-    img_out  = cl.empty_like(img)
+    img_in   = cl.Buffer(Uint8,   ctx, :copy, hostbuf=test_img)
+    img_out  = cl.Buffer(Uint8,   ctx, :w, length(test_img))
 
     image_convolution[queue, (w * h,)](conv_mat, img_in, img_out, w, h)
     res = cl.read(queue, img_out)
