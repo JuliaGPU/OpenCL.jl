@@ -7,6 +7,170 @@ using OpenCL.Runtime
 
 device, ctx, queue = cl.create_compute_context()
 
+@clkernel test_earlyret(b::Vector{Bool}) = begin
+    for i = 0:(20-1)
+        if i == 10
+            return
+        end
+        b[i] = true
+    end
+    return
+end
+facts("Test Early Return") do 
+    testbuf = zeros(Bool, 20)
+    b = cl.Buffer(Bool, ctx, :copy, hostbuf=testbuf)
+    test_ocl = test_earlyret[queue, (1,)]
+    test_ocl(b)
+    res = cl.read(queue, b)
+    @fact all(res[1:10]) => true
+    @fact any(res[11:20]) => false
+end
+
+@clkernel test_break(b::Vector{Bool}) = begin
+    gid = get_global_id(0)
+    i = 0
+    while true
+        i += 1
+        if i == 5
+            break
+        end
+    end
+    b[gid] = true
+    return
+end 
+
+facts("Test Break") do
+    b = cl.Buffer(Bool, ctx, :copy, hostbuf=[false])
+    test_ocl = test_break[queue, (1,)]
+    test_ocl(b)
+    @fact cl.read(queue, b)[1] => true
+end
+
+@clkernel test_while(res::Vector{Int}) = begin
+    gid = get_global_id(0)
+    i = 0
+    while i < 10
+        i += 1
+    end
+    res[gid] = i
+    return
+end
+
+facts("Test While") do
+    b = cl.Buffer(Int, ctx, :copy, hostbuf=[0])
+    test_ocl = test_while[queue, (1,)]
+    test_ocl(b)
+    @fact cl.read(queue, b)[1] => 10
+end
+
+@clkernel test_continue(res::Vector{Bool}) = begin
+    for i = 0:(20-1)
+        if i == 10
+            continue
+        else
+            res[i] = true
+        end
+    end
+    return
+end
+
+facts("Test Continue") do
+    testbuf = zeros(Bool, 20)
+    b = cl.Buffer(Bool, ctx, :copy, hostbuf=testbuf)
+    test_ocl = test_continue[queue, (1,)]
+    test_ocl(b)
+    res = cl.read(queue, b)
+    @fact res[10] => true
+    @fact res[11] => false 
+    @fact res[12] => true
+end
+
+doit1(x) = 1
+doit2(x) = -1
+
+@clkernel test_continue2(res::Vector{Int}, id::Int) = begin
+    idx = id - 1
+    while idx > 0
+        idx -= 1
+        if id == 0
+            continue
+        end
+        if id % 2 == 0
+            res[id] = doit1(idx + 1)
+            continue
+        else
+            res[id] = doit2(idx + 1)
+            continue
+        end
+    end
+    return
+end
+
+#TODO: better error messages when trying to create a buffer
+# from a host buffer with a different type (throw typeassert now)
+facts("Test Continue2") do
+
+    comp = (res, id) -> begin
+        idx = id - 1
+        while idx > 0
+            idx -= 1
+            if id == 0
+                continue
+            end
+            if id % 2 == 0
+                res[id+1] = doit1(idx + 1)
+                continue
+            else
+                res[id+1] = doit2(idx + 1)
+                continue
+            end
+        end
+        return
+    end
+
+    testbuf = zeros(Int, 101)
+    b = cl.Buffer(Int, ctx, :copy, hostbuf=testbuf)
+    test_ocl = test_continue2[queue, (1,)]
+    for i in 0:100
+        test_ocl(b, i)
+        comp(testbuf, i) 
+    end
+    @fact cl.read(queue, b) => testbuf
+end
+
+function add_up(x, y)
+    return x + y
+end 
+
+facts("Test ByteParams") do
+      @clkernel test_byteparam(res::Vector{Int8}) = begin
+        gid = get_global_id(0)
+        bb = int8(0)
+        cc = int8(7)
+        res[gid] = add_up(bb, cc)
+        return
+    end
+    
+    b = cl.Buffer(Int8, ctx, :copy, hostbuf=Int8[0])
+    test_ocl = test_byteparam[queue, (1,)]
+    test_ocl(b)
+    @fact cl.read(queue, b)[1] => int8(7)
+end
+
+@clkernel test_notbool(b::Vector{Bool}) = begin
+    gid = get_global_id(0)
+    pass = false
+    b[gid] = !pass
+    return
+end
+
+facts("Test NotBoolean") do
+    b = cl.Buffer(Bool, ctx, :copy, hostbuf=[false])
+    test_ocl = test_notbool[queue, (1,)]
+    test_ocl(b)
+    @fact cl.read(queue, b)[1] => true
+end
+
 @clkernel test_for(b::Vector{Bool}) = begin
     gid = get_global_id(0)
     for i=0:(10-1)

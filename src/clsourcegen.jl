@@ -180,6 +180,14 @@ clprint(io::IO, node::Uint16, indent::Int) = begin
     printind(io, string(node), 0)
 end
 
+clprint(io::IO, node::Int8, indent::Int) = begin 
+    printind(io, string(node), 0)
+end
+
+clprint(io::IO, node::Uint8, indent::Int) = begin
+    printind(io, string(node) * "u", 0)
+end
+
 clprint(io::IO, node::Uint64, indent::Int) = begin
     printind(io, string(node) * "u", 0)
 end
