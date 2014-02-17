@@ -7,6 +7,62 @@ using OpenCL.Runtime
 
 device, ctx, queue = cl.create_compute_context()
 
+@clkernel test_accessboolarray(b::Vector{Bool}) = begin
+    for i = 0:(1024-1)
+        if i % 2 == 0 
+            b[i] = true
+        else
+            b[i] = false
+        end
+    end
+    return
+end
+
+facts("Test Access Bool Array") do 
+    testbuf = zeros(Bool, 1024)
+    b = cl.Buffer(Bool, ctx, :copy, hostbuf=testbuf)
+    test_ocl = test_accessboolarray[queue, (1,)]
+    test_ocl(b)
+    res = cl.read(queue, b)
+    for i = 0:(1024-1)
+        if i % 2 == 0
+            @fact res[i+1] => true
+        else
+            @fact res[i+1] => false
+        end
+    end
+end
+
+#TODO: Float16 does not work call's external convert function (needs extension)
+#TODO: check for device double support
+for (conv, ty) in [(:int8, Int8), (:uint8, Uint8),
+                   (:int16, Int16), (:uint16, Uint16),
+                   (:int32, Int32), (:uint32, Uint32),
+                   (:int64, Int64), (:uint64, Uint64),
+                   #(:float16, Float16),
+                   (:float32, Float32),
+                   #(:float64, Float64)
+                   ]
+    kern_name = symbol("test_access_" * string(conv))
+    @eval begin
+        @clkernel $(kern_name)(b::Vector{$ty}) = begin
+            for i = 0:(10-1)
+                b[i] = $conv(1)
+            end
+            return
+        end
+
+        facts($("Test Access $ty Array")) do 
+            testbuf = zeros($ty, 10)
+            b = cl.Buffer($ty, ctx, :copy, hostbuf=testbuf)
+            test_ocl = $(kern_name)[queue, (1,)]
+            test_ocl(b)
+            res = cl.read(queue, b)
+            @fact all(x -> x == $conv(1), res) => true
+        end
+    end
+end
+
 @clkernel test_earlyret(b::Vector{Bool}) = begin
     for i = 0:(20-1)
         if i == 10
@@ -16,6 +72,7 @@ device, ctx, queue = cl.create_compute_context()
     end
     return
 end
+
 facts("Test Early Return") do 
     testbuf = zeros(Bool, 20)
     b = cl.Buffer(Bool, ctx, :copy, hostbuf=testbuf)

@@ -73,6 +73,7 @@ for (ty, cty) in [(:None,    "void"),
                   (:Nothing, "void"),
                   (:Float64, "double"),
                   (:Float32, "float"),
+                  (:Float16, "half"),
                   (:Int64,   "long"),
                   (:Uint64,  "unsigned long"),
                   (:Int32,   "int",),
@@ -168,7 +169,7 @@ clprint(io::IO, node::Int64, indent::Int) = begin
     printind(io, string(node) * "l", 0)
 end
 
-clprint(io::IO, node::Uint32, indent::Int) = begin
+clprint(io::IO, node::Uint64, indent::Int) = begin
     printind(io, string(node) * "u", 0)
 end
 
@@ -176,8 +177,16 @@ clprint(io::IO, node::Int32, indent::Int) = begin
     printind(io, string(node), 0)
 end
 
-clprint(io::IO, node::Uint16, indent::Int) = begin
+clprint(io::IO, node::Uint32, indent::Int) = begin
+    printind(io, string(node) * "u", 0)
+end
+
+clprint(io::IO, node::Int16, indent::Int) = begin
     printind(io, string(node), 0)
+end
+
+clprint(io::IO, node::Uint16, indent::Int) = begin
+    printind(io, string(node) * "u", 0)
 end
 
 clprint(io::IO, node::Int8, indent::Int) = begin 
@@ -185,10 +194,6 @@ clprint(io::IO, node::Int8, indent::Int) = begin
 end
 
 clprint(io::IO, node::Uint8, indent::Int) = begin
-    printind(io, string(node) * "u", 0)
-end
-
-clprint(io::IO, node::Uint64, indent::Int) = begin
     printind(io, string(node) * "u", 0)
 end
 
