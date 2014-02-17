@@ -7,6 +7,11 @@ using OpenCL.Runtime
 
 device, ctx, queue = cl.create_compute_context()
 
+function l1norm(result, expected)
+    delta  = abs(expected - result)
+    return sum(delta) / sum(abs(result))
+end
+
 @clkernel test_accessboolarray(b::Vector{Bool}) = begin
     for i = 0:(1024-1)
         if i % 2 == 0 
@@ -956,4 +961,74 @@ facts("Test If_IfElse") do
     @fact (cl.read(queue, b)[1]) => false
     test_ocl(b, 1, 1)
     @fact (cl.read(queue, b)[1]) => true
+end
+
+@clkernel test_float_rem(a::Vector{Float32}, 
+                         b::Vector{Float32}, 
+                         c::Vector{Float32}) = begin
+    gid = get_global_id(0)
+    c[gid] = a[gid] % b[gid]
+    return
+end
+
+facts("Test Float Rem") do
+    N = 64
+    aa = abs(rand(Float32,  N)) * 10.0
+    bb = abs(rand(Float32,  N))
+    cc = zeros(Float32, N)
+    a = cl.Buffer(Float32, ctx, :copy, hostbuf=aa)
+    b = cl.Buffer(Float32, ctx, :copy, hostbuf=bb)
+    c = cl.Buffer(Float32, ctx, :copy, hostbuf=cc)
+    test_ocl = test_float_rem[queue, (N,)]
+    test_ocl(a, b, c)
+    res = cl.read(queue, c)
+    ref = aa .% bb
+    @fact l1norm(res, ref) < 1e-8 => true
+end
+
+#TODO: selectively enable double support
+#@clkernel test_double_rem(a::Vector{Float64}, 
+#                          b::Vector{Float64}, 
+#                          c::Vector{Float64}) = begin
+#    gid = get_global_id(0)
+#    c[gid] = a[gid] % b[gid]
+#    return
+#end
+
+#facts("Test Double Rem") do
+#    N = 10
+#    aa = rand(Float64,  N)
+#    bb = rand(Float64,  N)
+#    cc = zeros(Float64, N)
+#    a = cl.Buffer(Float64, ctx, :copy, hostbuf=aa)
+#    b = cl.Buffer(Float64, ctx, :copy, hostbuf=bb)
+#    c = cl.Buffer(Float64, ctx, :copy, hostbuf=cc)
+#    test_ocl = test_double_rem[queue, (N,)]
+#    test_ocl(a, b, c)
+#    res = cl.read(queue, c)
+#    ref = aa .% bb
+#    @show res
+#    @show ref
+#    @show l1norm(res, ref)
+#end
+
+type Test1
+    a::Int
+    b::Int
+    Test1() = new(1,2)
+    Test1(x, y) = new(x, y)
+end
+
+@clkernel test_struct1(res::Vector{Int}) = begin
+    gid = get_global_id(0)
+    t = Test1()
+    res[gid] = t.a + t.b
+    return
+end
+
+@clkernel test_struct2(res::Vector{Int}) = begin
+    gid = get_global_id(0)
+    t = Test1(1,2)
+    res[gid] = t.a + t.b
+    return
 end

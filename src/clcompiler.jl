@@ -823,6 +823,13 @@ visit_call(ctx, expr::Expr) = begin
         #TODO: this is wrong but might work
         return CUnaryOp(CSub(), arg2, arg2.ctype)
     
+    elseif arg1.name === :rem_float
+        @assert length(expr.args) == 3
+        arg1 = visit(ctx, expr.args[2])
+        arg2 = visit(ctx, expr.args[3])
+        ty = promote_type(arg1.ctype, arg2.ctype) 
+        return CLRTCall("remainder", [arg1, arg2], ty)
+
     # binary operations
     elseif haskey(binary_builtins, arg1.name)
         visit_binaryop(ctx, expr)

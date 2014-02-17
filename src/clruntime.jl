@@ -52,6 +52,7 @@ macro clkernel(func)
             error("more than one typed ast produced!")
         end
         local expr = first(exprs)
+        @show expr
         kern_ctx, kernel = Compiler.build_kernel($("$orig_name"), expr)
         local io  = IOBuffer()
         print(io, "#pragma OPENCL EXTENSION cl_amd_printf : enable\n")
