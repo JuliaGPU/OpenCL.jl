@@ -474,6 +474,7 @@ const binary_builtins = (Symbol=>CAst)[
                                     :ule_int => CLtE(),
                                     :mul_float => CMult(),
                                     :mul_int => CMult(),
+                                    :srem_int => CMod(),
                                     :urem_int => CMod(),
                                     :ne_float => CNotEq(),
                                     :ne_int => CNotEq(),
