@@ -43,9 +43,11 @@ for (conv, ty) in [(:int8, Int8), (:uint8, Uint8),
                    (:float32, Float32),
                    #(:float64, Float64)
                    ]
-    kern_name = symbol("test_access_" * string(conv))
+    helper_name = symbol("test_add_" * string(conv))
+    kern_name1  = symbol("test_access_" * string(conv))
+    kern_name2  = symbol("test_param_" * string(conv))
     @eval begin
-        @clkernel $(kern_name)(b::Vector{$ty}) = begin
+        @clkernel $(kern_name1)(b::Vector{$ty}) = begin
             for i = 0:(10-1)
                 b[i] = $conv(1)
             end
@@ -55,10 +57,33 @@ for (conv, ty) in [(:int8, Int8), (:uint8, Uint8),
         facts($("Test Access $ty Array")) do 
             testbuf = zeros($ty, 10)
             b = cl.Buffer($ty, ctx, :copy, hostbuf=testbuf)
-            test_ocl = $(kern_name)[queue, (1,)]
+            test_ocl = $(kern_name1)[queue, (1,)]
             test_ocl(b)
             res = cl.read(queue, b)
             @fact all(x -> x == $conv(1), res) => true
+        end
+        
+        $(helper_name)(x::$ty, y::$ty) = begin
+            # add no ops here so this does not get inlined
+            aa = x
+            bb = y
+            aa + bb
+            return x + y
+        end
+
+        @clkernel $(kern_name2)(b::Vector{$ty}, val::$ty) = begin
+            gid = get_global_id(0)
+            b[gid] = $(helper_name)(val, val)
+            return
+        end
+        
+        facts($("Test Func $ty Params")) do 
+            testbuf = $ty[0]
+            b = cl.Buffer($ty, ctx, :copy, hostbuf=testbuf)
+            test_ocl = $(kern_name2)[queue, (1,)]
+            val = $conv(1)
+            test_ocl(b, val)
+            @fact cl.read(queue, b)[1] => $(helper_name)(val, val)
         end
     end
 end
