@@ -17,7 +17,7 @@ device, ctx, queue = cl.create_compute_context()
     if x > 3 && x < (w * 3 - 3) && y > 1 && y < (h - 1)
         accum = 0f0
         count = 0
-        for dx = -3:3:5
+        for dx = -3:3:3
             for dy = -1:1
                 rgb = 0xff * img_in[((y + dy) * w) + (x + dx)]
                 accum += rgb * conv_mat[count]
