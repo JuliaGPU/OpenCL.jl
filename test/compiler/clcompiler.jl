@@ -49,3 +49,27 @@ facts("Test IfElseAnd") do
     @fact cl.read(queue, b)[1] => false
 end
 
+@clkernel test_ifelseandand(b::Vector{Bool}, testval::Int) = begin
+    gid = get_global_id(0)
+    if (testval % 2 == 0 &&
+        testval <= 10 &&
+        testval >= 0  &&
+        testval % 4 == 0)
+        b[gid] = true
+    else
+        b[gid] = false
+    end
+    return
+end
+
+facts("Test IfElseAndAnd") do
+    comp = (x) -> (x % 2 == 0 && x <= 10 && x >= 0 && x % 4 == 0) ? true : false
+    b = cl.Buffer(Bool, ctx, 1)
+    test_ocl = test_ifelseandand[queue, (1,)]
+    for v = -1:101
+        test_ocl(b, v)
+        @fact cl.read(queue, b)[1] => comp(v)
+    end
+end
+
+
