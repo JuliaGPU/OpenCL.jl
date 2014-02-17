@@ -7,6 +7,64 @@ using OpenCL.Runtime
 
 device, ctx, queue = cl.create_compute_context()
 
+@clkernel test_for(b::Vector{Bool}) = begin
+    gid = get_global_id(0)
+    for i=0:(10-1)
+        b[i] = true
+    end
+    return
+end
+
+facts("Test For") do
+    testbuf = zeros(Bool, 20)
+    b = cl.Buffer(Bool, ctx, :copy, hostbuf=testbuf)
+    test_ocl = test_for[queue, (1,)]
+    test_ocl(b)
+    res = cl.read(queue, b)
+    @fact all(res[1:10]) => true
+    @fact any(res[11:end]) => false
+end
+
+@clkernel test_forbreak(b::Vector{Bool}) = begin
+    gid = get_global_id(0)
+    for i=0:(20-1)
+        if i == 10
+            break
+        end
+        b[i] = true
+    end
+    return
+end
+
+facts("Test ForBreak") do
+    testbuf = zeros(Bool, 20)
+    b = cl.Buffer(Bool, ctx, :copy, hostbuf=testbuf)
+    test_ocl = test_forbreak[queue, (1,)]
+    test_ocl(b)
+    res = cl.read(queue, b)
+    @fact all(res[1:10]) => true
+    @fact any(res[11:end]) => false
+end
+
+@clkernel test_forif(b::Vector{Bool}) = begin
+    gid = get_global_id(0)
+    for i=0:(20-1)
+        if i == 10
+            b[i] = true
+        end
+    end
+    return
+end
+
+facts("Test ForIf") do
+    testbuf = zeros(Bool, 20)
+    b = cl.Buffer(Bool, ctx, :copy, hostbuf=testbuf)
+    test_ocl = test_forif[queue, (1,)]
+    test_ocl(b)
+    res = cl.read(queue, b)
+    @fact res[11] => true
+end
+
 @clkernel test_if(b::Vector{Bool}, testval::Int) = begin 
     gid = get_global_id(0)
     if testval % 4 == 0
