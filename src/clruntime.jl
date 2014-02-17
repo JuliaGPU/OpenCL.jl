@@ -52,7 +52,6 @@ macro clkernel(func)
             error("more than one typed ast produced!")
         end
         local expr = first(exprs)
-        
         kern_ctx, kernel = Compiler.build_kernel($("$orig_name"), expr)
         local io  = IOBuffer()
         print(io, "#pragma OPENCL EXTENSION cl_amd_printf : enable\n")
@@ -63,6 +62,7 @@ macro clkernel(func)
         end
         SourceGen.clsource(io, kernel)
         local src = bytestring(io.data)
+        #println(src)
         # TODO: return a fucntion that takes a context
         # build the source and store in global cache
         local prg  = OpenCL.Program($(esc(:ctx)), source=src) |> OpenCL.build!
