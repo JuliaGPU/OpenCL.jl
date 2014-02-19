@@ -1,8 +1,8 @@
 lbox{T}(x::T) = T[x]
 unbox{T}(x::Array{T,1}) = x[1]
 
-function create_compute_context()
-    ctx    = create_some_context()
+function create_compute_context(dtype=:all)
+    ctx    = create_some_context(dtype)
     device = first(devices(ctx))
     queue  = CmdQueue(ctx)
     return (device, ctx, queue)

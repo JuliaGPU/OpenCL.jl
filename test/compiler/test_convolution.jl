@@ -45,4 +45,3 @@ facts("Test example convolution") do
 
     @fact true => true
 end
-

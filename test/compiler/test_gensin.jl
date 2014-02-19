@@ -5,7 +5,9 @@ const cl = OpenCL
 
 using OpenCL.Runtime
 
-device, ctx, queue = cl.create_compute_context()
+device, ctx, queue = cl.create_compute_context(:cpu)
+
+@show device
 
 @clkernel generate_sin(a::Vector{Float32}, 
                        b::Vector{Float32}) = begin
@@ -38,16 +40,18 @@ function generate_sin_julia(a::Vector{Float32}, b::Vector{Float32})
 end
 
 facts("Test example generate sin wave") do
-    n = 1_000_000
+    n = 1_000_000_000
     a = cl.Buffer(Float32, ctx, n)
     b = cl.Buffer(Float32, ctx, n)
-
+    
+    @time begin
     evt  = generate_sin[queue, (n,)](a, b)
     rocl = cl.read(queue, b)
+    end 
 
     a = Array(Float32, n)
     b = Array(Float32, n)
-    rjulia = generate_sin_julia(a, b)
+    @time rjulia = generate_sin_julia(a, b)
 
     delta  = abs(rjulia - rocl)
     l1norm = sum(delta) / sum(abs(rocl))

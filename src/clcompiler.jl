@@ -6,6 +6,23 @@ using ..SourceGen
 
 export build_kernel, visit, structgen!
 
+const symbol_to_type = (Symbol=>Type)[:Bool   => Bool,
+                                          :Int8   => Int8,
+                                          :Uint8  => Uint8,
+                                          :Int16  => Int16,
+                                          :Uint16 => Uint16,
+                                          :Int32  => Int32,
+                                          :Uint32 => Uint32,
+                                          :Int64  => Int64,
+                                          :Uint64 => Uint64,
+                                          :Int128 => Int128,
+                                          :Uint128 => Uint128,
+                                          :Float16 => Float16,
+                                          :Float32 => Float32,
+                                          :Float64 => Float64,
+                                          :Complex64 => Complex64,
+                                          :Complex128 => Complex128,
+                                          :Void => Void]
 typealias CLScalarTypes Union(Bool,
                               Int8,
                               Uint8,
@@ -17,7 +34,6 @@ typealias CLScalarTypes Union(Bool,
                               Uint64,
                               Int128,
                               Uint128,
-                              Uint64,
                               Float16,
                               Float32,
                               Float64,
@@ -414,6 +430,19 @@ visit_callfunction(ctx, expr::Expr) = begin
     return CFunctionCall(cname(name), args, expr.typ)
 end
 
+#TODO: half precision requires an extension
+visit_callconvert(ctx, expr::Expr) = begin
+    @assert isa(expr.args[1], Symbol)
+    @assert isa(expr.args[2], Symbol)
+    @assert length(expr.args) == 3
+    ty = symbol_to_type[expr.args[2]]
+    node = visit(ctx, expr.args[3])
+    if ty == Float16
+        return CLRTCall("convert_half", [node,], Float16)
+    end
+    error("callconvert not implemented")
+end
+
 visit_ccall(ctx, expr::Expr) = begin
     @assert isa(expr.args[1], TopNode)
     @assert expr.args[1].name == :ccall
@@ -478,6 +507,7 @@ const binary_builtins = (Symbol=>CAst)[
                                     :ule_int => CLtE(),
                                     :mul_float => CMult(),
                                     :mul_int => CMult(),
+                                    :srem_int => CMod(),
                                     :urem_int => CMod(),
                                     :srem_int => CMod(),
                                     :ne_float => CNotEq(),
@@ -610,6 +640,9 @@ visit_call(ctx, expr::Expr) = begin
     end
 
     if isa(arg1, Symbol) && isfunction(arg1)
+        if arg1 === :convert
+            return visit_callconvert(ctx, expr)
+        end
         return visit_callfunction(ctx, expr)
     end
 
@@ -811,6 +844,13 @@ visit_call(ctx, expr::Expr) = begin
         ty = Int
         node = visit(ctx, expr.args[2]) 
         return CLRTCall("convert_long_rte", [node,], ty)   
+    
+    elseif arg1.name === :rem_float
+        @assert length(expr.args) == 3
+        arg1 = visit(ctx, expr.args[2])
+        arg2 = visit(ctx, expr.args[3])
+        ty = promote_type(arg1.ctype, arg2.ctype) 
+        return CLRTCall("remainder", [arg1, arg2], ty)
 
     # binary operations
     elseif haskey(binary_builtins, arg1.name)

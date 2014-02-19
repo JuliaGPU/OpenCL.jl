@@ -197,32 +197,39 @@ function devices(ctx::Context)
     return [Device(id) for id in dev_ids]
 end
 
-function create_some_context()
+function create_some_context(dtype::Symbol=:all)
+    if !(dtype in [:gpu, :cpu, :all])
+        throw(ArgumentError("dtype can be :gpu, :cpu, or :all, got :$dtype"))
+    end
     if isempty(platforms())
         throw(OpenCLException("No OpenCL.Platform available"))
     end
-    gpu_devices = devices(:gpu)
-    if !isempty(gpu_devices)
-        for dev in gpu_devices
-            local ctx::Context
-            try
-                ctx = Context(dev)
-            catch
-                continue 
+    if dtype === :all || dtype === :gpu
+        gpu_devices = devices(:gpu)
+        if !isempty(gpu_devices)
+            for dev in gpu_devices
+                local ctx::Context
+                try
+                    ctx = Context(dev)
+                catch
+                    continue 
+                end
+                return ctx
             end
-            return ctx
         end
     end
-    cpu_devices = devices(:cpu)
-    if !isempty(cpu_devices)
-        for dev in cpu_devices
-            local ctx::Context
-            try
-                ctx = Context(dev)
-            catch
-                continue 
+    if dtype === :all || dtype == :cpu
+        cpu_devices = devices(:cpu)
+        if !isempty(cpu_devices)
+            for dev in cpu_devices
+                local ctx::Context
+                try
+                    ctx = Context(dev)
+                catch
+                    continue 
+                end
+                return ctx
             end
-            return ctx
         end
     end
     if isempty(gpu_devices) && isempty(cpu_devices)
