@@ -7,22 +7,22 @@ using ..SourceGen
 export build_kernel, visit, structgen!
 
 const symbol_to_type = (Symbol=>Type)[:Bool   => Bool,
-                                          :Int8   => Int8,
-                                          :Uint8  => Uint8,
-                                          :Int16  => Int16,
-                                          :Uint16 => Uint16,
-                                          :Int32  => Int32,
-                                          :Uint32 => Uint32,
-                                          :Int64  => Int64,
-                                          :Uint64 => Uint64,
-                                          :Int128 => Int128,
-                                          :Uint128 => Uint128,
-                                          :Float16 => Float16,
-                                          :Float32 => Float32,
-                                          :Float64 => Float64,
-                                          :Complex64 => Complex64,
-                                          :Complex128 => Complex128,
-                                          :Void => Void]
+                                      :Int8   => Int8,
+                                      :Uint8  => Uint8,
+                                      :Int16  => Int16,
+                                      :Uint16 => Uint16,
+                                      :Int32  => Int32,
+                                      :Uint32 => Uint32,
+                                      :Int64  => Int64,
+                                      :Uint64 => Uint64,
+                                      :Int128 => Int128,
+                                      :Uint128 => Uint128,
+                                      :Float16 => Float16,
+                                      :Float32 => Float32,
+                                      :Float64 => Float64,
+                                      :Complex64  => Complex64,
+                                      :Complex128 => Complex128,
+                                      :Void => Void]
 typealias CLScalarTypes Union(Bool,
                               Int8,
                               Uint8,
@@ -890,7 +890,12 @@ function build_function(name::String, expr::Expr; iskernel=false)
             push!(args, CPtrDecl(cname(arg), ty))
         elseif ty <: Array
             T = array_elemtype(ty)
-            push!(args, CPtrDecl(cname(arg), Ptr{T}))
+            # specialize bool arrays to char as bool type is non-portable
+            if T == Bool
+                push!(args, CPtrDecl(cname(arg), Ptr{Cchar}))
+            else
+                push!(args, CPtrDecl(cname(arg), Ptr{T}))
+            end
         elseif ty === Any
             #TODO: look for unions in return types
             error("cannot compile type unstable function")
