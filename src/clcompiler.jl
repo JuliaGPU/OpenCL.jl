@@ -7,22 +7,22 @@ using ..SourceGen
 export build_kernel, visit, structgen!
 
 const symbol_to_type = (Symbol=>Type)[:Bool   => Bool,
-                                          :Int8   => Int8,
-                                          :Uint8  => Uint8,
-                                          :Int16  => Int16,
-                                          :Uint16 => Uint16,
-                                          :Int32  => Int32,
-                                          :Uint32 => Uint32,
-                                          :Int64  => Int64,
-                                          :Uint64 => Uint64,
-                                          :Int128 => Int128,
-                                          :Uint128 => Uint128,
-                                          :Float16 => Float16,
-                                          :Float32 => Float32,
-                                          :Float64 => Float64,
-                                          :Complex64 => Complex64,
-                                          :Complex128 => Complex128,
-                                          :Void => Void]
+                                      :Int8   => Int8,
+                                      :Uint8  => Uint8,
+                                      :Int16  => Int16,
+                                      :Uint16 => Uint16,
+                                      :Int32  => Int32,
+                                      :Uint32 => Uint32,
+                                      :Int64  => Int64,
+                                      :Uint64 => Uint64,
+                                      :Int128 => Int128,
+                                      :Uint128 => Uint128,
+                                      :Float16 => Float16,
+                                      :Float32 => Float32,
+                                      :Float64 => Float64,
+                                      :Complex64  => Complex64,
+                                      :Complex128 => Complex128,
+                                      :Void => Void]
 typealias CLScalarTypes Union(Bool,
                               Int8,
                               Uint8,
@@ -344,6 +344,7 @@ visit_arrayref(ctx, expr::Expr) = begin
     if isa(idx, CTypeCast)
         cast_ty = idx.ctype
         val_ty = idx.value.ctype
+        #TODO: this should be device dependent
         if cast_ty != Uint32
             if val_ty == Uint32
                 idx = idx.value
@@ -492,6 +493,8 @@ const binary_builtins = (Symbol=>CAst)[
                                     :sub_int   => CSub(),
                                     :sub_float => CSub(),
                                     :div_float => CDiv(),
+                                    :udiv_int => CDiv(),
+                                    :sdiv_int => CDiv(),
                                     :eq_float => CEq(),
                                     :eq_int => CEq(),
                                     :le_float => CLtE(),
@@ -499,12 +502,14 @@ const binary_builtins = (Symbol=>CAst)[
                                     :sle_int => CLtE(),
                                     :lt_float => CLt(),
                                     :lt_int => CLt(),
+                                    :ltsif64 => CLt(),
                                     :ult_int => CLt(),
                                     :ule_int => CLtE(),
                                     :mul_float => CMult(),
                                     :mul_int => CMult(),
                                     :srem_int => CMod(),
                                     :urem_int => CMod(),
+                                    :srem_int => CMod(),
                                     :ne_float => CNotEq(),
                                     :ne_int => CNotEq(),
                                     :or_int => COr(), 
@@ -774,6 +779,16 @@ visit_call(ctx, expr::Expr) = begin
         node = visit(ctx, expr.args[3])
         return node
     
+    # todo: need to implement the same logic
+    # for checked floating point casts here
+    # checked floating point to signed integer 
+    elseif (arg1.name == :checked_fptosi ||
+            arg1.name == :checked_fptoui)
+        ty = expr.args[2]
+        @assert ty <: Number
+        node = visit(ctx, expr.args[3])
+        return CTypeCast(node, ty)
+
     # less than if
     elseif arg1.name === :ltfsi64 || 
            arg1.name === :slt_int
@@ -822,6 +837,13 @@ visit_call(ctx, expr::Expr) = begin
         arg2 = visit(ctx, expr.args[3])
         #TODO: this is wrong but might work
         return CUnaryOp(CSub(), arg2, arg2.ctype)
+   
+    # round to nearest signed integer
+    elseif arg1.name == :fpsiround
+        #TODO: need to get the integer type
+        ty = Int
+        node = visit(ctx, expr.args[2]) 
+        return CLRTCall("convert_long_rte", [node,], ty)   
     
     elseif arg1.name === :rem_float
         @assert length(expr.args) == 3
@@ -868,7 +890,12 @@ function build_function(name::String, expr::Expr; iskernel=false)
             push!(args, CPtrDecl(cname(arg), ty))
         elseif ty <: Array
             T = array_elemtype(ty)
-            push!(args, CPtrDecl(cname(arg), Ptr{T}))
+            # specialize bool arrays to char as bool type is non-portable
+            if T == Bool
+                push!(args, CPtrDecl(cname(arg), Ptr{Cchar}))
+            else
+                push!(args, CPtrDecl(cname(arg), Ptr{T}))
+            end
         elseif ty === Any
             #TODO: look for unions in return types
             error("cannot compile type unstable function")
