@@ -20,7 +20,7 @@ const _img_type_names = (CL_uint => Symbol)[CL_SNORM_INT8  => :CL_SNORM_INT8,
                                             CL_UNORM_INT_101010 => :CL_UNORM_INT_101010,
                                             CL_SIGNED_INT8  => :CL_SIGNED_INT8, 
                                             CL_SIGNED_INT16 => :CL_SIGNED_INT16, 
-                                            CL_SIGNED_INT32 => ;CL_SIGNED_INT32,
+                                            CL_SIGNED_INT32 => :CL_SIGNED_INT32,
                                             CL_UNSIGNED_INT8  => :CL_UNSIGNED_INT8, 
                                             CL_UNSIGNED_INT16 => :CL_UNSIGNED_INT16, 
                                             CL_UNSIGNED_INT32 => :CL_UNSIGNED_INT32,
@@ -133,4 +133,18 @@ function image_format_item_size(fmt::CL_image_format)
     return nchannels(fmt) * channel_size(fmt)
 end
 
-
+function supported_image_formats(ctx::Context, 
+                                 flags::CL_mem_flags,
+                                 img_type::CL_mem_object_type)
+    nformats = CL_uint[0]
+    @check api.clGetSupportedImageFormats(ctx.id, flags, img_type, 
+                                          0, C_NULL, nformats)
+    if nformats[1] == 0
+        return CL_image_format[]
+    end
+    formats  = Array(CL_image_format, nformats[1])
+    @check api.clGetSupportedImageFormats(ctx.id, flags, img_type, 
+                                          nformats[1], 
+                                          isempty(formats) ? C_NULL : formats, C_NULL)
+    return formats
+end
