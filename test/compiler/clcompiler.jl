@@ -1027,12 +1027,12 @@ facts("Test Double Rem") do
     @show l1norm(res, ref)
 end
 
-type Test1
-    a::Int
-    b::Int
-    Test1() = new(1,2)
-    Test1(x, y) = new(x, y)
-end
+#type Test1
+#    a::Int
+#    b::Int
+#    Test1() = new(1,2)
+#    Test1(x::Int, y::Int) = new(x, y)
+#end
 
 #@clkernel test_struct1(res::Vector{Int}) = begin
 #    gid = get_global_id(0)
