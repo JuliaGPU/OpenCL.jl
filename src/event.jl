@@ -107,7 +107,7 @@ end
 
 function wait(evt::CLEvent)
     evt_id = [evt.id]
-    @check api.clWaitForEvents(cl_uint(1), evt_id)
+    @check api.clWaitForEvents(cl_uint(1), pointer(evt_id))
     return evt
 end
 
@@ -115,7 +115,7 @@ function wait(evts::Vector{CLEvent})
     evt_ids = [evt.id for evt in evts]
     if !isempty(evt_ids)
         nevents = cl_uint(length(evt_ids))
-        @check api.clWaitForEvents(nevents, evt_ids)
+        @check api.clWaitForEvents(nevents, pointer(evt_ids))
     end
     return evts
 end
