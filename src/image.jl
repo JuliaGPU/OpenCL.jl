@@ -148,3 +148,12 @@ function supported_image_formats(ctx::Context,
                                           isempty(formats) ? C_NULL : formats, C_NULL)
     return formats
 end
+
+function create_image{T}(ctx::Context, 
+                         flags::CL_mem_flags,
+                         fmt::CL_image_format,
+                         shape::Dims,
+                         pitches::Dims,
+                         buffer::Buffer{T})
+end
+
