@@ -82,18 +82,8 @@ const _img_type_clconsts = (Type => CL_uint)[NormInt8   => CL_SNORM_INT8,
 
 const _img_clconts_type = _swap_key_val(_img_type_clconsts)
 
-immutable ImageFormat{C <: CLImageChannel, T <: CLImageType}
-end
-
-Base.show{C, T}(io::IO, fmt::ImageFormat{C, T}) = begin
-    ichan = _img_chan_names[C]
-    itype = _img_type_names[T]
-    print(io, "ImageFormat{$ichan, $itype}")
-end
-
-function _cl_img_format(C::CLImageChannel, T::CLImageType)
-    CL_image_format(_img_chan_clconsts(C),
-                    _img_type_clconsts(T))
+CL_image_format{C<:CLImageChannel, T<:CLImageType}(::Type{C}, ::Type{T}) = begin
+    CL_image_format(_img_chan_clconsts[C], _img_type_clconsts[T])
 end
 
 type Image{C<:CLImageChannel, T<:CLImageType} <: CLMemObject
@@ -101,7 +91,6 @@ type Image{C<:CLImageChannel, T<:CLImageType} <: CLMemObject
     id::CL_mem
 
     function Image(mem_id::CL_mem, retain::Bool)
-        @assert len > 0
         @assert mem_id != C_NULL
         if retain
             @check api.clRetainMemObject(mem_id)
@@ -122,7 +111,7 @@ type Image{C<:CLImageChannel, T<:CLImageType} <: CLMemObject
         dims = length(shape)
         itemsize = nchannels(C) * sizeof(T)
         flags = mem_flag === :r ? CL_MEM_READ_ONLY : CL_MEM_WRITE_ONLY
-        fmt   = _cl_img_format(C, T)
+        fmt   = [CL_image_format(C, T)]
         err_code = Array(CL_int, 1)
         local mem_id::CL_mem
         if dims == 2
@@ -144,12 +133,12 @@ type Image{C<:CLImageChannel, T<:CLImageType} <: CLMemObject
         if err_code[1] != CL_SUCCESS
             throw(CLError(err_code[1]))
         end
-        return Image(mem_id, false)
+        return Image{C,T}(mem_id, false)
     end
 
     function Image(ctx::Context, mem_flag::Symbol, arr::StridedArray)
-        if !(mem_flag === :r || mem_flag === :w)
-            throw(ArgumentError("only one flag in {:r, :w} can be defined"))
+        if !(mem_flag in (:rw, :r, :w))
+            throw(ArgumentError("only one flag in {:rw, :r, :w} can be defined"))
         end
         if sizeof(arr) < 4#channel_size(C) 
             throw(ArgumentError("sizeof host array is less than image size"))
@@ -165,7 +154,7 @@ type Image{C<:CLImageChannel, T<:CLImageType} <: CLMemObject
 end
 
 #TODO: better error messages
-function nchannels(T::CLImageChannel)
+function nchannels{T<:CLImageChannel}(::Type{T})
     if T === Red
         return 1
     elseif T === Alpha
@@ -191,7 +180,7 @@ function nchannels(T::CLImageChannel)
     end
 end
 
-Base.sizeof(T::CLImageType) = begin
+Base.sizeof{T<:CLImageType}(::Type{T}) = begin
     if T === NormInt8
         return 1
     elseif T === NormInt16
@@ -267,7 +256,7 @@ function supported_image_types(ctx::Context,
     @check api.clGetSupportedImageFormats(ctx.id, flags, img_type, 
                                           0, C_NULL, nformats)
     if nformats[1] == 0
-        return Set{DataType}[]
+        return Set{DataType}()
     end
     formats  = Array(CL_image_format, nformats[1])
     @check api.clGetSupportedImageFormats(ctx.id, flags, img_type, 
@@ -280,5 +269,5 @@ function supported_image_types(ctx::Context,
        T = _img_clconts_type[fmt.image_channel_data_type]
        push!(img_formats, Image{C,T})
     end
-    return Set{DataType}(img_formats)
+    return Set(img_formats)
 end
