@@ -25,18 +25,14 @@ const image2d_src = """
  __kernel void copy_image(
 	__global float *dest,
 	__read_only image2d_t src,
-	//sampler_t samp,
 	int stride0)
 {
-	int d0 = get_global_id(0);
-	int d1 = get_global_id(1);
+	size_t d0 = get_global_id(0);
+	size_t d1 = get_global_id(1);
 	
-	const sampler_t samp =
-	CLK_NORMALIZED_COORDS_FALSE
-	| CLK_ADDRESS_CLAMP
-	| CLK_FILTER_NEAREST;
-	
-	dest[d0*stride0 + d1] = read_imagef(src, samp, (float2)(d1, d0)).x;
+	const sampler_t samp = CLK_NORMALIZED_COORDS_FALSE | CLK_ADDRESS_CLAMP | CLK_FILTER_NEAREST;
+        	
+	dest[d0 * stride0 + d1] = read_imagef(src, samp, (float2)(d1, d0)).x;
 }
 """
 
@@ -53,20 +49,19 @@ facts("OpenCL.Image 2D test") do
 	prg  = cl.Program(ctx, source=image2d_src) |> cl.build!
         copy_image = cl.Kernel(prg, "copy_image")
 
-	if !(cl.Image{cl.Red,Float32} in cl.supported_image_types(ctx))
+	if !(cl.Image{cl.Red, Float32} in cl.supported_image_types(ctx))
             warn("OpenCL.Image type not supported on $device")
 	    continue
         end
 	
-	a = rand(Float32, (1024, 512))
-	a_img = cl.Image{cl.Red, Float32}(ctx, :rw, hostbuf=a)
+	a = rand(Float32, (10,10))
+	a_img = cl.Image{cl.Red, Float32}(ctx, (:r, :copy), hostbuf=a)
 	a_dst = cl.Buffer(Float32, ctx, :rw, length(a))
 
 	x_stride = int32(strides(a)[end])
 	evt = copy_image[queue, size(a)](a_dst, a_img, x_stride)
 
-        a_result = cl.read(queue, a_dst)
-        #@show sum(a_result - a)
+        a_result = reshape(cl.read(queue, a_dst), size(a))
 	@fact isapprox(norm(a_result - a), zero(Float32)) => true
     end
 end
