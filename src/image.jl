@@ -83,7 +83,8 @@ const _img_type_clconsts = (Type => CL_uint)[NormInt8   => CL_SNORM_INT8,
 const _img_clconts_type = _swap_key_val(_img_type_clconsts)
 
 CL_image_format{C<:CLImageChannel, T<:CLImageType}(::Type{C}, ::Type{T}) = begin
-    CL_image_format(_img_chan_clconsts[C], _img_type_clconsts[T])
+    CL_image_format(_img_chan_clconsts[C], 
+    		    _img_type_clconsts[T])
 end
 
 type Image{C<:CLImageChannel, T<:CLImageType} <: CLMemObject
@@ -106,20 +107,46 @@ type Image{C<:CLImageChannel, T<:CLImageType} <: CLMemObject
         end)
         return img
     end
-
-    function Image(ctx::Context, mem_flag::Symbol, shape::Dims)
+    
+    function Image(ctx::Context, 
+	           flags::CL_mem_flags;
+		   shape::Union(Nothing,Dims)=nothing,
+		   pitches::Union(Nothing,Dims)=nothing, 
+		   hostbuf=nothing)
+	if shape == nothing && hostbuf == nothing
+	    throw(ArgumentError("shape must be passed if hostbuf is not given"))
+        end
+	if shape == nothing && hostbuf != nothing
+	    shape = size(hostbuf)
+        end
+        if hostbuf == nothing && pitches != nothing
+	    throw(ArgumentError("pitches may only be given if hostbuf is given"))
+        end
         dims = length(shape)
-        itemsize = nchannels(C) * sizeof(T)
-        flags = mem_flag === :r ? CL_MEM_READ_ONLY : CL_MEM_WRITE_ONLY
-        fmt   = [CL_image_format(C, T)]
+        fmt = [CL_image_format(C, T)]
+	buff_ptr = hostbuf != nothing ? pointer(hostbuf) : C_NULL
         err_code = Array(CL_int, 1)
         local mem_id::CL_mem
         if dims == 2
             width, height = shape
             @assert width >= 1 && height >= 1
+	    pitch = convert(Csize_t, 0)
+	    if pitches != nothing
+	        if length(pitches) != 1
+		    throw(ArgumentError("invalid length of pitch tuple"))
+	        end
+		@assert pitches[1] > 0
+		pitch = convert(Csize_t, pitches[1])
+	    end
+	    if hostbuf != nothing && pitch > 0
+                itemsize = nchannels(C) * sizeof(T)
+	        if max(pitch, width * itemsize) * height > length(hostbuf)
+	            throw(ArgumentError("OpenCL.Image buffer is too small"))
+	        end
+            end
             mem_id = api.clCreateImage2D(ctx.id, flags, fmt,
-                                         width, height, 0,
-                                         C_NULL, err_code)
+                                         width, height, pitch,
+                                         buff_ptr, err_code)
         elseif dims == 3
             width, height, depth = shape
             @assert width >= 1 && height >= 1 && depth >= 1
@@ -135,15 +162,26 @@ type Image{C<:CLImageChannel, T<:CLImageType} <: CLMemObject
         end
         return Image{C,T}(mem_id, false)
     end
+    
+    function Image(ctx::Context, mem_flags::NTuple{2, Symbol}; kw...)
+	flags = _symbols_to_cl_mem_flags(mem_flags)
+	return Image{C,T}(ctx, flags; kw...)
+    end 
+
+    function Image(ctx::Context, mem_flag::Symbol; kw...)
+	flags = _symbols_to_cl_mem_flags((mem_flag, :null))
+        Image{C, T}(ctx, flags; kw...)
+    end
 
     function Image(ctx::Context, mem_flag::Symbol, arr::StridedArray)
         if !(mem_flag in (:rw, :r, :w))
             throw(ArgumentError("only one flag in {:rw, :r, :w} can be defined"))
         end
-        if sizeof(arr) < 4#channel_size(C) 
+        if sizeof(arr) < sizeof(C) 
             throw(ArgumentError("sizeof host array is less than image size"))
         end
-        if size(arr)[end] != nchannels(C)
+        nc = nchannels(C)
+        if nc > 1 && size(arr)[end] != nc
             throw(ArgumentError("first dimension must be equal to the number of channels"))
         end
         arr_ty   = eltype(arr)

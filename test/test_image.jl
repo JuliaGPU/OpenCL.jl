@@ -46,7 +46,8 @@ facts("OpenCL.Image 2D test") do
 	    warn("OpenCL.Image not supported on $device")
 	    continue
         end
-        ctx   = cl.Context(device)
+        
+	ctx   = cl.Context(device)
 	queue = cl.CmdQueue(ctx)
 
 	prg  = cl.Program(ctx, source=image2d_src) |> cl.build!
@@ -58,15 +59,14 @@ facts("OpenCL.Image 2D test") do
         end
 	
 	a = rand(Float32, (1024, 512))
-	a_img = cl.Image{cl.Red, Float32}(ctx, :rw, a)
+	a_img = cl.Image{cl.Red, Float32}(ctx, :rw, hostbuf=a)
 	a_dst = cl.Buffer(Float32, ctx, :rw, length(a))
 
-	x_stride = int32(strides(a)[1])
+	x_stride = int32(strides(a)[end])
 	evt = copy_image[queue, size(a)](a_dst, a_img, x_stride)
 
-        a_result = cl.read!(queue, a_dest)
-	@fact isapprox(norm(a_result - a), 0.0f0) => true
+        a_result = cl.read(queue, a_dst)
+        #@show sum(a_result - a)
+	@fact isapprox(norm(a_result - a), zero(Float32)) => true
     end
 end
-
-
