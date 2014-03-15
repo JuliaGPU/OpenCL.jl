@@ -7,7 +7,6 @@ abstract CLMemObject
 #     ...
 # end
 
-
 Base.pointer(mem::CLMemObject) = mem.id
 
 Base.sizeof(mem::CL_mem) = begin
