@@ -1,3 +1,5 @@
+# OpenCL.Kernel
+
 type Kernel
     id :: CL_kernel
 

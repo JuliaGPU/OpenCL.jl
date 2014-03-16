@@ -1,4 +1,4 @@
-# Low Level OpenCL Platform 
+# OpenCL.Platform
 
 immutable Platform
     id::CL_platform_id

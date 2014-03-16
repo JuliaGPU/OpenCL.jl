@@ -1,4 +1,5 @@
-# --- low level OpenCL Event ---
+# OpenCL.Event
+
 abstract CLEvent
 
 type Event <: CLEvent

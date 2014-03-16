@@ -1,4 +1,4 @@
-# low level OpenCL Device
+# OpenCL.Device 
 
 immutable Device
     id :: CL_device_id

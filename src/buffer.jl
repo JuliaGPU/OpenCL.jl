@@ -1,4 +1,5 @@
-# --- OpenCL Buffer ---
+# OpenCL.Buffer
+
 type Buffer{T} <: CLMemObject
     valid::Bool
     id::CL_mem

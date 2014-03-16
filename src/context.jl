@@ -1,4 +1,4 @@
-# Low Level OpenCL context
+# OpenCL.Context 
 
 type Context 
     id :: CL_context

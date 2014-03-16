@@ -1,4 +1,4 @@
-# low level OpenCL queue
+# OpenCL.CmdQueue 
 
 type CmdQueue 
     id::CL_command_queue
