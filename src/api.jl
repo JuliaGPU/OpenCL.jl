@@ -52,18 +52,14 @@ end
 typealias CL_callback  Ptr{Void}
 typealias CL_user_data Any 
 
-################
-# platform apis
-################
+#=== platform apis ===#
 @ocl_func_1_0(clGetPlatformIDs, CL_int,
               (CL_uint, Ptr{CL_platform_id}, Ptr{CL_uint}))
 
 @ocl_func_1_0(clGetPlatformInfo,
               CL_int, (CL_platform_id, CL_platform_info, Csize_t, Ptr{Void}, Ptr{Csize_t}))
 
-##############
-# device apis
-##############
+#=== device apis ===#
 @ocl_func_1_0(clGetDeviceIDs, CL_int,
               (CL_platform_id, CL_device_type, CL_uint, Ptr{CL_device_id}, Ptr{CL_uint}))
 
@@ -77,10 +73,7 @@ typealias CL_user_data Any
 
 @ocl_func_1_2(clReleaseDevice, CL_int, (CL_device_id,))
 
-###############
-# context apis
-###############
-
+#=== context apis ===#
 #TODO: pass user data as Any type 
 @ocl_func_1_0(clCreateContext, CL_context,
               (CL_context_properties, CL_uint, Ptr{CL_device_id}, CL_callback, CL_user_data, Ptr{CL_int}))
@@ -95,9 +88,7 @@ typealias CL_user_data Any
 @ocl_func_1_0(clGetContextInfo, CL_int,
               (CL_context, CL_context_info, Csize_t, Ptr{Void}, Ptr{Csize_t}))
 
-#####################
-# command queue apis
-#####################
+#=== command queue apis ===#
 @ocl_func_1_0(clCreateCommandQueue, CL_command_queue,
               (CL_context, CL_device_id, CL_command_queue_properties, Ptr{CL_int}))
 
@@ -108,9 +99,7 @@ typealias CL_user_data Any
 @ocl_func_1_0(clGetCommandQueueInfo, CL_int,
               (CL_command_queue, CL_command_queue_info, Csize_t, Ptr{Void}, Ptr{Csize_t}))
 
-#####################
-# memory object apis
-#####################
+#=== memory object apis ===#
 @ocl_func_1_0(clCreateBuffer, CL_mem, 
               (CL_context, CL_mem_flags, Csize_t, Ptr{Void}, Ptr{CL_int}))
 
@@ -136,9 +125,7 @@ typealias CL_user_data Any
 @ocl_func_1_1(clSetMemObjectDestructorCallback, CL_int,
               (CL_mem, CL_callback, Ptr{Void}))
 
-###############
-# sampler apis
-###############
+#=== sampler apis ===#
 @ocl_func_1_0(clCreateSampler, CL_sampler,
               (CL_context, CL_bool, CL_addressing_mode, CL_filter_mode, Ptr{CL_int}))
 
@@ -149,9 +136,7 @@ typealias CL_user_data Any
 @ocl_func_1_0(clGetSamplerInfo, CL_int,
               (CL_sampler, CL_sampler_info, Csize_t, Ptr{Void}, Ptr{Csize_t}))
 
-######################
-# program object apis 
-######################
+#=== program object apis ===#
 @ocl_func_1_0(clCreateProgramWithSource, CL_program,
               (CL_context, CL_uint, Ptr{Ptr{Cchar}}, Ptr{Csize_t}, Ptr{CL_int}))
 
@@ -185,9 +170,7 @@ typealias CL_user_data Any
 @ocl_func_1_0(clGetProgramBuildInfo, CL_int,
               (CL_program, CL_device_id, CL_program_build_info, Csize_t, Ptr{Void}, Ptr{Csize_t}))
 
-#####################
-# kernel object apis
-#####################
+#=== kernel object apis ===#
 @ocl_func_1_0(clCreateKernel, CL_kernel,
               (CL_program, Ptr{Cchar}, Ptr{CL_int}))
 
@@ -210,9 +193,7 @@ typealias CL_user_data Any
 @ocl_func_1_0(clGetKernelWorkGroupInfo, CL_int,
               (CL_kernel, CL_device_id, CL_kernel_work_group_info, Csize_t, Ptr{Void}, Ptr{Csize_t}))
 
-####################
-# event object apis
-####################
+#=== event object apis ===#
 @ocl_func_1_0(clWaitForEvents, CL_int,
               (CL_uint, Ptr{CL_event_info}))
 
@@ -231,23 +212,16 @@ typealias CL_user_data Any
 @ocl_func_1_1(clSetEventCallback, CL_int,
               (CL_event, CL_int, CL_callback, CL_user_data))
 
-#################
-# profiling apis
-#################
+#=== profiling apis ===#
 @ocl_func_1_0(clGetEventProfilingInfo, CL_int, 
               (CL_event, CL_profiling_info, Csize_t, Ptr{Void}, Ptr{Csize_t}))
 
-########################
-# flush and finish apis 
-########################
+#=== flush and finish apis ===#
 @ocl_func_1_0(clFlush, CL_int, (CL_command_queue,))
 
 @ocl_func_1_0(clFinish, CL_int, (CL_command_queue,))
 
-#########################
-# enqueued commands apis
-#########################
-
+#=== enqueued commands apis ===#
 @ocl_func_1_0(clEnqueueReadBuffer, CL_int, 
               (CL_command_queue, CL_mem, CL_bool, Csize_t, Csize_t, Ptr{Void},
                CL_uint, Ptr{CL_event}, Ptr{CL_event}))
@@ -342,15 +316,11 @@ typealias CL_user_data Any
 @ocl_func_1_2(clEnqueueBarrierWithWaitList, CL_int, 
               (CL_command_queue, CL_uint, Ptr{CL_event}, Ptr{CL_event}))
 
-############################
-# extension function access
-############################
+#=== extension function access ===#
 @ocl_func_1_2(clGetExtensionFunctionAddressForPlatform, Ptr{Void},
               (CL_platform_id, Ptr{Cchar}))
 
-############################
-# deprecated functions 
-############################
+#=== deprecated functions ===#
 @ocl_deprecate(clCreateImage2D, CL_mem,
                (CL_context, CL_mem_flags, Ptr{CL_image_format}, Csize_t, Csize_t, Csize_t,
                 Ptr{Void}, Ptr{CL_int}))
@@ -371,11 +341,5 @@ typealias CL_user_data Any
 @ocl_deprecate(clUnloadCompiler, CL_int, ())
 
 @ocl_deprecate(clGetExtensionFunctionAddress, Ptr{Void}, (Ptr{Cchar},))
-
-
-#===============
-# Helper Macros
-#===============
-
 
 end
