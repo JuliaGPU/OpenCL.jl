@@ -184,7 +184,7 @@ let num_devices(p::Program) = begin
         ret = Array(CL_context, 1)
         @check api.clGetProgramInfo(p.id, CL_PROGRAM_CONTEXT,
                                     sizeof(CL_context), ret, C_NULL)
-        return Context(ret[1])
+        return Context(ret[1], retain = true)
     end
 
     reference_count(p::Program) = begin

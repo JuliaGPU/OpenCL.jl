@@ -73,8 +73,8 @@ function Context(devs::Vector{Device};
                                  ctx_callback_ptr, ctx_user_data, err_code)
     if err_code[1] != CL_SUCCESS
         throw(CLError(err_code[1]))
-    end 
-    return Context(ctx_id, retain=true)
+    end
+    return Context(ctx_id)
 end
 
 
@@ -99,7 +99,7 @@ function Context(dev_type::CL_device_type;
     if err_code[1] != CL_SUCCESS
         throw(CLError(err_code[1]))
     end
-    return Context(ctx_id, retain=true)
+    return Context(ctx_id)
 end
 
 function Context(dev_type::Symbol;
