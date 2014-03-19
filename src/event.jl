@@ -10,7 +10,7 @@ type Event <: CLEvent
             @check api.clRetainEvent(evt_id)
         end
         evt = new(evt_id)
-        finalizer(evt, evt -> release!(evt))
+        finalizer(evt, release!)
         return evt
     end
 end
@@ -63,7 +63,7 @@ Base.getindex(evt::CLEvent, evt_info::Symbol) = info(evt, evt_info)
                 @check api.clRetainEvent(evt_id)
             end
             evt = new(evt_id)
-            finalizer(evt, x -> release!(x))
+            finalizer(evt, release!)
             return evt
         end
     end
@@ -75,7 +75,7 @@ Base.getindex(evt::CLEvent, evt_info::Symbol) = info(evt, evt_info)
             throw(CLError(status[1]))
         end
         try
-            return UserEvent(evt_id, retain=false)
+            return UserEvent(evt_id)
         catch err
             @check api.clReleaseEvent(evt_id)
             throw(err)
