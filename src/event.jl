@@ -68,14 +68,14 @@ Base.getindex(evt::CLEvent, evt_info::Symbol) = info(evt, evt_info)
         end
     end
     
-    function UserEvent(ctx::Context)
+    function UserEvent(ctx::Context; retain=false)
         status = Array(CL_int, 1)
         evt_id = api.clCreateUserEvent(ctx.id, status)
         if status[1] != CL_SUCCESS
             throw(CLError(status[1]))
         end
         try
-            return UserEvent(evt_id, false)
+            return UserEvent(evt_id, retain)
         catch err
             @check api.clReleaseEvent(evt_id)
             throw(err)
