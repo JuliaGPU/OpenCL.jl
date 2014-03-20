@@ -64,21 +64,21 @@ const _img_chan_clconsts = (Type => CL_uint)[Red => CL_R,
 const _img_clconts_chan = _swap_key_val(_img_chan_clconsts)
 
 const _img_type_clconsts = (Type => CL_uint)[NormInt8   => CL_SNORM_INT8, 
-                                           NormInt16  => CL_SNORM_INT16,
-                                           NormUint8  => CL_UNORM_INT8, 
-                                           NormUint16 => CL_UNORM_INT16,
-                                           NormUint24 => CL_UNORM_INT24,
-                                           NormUshort555 => CL_UNORM_SHORT_555, 
-                                           NormUshort565 => CL_UNORM_SHORT_565,
-                                           NormInt101010 => CL_UNORM_INT_101010,
-                                           Int8    => CL_SIGNED_INT8, 
-                                           Int16   => CL_SIGNED_INT16, 
-                                           Int32   => CL_SIGNED_INT32,
-                                           Uint8   => CL_UNSIGNED_INT8, 
-                                           Uint16  => CL_UNSIGNED_INT16, 
-                                           Uint32  => CL_UNSIGNED_INT32,
-                                           Float32 => CL_FLOAT, 
-                                           Float16 => CL_HALF_FLOAT] 
+                                             NormInt16  => CL_SNORM_INT16,
+                                             NormUint8  => CL_UNORM_INT8, 
+                                             NormUint16 => CL_UNORM_INT16,
+                                             NormUint24 => CL_UNORM_INT24,
+                                             NormUshort555 => CL_UNORM_SHORT_555, 
+                                             NormUshort565 => CL_UNORM_SHORT_565,
+                                             NormInt101010 => CL_UNORM_INT_101010,
+                                             Int8    => CL_SIGNED_INT8, 
+                                             Int16   => CL_SIGNED_INT16, 
+                                             Int32   => CL_SIGNED_INT32,
+                                             Uint8   => CL_UNSIGNED_INT8, 
+                                             Uint16  => CL_UNSIGNED_INT16, 
+                                             Uint32  => CL_UNSIGNED_INT32,
+                                             Float32 => CL_FLOAT, 
+                                             Float16 => CL_HALF_FLOAT] 
 
 const _img_clconts_type = _swap_key_val(_img_type_clconsts)
 
@@ -122,40 +122,67 @@ type Image{C<:CLImageChannel, T<:CLImageType} <: CLMemObject
         if hostbuf == nothing && pitches != nothing
 	    throw(ArgumentError("pitches may only be given if hostbuf is given"))
         end
-        dims = length(shape)
+	local dims::Int
+	if nchannels(C) == 1
+	    dims = length(shape)
+        else
+	    dims = length(shape) - nchannels(C)
+	end
         fmt = [CL_image_format(C, T)]
 	buff_ptr = hostbuf != nothing ? pointer(hostbuf) : C_NULL
         err_code = Array(CL_int, 1)
         local mem_id::CL_mem
         if dims == 2
-            width, height = shape
+	    if nchannels(C) == 1
+	        width, height = shape
+	    else
+		width, height = shape[1:end-1]
+	    end
             @assert width >= 1 && height >= 1
-	    pitch = convert(Csize_t, 0)
+	    pitchx = convert(Csize_t, 0)
 	    if pitches != nothing
 	        if length(pitches) != 1
 		    throw(ArgumentError("invalid length of pitch tuple"))
 	        end
-		@assert pitches[1] > 0
-		pitch = convert(Csize_t, pitches[1])
+		pitchx = pitches[1] > 0 ? convert(Csize_t, pitches[1]) : error("pitches[1] must be > 0")
 	    end
-	    if hostbuf != nothing && pitch > 0
+	    if hostbuf != nothing && pitchx > 0
                 itemsize = nchannels(C) * sizeof(T)
-	        if max(pitch, width * itemsize) * height > length(hostbuf)
+	        if max(pitchx, width * itemsize) * height > length(hostbuf)
 	            throw(ArgumentError("OpenCL.Image buffer is too small"))
 	        end
             end
             mem_id = api.clCreateImage2D(ctx.id, flags, fmt,
-                                         width, height, pitch,
+                                         width, height, pitchx,
                                          buff_ptr, err_code)
         elseif dims == 3
-            width, height, depth = shape
+            if nchannels(C) == 1
+                width, height, depth = shape
+	    else
+		width, height, depth = shape[1:end-1]
+	    end
             @assert width >= 1 && height >= 1 && depth >= 1
+	    pitchx = convert(Csize_t, 0)
+	    pitchy = convert(Csize_t, 0)
+	    if pitches != nothing
+	        if length(pitches) != 2
+	            throw(ArgumentError("invalid length of pitch tuple"))
+	        end
+		pitchx = pitches[1] > 0 ? pitches[1] : error("pitches[1] must be > 0")
+		pitchy = pitches[2] > 0 ? pitches[2] : error("pitches[2] must be > 0")
+	    end
+	    if hostbuf != nothing && (pitchx > 0 || pitchy > 0)
+                itemsize = nchannels(C) * sizeof(T)
+		if max(max(pitchx, width * itemsize) * height, pitchy) * depth > length(hostbuf)
+	            throw(ArgumentError("OpenCL.Image buffer is too small"))
+	        end
+	    end
             mem_id = api.clCreateImage3D(ctx.id, flags, fmt,
                                          width, height, depth,
-                                         0, 0,
-                                         C_NULL, err_code)
+                                         pitchx, pitchy,
+                                         buff_ptr, err_code)
         else
-            throw(ArgumentError("invalid dimension $dims"))
+            throw(ArgumentError("OpenCL.Image invalid dimension $dims"))
         end
         if err_code[1] != CL_SUCCESS
             throw(CLError(err_code[1]))
@@ -170,24 +197,7 @@ type Image{C<:CLImageChannel, T<:CLImageType} <: CLMemObject
 
     function Image(ctx::Context, mem_flag::Symbol; kw...)
 	flags = _symbols_to_cl_mem_flags((mem_flag, :null))
-        Image{C, T}(ctx, flags; kw...)
-    end
-
-    function Image(ctx::Context, mem_flag::Symbol, arr::StridedArray)
-        if !(mem_flag in (:rw, :r, :w))
-            throw(ArgumentError("only one flag in {:rw, :r, :w} can be defined"))
-        end
-        if sizeof(arr) < sizeof(C) 
-            throw(ArgumentError("sizeof host array is less than image size"))
-        end
-        nc = nchannels(C)
-        if nc > 1 && size(arr)[end] != nc
-            throw(ArgumentError("first dimension must be equal to the number of channels"))
-        end
-        arr_ty   = eltype(arr)
-        arr_ndim = ndims(arr)
-        arr_size = size(arr)[2:end]
-        img_nbytes = nchannels(C) * sizeof(T)
+        return Image{C, T}(ctx, flags; kw...)
     end
 end
 
