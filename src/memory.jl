@@ -114,9 +114,5 @@ let mem_type(m::CLMemObject) = begin
     end
 end
 
-
-#TODO: function hostbuf()
-#TODO: host_array()
-
 #TODO: enqueue_migrate_mem_objects(queue, mem_objects, flags=0, wait_for=None)
 #TODO: enqueue_migrate_mem_objects_ext(queue, mem_objects, flags=0, wait_for=None)
