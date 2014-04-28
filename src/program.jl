@@ -88,8 +88,8 @@ function build!(p::Program; options="", raise=true)
     return p
 end
 
-#TODO: split out devices into toplevel function...
-let num_devices(p::Program) = begin
+let 
+    num_devices(p::Program) = begin
         ret = Array(CL_uint, 1)
         @check api.clGetProgramInfo(p.id, CL_PROGRAM_NUM_DEVICES, sizeof(ret), ret, C_NULL)
         return ret[1]
