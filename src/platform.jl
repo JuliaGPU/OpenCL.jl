@@ -13,7 +13,7 @@ function Base.show(io::IO, p::Platform)
     strip_extra_whitespace = r"\s+"
     platform_name = replace(p[:name], strip_extra_whitespace, " ")
     ptr_address = "0x$(hex(unsigned(Base.pointer(p)), WORD_SIZE>>2))"
-    print(io, "<OpenCL.Platform '$platform_name @$ptr_address>")
+    print(io, "OpenCL.Platform('$platform_name' @$ptr_address)")
 end
 
 function platforms()
