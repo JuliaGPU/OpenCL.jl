@@ -9,7 +9,7 @@ function opencl_version(p::Platform)
     ver = p[:version]
     mg = match(r"^OpenCL ([0-9]+)\.([0-9]+) .*$", ver) 
     if mg == nothing
-        error("Platform $(p[:name]) return non conformat platform string: $(ver)")
+        error("Platform $(p[:name]) returns non conformat platform string: $(ver)")
     end
     return VersionNumber(int(mg.captures[1]), int(mg.captures[2]))
 end 
