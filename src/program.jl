@@ -117,16 +117,16 @@ let
 
     build_logs(p::Program) = begin
         logs = (Device => ASCIIString)[]
+        log_len = Csize_t[0]
+        log_bytestring = Array(Cchar, log_len[1])
         for d in devices(p)
-            log_len = Csize_t[0]
-            @check cl.clGetProgramBuildInfo(p.id, d.id, CL_PROGRAM_BUILD_LOG, 
+            @check api.clGetProgramBuildInfo(p.id, d.id, CL_PROGRAM_BUILD_LOG, 
                                             0, C_NULL, log_len)
             if log_len[1] == 0
                 logs[d] = ""
                 continue
             end 
-            log_bytestring = Array(Cchar, log_len[1])
-            @check cl.clGetProgramBuildInfo(p.id, d.id, CL_PROGRAM_BUILD_LOG,
+            @check api.clGetProgramBuildInfo(p.id, d.id, CL_PROGRAM_BUILD_LOG,
                                             log_len[1], log_bytestring, C_NULL)
             logs[d] = bytestring(pointer(log_bytestring))
         end
