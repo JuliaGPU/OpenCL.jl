@@ -48,7 +48,8 @@ facts("OpenCL.Program") do
             #@fact typeof(prg[:binaries]) => Dict{cl.Device, Array{Uint8}}
 
             @fact prg[:reference_count] > 0 => true
-            @fact prg[:build_log] => [device => ""]
+            @fact strip(prg[:build_log][device]) => ""
+
          end
     end
 
@@ -65,7 +66,7 @@ facts("OpenCL.Program") do
             @fact prg[:build_status][device] => cl.CL_BUILD_SUCCESS 
             # test build by methods chaining
             @fact prg[:build_status][device] => cl.CL_BUILD_SUCCESS 
-            @fact prg[:build_log] => [device => "\n"]
+            @fact strip(prg[:build_log][device])=> "" 
         end
     end
 
