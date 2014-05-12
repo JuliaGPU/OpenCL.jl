@@ -3,7 +3,7 @@
 OpenCL 1.2 bindings for Julia
 
 [![Build Status](https://travis-ci.org/JuliaGPU/OpenCL.jl.svg?branch=master)](https://travis-ci.org/JuliaGPU/OpenCL.jl)
-[![Coverage Status](https://img.shields.io/coveralls/JuliaGPU/OpenCL.jl.svg)](https://coveralls.io/r/JuliaGPU/OpenCL.jl)
+[![Coverage Status](https://img.shields.io/coveralls/JuliaGPU/OpenCL.jl.png)](https://coveralls.io/r/JuliaGPU/OpenCL.jl?branch=master)
 
 Julia interface for the OpenCL parallel computation API
 
