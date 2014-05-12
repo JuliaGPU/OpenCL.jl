@@ -43,8 +43,9 @@ end
 
 macro ocl_object_equality(cl_object_type)
     @eval begin 
-        Base.hash(x::$cl_object_type) = unsigned(pointer(x))
+        Base.hash(x::$cl_object_type) = hash(pointer(x))
         Base.isequal(x1::$cl_object_type, x2::$cl_object_type) = Base.hash(x1) == Base.hash(x2)
+        Base.(:(==))(x1::$cl_object_type, x2::$cl_object_type) = Base.hash(x1) == Base.hash(x2)
     end
 end
 
