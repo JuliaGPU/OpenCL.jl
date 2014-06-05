@@ -62,6 +62,19 @@ typealias CL_event_info                 CL_uint
 typealias CL_command_type               CL_uint
 typealias CL_profiling_info             CL_uint
 
+# Scalar OpenGL types ! We should get these from OpenGL.jl
+
+typealias GL_uint                       Uint32
+typealias GL_int                        Int32
+
+typealias GL_enum                       GL_uint
+
+# interop types
+
+typealias CL_GL_object_type             CL_uint
+typealias CL_GL_texture_info            CL_uint
+typealias CL_GL_platform_info           CL_uint
+
 #=== Image Types ===#
 
 immutable CL_image_format
