@@ -1,4 +1,4 @@
-# Low Level OpenCL context
+# OpenCL.Context 
 
 type Context 
     id :: CL_context
@@ -33,7 +33,7 @@ end
 function ctx_notify_err(err_info::Ptr{Cchar}, priv_info::Ptr{Void},
                         cb::Csize_t, julia_func::Ptr{Void})
     err = bytestring(err_info)
-    private = bytestring(convert(Ptr{Cchar}, err_info))
+    private  = bytestring(convert(Ptr{Cchar}, err_info))
     callback = unsafe_pointer_to_objref(julia_func)::Function
     callback(err, private)::Ptr{Void}
 end
@@ -73,8 +73,8 @@ function Context(devs::Vector{Device};
                                  ctx_callback_ptr, ctx_user_data, err_code)
     if err_code[1] != CL_SUCCESS
         throw(CLError(err_code[1]))
-    end 
-    return Context(ctx_id, retain=true)
+    end
+    return Context(ctx_id)
 end
 
 
@@ -99,7 +99,7 @@ function Context(dev_type::CL_device_type;
     if err_code[1] != CL_SUCCESS
         throw(CLError(err_code[1]))
     end
-    return Context(ctx_id, retain=true)
+    return Context(ctx_id)
 end
 
 function Context(dev_type::Symbol;

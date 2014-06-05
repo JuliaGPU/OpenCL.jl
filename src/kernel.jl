@@ -1,3 +1,5 @@
+# OpenCL.Kernel
+
 type Kernel
     id :: CL_kernel
 
@@ -39,7 +41,7 @@ function Kernel(p::Program, kernel_name::String)
     if err_code[1] != CL_SUCCESS
         throw(CLError(err_code[1]))
     end
-    return Kernel(kernel_id, true)
+    return Kernel(kernel_id)
 end
 
 immutable LocalMem{T}

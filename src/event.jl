@@ -1,4 +1,5 @@
-# --- low level OpenCL Event ---
+# OpenCL.Event
+
 abstract CLEvent
 
 type Event <: CLEvent
@@ -9,7 +10,7 @@ type Event <: CLEvent
             @check api.clRetainEvent(evt_id)
         end
         evt = new(evt_id)
-        finalizer(evt, evt -> release!(evt))
+        finalizer(evt, release!)
         return evt
     end
 end
@@ -47,7 +48,7 @@ Base.pointer(evt::CLEvent) = evt.id
 
 function Base.show(io::IO, evt::Event)
     ptr_address = "0x$(hex(unsigned(Base.pointer(evt)), WORD_SIZE>>2))"
-    print(io, "<OpenCL.Event @$ptr_address>")
+    print(io, "OpenCL.Event(@$ptr_address)")
 end
 
 Base.getindex(evt::CLEvent, evt_info::Symbol) = info(evt, evt_info)
@@ -57,24 +58,24 @@ Base.getindex(evt::CLEvent, evt_info::Symbol) = info(evt, evt_info)
     type UserEvent <: CLEvent
         id :: CL_event 
 
-        function UserEvent(evt_id::CL_event; retain=true)
+        function UserEvent(evt_id::CL_event, retain=false)
             if retain
                 @check api.clRetainEvent(evt_id)
             end
             evt = new(evt_id)
-            finalizer(evt, x -> release!(x))
+            finalizer(evt, release!)
             return evt
         end
     end
     
-    function UserEvent(ctx::Context)
+    function UserEvent(ctx::Context; retain=false)
         status = Array(CL_int, 1)
         evt_id = api.clCreateUserEvent(ctx.id, status)
         if status[1] != CL_SUCCESS
             throw(CLError(status[1]))
         end
         try
-            return UserEvent(evt_id, retain=false)
+            return UserEvent(evt_id, retain)
         catch err
             @check api.clReleaseEvent(evt_id)
             throw(err)
@@ -83,7 +84,7 @@ Base.getindex(evt::CLEvent, evt_info::Symbol) = info(evt, evt_info)
 
     function Base.show(io::IO, evt::UserEvent)
         ptr_address = "0x$(hex(unsigned(Base.pointer(evt)), WORD_SIZE>>2))"
-        print(io, "<OpenCL.UserEvent @$ptr_address>")
+        print(io, "OpenCL.UserEvent(@$ptr_address)")
     end
 
     function complete(evt::UserEvent)
@@ -107,7 +108,7 @@ end
 
 function wait(evt::CLEvent)
     evt_id = [evt.id]
-    @check api.clWaitForEvents(cl_uint(1), evt_id)
+    @check api.clWaitForEvents(cl_uint(1), pointer(evt_id))
     return evt
 end
 
@@ -115,7 +116,7 @@ function wait(evts::Vector{CLEvent})
     evt_ids = [evt.id for evt in evts]
     if !isempty(evt_ids)
         nevents = cl_uint(length(evt_ids))
-        @check api.clWaitForEvents(nevents, evt_ids)
+        @check api.clWaitForEvents(nevents, pointer(evt_ids))
     end
     return evts
 end
@@ -194,7 +195,7 @@ macro profile_info(func, profile_info)
                         #TODO: evt must have status complete before it can be profiled
                         throw(CLError(err_code))
                     else
-                        #TODO: queue must be create with :profile argument
+                        #TODO: queue must be created with :profile argument
                         throw(CLError(err_code))
                     end
                 end

@@ -1,3 +1,5 @@
+# OpenCL Memory Object
+
 abstract CLMemObject
 
 #This should be implemented by all subtypes

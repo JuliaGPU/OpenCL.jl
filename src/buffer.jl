@@ -1,4 +1,5 @@
-# --- OpenCL Buffer ---
+# OpenCL.Buffer
+
 type Buffer{T} <: CLMemObject
     valid::Bool
     id::CL_mem
@@ -34,7 +35,7 @@ Base.sizeof{T}(b::Buffer{T}) = int(b.len * sizeof(T))
 
 Base.show{T}(io::IO, b::Buffer{T}) = begin 
     ptr_address = "0x$(hex(unsigned(Base.pointer(b)), WORD_SIZE>>2))"
-    print(io, "Buffer{$T}($ptr_address)")
+    print(io, "Buffer{$T}(@$ptr_address)")
 end 
 
 # high level  Buffer constructors with symbol flags 
@@ -175,7 +176,7 @@ function enqueue_unmap_mem{T}(q::CmdQueue,
                               a::Array{T};
                               wait_for=nothing)
     if b.hostbuf != pointer(a)
-        throw(ArgumentError("Array @$(pointer(a)) is not Mapped to buffer $b"))
+        throw(ArgumentError("array @$(pointer(a)) is not mapped to buffer $b"))
     end
     if b.mapped == false || b.hostbuf == C_NULL
         throw(CLMemoryError("$b has already been unmapped"))
@@ -258,13 +259,13 @@ function enqueue_map_mem{T}(q::CmdQueue,
     local mapped_arr::Array{T, N}
     try
         # julia owns pointer to mapped memory
-        mapped_arr = pointer_to_array(mapped, dims, true)
+        mapped_arr = pointer_to_array(mapped, dims, false)
         # when array is gc'd, unmap buffer
         b.mapped  = true
         b.hostbuf = mapped
         finalizer(mapped_arr, x -> begin
-            if b.mapped
-                enqueue_unmap(q, b, x)
+            if b.mapped && b.hostbuf != C_NULL
+                unmap!(q, b, x)
             end
         end)
     catch err

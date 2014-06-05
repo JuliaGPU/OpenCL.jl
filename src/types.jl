@@ -1,4 +1,4 @@
-#--- TypeAliases ---
+#=== TypeAliases ===# 
 
 # Opaque types
 typealias CL_platform_id        Ptr{Void}
@@ -62,14 +62,14 @@ typealias CL_event_info                 CL_uint
 typealias CL_command_type               CL_uint
 typealias CL_profiling_info             CL_uint
 
-#--- Image Types ---
+#=== Image Types ===#
 
 immutable CL_image_format
     image_channel_order::CL_channel_order
     image_channel_data_type::CL_channel_type 
 end
 
-type CL_image_desc
+immutable CL_image_desc
     image_type::CL_mem_object_type
     image_width::Csize_t
     image_depth::Csize_t
@@ -87,9 +87,9 @@ immutable CL_buffer_region
 end
 
 
-#--- Conversion Functions ---
+#=== Conversion Functions ===#
 
-cL_char(x)     = int8(x)
+cl_char(x)     = int8(x)
 cl_uchar(x)    = uint8(x)
 cl_short(x)    = int16(x)
 cl_ushort(x)   = uint16(x)

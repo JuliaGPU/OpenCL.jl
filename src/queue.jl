@@ -1,4 +1,4 @@
-# low level OpenCL queue
+# OpenCL.CmdQueue 
 
 type CmdQueue 
     id::CL_command_queue
@@ -102,7 +102,8 @@ function finish(q::CmdQueue)
     return q
 end
 
-let context(q::CmdQueue) = begin
+let 
+    context(q::CmdQueue) = begin
         ctx_id = Array(CL_context, 1)
         @check api.clGetCommandQueueInfo(q.id, CL_QUEUE_CONTEXT,
                                          sizeof(CL_context), ctx_id, C_NULL)
