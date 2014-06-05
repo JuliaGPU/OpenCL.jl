@@ -152,7 +152,7 @@ type Image{C<:CLImageChannel, T<:CLImageType} <: CLMemObject
 	            throw(ArgumentError("OpenCL.Image buffer is too small"))
 	        end
             end
-            mem_id = api.clCreateImage2D(ctx.id, flags, fmt,
+            mem_id = api.clCreateImage2D(ctx.id, flags, pointer(fmt),
                                          width, height, pitchx,
                                          buff_ptr, err_code)
         elseif dims == 3
@@ -177,7 +177,7 @@ type Image{C<:CLImageChannel, T<:CLImageType} <: CLMemObject
 	            throw(ArgumentError("OpenCL.Image buffer is too small"))
 	        end
 	    end
-            mem_id = api.clCreateImage3D(ctx.id, flags, fmt,
+            mem_id = api.clCreateImage3D(ctx.id, flags, pointer(fmt),
                                          width, height, depth,
                                          pitchx, pitchy,
                                          buff_ptr, err_code)
