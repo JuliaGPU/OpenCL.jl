@@ -47,6 +47,22 @@ function raise_context_error(error_info, private_info)
 end
 
 
+function Context(ctx_properties::Vector{CL_context_properties}, devs::Vector{Device})
+    n_devices = length(devs)
+    device_ids = Array(CL_device_id, n_devices)
+    for (i, d) in enumerate(devs)
+        device_ids[i] = d.id 
+    end
+    err_code = Array(CL_int, 1)
+    ctx_user_data = raise_context_error
+
+    ctx_id = api.clCreateContext(ctx_properties, n_devices, device_ids,
+                                 ctx_callback_ptr, ctx_user_data, err_code)
+    if err_code[1] != CL_SUCCESS
+        throw(CLError(err_code[1]))
+    end 
+    return Context(ctx_id, retain=true)
+end
 function Context(devs::Vector{Device};
                  properties=nothing,
                  callback::Union(Nothing, Function)=nothing)
@@ -69,6 +85,7 @@ function Context(devs::Vector{Device};
         device_ids[i] = d.id 
     end
     err_code = Array(CL_int, 1)
+
     ctx_id = api.clCreateContext(ctx_properties, n_devices, device_ids,
                                  ctx_callback_ptr, ctx_user_data, err_code)
     if err_code[1] != CL_SUCCESS

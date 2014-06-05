@@ -83,7 +83,7 @@ typealias CL_user_data Any
 
 #TODO: pass user data as Any type 
 @ocl_func_1_0(clCreateContext, CL_context,
-              (CL_context_properties, CL_uint, Ptr{CL_device_id}, CL_callback, CL_user_data, Ptr{CL_int}))
+              (Ptr{CL_context_properties}, CL_uint, Ptr{CL_device_id}, CL_callback, CL_user_data, Ptr{CL_int}))
 
 @ocl_func_1_0(clCreateContextFromType, CL_context,
               (Ptr{CL_context_properties}, CL_device_type, CL_callback, CL_user_data, Ptr{CL_int}))
@@ -113,6 +113,9 @@ typealias CL_user_data Any
 #####################
 @ocl_func_1_0(clCreateBuffer, CL_mem, 
               (CL_context, CL_mem_flags, Csize_t, Ptr{Void}, Ptr{CL_int}))
+
+@ocl_func_1_0(clCreateFromGLTexture2D, CL_mem, 
+              (CL_context, CL_mem_flags, Cuint, Cint, Cuint, Ptr{CL_int}))
 
 @ocl_func_1_1(clCreateSubBuffer, CL_mem,
               (CL_mem, CL_mem_flags, CL_buffer_create_type, Ptr{Void}, Ptr{CL_int}))
@@ -373,9 +376,6 @@ typealias CL_user_data Any
 @ocl_deprecate(clGetExtensionFunctionAddress, Ptr{Void}, (Ptr{Cchar},))
 
 
-#===============
-# Helper Macros
-#===============
 
 
 end
