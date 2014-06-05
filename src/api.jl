@@ -316,7 +316,38 @@ typealias CL_user_data Any
 @ocl_func_1_2(clEnqueueBarrierWithWaitList, CL_int, 
               (CL_command_queue, CL_uint, Ptr{CL_event}, Ptr{CL_event}))
 
-#=== extension function access ===#
+############################
+# opengl interop functions
+############################
+
+@ocl_func_1_0(clEnqueueAcquireGLObjects, Cl_int,
+              (CL_command_queue, CL_uint, Ptr{CL_mem}, CL_uint, Ptr{CL_event}, Ptr{CL_event}))
+
+@ocl_func_1_0(clEnqueueReleaseGLObjects, CL_int,
+              (CL_command_queue, CL_uint, Ptr{CL_mem}, CL_uint, Ptr{CL_event}, Ptr{CL_event}))
+
+@ocl_func_1_0(clCreateFromGLBuffer, CL_mem,
+              (CL_context, CL_mem_flags, GL_uint, Ptr{Cl_int}))
+
+@ocl_func_1_0(clCreateFromGLRenderbuffer, CL_mem,
+              (CL_context, CL_mem_flags, GL_uint, Ptr{CL_int}))
+
+@ocl_func_1_0(clCreateFromGLTexture2D, CL_mem, 
+              (CL_context, CL_mem_flags, GL_enum, GL_int, GL_uint, Ptr{CL_int}))
+
+@ocl_func_1_0(clCreateFromGLTexture3D, CL_mem, 
+              (CL_context, CL_mem_flags, GL_enum, GL_int, GL_uint, Ptr{CL_int}))
+
+@ocl_func_1_0(clGetGLObjectInfo, CL_int,
+              (CL_mem, Ptr{CL_GL_object_type}, Ptr{GL_uint}))
+
+@ocl_func_1_0(clGetGLTextureInfo, CL_int, 
+              (CL_mem, CL_GL_texture_info, CSize_t, Ptr{Void}, Ptr{CSize_t}))
+
+############################
+# extension function access
+############################
+
 @ocl_func_1_2(clGetExtensionFunctionAddressForPlatform, Ptr{Void},
               (CL_platform_id, Ptr{Cchar}))
 
