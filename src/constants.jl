@@ -451,6 +451,7 @@ const CL_PROFILING_COMMAND_END                        = cl_uint(0x1283)
 # OpenCL OpenGL Constants
 
 # cl_gl_context_info
+const CL_CURRENT_DEVICE_FOR_GL_CONTEXT_KHR            = cl_uint(0x2006)
 const CL_DEVICES_FOR_GL_CONTEXT_KHR                   = cl_uint(0x2007)
     
 # Additional cl_context_properties

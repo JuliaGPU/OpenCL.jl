@@ -59,3 +59,11 @@
 
 #=== extension function access ===#
 @ocl_func(clGetExtensionFunctionAddress, Ptr{Void}, (Ptr{Cchar},))
+
+#=== opengl interop functions ===#
+
+@ocl_func(clGetGLContextInfoKHR, CL_int,
+              (Ptr{CL_context_properties}, CL_gl_context_info, Csize_t, Ptr{Void}, Ptr{Csize_t}))
+
+@ocl_func(clCreateEventFromGLsyncKHR, CL_event,
+              (CL_context, GL_sync, Ptr{CL_int}))

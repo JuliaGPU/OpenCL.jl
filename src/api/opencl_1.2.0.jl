@@ -51,6 +51,11 @@
 @ocl_func(clGetExtensionFunctionAddressForPlatform, Ptr{Void},
               (CL_platform_id, Ptr{Cchar}))
 
+#=== opengl interop functions ===#
+
+@ocl_func(clCreateFromGLTexture, CL_mem,
+              (CL_context, CL_mem_flags, GL_enum, GL_int, GL_uint, Ptr{CL_int}))
+
 #=== deprecation ===#
 
 # @deprecate clGetExtensionFunctionAddress clGetExtensionFunctionAddressForPlatform
@@ -62,3 +67,6 @@
 # @deprecate clEnqueueBarrier clEnqueueMarkerWithWaitList
 # @deprecate clEnqueueWaitForEvents clEnqueueMarkerWithWaitList
 # @deprecate clUnloadCompiler Nothing()
+
+# @deprecate clCreateFromGLTexture2D clCreateFromGLTexture
+# @deprecate clCreateFromGLTexture3D clCreateFromGLTexture
