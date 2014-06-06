@@ -35,10 +35,10 @@ typealias CL_device_mem_cache_type      CL_uint
 typealias CL_device_local_mem_type      CL_uint
 typealias CL_device_exec_capabilities   CL_bitfield
 typealias CL_command_queue_properties   CL_bitfield
-typealias CL_device_partition_property  Csize_t #intptr_t
+typealias CL_device_partition_property  Cssize_t #intptr_t
 typealias CL_device_affinity_domain     CL_bitfield
 
-typealias CL_context_properties         Csize_t #intptr_t
+typealias CL_context_properties         Cssize_t #intptr_t
 typealias CL_context_info               CL_uint
 typealias CL_command_queue_info         CL_uint
 typealias CL_channel_order              CL_uint

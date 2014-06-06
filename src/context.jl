@@ -115,7 +115,6 @@ function properties(ctx_id::CL_context)
     props = Array(CL_context_properties, size[1])
     @check api.clGetContextInfo(ctx_id, CL_CONTEXT_PROPERTIES,
                                 size[1] * sizeof(CL_context_properties), props, C_NULL)
-    
     #properties array of [key,value...]
     result = {}
     for i in 1:2:size[1]
