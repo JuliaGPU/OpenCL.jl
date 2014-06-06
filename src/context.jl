@@ -110,7 +110,7 @@ end
 
 
 function properties(ctx_id::CL_context)
-    size = Csize_t[0,]
+    size = Csize_t[0]
     @check api.clGetContextInfo(ctx_id, CL_CONTEXT_PROPERTIES, 0, C_NULL, size)
     props = Array(CL_context_properties, size[1])
     @check api.clGetContextInfo(ctx_id, CL_CONTEXT_PROPERTIES,
@@ -118,21 +118,24 @@ function properties(ctx_id::CL_context)
     #properties array of [key,value...]
     result = {}
     for i in 1:2:size[1]
-        key = props[i]
+        key,value = props[i], props[i+1]
         if key == CL_CONTEXT_PLATFORM
-            value = Platform(cl_platform_id(props[i + 1]))
+            push!(result, (key, Platform(cl_platform_id(value))))
+            continue
+        end
+        if key == CL_GL_CONTEXT_KHR ||
+           key == CL_EGL_DISPLAY_KHR ||
+           key == CL_GLX_DISPLAY_KHR ||
+           key == CL_WGL_HDC_KHR ||
+           key == CL_CGL_SHAREGROUP_KHR
             push!(result, (key, value))
             continue
-        #elseif key == CL_CONTEXT_PROPERTY_USE_CGL_SHAREGROUP_APPLE
-        elseif key == CL_GL_CONTEXT_KHR
-        elseif key == CL_EGL_DISPLAY_KHR
-        elseif key == CL_GLX_DISPLAY_KHR
-        elseif key == CL_WGL_HDC_KHR
-        elseif key == CL_CGL_SHAREGROUP_KHR
-            value = props[i + 1]
+        end
+        @osx_only if key == CL_CONTEXT_PROPERTY_USE_CGL_SHAREGROUP_APPLE
             push!(result, (key, value))
             continue
-        elseif key == 0
+        end
+        if key == 0
             break
         else
             warn("Unknown OpenCL.Context property key encountered $key")
@@ -150,26 +153,31 @@ function _parse_properties(props)
     if isempty(props)
         return C_NULL
     end 
-    cl_props = Array(CL_context_properties, 0)
+    cl_props = CL_context_properties[0]
     for prop_tuple in props
         if length(prop_tuple) != 2
-            ArgumentError("Context property tuple must have length 2")
+            throw(ArgumentError("Context property tuples must be of type (key, value)"))
         end
-        prop = prop_tuple[1]
+        prop, val = prop_tuple
         push!(cl_props, cl_context_properties(prop))
         if prop == CL_CONTEXT_PLATFORM
-            val = prop_tuple[2]
-            push!(cl_props, cl_context_properties(val.id))
-        elseif prop == CL_WGL_HDC_KHR
-            val = prop_tuple[2]
+            isa(val, Platform) && (val = val.id)
             push!(cl_props, cl_context_properties(val))
-        elseif (prop == CL_GL_CONTEXT_KHR ||
-                prop == CL_EGL_DISPLAY_KHR ||
-                prop == CL_GLX_DISPLAY_KHR ||
-                prop == CL_CGL_SHAREGROUP_KHR)
-            #TODO: CHECK GL_PROPERTIES
-            ptr = convert(Ptr{Void}, prop_tuple[2])
-            push!(cl_props, cl_context_properties(ptr))
+            continue
+        end
+        if prop == CL_WGL_HDC_KHR
+            push!(cl_props, cl_context_properties(val))
+            continue
+        end
+        @osx_only if prop == CL_CONTEXT_PROPERTY_USE_CGL_SHAREGROUP_APPLE
+            push!(cl_props, cl_context_properties(val))
+            continue
+        end
+        if (prop == CL_GL_CONTEXT_KHR ||
+            prop == CL_EGL_DISPLAY_KHR ||
+            prop == CL_GLX_DISPLAY_KHR ||
+            prop == CL_CGL_SHAREGROUP_KHR)
+            push!(cl_props, cl_context_properties(val))
         else
             throw(OpenCLException("Invalid OpenCL Context property"))
         end
