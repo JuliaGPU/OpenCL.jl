@@ -118,24 +118,23 @@ function properties(ctx_id::CL_context)
     #properties array of [key,value...]
     result = {}
     for i in 1:2:size[1]
-        key,value = props[i], props[i+1]
+        key = props[i]
+        value = i < size[1] ? props[i+1] : nothing
+
         if key == CL_CONTEXT_PLATFORM
             push!(result, (key, Platform(cl_platform_id(value))))
-            continue
-        end
-        if key == CL_GL_CONTEXT_KHR ||
+        elseif key == CL_GL_CONTEXT_KHR ||
            key == CL_EGL_DISPLAY_KHR ||
            key == CL_GLX_DISPLAY_KHR ||
            key == CL_WGL_HDC_KHR ||
            key == CL_CGL_SHAREGROUP_KHR
             push!(result, (key, value))
-            continue
-        end
-        @osx_only if key == CL_CONTEXT_PROPERTY_USE_CGL_SHAREGROUP_APPLE
+        elseif @oxs? key == CL_CONTEXT_PROPERTY_USE_CGL_SHAREGROUP_APPLE : false
             push!(result, (key, value))
-            continue
-        end
-        if key == 0
+        elseif key == 0
+            if i != size[i]
+                warn("Encountered OpenCL.Context property key = 0 at position $i")
+            end
             break
         else
             warn("Unknown OpenCL.Context property key encountered $key")
@@ -163,20 +162,14 @@ function _parse_properties(props)
         if prop == CL_CONTEXT_PLATFORM
             isa(val, Platform) && (val = val.id)
             push!(cl_props, cl_context_properties(val))
-            continue
-        end
-        if prop == CL_WGL_HDC_KHR
+        elseif prop == CL_WGL_HDC_KHR
             push!(cl_props, cl_context_properties(val))
-            continue
-        end
-        @osx_only if prop == CL_CONTEXT_PROPERTY_USE_CGL_SHAREGROUP_APPLE
+        elseif @osx? prop == CL_CONTEXT_PROPERTY_USE_CGL_SHAREGROUP_APPLE : false
             push!(cl_props, cl_context_properties(val))
-            continue
-        end
-        if (prop == CL_GL_CONTEXT_KHR ||
+        elseif prop == CL_GL_CONTEXT_KHR ||
             prop == CL_EGL_DISPLAY_KHR ||
             prop == CL_GLX_DISPLAY_KHR ||
-            prop == CL_CGL_SHAREGROUP_KHR)
+            prop == CL_CGL_SHAREGROUP_KHR
             push!(cl_props, cl_context_properties(val))
         else
             throw(OpenCLException("Invalid OpenCL Context property"))
