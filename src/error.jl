@@ -59,6 +59,7 @@ const _cl_error_codes = (Int => Symbol)[
     -66 => :CL_INVALID_COMPILER_OPTIONS,
     -67 => :CL_INVALID_LINKER_OPTIONS,
     -68 => :CL_INVALID_DEVICE_PARTITION_COUNT,
+    -1000 => :CL_INVALID_GL_SHAREGROUP_REFERENCE_KHR
 ]
 
 const _cl_err_desc = (Integer => String) [
