@@ -344,6 +344,12 @@ typealias CL_user_data Any
 @ocl_func_1_0(clGetGLTextureInfo, CL_int, 
               (CL_mem, CL_GL_texture_info, CSize_t, Ptr{Void}, Ptr{CSize_t}))
 
+@ocl_func_1_1(clGetGLContextInfoKHR, CL_int,
+              (Ptr{CL_context_properties}, CL_context_properties, Csize_t, Ptr{Void}, Csize_t))
+
+@ocl_func_1_1(clCreateEventFromGLsyncKHR, CL_event,
+              (CL_context, GL_sync, Ptr{CL_int}))
+
 ############################
 # extension function access
 ############################
