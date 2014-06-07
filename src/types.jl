@@ -74,6 +74,8 @@ typealias GL_enum                       GL_uint
 typealias CL_GL_object_type             CL_uint
 typealias CL_GL_texture_info            CL_uint
 typealias CL_GL_platform_info           CL_uint
+typealias CL_gl_context_info            CL_uint
+
 
 typealias GL_sync                       Ptr{Void}
 
