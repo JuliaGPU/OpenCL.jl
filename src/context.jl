@@ -129,7 +129,7 @@ function properties(ctx_id::CL_context)
            key == CL_WGL_HDC_KHR ||
            key == CL_CGL_SHAREGROUP_KHR
             push!(result, (key, value))
-        elseif @oxs? key == CL_CONTEXT_PROPERTY_USE_CGL_SHAREGROUP_APPLE : false
+        elseif @osx? (key == CL_CONTEXT_PROPERTY_USE_CGL_SHAREGROUP_APPLE) : false
             push!(result, (key, value))
         elseif key == 0
             if i != size[i]
@@ -164,7 +164,7 @@ function _parse_properties(props)
             push!(cl_props, cl_context_properties(val))
         elseif prop == CL_WGL_HDC_KHR
             push!(cl_props, cl_context_properties(val))
-        elseif @osx? prop == CL_CONTEXT_PROPERTY_USE_CGL_SHAREGROUP_APPLE : false
+        elseif @osx? (prop == CL_CONTEXT_PROPERTY_USE_CGL_SHAREGROUP_APPLE) : false
             push!(cl_props, cl_context_properties(val))
         elseif prop == CL_GL_CONTEXT_KHR ||
             prop == CL_EGL_DISPLAY_KHR ||
