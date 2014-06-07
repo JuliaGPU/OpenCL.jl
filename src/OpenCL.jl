@@ -36,6 +36,9 @@ include("memory.jl")
 # OpenCL Buffer
 include("buffer.jl")
 
+# OpenCL Images 
+include("image.jl")
+
 # OpenCL Program
 include("program.jl")
 
