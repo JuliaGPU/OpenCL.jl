@@ -152,7 +152,7 @@ function _parse_properties(props)
     if isempty(props)
         return C_NULL
     end 
-    cl_props = CL_context_properties[0]
+    cl_props = CL_context_properties[]
     for prop_tuple in props
         if length(prop_tuple) != 2
             throw(ArgumentError("Context property tuples must be of type (key, value)"))
