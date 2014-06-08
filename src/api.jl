@@ -320,14 +320,14 @@ typealias CL_user_data Any
 # opengl interop functions
 ############################
 
-@ocl_func_1_0(clEnqueueAcquireGLObjects, Cl_int,
+@ocl_func_1_0(clEnqueueAcquireGLObjects, CL_int,
               (CL_command_queue, CL_uint, Ptr{CL_mem}, CL_uint, Ptr{CL_event}, Ptr{CL_event}))
 
 @ocl_func_1_0(clEnqueueReleaseGLObjects, CL_int,
               (CL_command_queue, CL_uint, Ptr{CL_mem}, CL_uint, Ptr{CL_event}, Ptr{CL_event}))
 
 @ocl_func_1_0(clCreateFromGLBuffer, CL_mem,
-              (CL_context, CL_mem_flags, GL_uint, Ptr{Cl_int}))
+              (CL_context, CL_mem_flags, GL_uint, Ptr{CL_int}))
 
 @ocl_func_1_0(clCreateFromGLRenderbuffer, CL_mem,
               (CL_context, CL_mem_flags, GL_uint, Ptr{CL_int}))
