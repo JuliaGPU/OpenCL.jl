@@ -43,6 +43,9 @@ facts("OpenCL.Context") do
                 ctx = cl.Context(cl_dev_type, properties=properties)
                 @fact isempty(cl.properties(ctx)) => false
                 test_properties = cl.properties(ctx)
+
+                @fact test_properties => properties
+
                 platform_in_properties = false 
                 for (t, v) in test_properties
                     if t == cl.CL_CONTEXT_PLATFORM
@@ -67,6 +70,18 @@ facts("OpenCL.Context") do
     context("OpenCL.Context create_some_context") do
         @fact @throws_pred(cl.create_some_context()) => (false, "no error")
         @fact typeof(cl.create_some_context()) => cl.Context
+    end
+
+    context("OpenCL.Context parsing") do
+        for platform in cl.platforms()
+            properties = [(cl.CL_CONTEXT_PLATFORM, platform)]
+            parsed_properties = cl._parse_properties(properties)
+
+            @fact length(parsed_properties) => isodd
+            @fact parsed_properties[end] => 0
+            @fact parsed_properties[1] => cl.cl_context_properties(cl.CL_CONTEXT_PLATFORM)
+            @fact parsed_properties[2] => cl.cl_context_properties(platform.id)
+        end
     end
 end
 

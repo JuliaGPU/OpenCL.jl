@@ -110,29 +110,38 @@ end
 
 
 function properties(ctx_id::CL_context)
-    size = Csize_t[0,]
-    @check api.clGetContextInfo(ctx_id, CL_CONTEXT_PROPERTIES, 0, C_NULL, size)
-    props = Array(CL_context_properties, size[1])
+    nbytes = Csize_t[0]
+    @check api.clGetContextInfo(ctx_id, CL_CONTEXT_PROPERTIES, 0, C_NULL, nbytes)
+    
+    # Calculate length of storage array
+    # At nbytes[1] the size of the properties array in bytes is stored  
+    # The length of the property array is then nbytes[1] / sizeof(CL_context_properties)
+    # Note: nprops should be odd since it requires a C_NULL terminated array
+    nprops = div(nbytes[1], sizeof(CL_context_properties))
+
+    props = Array(CL_context_properties, nprops)
     @check api.clGetContextInfo(ctx_id, CL_CONTEXT_PROPERTIES,
-                                size[1] * sizeof(CL_context_properties), props, C_NULL)
-    #properties array of [key,value...]
+                                nbytes[1], props, C_NULL)
+    #properties array of [key,value..., C_NULL]
     result = {}
-    for i in 1:2:size[1]
+    for i in 1:2:nprops
         key = props[i]
+        value = i < nprops ? props[i+1] : nothing
+
         if key == CL_CONTEXT_PLATFORM
-            value = Platform(cl_platform_id(props[i + 1]))
+            push!(result, (key, Platform(cl_platform_id(value))))
+        elseif key == CL_GL_CONTEXT_KHR ||
+           key == CL_EGL_DISPLAY_KHR ||
+           key == CL_GLX_DISPLAY_KHR ||
+           key == CL_WGL_HDC_KHR ||
+           key == CL_CGL_SHAREGROUP_KHR
             push!(result, (key, value))
-            continue
-        #elseif key == CL_CONTEXT_PROPERTY_USE_CGL_SHAREGROUP_APPLE
-        elseif key == CL_GL_CONTEXT_KHR
-        elseif key == CL_EGL_DISPLAY_KHR
-        elseif key == CL_GLX_DISPLAY_KHR
-        elseif key == CL_WGL_HDC_KHR
-        elseif key == CL_CGL_SHAREGROUP_KHR
-            value = props[i + 1]
+        elseif @osx? (key == CL_CONTEXT_PROPERTY_USE_CGL_SHAREGROUP_APPLE) : false
             push!(result, (key, value))
-            continue
         elseif key == 0
+            if i != nprops
+                warn("Encountered OpenCL.Context property key == 0 at position $i")
+            end
             break
         else
             warn("Unknown OpenCL.Context property key encountered $key")
@@ -150,26 +159,25 @@ function _parse_properties(props)
     if isempty(props)
         return C_NULL
     end 
-    cl_props = Array(CL_context_properties, 0)
+    cl_props = CL_context_properties[]
     for prop_tuple in props
         if length(prop_tuple) != 2
-            ArgumentError("Context property tuple must have length 2")
+            throw(ArgumentError("Context property tuples must be of type (key, value)"))
         end
-        prop = prop_tuple[1]
+        prop, val = prop_tuple
         push!(cl_props, cl_context_properties(prop))
         if prop == CL_CONTEXT_PLATFORM
-            val = prop_tuple[2]
-            push!(cl_props, cl_context_properties(val.id))
-        elseif prop == CL_WGL_HDC_KHR
-            val = prop_tuple[2]
+            isa(val, Platform) && (val = val.id)
             push!(cl_props, cl_context_properties(val))
-        elseif (prop == CL_GL_CONTEXT_KHR ||
-                prop == CL_EGL_DISPLAY_KHR ||
-                prop == CL_GLX_DISPLAY_KHR ||
-                prop == CL_CGL_SHAREGROUP_KHR)
-            #TODO: CHECK GL_PROPERTIES
-            ptr = convert(Ptr{Void}, prop_tuple[2])
-            push!(cl_props, cl_context_properties(ptr))
+        elseif prop == CL_WGL_HDC_KHR
+            push!(cl_props, cl_context_properties(val))
+        elseif @osx? (prop == CL_CONTEXT_PROPERTY_USE_CGL_SHAREGROUP_APPLE) : false
+            push!(cl_props, cl_context_properties(val))
+        elseif prop == CL_GL_CONTEXT_KHR ||
+            prop == CL_EGL_DISPLAY_KHR ||
+            prop == CL_GLX_DISPLAY_KHR ||
+            prop == CL_CGL_SHAREGROUP_KHR
+            push!(cl_props, cl_context_properties(val))
         else
             throw(OpenCLException("Invalid OpenCL Context property"))
         end
