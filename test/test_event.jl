@@ -9,37 +9,58 @@ macro throws_pred(ex) FactCheck.throws_pred(ex) end
 facts("OpenCL.Event") do
 
     context("OpenCL.Event status") do
-        #TODO: check if this is version 1.2 or greater..
-        ctx = cl.create_some_context()
-        evt = cl.UserEvent(ctx)
-        evt[:status]
-        @fact evt[:status] => :submitted
-        cl.complete(evt)
-        @fact evt[:status] => :complete
+        for platform in cl.platforms()
+
+            if contains(platform[:name], "Portable")
+                msg = "Portable Computing Language does not implement User Events"
+                warn(msg)
+                continue
+            end
+
+            for device in cl.devices(platform)
+                ctx = cl.Context(device)
+                evt = cl.UserEvent(ctx)
+                evt[:status]
+                @fact evt[:status] => :submitted
+                cl.complete(evt)
+                @fact evt[:status] => :complete
+            end
+        end
     end
 
     context("OpenCL.Event wait") do
-        ctx = cl.create_some_context()
-        # create user event
-        usr_evt = cl.UserEvent(ctx)
-        q = cl.CmdQueue(ctx)
-        cl.enqueue_wait_for_events(q, usr_evt)
+        for platform in cl.platforms()
 
-        # create marker event
-        mkr_evt = cl.enqueue_marker(q)
-        
-        @fact usr_evt[:status] => :submitted
-        @fact cl.cl_event_status(usr_evt[:status]) => cl.CL_SUBMITTED
-        @fact mkr_evt[:status] => :queued
-        @fact cl.cl_event_status(mkr_evt[:status]) => cl.CL_QUEUED
+            if contains(platform[:name], "Portable")
+                msg = "Portable Computing Language does not implement User Events"
+                warn(msg)
+                continue
+            end
 
-        cl.complete(usr_evt)
-        @fact usr_evt[:status] => :complete
-        @fact cl.cl_event_status(usr_evt[:status]) => cl.CL_COMPLETE
+            for device in cl.devices(platform)
+                ctx = cl.Context(device)
+                # create user event
+                usr_evt = cl.UserEvent(ctx)
+                q = cl.CmdQueue(ctx)
+                cl.enqueue_wait_for_events(q, usr_evt)
 
-        cl.wait(mkr_evt)
-        @fact mkr_evt[:status] => :complete
-        @fact cl.cl_event_status(mkr_evt[:status]) => cl.CL_COMPLETE
+                # create marker event
+                mkr_evt = cl.enqueue_marker(q)
+                
+                @fact usr_evt[:status] => :submitted
+                @fact cl.cl_event_status(usr_evt[:status]) => cl.CL_SUBMITTED
+                @fact mkr_evt[:status] => :queued
+                @fact cl.cl_event_status(mkr_evt[:status]) => cl.CL_QUEUED
+
+                cl.complete(usr_evt)
+                @fact usr_evt[:status] => :complete
+                @fact cl.cl_event_status(usr_evt[:status]) => cl.CL_COMPLETE
+
+                cl.wait(mkr_evt)
+                @fact mkr_evt[:status] => :complete
+                @fact cl.cl_event_status(mkr_evt[:status]) => cl.CL_COMPLETE
+            end
+        end
     end
 
     context("OpenCL.Event callback") do
