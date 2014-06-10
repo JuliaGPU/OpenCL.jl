@@ -320,14 +320,14 @@ typealias CL_user_data Any
 # opengl interop functions
 ############################
 
-@ocl_func_1_0(clEnqueueAcquireGLObjects, Cl_int,
+@ocl_func_1_0(clEnqueueAcquireGLObjects, CL_int,
               (CL_command_queue, CL_uint, Ptr{CL_mem}, CL_uint, Ptr{CL_event}, Ptr{CL_event}))
 
 @ocl_func_1_0(clEnqueueReleaseGLObjects, CL_int,
               (CL_command_queue, CL_uint, Ptr{CL_mem}, CL_uint, Ptr{CL_event}, Ptr{CL_event}))
 
 @ocl_func_1_0(clCreateFromGLBuffer, CL_mem,
-              (CL_context, CL_mem_flags, GL_uint, Ptr{Cl_int}))
+              (CL_context, CL_mem_flags, GL_uint, Ptr{CL_int}))
 
 @ocl_func_1_0(clCreateFromGLRenderbuffer, CL_mem,
               (CL_context, CL_mem_flags, GL_uint, Ptr{CL_int}))
@@ -345,7 +345,7 @@ typealias CL_user_data Any
               (CL_mem, CL_GL_texture_info, CSize_t, Ptr{Void}, Ptr{CSize_t}))
 
 @ocl_func_1_1(clGetGLContextInfoKHR, CL_int,
-              (Ptr{CL_context_properties}, CL_context_properties, Csize_t, Ptr{Void}, Csize_t))
+              (Ptr{CL_context_properties}, CL_gl_context_info, Csize_t, Ptr{Void}, Ptr{Csize_t}))
 
 @ocl_func_1_1(clCreateEventFromGLsyncKHR, CL_event,
               (CL_context, GL_sync, Ptr{CL_int}))
