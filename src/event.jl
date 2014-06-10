@@ -95,12 +95,16 @@ end
 
 function event_notify(evt_id::CL_event, status::CL_int, julia_func::Ptr{Void})
     callback = unsafe_pointer_to_objref(julia_func)::Function
-    callback(evt_id, status)
-    return C_NULL::Ptr{Void}
+    
+    cb_from_event_loop = (uv_status) -> callback(evt_id, status)
+    cb_packaged = Base.SingleAsyncWork(cb_from_event_loop)
+
+    ccall(:uv_async_send, Void, (Ptr{Void},), cb_packaged.handle)
 end
 
-const event_notify_ptr = cfunction(event_notify, Ptr{Void},
+const event_notify_ptr = cfunction(event_notify, Void,
                                    (CL_event, CL_int, Ptr{Void}))
+
 
 function add_callback(evt::CLEvent, callback::Function)
     @check api.clSetEventCallback(evt.id, CL_COMPLETE, event_notify_ptr, callback)
