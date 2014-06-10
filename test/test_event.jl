@@ -107,6 +107,11 @@ facts("OpenCL.Event") do
                 @fact usr_evt[:status] => :complete
                 
                 cl.wait(mkr_evt)
+
+                # Give callback some time to finish
+                yield()
+                sleep(0.5)
+
                 @fact mkr_evt[:status] => :complete
                 @fact callback_called => true
             end
