@@ -66,14 +66,11 @@ facts("OpenCL.Event") do
     context("OpenCL.Event callback") do
         for platform in cl.platforms()
             v = cl.opencl_version(platform) 
-            if v.major == 1 && v.minor < 2
-                info("Skipping OpenCL.Event callback for $(platform[:name]) version < 1.2")
+            if v.major == 1 && v.minor < 1
+                info("Skipping OpenCL.Event callback for $(platform[:name]) version < 1.1")
                 continue
             end
-            if contains(platform[:name], "AMD")
-                warn("AMD Segfaults on user event")
-                continue 
-            end
+
             if contains(platform[:name], "Apple")
                 msg = "Apple Segfaults on User Event"
                 warn(msg)
