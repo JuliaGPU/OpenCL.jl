@@ -71,11 +71,6 @@ facts("OpenCL.Event") do
                 continue
             end
 
-            if contains(platform[:name], "Apple")
-                msg = "Apple Segfaults on User Event"
-                warn(msg)
-                continue
-            end
             if contains(platform[:name], "Portable")
                 msg = "Portable Computing Language does not implement User Events"
                 warn(msg)
