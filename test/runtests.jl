@@ -1,11 +1,9 @@
-testsdir = dirname(Base.source_path())
+module TestOpenCL
+	using FactCheck
 
-for t in [:platform, :context, :device, :cmdqueue, :event, :buffer, :program, :kernel]
-    tfile = joinpath(testsdir, "test_$t.jl")
-    run(`julia $tfile`)
-    # On my crappy laptop, I constantly get "out of host memory" errors
-    # when evaling each file, use eval for faster test execution
-    #evalfile(tfile)
-end
+	@runtest OpenCL test_platform test_context test_device test_cmdqueue test_event test_buffer test_program test_kernel
 
-run(`julia $(joinpath(testsdir, "behavior_tests.jl"))`)
+	@runtest OpenCL behavior_tests
+    exitstatus()
+
+end # module
