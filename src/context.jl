@@ -110,22 +110,23 @@ end
 
 
 function properties(ctx_id::CL_context)
-    size = Csize_t[0] # Store the size in bytes of the return value
-    @check api.clGetContextInfo(ctx_id, CL_CONTEXT_PROPERTIES, 0, C_NULL, size)
+    nbytes = Csize_t[0]
+    @check api.clGetContextInfo(ctx_id, CL_CONTEXT_PROPERTIES, 0, C_NULL, nbytes)
     
     # Calculate length of storage array
-    @assert size[1] % sizeof(CL_context_properties) == 0 "sizeof CL_context_properties is off"
-    l_props = int(size[1] / sizeof(CL_context_properties))
-    @assert isodd(l_props) "CL_CONTEXT_PROPERTIES should have odd length"
+    # At nbytes[1] the size of the properties array in bytes is stored  
+    # The length of the property array is then nbytes[1] / sizeof(CL_context_properties)
+    # Note: nprops should be odd since it requires a C_NULL terminated array
+    nprops = div(nbytes[1], sizeof(CL_context_properties))
 
-    props = Array(CL_context_properties, l_props)
+    props = Array(CL_context_properties, nprops)
     @check api.clGetContextInfo(ctx_id, CL_CONTEXT_PROPERTIES,
-                                size[1], props, C_NULL)
-    #properties array of [key,value...]
+                                nbytes[1], props, C_NULL)
+    #properties array of [key,value..., C_NULL]
     result = {}
-    for i in 1:2:l_props
+    for i in 1:2:nprops
         key = props[i]
-        value = i < l_props ? props[i+1] : nothing
+        value = i < nprops ? props[i+1] : nothing
 
         if key == CL_CONTEXT_PLATFORM
             push!(result, (key, Platform(cl_platform_id(value))))
@@ -138,8 +139,8 @@ function properties(ctx_id::CL_context)
         elseif @osx? (key == CL_CONTEXT_PROPERTY_USE_CGL_SHAREGROUP_APPLE) : false
             push!(result, (key, value))
         elseif key == 0
-            if i != l_props
-                warn("Encountered OpenCL.Context property key = 0 at position $i")
+            if i != nprops
+                warn("Encountered OpenCL.Context property key == 0 at position $i")
             end
             break
         else

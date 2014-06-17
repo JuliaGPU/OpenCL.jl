@@ -13,15 +13,8 @@ script:
   - julia -e 'Pkg.add("FactCheck");'
   - julia -e 'Pkg.init(); run(`ln -s $(pwd()) $(Pkg.dir())/OpenCL`); Pkg.resolve()'
   - julia -e 'using OpenCL; @assert isdefined(:OpenCL); @assert typeof(OpenCL) === Module'
-  
-  - julia --code-coverage test/test_platform.jl
-  - julia --code-coverage test/test_context.jl
-  - julia --code-coverage test/test_device.jl
-  - julia --code-coverage test/test_buffer.jl
-  - julia --code-coverage test/test_cmdqueue.jl
-  - julia --code-coverage test/test_event.jl
-  - julia --code-coverage test/test_program.jl
-  - julia --code-coverage test/test_kernel.jl
+
+  - julia --code-coverage test/runtests.jl
 
   - julia examples/demo.jl
   - julia examples/performance.jl
@@ -34,7 +27,7 @@ script:
   - julia examples/hands_on_opencl/exA/pi_vocl.jl 1  
   - julia examples/hands_on_opencl/exA/pi_vocl.jl 4  
   - julia examples/hands_on_opencl/exA/pi_vocl.jl 8 
-
+after_success:
   - julia -e 'Pkg.add("Coverage"); using Coverage; Coveralls.submit(Coveralls.process_folder())'
 
 
