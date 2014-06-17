@@ -350,6 +350,9 @@ typealias CL_user_data Any
 @ocl_func_1_1(clCreateEventFromGLsyncKHR, CL_event,
               (CL_context, GL_sync, Ptr{CL_int}))
 
+@ocl_func_1_2(clCreateFromGLTexture, CL_mem,
+              (CL_context, CL_mem_flags, GL_enum, GL_int, GL_uint, Ptr{CL_int}))
+
 ############################
 # extension function access
 ############################
