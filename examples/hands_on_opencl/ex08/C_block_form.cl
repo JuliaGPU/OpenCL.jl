@@ -24,8 +24,8 @@
 ////////////////////////////////////////////////////////////////////////////////
 __kernel void
   mmul(int uiWA, int uiWB, int uiWC,
-             __global float* C, __global float* A, __global float* B,
-             __local float* As, __local float* Bs)
+      __global float* A, __global float* B, __global float* C,
+      __local float* As, __local float* Bs)
 {
   // Block index
   int bx = get_group_id(0);

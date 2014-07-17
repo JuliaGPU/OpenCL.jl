@@ -4,6 +4,9 @@ function error{T}(Mdim::Int, Ndim::Int, Pdim::Int, C::Array{T})
     for i in 1:Ndim
         for j in 1:Mdim
             err = C[(i-1)*Ndim+j] - cval
+            if isnan(err)
+                println((i,j))
+            end
             errsq += err^2
         end
     end
