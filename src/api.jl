@@ -17,38 +17,19 @@ end
 macro ocl_func(func, ret_type, arg_types)
     local args_in = Symbol[symbol("arg$i::$T")
                            for (i, T) in enumerate(arg_types.args)]
-    quote 
-        $(esc(func))($(args_in...)) = ccall(($(string(func)), libopencl), 
+    local expr = quote 
+        $func($(args_in...)) = ccall(($(string(func)), libopencl), 
                                             $ret_type,
                                             $arg_types,
                                             $(args_in...))
     end
-end
-
-macro ocl_func_1_0(func, ret_type, arg_types) 
-    quote
-        @ocl_func($func, $ret_type, $arg_types)
-    end
-end
-
-macro ocl_func_1_1(func, ret_type, arg_types)
-    quote
-        @ocl_func($func, $ret_type, $arg_types)
-    end
-end
-
-macro ocl_func_1_2(func, ret_type, arg_types)
-    quote
-        @ocl_func($func, $ret_type, $arg_types)
-    end
+    eval(expr)
 end
 
 typealias CL_callback  Ptr{Void}
 typealias CL_user_data Any 
 
 include("api/opencl_10.jl")
-include("api/opencl_11.jl")
-include("api/opencl_12.jl")
 
 # Todo check macro
 function __init__()
@@ -95,5 +76,14 @@ function __init__()
   end
 
   global const OPENCL_VERSION = maximum(versions)
+  
+  if OPENCL_VERSION == v"1.1"
+    include("api/opencl_11.jl")
+
+  elseif OPENCL_VERSION == v"1.2"
+    include("api/opencl_11.jl")
+    include("api/opencl_12.jl")
+
+  end
 end
 end
