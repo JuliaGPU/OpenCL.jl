@@ -31,6 +31,20 @@ macro ocl_func(func, ret_type, arg_types)
     end
 end
 
+macro ocl_func_extension_1_0(func, ret_type, arg_types)
+    local ptr = clGetExtensionFunctionAddress(string(func))
+    quote
+        @ocl_func_base($ptr, $func, $ret_type, $arg_types) 
+    end
+end
+
+# macro ocl_func_extension_1_2(platform, func, ret_type, arg_types)
+#     local ptr = clGetExtensionFunctionAddressForPlatform($platform, string(func))
+#     quote
+#         @ocl_func_base($ptr, $func, $ret_type, $arg_types) 
+#     end
+# end
+
 macro ocl_func_1_0(func, ret_type, arg_types) 
     quote
         @ocl_func($func, $ret_type, $arg_types)
