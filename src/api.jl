@@ -14,14 +14,20 @@ end
     const libopencl = "OpenCL"
 end
 
-macro ocl_func(func, ret_type, arg_types)
+macro ocl_func_base(func, func_name, ret_type, arg_types)
     local args_in = Symbol[symbol("arg$i::$T")
                            for (i, T) in enumerate(arg_types.args)]
     quote 
-        $(esc(func))($(args_in...)) = ccall(($(string(func)), libopencl), 
+        $(esc(func_name))($(args_in...)) = ccall($func, 
                                             $ret_type,
                                             $arg_types,
                                             $(args_in...))
+    end
+end
+
+macro ocl_func(func, ret_type, arg_types)
+    quote
+        @ocl_func_base(($(string(func)), libopencl), $func, $ret_type, $arg_types) 
     end
 end
 
