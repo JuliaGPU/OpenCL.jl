@@ -62,6 +62,37 @@ macro ocl_v1_2_only(ex)
     end
 end
 
+function _version_test(qm, elem :: Symbol, ex :: Expr, version :: VersionNumber)
+    @assert qm == :?
+    @assert ex.head == :(:)
+    @assert length(ex.args) == 2
+
+    if OpenCL.api.OPENCL_VERSION >= version
+        expr = quote
+            if OpenCL.opencl_version($(elem)) >= $version
+                $(ex.args[1])
+            else
+                $(ex.args[2])
+            end
+        end
+        return esc(expr)
+    else
+        return esc(ex.args[2])
+    end
+end
+
+macro min_v11(qm, elem, ex)
+    _version_test(qm, elem, ex, v"1.1")
+end
+
+macro min_v12(qm, elem, ex)
+    _version_test(qm, elem, ex, v"1.2")
+end
+
+macro min_v20(qm, elem, ex)
+    _version_test(qm, elem, ex, v"2.0")
+end
+
 macro return_event(evt)
     quote
         try

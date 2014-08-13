@@ -3,6 +3,7 @@ const tests = [
             "context"
             "device"
             "cmdqueue"
+            "macros"
             "event"
             "program"
             "kernel"
