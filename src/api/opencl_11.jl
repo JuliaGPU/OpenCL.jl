@@ -1,9 +1,20 @@
+#=== compiler apis ===#
+@ocl_func(clUnloadCompiler, CL_int, ())
+
 #=== memory object apis ===#
 @ocl_func(clCreateSubBuffer, CL_mem,
               (CL_mem, CL_mem_flags, CL_buffer_create_type, Ptr{Void}, Ptr{CL_int}))
 
 @ocl_func(clSetMemObjectDestructorCallback, CL_int,
               (CL_mem, CL_callback, Ptr{Void}))
+
+@ocl_func(clCreateImage2D, CL_mem,
+               (CL_context, CL_mem_flags, Ptr{CL_image_format}, Csize_t, Csize_t, Csize_t,
+                Ptr{Void}, Ptr{CL_int}))
+
+@ocl_func(clCreateImage3D, CL_mem,
+               (CL_context, CL_mem_flags, Ptr{CL_image_format}, Csize_t, Csize_t, Csize_t,
+                Csize_t, Ptr{Void}, Ptr{CL_int}))
 
 #=== program object apis ===#
 @ocl_func(clGetProgramInfo, CL_int,
@@ -37,18 +48,6 @@
                Csize_t, Csize_t, Csize_t, Csize_t,
                CL_uint, Ptr{CL_event}, Ptr{CL_event}))
 
-#=== extension function access ===#
-@ocl_func(clGetExtensionFunctionAddress, Ptr{Void}, (Ptr{Cchar},))
-
-#=== deprecated functions ===#
-@ocl_func(clCreateImage2D, CL_mem,
-               (CL_context, CL_mem_flags, Ptr{CL_image_format}, Csize_t, Csize_t, Csize_t,
-                Ptr{Void}, Ptr{CL_int}))
-
-@ocl_func(clCreateImage3D, CL_mem,
-               (CL_context, CL_mem_flags, Ptr{CL_image_format}, Csize_t, Csize_t, Csize_t,
-                Csize_t, Ptr{Void}, Ptr{CL_int}))
-
 @ocl_func(clEnqueueMarker, CL_int,
                (CL_command_queue, Ptr{CL_event}))
 
@@ -58,4 +57,5 @@
 @ocl_func(clEnqueueBarrier, CL_int,
                (CL_command_queue,))
 
-@ocl_func(clUnloadCompiler, CL_int, ())
+#=== extension function access ===#
+@ocl_func(clGetExtensionFunctionAddress, Ptr{Void}, (Ptr{Cchar},))
