@@ -55,12 +55,12 @@ import OpenCL.api.@ocl_func
 
 #=== deprecation ===#
 
-@deprecate clGetExtensionFunctionAddress clGetExtensionFunctionAddressForPlatform
+# @deprecate clGetExtensionFunctionAddress clGetExtensionFunctionAddressForPlatform
 
-@deprecate clCreateImage2D clCreateImage
-@deprecate clCreateImage3D clCreateImage
+# @deprecate clCreateImage2D clCreateImage
+# @deprecate clCreateImage3D clCreateImage
 
-@deprecate clEnqueueMarker clEnqueueMarkerWithWaitList
-@deprecate clEnqueueBarrier clEnqueueMarkerWithWaitList
-@deprecate clEnqueueWaitForEvents clEnqueueMarkerWithWaitList
-@deprecate clUnloadCompiler Nothing()
+# @deprecate clEnqueueMarker clEnqueueMarkerWithWaitList
+# @deprecate clEnqueueBarrier clEnqueueMarkerWithWaitList
+# @deprecate clEnqueueWaitForEvents clEnqueueMarkerWithWaitList
+# @deprecate clUnloadCompiler Nothing()
