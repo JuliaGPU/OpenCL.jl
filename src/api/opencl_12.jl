@@ -1,5 +1,3 @@
-import OpenCL.api.@ocl_func
-
 #=== device apis ===#
 @ocl_func(clCreateSubDevices, CL_int,
               (CL_device_id, CL_device_partition_property, CL_uint, Ptr{CL_device_id}, Ptr{CL_uint}))

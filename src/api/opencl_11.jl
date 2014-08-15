@@ -1,5 +1,3 @@
-import OpenCL.api.@ocl_func
-
 #=== compiler apis ===#
 @ocl_func(clUnloadCompiler, CL_int, ())
 
