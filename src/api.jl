@@ -64,4 +64,8 @@ function __init__()
     @loadApi "11" "12"
   end
 end
+
+if VERSION < v"0.3-"
+  __init__()
+end
 end
