@@ -1,15 +1,33 @@
-module TestOpenCL
-	using FactCheck
-    
-    @runtest OpenCL test_platform 
-    @runtest OpenCL test_context 
-    @runtest OpenCL test_device 
-    @runtest OpenCL test_cmdqueue 
-    @runtest OpenCL test_event 
-    @runtest OpenCL test_buffer 
-    @runtest OpenCL test_program 
-    @runtest OpenCL test_kernel
-	@runtest OpenCL behavior_tests
-    exitstatus()
+const tests = [
+            "platform"
+            "context"
+            "device"
+            "cmdqueue"
+            "event"
+            "program"
+            "kernel"
+            "behaviour"
+        ]
 
-end # module
+const testdir = isdir("test") ? "test" : "."
+cd(testdir)
+
+if haskey(ENV, "CODECOVERAGE")
+    cmd = `julia --code-coverage`
+else
+    cmd = `julia`
+end
+
+if haskey(ENV, "TRAVIS")
+    results = map(tests) do test
+        try
+            run(`$cmd run.jl $test`)
+            return 0
+        catch e
+            return -1
+        end
+    end
+    all(r -> r == 0, results) ? exit() : exit(-1)
+else
+    run(`$cmd run.jl $tests`)
+end
