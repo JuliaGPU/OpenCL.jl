@@ -24,10 +24,10 @@ if haskey(ENV, "TRAVIS")
             run(`$cmd run.jl $test`)
             return 0
         catch e
-            return -1
+            return 1
         end
     end
-    all(r -> r == 0, results) ? exit() : exit(-1)
+    all(r -> r == 0, results) ? exit() : exit(1)
 else
     run(`$cmd run.jl $tests`)
 end
