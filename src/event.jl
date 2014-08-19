@@ -93,12 +93,20 @@ Base.getindex(evt::CLEvent, evt_info::Symbol) = info(evt, evt_info)
     end
 end
 
+if VERSION < v"0.3-"
+    pack_callback(callback :: Function, evt_id, status) =
+        Base.SingleAsyncWork((uv_status, data) -> callback(evt_id, status))
+else
+    pack_callback(callback :: Function, evt_id, status) =
+        Base.SingleAsyncWork(data -> callback(evt_id, status))
+end
+
 function event_notify(evt_id::CL_event, status::CL_int, julia_func::Ptr{Void})
     # Obtain the Function object from the opaque pointer
     callback = unsafe_pointer_to_objref(julia_func)::Function
 
     # In order to callback into the Julia thread create an AsyncWork package.
-    cb_packaged = Base.SingleAsyncWork(data -> callback(evt_id, status))
+    cb_packaged = pack_callback(callback, evt_id, status)
 
     # Use uv_async_send to notify the main thread
     ccall(:uv_async_send, Void, (Ptr{Void},), cb_packaged.handle)
