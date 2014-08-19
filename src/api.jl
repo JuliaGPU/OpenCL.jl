@@ -32,4 +32,12 @@ include("api/opencl_10.jl")
 include("api/opencl_11.jl")
 include("api/opencl_12.jl")
 
+function parse_version(version_string)
+    mg = match(r"^OpenCL ([0-9]+)\.([0-9]+) .*$", version_string)
+    if mg == nothing
+        error("Non conform version string: $(ver)")
+    end
+    return VersionNumber(int(mg.captures[1]), int(mg.captures[2]))
+end
+
 end
