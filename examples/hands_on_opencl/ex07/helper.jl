@@ -1,3 +1,5 @@
+import Base: error
+
 function error{T}(Mdim::Int, Ndim::Int, Pdim::Int, C::Array{T})
     cval  = float32(Pdim * AVAL * BVAL)
     errsq = float32(0.0)
