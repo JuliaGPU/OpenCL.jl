@@ -39,6 +39,7 @@ typealias CL_user_data Any
 
 include("error.jl")
 include("macros.jl")
+include("platform.jl")
 
 function parse_version(version_string)
     mg = match(r"^OpenCL ([0-9]+)\.([0-9]+) .*$", version_string)
@@ -50,32 +51,12 @@ end
 
 # Todo check macro
 function __init__()
-  err = 0
-  # Get Platform IDs
-
-  nplatforms = Array(CL_uint, 1)
-  @check clGetPlatformIDs(0, C_NULL, nplatforms)
-
-  cl_platform_ids = Array(CL_platform_id, nplatforms[1])
-  @check  clGetPlatformIDs(nplatforms[1], cl_platform_ids, C_NULL)
-
-  # Map ids to version strings
-  # Version string matcher =
-  matcher = r"^OpenCL ([0-9]+)\.([0-9]+) .*$"
-  const CL_PLATFORM_VERSION = cl_uint(0x0901)
-
-  versions = map(cl_platform_ids) do id
-    nbytes = Csize_t[0]
-    @check clGetPlatformInfo(id, CL_PLATFORM_VERSION, 0, C_NULL, nbytes)
-
-    result = Array(CL_char, div(nbytes[1], sizeof(CL_char)))
-    @check clGetPlatformInfo(id, CL_PLATFORM_VERSION, nbytes[1], result, C_NULL)
-
-    parse_version(bytestring(convert(Ptr{CL_char}, result)))
+  versions = map(platforms()) do platform
+    parse_version(platform[:version])
   end
 
   global const OPENCL_VERSION = maximum(versions)
-  
+
   if OPENCL_VERSION == v"1.1"
     @loadApi "11"
 
