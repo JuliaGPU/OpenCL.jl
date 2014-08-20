@@ -9,7 +9,7 @@ notifications:
 env: 
   matrix:
     - JULIAVERSION="releases"
-    - JULIAVERSION="nightlies" CODECOVERAGE=true
+    - JULIAVERSION="nightlies" CODECOVERAGE=1
 before_install:
   - if [ `uname` = "Linux" ]; then
       sudo add-apt-repository ppa:staticfloat/julia-deps -y;
@@ -49,4 +49,4 @@ script:
   - julia examples/hands_on_opencl/exA/pi_vocl.jl 4  
   - julia examples/hands_on_opencl/exA/pi_vocl.jl 8 
 after_success:
-  - if [ -z ${CODECOVERAGE+x} ]; then julia -e 'Pkg.add("Coverage"); using Coverage; Coveralls.submit(Coveralls.process_folder())'; fi
+  - if [[ $CODECOVERAGE ]]; then julia -e 'Pkg.add("Coverage"); using Coverage; Coveralls.submit(Coveralls.process_folder())'; fi
