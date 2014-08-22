@@ -53,12 +53,23 @@
 
 #=== deprecation ===#
 
-# @deprecate clGetExtensionFunctionAddress clGetExtensionFunctionAddressForPlatform
+@deprecate_ocl_func(clGetExtensionFunctionAddress, Ptr{Void}, (Ptr{Cchar},))
 
-# @deprecate clCreateImage2D clCreateImage
-# @deprecate clCreateImage3D clCreateImage
+@deprecate_ocl_func(clCreateImage2D, CL_mem,
+               (CL_context, CL_mem_flags, Ptr{CL_image_format}, Csize_t, Csize_t, Csize_t,
+                Ptr{Void}, Ptr{CL_int}))
 
-# @deprecate clEnqueueMarker clEnqueueMarkerWithWaitList
-# @deprecate clEnqueueBarrier clEnqueueMarkerWithWaitList
-# @deprecate clEnqueueWaitForEvents clEnqueueMarkerWithWaitList
-# @deprecate clUnloadCompiler Nothing()
+@deprecate_ocl_func(clCreateImage3D, CL_mem,
+               (CL_context, CL_mem_flags, Ptr{CL_image_format}, Csize_t, Csize_t, Csize_t,
+                Csize_t, Ptr{Void}, Ptr{CL_int}))
+
+@deprecate_ocl_func(clEnqueueMarker, CL_int,
+               (CL_command_queue, Ptr{CL_event}))
+
+@deprecate_ocl_func(clEnqueueWaitForEvents, CL_int,
+               (CL_command_queue, CL_uint, Ptr{CL_event}))
+
+@deprecate_ocl_func(clEnqueueBarrier, CL_int,
+               (CL_command_queue,))
+
+@deprecate_ocl_func(clUnloadCompiler, CL_int, ())

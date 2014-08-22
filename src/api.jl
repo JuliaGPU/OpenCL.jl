@@ -15,15 +15,35 @@ end
     const libopencl = "OpenCL"
 end
 
-macro ocl_func(func, ret_type, arg_types)
+function _ocl_func(func, ret_type, arg_types)
     local args_in = Symbol[symbol("arg$i::$T")
                            for (i, T) in enumerate(arg_types.args)]
-    @eval begin
-        $func($(args_in...)) = ccall(($(string(func)), libopencl), 
+    quote
+        function $func($(args_in...))
+            ccall(($(string(func)), libopencl),
                                             $ret_type,
                                             $arg_types,
                                             $(args_in...))
+        end
     end
+end
+
+macro ocl_func(func, ret_type, arg_types)
+    local expr = _ocl_func(func, ret_type, arg_types)
+    eval(expr)
+end
+
+macro deprecate_ocl_func(func, ret_type, arg_types)
+    local name = Expr(:quote,func)
+    local expr = _ocl_func(func, ret_type, arg_types)
+    @assert expr.args[2].head == :function
+
+    local func_body = expr.args[2].args[2]
+    @assert func_body.head == :block
+
+    insert!(func_body.args, 2, :(Base.depwarn(string($name," is deprecated"),
+                        $name)))
+    eval(expr)
 end
 
 macro loadApi(versions...)
