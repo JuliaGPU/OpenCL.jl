@@ -16,7 +16,7 @@ __kernel void sum(__global const float *a,
         
         c_temp = a_temp+b_temp; // sum of my elements
         c_temp = c_temp * c_temp; // product of sums
-        c_temp = c_temp * (a_temp/2.0f0); // times 1/2 my a
+        c_temp = c_temp * (a_temp/2.0f); // times 1/2 my a
 
         c[gid] = c_temp; // store result in global memory
 }"
