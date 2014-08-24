@@ -16,12 +16,11 @@ __kernel void mmul(
     if (i < Ndim) {
         for (k = 0; k < Pdim; k++)
             Awrk[k] = A[i*Ndim+k];
-
         for (j = 0; j < Mdim; j++) {
             for (k = iloc; k < Pdim; k += nloc)
                 Bwrk[k] = B[k*Pdim+j];
             barrier(CLK_LOCAL_MEM_FENCE);
-            tmp = 0.0;
+            tmp = 0.0f;
             for (k = 0; k < Pdim; k++)
                 tmp += Awrk[k] * Bwrk[k];
             C[i*Ndim+j] = tmp;

@@ -14,6 +14,7 @@ const testdir = isdir("test") ? "test" : "."
 cd(testdir)
 
 if haskey(ENV, "CODECOVERAGE")
+    println("Creating code-coverage files")
     cmd = `julia --code-coverage`
 else
     cmd = `julia`

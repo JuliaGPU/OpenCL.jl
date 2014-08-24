@@ -16,7 +16,7 @@ __kernel void sum(__global const float *a,
         
         c_temp = a_temp+b_temp; // sum of my elements
         c_temp = c_temp * c_temp; // product of sums
-        c_temp = c_temp * (a_temp/2.0); // times 1/2 my a
+        c_temp = c_temp * (a_temp/2.0f); // times 1/2 my a
 
         c[gid] = c_temp; // store result in global memory
 }"
@@ -49,7 +49,7 @@ function cl_performance(ndatapts::Integer, nworkers::Integer)
             continue
         end
 
-        for device in cl.devices(platform)
+        for device in cl.available_devices(platform)
             @printf("====================================================\n")
             @printf("Platform name:    %s\n",  platform[:name])
             @printf("Platform profile: %s\n",  platform[:profile])
@@ -76,17 +76,17 @@ function cl_performance(ndatapts::Integer, nworkers::Integer)
                 warn("Skipping device $(device[:name])...")
                 continue
             end
-
+             
             ctx   = cl.Context(device)
             queue = cl.CmdQueue(ctx, :profile)
             
             a_buf = cl.Buffer(Float32, ctx, (:r, :copy), hostbuf=a)
             b_buf = cl.Buffer(Float32, ctx, (:r, :copy), hostbuf=b)
             c_buf = cl.Buffer(Float32, ctx, :w, length(a))
-
+            
             prg  = cl.Program(ctx, source=bench_kernel) |> cl.build!
             kern = cl.Kernel(prg, "sum")
-
+            
             # work_group_multiple = kern[:prefered_work_group_size_multiple]
             global_size = (ndatapts,)
             local_size  = (nworkers,)

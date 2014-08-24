@@ -97,7 +97,6 @@ function devices(dtype::CL_device_type)
     end
     return devs
 end
-
 devices(dtype::Symbol) = devices(cl_device_type(dtype))
 
 function devices()
@@ -108,6 +107,7 @@ function devices()
     return devs
 end
 
-function has_device_type(p::Platform, dtype)
-    length(devices(p, dtype)) > 0
-end
+has_device_type(p::Platform, dtype) = length(devices(p, dtype)) > 0
+
+available_devices(p::Platform, dtype::Symbol) = filter(d -> info(d, :available),  devices(p, dtype))
+available_devices(p::Platform) = available_devices(p, :all)
