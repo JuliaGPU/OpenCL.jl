@@ -30,7 +30,6 @@ facts("OpenCL.Program") do
             @fact @throws_pred(cl.Program(ctx, source=test_source)) => (false, "no error")
         end
     end
-    
     context("OpenCL.Program info") do
         for device in cl.devices()
             ctx = cl.Context(device)
@@ -45,8 +44,6 @@ facts("OpenCL.Program") do
             @fact typeof(prg[:source]) => ASCIIString
             @fact prg[:source] => test_source
 
-            #@fact typeof(prg[:binaries]) => Dict{cl.Device, Array{Uint8}}
-
             @fact prg[:reference_count] > 0 => true
             @fact strip(prg[:build_log][device]) => ""
 
@@ -58,12 +55,14 @@ facts("OpenCL.Program") do
             ctx = cl.Context(device)
             prg = cl.Program(ctx, source=test_source)
             @fact @throws_pred(cl.build!(prg)) => (false, "no error")
+            
             # BUILD_SUCCESS undefined in POCL implementation..
             if device[:platform][:name] == "Portable Computing Language"
                 warn("Skipping OpenCL.Program build for Portable Computing Language Platform")
                 continue
             end
             @fact prg[:build_status][device] => cl.CL_BUILD_SUCCESS 
+            
             # test build by methods chaining
             @fact prg[:build_status][device] => cl.CL_BUILD_SUCCESS 
             @fact strip(prg[:build_log][device])=> "" 
@@ -75,7 +74,7 @@ facts("OpenCL.Program") do
            ctx = cl.Context(device)
            prg = cl.Program(ctx, source=test_source)
            @fact prg[:source] => test_source
-       end
+        end
     end
 
     context("OpenCL.Program binaries") do
@@ -89,14 +88,15 @@ facts("OpenCL.Program") do
             @fact binaries[device] => not(nothing)
             @fact length(binaries[device]) > 0 => true
             prg2 = cl.Program(ctx, binaries=binaries)
+            @fact prg2[:binaries] == binaries => true
             try 
                 prg2[:source]
+                error("should not happen")
             catch err
                 @fact isa(err, cl.CLError) => true
                 @fact err.code => -45 
                 @fact err.desc => :CL_INVALID_PROGRAM_EXECUTABLE
             end
-            @fact prg2[:binaries] == binaries => true
         end
     end
 end

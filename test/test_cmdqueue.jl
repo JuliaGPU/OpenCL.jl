@@ -7,8 +7,9 @@ const cl = OpenCL
 macro throws_pred(ex) FactCheck.throws_pred(ex) end 
 
 facts("OpenCL.CmdQueue") do 
-    
+     
     context("OpenCL.CmdQueue constructor") do
+        has_warned = false
         @fact @throws_pred(cl.CmdQueue(nothing, nothing)) => (true, "error")
         for platform in cl.platforms()
             for device in cl.devices(platform)
@@ -20,8 +21,11 @@ facts("OpenCL.CmdQueue") do
                     cl.CmdQueue(ctx, device, :out_of_order)
                     cl.CmdQueue(ctx, device, (:profile, :out_of_order))
                 catch err
-                    warn("Platform $(device[:platform][:name]) does not seem to " *
-                         "suport out of order queues: \n$err")
+                    if !has_warned 
+                        warn("Platform $(device[:platform][:name]) does not seem to " *
+                             "suport out of order queues: \n$err")
+                        has_warned = true
+                    end
                 end
                 @fact @throws_pred(cl.CmdQueue(ctx, :unrecognized_flag)) => (true, "error")
                 @fact @throws_pred(cl.CmdQueue(ctx, device, :unrecognized_flag)) => (true, "error")
