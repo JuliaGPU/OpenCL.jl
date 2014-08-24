@@ -9,10 +9,11 @@ abstract CLMemObject
 #     ...
 # end
 
+Base.convert(::Type{CL_mem}, mem::CLMemObject) = mem.id
 Base.pointer(mem::CLMemObject) = mem.id
 
 Base.sizeof(mem::CL_mem) = begin
-    val = Csize_t[0,]
+    val = Csize_t[0]
     @check api.clGetMemObjectInfo(mem, CL_MEM_SIZE, sizeof(Csize_t), 
                                   val, C_NULL)
     return val[1]
@@ -30,22 +31,23 @@ function release!(mem::CLMemObject)
 end
 
 context(mem::CLMemObject) = begin
-    param = Array(CL_context, 1)
+    param = CL_context[0]
     @check api.clGetMemObjectInfo(mem.id, CL_MEM_CONTEXT, 
                                   sizeof(Csize_t), param_value, C_NULL)
     return Context(param[1], retain=true)
 end
 
 
-let mem_type(m::CLMemObject) = begin
-        result = Array(CL_mem_object_type, 1)
+let 
+    mem_type(m::CLMemObject) = begin
+        result = CL_mem_object_type[0]
         @check api.clGetMemObjectInfo(m.id, CL_MEM_TYPE, 
                         sizeof(CL_mem_object_type), result, C_NULL)
         return result[1]
     end
 
     mem_flags(m::CLMemObject) = begin
-        result = Array(CL_mem_flags)
+        result = CL_mem_flags[0]
         @check api.clGetMemObjectInfo(m.id, CL_MEM_FLAGS,
                         sizeof(CL_mem_flags), result, C_NULL)
         mf = result[1]
@@ -72,21 +74,21 @@ let mem_type(m::CLMemObject) = begin
     end
 
     size(m::CLMemObject) = begin
-        result = Array(Csize_t, 1)
+        result = Csize_t[0]
         @check api.clGetMemObjectInfo(m.id, CL_MEM_SIZE,
                         sizeof(Csize_t), result, C_NULL)
         return result[1]
     end
 
     reference_count(m::CLMemObject) = begin
-        result = Array(CL_uint, 1)
+        result = CL_uint[0]
         @check api.clGetMemObjectInfo(m.id, CL_MEM_REFERENCE_COUNT,
                         sizeof(CL_uint), result, C_NULL)
         return result[1]
     end
 
     map_count(m::CLMemObject) = begin
-        result = Array(CL_uint, 1)
+        result = CL_uint[0]
         @check api.clGetMemObjectInfo(m.id, CL_MEM_MAP_COUNT,
                         sizeof(CL_uint), result, C_NULL)
         return result[1]

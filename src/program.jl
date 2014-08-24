@@ -1,17 +1,21 @@
 # OpenCL.Program
-
 type Program
     id::CL_program
     binary::Bool
 
     function Program(program_id::CL_program; 
                      retain::Bool=false, binary::Bool=false)
-        if retain
-            @check api.clRetainProgram(program_id)
-        end 
+        retain && @check api.clRetainProgram(program_id)
         p = new(program_id, binary)
-        finalizer(p, prog -> release!(prog))
+        finalizer(p, release!)
         return p
+    end
+end
+
+function release!(p::Program)
+    if p.id != C_NULL
+        @check api.clReleaseProgram(p.id)
+        p.id = C_NULL
     end
 end
 
@@ -25,13 +29,6 @@ Base.pointer(p::Program) = p.id
 
 Base.getindex(p::Program, pinfo::Symbol) = info(p, pinfo)
 
-function release!(p::Program)
-    if p.id != C_NULL
-        @check api.clReleaseProgram(p.id)
-        p.id = C_NULL
-    end
-end
-
 function Program(ctx::Context; source=nothing, binaries=nothing)
     local program_id::CL_program
     if source != nothing && binaries != nothing
@@ -39,7 +36,7 @@ function Program(ctx::Context; source=nothing, binaries=nothing)
     end
     if source != nothing
         byte_source = [bytestring(source)]
-        err_code = Array(CL_int, 1)
+        err_code = CL_int[0]
         program_id = api.clCreateProgramWithSource(ctx.id, 1, byte_source, C_NULL, err_code)
         if err_code[1] != CL_SUCCESS
             throw(CLError(err_code[1]))
@@ -48,17 +45,17 @@ function Program(ctx::Context; source=nothing, binaries=nothing)
     
     elseif binaries != nothing
         ndevices = length(binaries)
-        device_ids = Array(CL_device_id, ndevices)
-        bin_lengths = Array(Csize_t, ndevices)
-        binary_status = Array(CL_int, ndevices)
-        binary_ptrs= Array(Ptr{Uint8}, ndevices)
+        device_ids = zeros(CL_device_id, ndevices)
+        bin_lengths = zeros(Csize_t, ndevices)
+        binary_status = zeros(CL_int, ndevices)
+        binary_ptrs = zeros(Ptr{Uint8}, ndevices)
         try
             for (i, (dev, bin)) in enumerate(binaries)
                 device_ids[i] = dev.id
                 bin_lengths[i] = length(bin)
                 binary_ptrs[i] = convert(Ptr{Uint8}, pointer(bin))
             end
-            err_code = Array(CL_int, 1)
+            err_code = CL_int[0]
             program_id = api.clCreateProgramWithBinary(ctx.id, ndevices, device_ids, bin_lengths,
                                                        binary_ptrs, binary_status, err_code)
             if err_code[1] != CL_SUCCESS
@@ -79,14 +76,13 @@ end
 #TODO: build callback...
 function build!(p::Program; options="", raise=true)
     opts = bytestring(options)
-    ndevices = 0
-    device_ids = C_NULL
+    ndevices, device_ids = 0, C_NULL
     @check api.clBuildProgram(p.id, cl_uint(ndevices), device_ids, opts, C_NULL, C_NULL)
     if raise
         for (dev, status) in info(p, :build_status)
             if status == CL_BUILD_ERROR
                 #TODO: throw(CLBuildError(self.logs[dev], self.logs)
-                error("$p build error on device $dev")
+                throw(OpenCLException("$p build error on device $dev"))
             end
         end 
     end
@@ -95,7 +91,7 @@ end
 
 let 
     num_devices(p::Program) = begin
-        ret = Array(CL_uint, 1)
+        ret = CL_uint[0]
         @check api.clGetProgramInfo(p.id, CL_PROGRAM_NUM_DEVICES, sizeof(ret), ret, C_NULL)
         return ret[1]
     end
@@ -110,8 +106,8 @@ let
     
     build_status(p::Program) = begin
         status_dict = (Device => CL_build_status)[]
-        status = Array(CL_build_status, 1) 
-        err_code = Array(CL_int, 1)
+        status = CL_build_status[0]
+        err_code = CL_int[0]
         for d in devices(p)
             @check api.clGetProgramBuildInfo(p.id, d.id, CL_PROGRAM_BUILD_STATUS,
                                              sizeof(CL_build_status), status, C_NULL)
@@ -140,7 +136,7 @@ let
 
     binaries(p::Program) = begin
         binary_dict = (Device => Array{Uint8})[]
-        slen = Array(CL_int, 1)
+        slen = CL_int[0]
         @check api.clGetProgramInfo(p.id, CL_PROGRAM_BINARY_SIZES, 
                                     0, C_NULL, pointer(slen))
 
@@ -176,23 +172,23 @@ let
 
     source(p::Program) = begin
         p.binary && throw(CLError(-45)) 
-        src_len = Array(Csize_t, 1)
+        src_len = Csize_t[0]
         @check api.clGetProgramInfo(p.id, CL_PROGRAM_SOURCE, 0, C_NULL, src_len)
         src_len[1] <= 1 && return nothing
         src = Array(Cchar, src_len[1])
         @check api.clGetProgramInfo(p.id, CL_PROGRAM_SOURCE, src_len[1], src, C_NULL)
-        return bytestring(pointer(src))
+        return bytestring(convert(Ptr{Cchar}, src))
     end
     
     context(p::Program) = begin
-        ret = Array(CL_context, 1)
+        ret = CL_context[0]
         @check api.clGetProgramInfo(p.id, CL_PROGRAM_CONTEXT,
                                     sizeof(CL_context), ret, C_NULL)
         return Context(ret[1], retain = true)
     end
 
     reference_count(p::Program) = begin
-        ret = Array(CL_uint, 1) 
+        ret = CL_uint[0]
         @check api.clGetProgramInfo(p.id, CL_PROGRAM_REFERENCE_COUNT,
                                     sizeof(CL_uint), ret, C_NULL)
         return ret[1]

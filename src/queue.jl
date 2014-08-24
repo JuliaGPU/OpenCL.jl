@@ -1,14 +1,11 @@
 # OpenCL.CmdQueue 
-
 type CmdQueue 
     id::CL_command_queue
 
     function CmdQueue(q_id::CL_command_queue; retain=false)
-        if retain
-            @check api.clRetainCommandQueue(q_id)
-        end
+        retain && @check api.clRetainCommandQueue(q_id)
         q = new(q_id)
-        finalizer(q, x -> release!(x))
+        finalizer(q, release!)
         return q
     end
 end 
@@ -23,7 +20,7 @@ end
 Base.pointer(q::CmdQueue) = q.id
 @ocl_object_equality(CmdQueue) 
 
-function Base.show(io::IO, q::CmdQueue)
+Base.show(io::IO, q::CmdQueue) = begin
     ptr_address = "0x$(hex(unsigned(Base.pointer(q)), WORD_SIZE>>2))"
     print(io, "OpenCL.CmdQueue(@$ptr_address)")
 end
@@ -47,7 +44,7 @@ function CmdQueue(ctx::Context, prop::Symbol)
     return CmdQueue(ctx, first(devs), prop)
 end
 
-function CmdQueue(ctx::Context, props::NTuple{2, Symbol})
+function CmdQueue(ctx::Context, props::(Symbol,Symbol))
     devs = devices(ctx)
     if isempty(devs)
         throw(ArgumentError("OpenCL.CmdQueue Context argument does not have any devices"))
@@ -72,7 +69,7 @@ function CmdQueue(ctx::Context, dev::Device, prop::Symbol)
     return CmdQueue(ctx, dev, flags)
 end
 
-function CmdQueue(ctx::Context, dev::Device, props::NTuple{2,Symbol})
+function CmdQueue(ctx::Context, dev::Device, props::(Symbol, Symbol))
     if !(:out_of_order in props && :profile in props)
         throw(ArgumentError("Only :out_of_order and :profile flags are vaid, unrecognized flags $props"))
     end
@@ -92,40 +89,33 @@ function CmdQueue(ctx::Context, dev::Device, props::CL_command_queue_properties)
     return CmdQueue(queue_id)
 end 
 
-function flush(q::CmdQueue)
-    @check api.clFlush(q.id)
-    return q
-end
-
-function finish(q::CmdQueue)
-    @check api.clFinish(q.id)
-    return q
-end
+flush(q::CmdQueue) = (@check api.clFlush(q.id); q)
+finish(q::CmdQueue) = (@check api.clFinish(q.id); q)
 
 let 
     context(q::CmdQueue) = begin
-        ctx_id = Array(CL_context, 1)
+        ctx_id = CL_context[0]
         @check api.clGetCommandQueueInfo(q.id, CL_QUEUE_CONTEXT,
                                          sizeof(CL_context), ctx_id, C_NULL)
         Context(ctx_id[1], retain=true)
     end
                                           
     device(q::CmdQueue) = begin
-        dev_id = Array(CL_device_id, 1)
+        dev_id = CL_device_id[0]
         @check api.clGetCommandQueueInfo(q.id, CL_QUEUE_DEVICE, 
                                          sizeof(CL_device_id), dev_id, C_NULL)
         Device(dev_id[1])
     end
 
     reference_count(q::CmdQueue) = begin
-        ref_count = Array(CL_uint, 1)
+        ref_count = CL_uint[0]
         @check api.clGetCommandQueueInfo(q.id, CL_QUEUE_REFERENCE_COUNT, 
                                          sizeof(CL_uint), ref_count, C_NULL)
         ref_count[1]
     end
 
     properties(q::CmdQueue) = begin
-        props = Array(CL_command_queue_properties, 1)
+        props = CL_command_queue_properties[0]
         @check api.clGetCommandQueueInfo(q.id, CL_QUEUE_PROPERTIES,
                                          sizeof(CL_command_queue_properties),
                                          props, C_NULL)

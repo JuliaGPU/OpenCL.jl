@@ -4,11 +4,10 @@ type Context
     id :: CL_context
     
     function Context(ctx_id::CL_context; retain=false)
-        if retain
-            @check api.clRetainContext(ctx_id)
-        end
+        @assert ctx_id != zero(CL_context)
+        retain && @check api.clRetainContext(ctx_id)
         ctx = new(ctx_id)
-        finalizer(ctx, c -> release!(c))
+        finalizer(ctx, release!)
         return ctx 
     end
 end
@@ -23,7 +22,7 @@ end
 Base.pointer(ctx::Context) = ctx.id
 @ocl_object_equality(Context)
 
-function Base.show(io::IO, ctx::Context)
+Base.show(io::IO, ctx::Context) = begin
     dev_strs = [replace(d[:name], r"\s+", " ") for d in devices(ctx)]
     devs_str = join(dev_strs, ",")
     ptr_address = "0x$(hex(unsigned(Base.pointer(ctx)), WORD_SIZE>>2))"
@@ -38,14 +37,12 @@ function ctx_notify_err(err_info::Ptr{Cchar}, priv_info::Ptr{Void},
     callback(err, private)::Ptr{Void}
 end
 
-
 const ctx_callback_ptr = cfunction(ctx_notify_err, Ptr{Void}, 
                                    (Ptr{Cchar}, Ptr{Void}, Csize_t, Ptr{Void}))
 
 function raise_context_error(error_info, private_info)
     throw(OpenCLException("OpenCL.Context error: $error_info"))
 end
-
 
 function Context(devs::Vector{Device};
                  properties=nothing,
@@ -112,17 +109,15 @@ end
 function properties(ctx_id::CL_context)
     nbytes = Csize_t[0]
     @check api.clGetContextInfo(ctx_id, CL_CONTEXT_PROPERTIES, 0, C_NULL, nbytes)
-    
     # Calculate length of storage array
     # At nbytes[1] the size of the properties array in bytes is stored  
     # The length of the property array is then nbytes[1] / sizeof(CL_context_properties)
     # Note: nprops should be odd since it requires a C_NULL terminated array
     nprops = div(nbytes[1], sizeof(CL_context_properties))
-
-    props = Array(CL_context_properties, nprops)
+    props = zeros(CL_context_properties, nprops)
     @check api.clGetContextInfo(ctx_id, CL_CONTEXT_PROPERTIES,
                                 nbytes[1], props, C_NULL)
-    #properties array of [key,value..., C_NULL]
+    # properties array of [key,value..., C_NULL]
     result = {}
     for i in 1:2:nprops
         key = props[i]
@@ -149,10 +144,7 @@ function properties(ctx_id::CL_context)
     end
     return result
 end
-
-function properties(ctx::Context)
-    properties(ctx.id)
-end
+properties(ctx::Context) = properties(ctx.id)
 
 #Note: properties list needs to be terminated with a NULL value!
 function _parse_properties(props)
@@ -187,7 +179,7 @@ function _parse_properties(props)
 end
 
 function num_devices(ctx::Context)
-    ndevices = Array(CL_uint, 1)
+    ndevices = CL_uint[0]
     @check api.clGetContextInfo(ctx.id, CL_CONTEXT_NUM_DEVICES,
                                 sizeof(CL_uint), ndevices, C_NULL)
     return ndevices[1]
@@ -195,10 +187,8 @@ end
 
 function devices(ctx::Context)
     n = num_devices(ctx)
-    if n == 0
-        return [] 
-    end
-    dev_ids = Array(CL_device_id, n)
+    n == 0 && return [] 
+    dev_ids = zeros(CL_device_id, n)
     @check api.clGetContextInfo(ctx.id, CL_CONTEXT_DEVICES,
                                 n * sizeof(CL_device_id), dev_ids, C_NULL)
     return [Device(id) for id in dev_ids]

@@ -4,16 +4,15 @@ type Kernel
     id :: CL_kernel
 
     function Kernel(k::CL_kernel, retain=false)
-        if retain
-            @check api.clRetainKernel(k)
-        end
+        retain && @check api.clRetainKernel(k)
         kernel = new(k)
-        finalizer(kernel, x -> release!(x))
+        finalizer(kernel, release!)
         return kernel
     end
 end
 
 Base.pointer(k::Kernel) = k.id
+Base.convert(::Type{CL_kernel}, k::Kernel) = k.id
 @ocl_object_equality(Kernel)
 
 Base.show(io::IO, k::Kernel) = begin
@@ -36,7 +35,7 @@ function Kernel(p::Program, kernel_name::String)
             throw(ArgumentError(msg))
         end
     end
-    err_code = Array(CL_int, 1)
+    err_code = CL_int[0]
     kernel_id = api.clCreateKernel(p.id, kernel_name, err_code)
     if err_code[1] != CL_SUCCESS
         throw(CLError(err_code[1]))
@@ -47,7 +46,6 @@ end
 immutable LocalMem{T}
     nbytes::Csize_t
 end
-
 LocalMem{T}(::Type{T}, len::Integer) = begin
     @assert len > 0
     nbytes = sizeof(T) * len
@@ -60,26 +58,24 @@ Base.sizeof{T}(l::LocalMem{T}) = l.nbytes
 Base.length{T}(l::LocalMem{T}) = int(l.nbytes / sizeof(T))
 
 function set_arg!(k::Kernel, idx::Integer, arg::Nothing)
-    @assert idx > 0
+    idx > 0 || throw(BoundsError())
     @check api.clSetKernelArg(k.id, cl_uint(idx-1), sizeof(CL_mem), C_NULL)
     return k
 end
 
 function set_arg!(k::Kernel, idx::Integer, arg::Ptr{Void})
-    if arg != C_NULL
-        throw(AttributeError("set_arg! for void pointer $arg is undefined"))
-    end
+    arg != C_NULL && throw(AttributeError("set_arg! for void pointer $arg is undefined"))
     set_arg!(k, idx, nothing)
 end
 
 function set_arg!(k::Kernel, idx::Integer, arg::CLMemObject)
-    @assert idx > 0
+    idx > 0 || throw(BoundsError())
     @check api.clSetKernelArg(k.id, cl_uint(idx-1), sizeof(CL_mem), [arg.id])
     return k
 end
 
 function set_arg!(k::Kernel, idx::Integer, arg::LocalMem)
-    @assert idx > 0
+    idx > 0 || throw(BoundsError())
     @check api.clSetKernelArg(k.id, cl_uint(idx-1), arg.nbytes, C_NULL)
     return k
 end
@@ -100,7 +96,6 @@ for cl_type in [:CL_char, :CL_uchar, :CL_short, :CL_ushort,
         end
     end
 end
-
 function set_args!(k::Kernel, args...)
     for (i, a) in enumerate(args)
         set_arg!(k, i, a)
@@ -161,7 +156,7 @@ Base.getindex(k::Kernel, args...) = begin
     queue = args[1]
     global_size = args[2]
     local_size  = length(args) == 3 ? args[3] : nothing
-    # TODO: we cannot pass keywords in anon functions yet, return kernel call thunk 
+    # we cannot pass keywords in anon functions yet, return kernel call thunk 
     return (args...) -> call(queue, k, global_size, local_size, args...)
 end
     
@@ -244,9 +239,7 @@ end
     
 
 function enqueue_task(q::CmdQueue, k::Kernel; wait_for=nothing)
-    n_evts  = 0
-    evt_ids = C_NULL
-    #TODO: this should be split out into its own function
+    n_evts, evt_ids = 0, C_NULL
     if wait_for != nothing
         if isa(wait_for, Event)
             n_evts = 1
@@ -257,13 +250,14 @@ function enqueue_task(q::CmdQueue, k::Kernel; wait_for=nothing)
             evt_ids = [evt.id for evt in wait_for]
         end
     end
-    ret_event = Array(CL_event, 1)
+    ret_event = CL_event[0]
     @check api.clEnqueueTask(q.id, k.id, n_evts, evt_ids, ret_event)
     return ret_event[1]
 end
 
-let name(k::Kernel) = begin
-        size = Array(Csize_t, 1)
+let 
+    name(k::Kernel) = begin
+        size = Csize_t[0]
         @check api.clGetKernelInfo(k.id, CL_KERNEL_FUNCTION_NAME,
                                    0, C_NULL, size)
         result = Array(Cchar, size[1])
@@ -273,28 +267,28 @@ let name(k::Kernel) = begin
     end
 
     num_args(k::Kernel) = begin
-        ret = Array(CL_uint, 1)
+        ret = CL_uint[0]
         @check api.clGetKernelInfo(k.id, CL_KERNEL_NUM_ARGS,
                                    sizeof(CL_uint), ret, C_NULL)
         return ret[1]
     end
 
     reference_count(k::Kernel) = begin
-        ret = Array(CL_uint, 1)
+        ret = CL_uint[0]
         @check api.clGetKernelInfo(k.id, CL_KERNEL_REFERENCE_COUNT,
                                    sizeof(CL_uint), ret, C_NULL)
         return ret[1]
     end 
 
     program(k::Kernel) = begin
-        ret = Array(CL_program, 1)
+        ret = CL_program[0]
         @check api.clGetKernelInfo(k.id, CL_KERNEL_PROGRAM,
                                    sizeof(CL_program), ret, C_NULL) 
         return Program(ret[1], retain=true)
     end
 
     attributes(k::Kernel) = begin
-        size = Csize_t[0,]
+        size = Csize_t[0]
         api.clGetKernelInfo(k.id, CL_KERNEL_ATTRIBUTES, 
                             0, C_NULL, size)
         if size[1] <= 1

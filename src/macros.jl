@@ -1,30 +1,27 @@
 macro check(clfunc)
     quote
-        local err::CL_int
-        err = $clfunc
-        if err != CL_SUCCESS
-            throw(CLError(err))
-        end
+        local err = ($clfunc)::CL_int
+        err != CL_SUCCESS && throw(CLError(err))
         err
     end
 end
 
 macro check_release(clfunc)
     quote
-        local err::CL_int
-        err = $clfunc 
+        local err = ($clfunc)::CL_int
         if err != CL_SUCCESS
-            error("release! $clfunc failed with code $(err[1]))")
+            throw(OpenCLException("release! $clfunc failed with code $(err[1]))"))
         end
+        err 
     end
 end
 
 macro ocl_object_equality(cl_object_type)
-    @eval begin 
+    esc(quote 
         Base.hash(x::$cl_object_type) = hash(pointer(x))
         Base.isequal(x1::$cl_object_type, x2::$cl_object_type) = Base.hash(x1) == Base.hash(x2)
         Base.(:(==))(x1::$cl_object_type, x2::$cl_object_type) = Base.hash(x1) == Base.hash(x2)
-    end
+    end)
 end
 
 #TODO: these are just stubs for future expanded versions
@@ -41,10 +38,7 @@ macro ocl_v1_2_only(ex)
 end
 
 function _version_test(qm, elem :: Symbol, ex :: Expr, version :: VersionNumber)
-    @assert qm == :?
-    @assert ex.head == :(:)
-    @assert length(ex.args) == 2
-
+    @assert qm == :? && ex.head == :(:) && length(ex.args) == 2
     if OpenCL.api.OPENCL_VERSION >= version
         expr = quote
             if OpenCL.opencl_version($(elem)) >= $version
@@ -98,8 +92,11 @@ macro int_info(what, cl_obj_id, cl_obj_info, ret_type)
     quote
         local result = Array($(esc(ret_type)), 1)
         local err::CL_int
-        err = $clFunc($(esc(cl_obj)), $(esc(cl_obj_info)), 
-                      sizeof($(esc(ret_type))), result, C_NULL)
+        err = $clFunc($(esc(cl_obj)), 
+                      $(esc(cl_obj_info)), 
+                      sizeof($(esc(ret_type))), 
+                      result, 
+                      C_NULL)
         if err != CL_SUCCESS
             throw(CLError(err))
         end

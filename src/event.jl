@@ -54,7 +54,6 @@ end
 Base.getindex(evt::CLEvent, evt_info::Symbol) = info(evt, evt_info)
 
 @ocl_v1_1_only begin
-
     type UserEvent <: CLEvent
         id :: CL_event 
 

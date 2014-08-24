@@ -39,7 +39,7 @@ macro deprecate_ocl_func(func, ret_type, arg_types)
     local func_body = expr.args[1].args[2].args[2]
     @assert func_body.head == :block
     insert!(func_body.args, 2, 
-            :(Base.depwarn(string($name," is deprecated"), $name)))
+            :(Base.depwarn(string($name, " is deprecated"), $name)))
     expr
 end
 
