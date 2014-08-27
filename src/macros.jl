@@ -1,25 +1,3 @@
-macro ocl_call(func, arg_types, args...)
-    quote
-        _err = ccall(($func, libopencl), CL_int, $arg_types, $(args...))
-        if _err != CL_SUCCESS
-            error("CL ERROR: $func")
-        end
-    end
-end
-
-macro ocl_call(func, ret_type, arg_types, args...)
-    quote
-        ccall(($func, libopencl), $ret_type, $arg_types, $(args...))
-    end
-end
-
-macro ocl_func(func, arg_types)
-    local args_in = Symbol[symbol(string('a', i)) for i in 1:length(arg_types.args)]
-    quote
-        $(esc(func))($(args_in...)) = @ocl_call($(string(func)), $arg_types, $(args_in...))
-    end
-end
-
 macro check(clfunc)
     quote
         local err::CL_int
@@ -60,6 +38,37 @@ macro ocl_v1_2_only(ex)
     quote
         $(esc(ex))
     end
+end
+
+function _version_test(qm, elem :: Symbol, ex :: Expr, version :: VersionNumber)
+    @assert qm == :?
+    @assert ex.head == :(:)
+    @assert length(ex.args) == 2
+
+    if OpenCL.api.OPENCL_VERSION >= version
+        expr = quote
+            if OpenCL.opencl_version($(elem)) >= $version
+                $(ex.args[1])
+            else
+                $(ex.args[2])
+            end
+        end
+        return esc(expr)
+    else
+        return esc(ex.args[2])
+    end
+end
+
+macro min_v11(qm, elem, ex)
+    _version_test(qm, elem, ex, v"1.1")
+end
+
+macro min_v12(qm, elem, ex)
+    _version_test(qm, elem, ex, v"1.2")
+end
+
+macro min_v20(qm, elem, ex)
+    _version_test(qm, elem, ex, v"2.0")
 end
 
 macro return_event(evt)
