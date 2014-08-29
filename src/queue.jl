@@ -8,7 +8,10 @@ type CmdQueue
             @check api.clRetainCommandQueue(q_id)
         end
         q = new(q_id)
-        finalizer(q, x -> release!(x))
+        finalizer(q, x -> begin
+            retain || _deletecached!(q)
+            release!(x)
+        end )
         return q
     end
 end 

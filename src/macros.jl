@@ -97,3 +97,29 @@ macro str_info(what, arg1, arg2)
         bytestring(convert(Ptr{CL_char}, result))
     end
 end
+
+function _version_test(qm, elem :: Symbol, ex :: Expr, version :: VersionNumber)
+    @assert qm == :?
+    @assert ex.head == :(:)
+    @assert length(ex.args) == 2
+
+    esc(quote
+        if OpenCL.check_version($elem, $version)
+            $(ex.args[1])
+        else
+            $(ex.args[2])
+        end
+    end)
+end
+
+macro min_v11(qm, elem, ex)
+    _version_test(qm, elem, ex, v"1.1")
+end
+
+macro min_v12(qm, elem, ex)
+    _version_test(qm, elem, ex, v"1.2")
+end
+
+macro min_v20(qm, elem, ex)
+    _version_test(qm, elem, ex, v"2.0")
+end

@@ -8,7 +8,10 @@ type Context
             @check api.clRetainContext(ctx_id)
         end
         ctx = new(ctx_id)
-        finalizer(ctx, c -> release!(c))
+        finalizer(ctx, c -> begin
+            retain || _deletecached!(c);
+            release!(c)
+        end )
         return ctx 
     end
 end
