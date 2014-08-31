@@ -311,13 +311,11 @@ function enqueue_map_mem{T}(q::CmdQueue,
     return (mapped_arr, Event(ret_evt[1]))
 end
 
-@ocl_v1_2_only begin
-    
-    # low level enqueue fill operation, return event
-    function enqueue_fill_buffer{T}(q::CmdQueue, buf::Buffer{T}, pattern::T,
-                                    offset::Csize_t, nbytes::Csize_t,
-                                    wait_for::Union(Vector{Event}, Nothing))
-        
+# low level enqueue fill operation, return event
+function enqueue_fill_buffer{T}(q::CmdQueue, buf::Buffer{T}, pattern::T,
+                                offset::Csize_t, nbytes::Csize_t,
+                                wait_for::Union(Vector{Event}, Nothing))
+    @min_v12? q begin
         if wait_for == nothing
             evt_ids = C_NULL
             n_evts = cl_uint(0)
@@ -328,25 +326,29 @@ end
         ret_evt = Array(CL_event, 1)
         nbytes_pattern = sizeof(pattern)
         @assert nbytes_pattern > 0
-        @check api.clEnqueueFillBuffer(q.id, buf.id, [pattern], 
+        @check api.clEnqueueFillBuffer(q.id, buf.id, [pattern],
                                        unsigned(nbytes_pattern), offset, nbytes,
                                        n_evts, evt_ids, ret_evt)
         @return_event ret_evt[1]
-    end
-    
-    # enqueue a fill operation, return an event
-    function enqueue_fill{T}(q::CmdQueue, buf::Buffer{T}, x::T)
+    end : error("enqueue_fill_buffer is only supported since OpenCL 1.2")
+end
+
+# enqueue a fill operation, return an event
+function enqueue_fill{T}(q::CmdQueue, buf::Buffer{T}, x::T)
+    @min_v12? q begin
         nbytes = sizeof(buf)
         evt = enqueue_fill_buffer(q, buf, x, unsigned(0), unsigned(nbytes), nothing)
         return evt
-    end
-    
-    # (blocking) fill the contents of a buffer with with a given value  
-    function fill!{T}(q::CmdQueue, buf::Buffer{T}, x::T)
+    end : error("enqueue_fill is only supported since OpenCL 1.2")
+end
+
+# (blocking) fill the contents of a buffer with with a given value
+function fill!{T}(q::CmdQueue, buf::Buffer{T}, x::T)
+    @min_v12? q begin
         evt = enqueue_fill(q, buf, x)
         wait(evt)
         return evt
-    end
+    end : error("fill! is only supported since OpenCL 1.2")
 end
 
 # copy the contents of a buffer into an array
