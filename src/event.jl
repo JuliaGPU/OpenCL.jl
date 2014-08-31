@@ -53,22 +53,21 @@ end
 
 Base.getindex(evt::CLEvent, evt_info::Symbol) = info(evt, evt_info)
 
-@ocl_v1_1_only begin
+type UserEvent <: CLEvent
+    id :: CL_event
 
-    type UserEvent <: CLEvent
-        id :: CL_event 
-
-        function UserEvent(evt_id::CL_event, retain=false)
-            if retain
-                @check api.clRetainEvent(evt_id)
-            end
-            evt = new(evt_id)
-            finalizer(evt, release!)
-            return evt
+    function UserEvent(evt_id::CL_event, retain=false)
+        if retain
+            @check api.clRetainEvent(evt_id)
         end
+        evt = new(evt_id)
+        finalizer(evt, release!)
+        return evt
     end
-    
-    function UserEvent(ctx::Context; retain=false)
+end
+
+function UserEvent(ctx::Context; retain=false)
+    @min_v11? ctx begin
         status = Array(CL_int, 1)
         evt_id = api.clCreateUserEvent(ctx.id, status)
         if status[1] != CL_SUCCESS
@@ -80,17 +79,17 @@ Base.getindex(evt::CLEvent, evt_info::Symbol) = info(evt, evt_info)
             @check api.clReleaseEvent(evt_id)
             throw(err)
         end
-    end
+    end : error("User events are only supported since OpenCL 1.1")
+end
 
-    function Base.show(io::IO, evt::UserEvent)
-        ptr_address = "0x$(hex(unsigned(Base.pointer(evt)), WORD_SIZE>>2))"
-        print(io, "OpenCL.UserEvent(@$ptr_address)")
-    end
+function Base.show(io::IO, evt::UserEvent)
+    ptr_address = "0x$(hex(unsigned(Base.pointer(evt)), WORD_SIZE>>2))"
+    print(io, "OpenCL.UserEvent(@$ptr_address)")
+end
 
-    function complete(evt::UserEvent)
-        @check api.clSetUserEventStatus(evt.id, CL_COMPLETE)
-        return evt
-    end
+function complete(evt::UserEvent)
+    @check api.clSetUserEventStatus(evt.id, CL_COMPLETE)
+    return evt
 end
 
 function event_notify(evt_id::CL_event, status::CL_int, julia_func::Ptr{Void})
@@ -127,9 +126,9 @@ function wait(evts::Vector{CLEvent})
     return evts
 end
 
-@ocl_v1_2_only begin
-    function enqueue_marker_with_wait_list(q::CmdQueue,
-                                           wait_for::Vector{CLEvent})
+function enqueue_marker_with_wait_list(q::CmdQueue,
+                                       wait_for::Vector{CLEvent})
+    @min_v12? q begin
         n_wait_events = cl_uint(length(wait_for))
         wait_evt_ids = [evt.id for evt in wait_for]
         ret_evt = Array(CL_event, 1)
@@ -137,10 +136,12 @@ end
                                                isempty(wait_evt_ids)? C_NULL : wait_evt_ids,
                                                ret_evt)
         @return_event ret_evt[1]
-    end
+    end : error("enqueue_marker_with_wait_list is only supported beginning with OpenCL 1.2")
+end
 
-    function enqueue_barrier_with_wait_list(q::CmdQueue,
-                                            wait_for::Vector{CLEvent})
+function enqueue_barrier_with_wait_list(q::CmdQueue,
+                                        wait_for::Vector{CLEvent})
+    @min_v12? q begin
         n_wait_events = cl_uint(length(wait_for))
         wait_evt_ids = [evt.id for evt in wait_for]
         ret_evt = Array(CL_event, 1)
@@ -148,7 +149,7 @@ end
                                                 isempty(wait_evt_ids)? C_NULL : wait_evt_ids,
                                                 ret_evt)
         @return_event ret_evt[1]
-    end
+    end : error("enqueue_barrier_with_wait_list is only supported beginning with OpenCL 1.2")
 end
 
 function enqueue_marker(q::CmdQueue)
