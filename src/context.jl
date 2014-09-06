@@ -1,6 +1,6 @@
 # OpenCL.Context 
 
-type Context 
+type Context <: CLObject
     id :: CL_context
     
     function Context(ctx_id::CL_context; retain=false)

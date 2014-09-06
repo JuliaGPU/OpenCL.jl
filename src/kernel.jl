@@ -1,6 +1,6 @@
 # OpenCL.Kernel
 
-type Kernel
+type Kernel <: CLObject
     id :: CL_kernel
 
     function Kernel(k::CL_kernel, retain=false)

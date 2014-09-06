@@ -1,6 +1,6 @@
 # OpenCL.Event
 
-abstract CLEvent
+abstract CLEvent <: CLObject
 
 type Event <: CLEvent
     id :: CL_event

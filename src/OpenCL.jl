@@ -1,5 +1,7 @@
 module OpenCL
 
+abstract CLObject
+
 # OpenCL Types 
 include("types.jl")
 

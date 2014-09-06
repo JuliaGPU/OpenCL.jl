@@ -1,6 +1,6 @@
 # OpenCL.Platform
 
-immutable Platform
+immutable Platform <: CLObject
     id::CL_platform_id
 end
 
