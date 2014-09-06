@@ -14,7 +14,6 @@ type Kernel <: CLObject
 end
 
 Base.pointer(k::Kernel) = k.id
-@ocl_object_equality(Kernel)
 
 Base.show(io::IO, k::Kernel) = begin
     print(io, "OpenCL.Kernel(\"$(k[:name])\" nargs=$(k[:num_args]))")

@@ -5,7 +5,6 @@ immutable Platform <: CLObject
 end
 
 Base.pointer(p::Platform) = p.id
-@ocl_object_equality(Platform)
 
 Base.getindex(p::Platform, pinfo::Symbol) = info(p, pinfo)
 

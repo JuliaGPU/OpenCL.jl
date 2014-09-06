@@ -1,6 +1,6 @@
 # OpenCL.Program
 
-type Program
+type Program <: CLObject
     id::CL_program
     binary::Bool
 
@@ -21,7 +21,6 @@ Base.show(io::IO, p::Program) = begin
 end 
 
 Base.pointer(p::Program) = p.id
-@ocl_object_equality(Program)
 
 Base.getindex(p::Program, pinfo::Symbol) = info(p, pinfo)
 

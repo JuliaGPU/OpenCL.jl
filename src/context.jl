@@ -24,7 +24,6 @@ function release!(ctx::Context)
 end
 
 Base.pointer(ctx::Context) = ctx.id
-@ocl_object_equality(Context)
 
 function Base.show(io::IO, ctx::Context)
     dev_strs = [replace(d[:name], r"\s+", " ") for d in devices(ctx)]

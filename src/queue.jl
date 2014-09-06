@@ -24,7 +24,6 @@ function release!(q::CmdQueue)
 end
 
 Base.pointer(q::CmdQueue) = q.id
-@ocl_object_equality(CmdQueue) 
 
 function Base.show(io::IO, q::CmdQueue)
     ptr_address = "0x$(hex(unsigned(Base.pointer(q)), WORD_SIZE>>2))"

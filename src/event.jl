@@ -44,7 +44,6 @@ function release!(evt::CLEvent)
 end
 
 Base.pointer(evt::CLEvent) = evt.id
-@ocl_object_equality(CLEvent)
 
 function Base.show(io::IO, evt::Event)
     ptr_address = "0x$(hex(unsigned(Base.pointer(evt)), WORD_SIZE>>2))"
