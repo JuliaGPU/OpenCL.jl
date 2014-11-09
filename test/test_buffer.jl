@@ -3,8 +3,6 @@ using FactCheck
 import OpenCL 
 const cl = OpenCL
 
-macro throws_pred(ex) FactCheck.throws_pred(ex) end 
-
 immutable TestStruct
     a::cl.CL_int
     b::cl.CL_float
@@ -26,56 +24,56 @@ facts("OpenCL.Buffer") do
             ctx = cl.Context(device)
             testarray = zeros(Float32, 1000)
 
-            @fact @throws_pred(cl.Buffer(Float32, ctx, cl.CL_MEM_ALLOC_HOST_PTR | cl.CL_MEM_READ_ONLY,
-                                         length(testarray))) => (false, "no error")
+            @fact cl.Buffer(Float32, ctx, cl.CL_MEM_ALLOC_HOST_PTR | cl.CL_MEM_READ_ONLY,
+                                         length(testarray)) => anything "no error" 
             
-            @fact @throws_pred(cl.Buffer(Float32, ctx, cl.CL_MEM_ALLOC_HOST_PTR | cl.CL_MEM_WRITE_ONLY,
-                                         length(testarray))) => (false, "no error")
+            @fact cl.Buffer(Float32, ctx, cl.CL_MEM_ALLOC_HOST_PTR | cl.CL_MEM_WRITE_ONLY,
+                                         length(testarray)) => anything "no error" 
              
-            @fact @throws_pred(cl.Buffer(Float32, ctx, cl.CL_MEM_ALLOC_HOST_PTR | cl.CL_MEM_READ_WRITE,
-                                         length(testarray))) => (false, "no error")
+            @fact cl.Buffer(Float32, ctx, cl.CL_MEM_ALLOC_HOST_PTR | cl.CL_MEM_READ_WRITE,
+                                         length(testarray)) => anything "no error" 
 
             buf = cl.Buffer(Float32, ctx, cl.CL_MEM_ALLOC_HOST_PTR | cl.CL_MEM_READ_WRITE, length(testarray))
             @fact buf.len => length(testarray)
 
-            @fact @throws_pred(cl.Buffer(Float32, ctx, cl.CL_MEM_COPY_HOST_PTR | cl.CL_MEM_READ_ONLY, 
-                                         hostbuf=testarray)) => (false, "no error")
+            @fact cl.Buffer(Float32, ctx, cl.CL_MEM_COPY_HOST_PTR | cl.CL_MEM_READ_ONLY, 
+                                         hostbuf=testarray) => anything "no error" 
 
-            @fact @throws_pred(cl.Buffer(Float32, ctx, cl.CL_MEM_COPY_HOST_PTR | cl.CL_MEM_WRITE_ONLY,
-                                         hostbuf=testarray)) => (false, "no error")
+            @fact cl.Buffer(Float32, ctx, cl.CL_MEM_COPY_HOST_PTR | cl.CL_MEM_WRITE_ONLY,
+                                         hostbuf=testarray) => anything "no error" 
 
-            @fact @throws_pred(cl.Buffer(Float32, ctx, cl.CL_MEM_COPY_HOST_PTR | cl.CL_MEM_READ_WRITE,
-                                         hostbuf=testarray)) => (false, "no error")
+            @fact cl.Buffer(Float32, ctx, cl.CL_MEM_COPY_HOST_PTR | cl.CL_MEM_READ_WRITE,
+                                         hostbuf=testarray) => anything "no error" 
               
             buf = cl.Buffer(Float32, ctx, cl.CL_MEM_COPY_HOST_PTR | cl.CL_MEM_READ_WRITE, hostbuf=testarray)
             @fact buf.len => length(testarray)
             
-            @fact @throws_pred(cl.Buffer(Float32, ctx, cl.CL_MEM_USE_HOST_PTR | cl.CL_MEM_READ_ONLY,
-                                         hostbuf=testarray)) => (false, "no error")
+            @fact cl.Buffer(Float32, ctx, cl.CL_MEM_USE_HOST_PTR | cl.CL_MEM_READ_ONLY,
+                                         hostbuf=testarray) => anything "no error" 
 
-            @fact @throws_pred(cl.Buffer(Float32, ctx, cl.CL_MEM_USE_HOST_PTR | cl.CL_MEM_WRITE_ONLY,
-                                         hostbuf=testarray)) => (false, "no error")
+            @fact cl.Buffer(Float32, ctx, cl.CL_MEM_USE_HOST_PTR | cl.CL_MEM_WRITE_ONLY,
+                                         hostbuf=testarray) => anything "no error" 
 
-            @fact @throws_pred(cl.Buffer(Float32, ctx, cl.CL_MEM_USE_HOST_PTR | cl.CL_MEM_READ_WRITE,
-                                         hostbuf=testarray)) => (false, "no error")
+            @fact cl.Buffer(Float32, ctx, cl.CL_MEM_USE_HOST_PTR | cl.CL_MEM_READ_WRITE,
+                                         hostbuf=testarray) => anything "no error" 
 
             buf = cl.Buffer(Float32, ctx, cl.CL_MEM_USE_HOST_PTR | cl.CL_MEM_READ_WRITE, hostbuf=testarray)
             @fact buf.len => length(testarray)
             
             # invalid buffer size should throw error
-            @fact @throws_pred(cl.Buffer(Float32, ctx, cl.CL_MEM_ALLOC_HOST_PTR, +0)) => (true, "error")
-            @fact @throws_pred(cl.Buffer(Float32, ctx, cl.CL_MEM_ALLOC_HOST_PTR, -1)) => (true, "error")
+            @fact_throws cl.Buffer(Float32, ctx, cl.CL_MEM_ALLOC_HOST_PTR, +0) "error"
+            @fact_throws cl.Buffer(Float32, ctx, cl.CL_MEM_ALLOC_HOST_PTR, -1) "error"
 
             # invalid flag combinations should throw error
-            @fact @throws_pred(cl.Buffer(Float32, ctx, cl.CL_MEM_USE_HOST_PTR | cl.CL_MEM_ALLOC_HOST_PTR,
-                                             hostbuf=testarray)) => (true, "error")
+            @fact_throws cl.Buffer(Float32, ctx, cl.CL_MEM_USE_HOST_PTR | cl.CL_MEM_ALLOC_HOST_PTR,
+                                             hostbuf=testarray) "error"
 
             # invalid host pointer should throw error
-            @fact @throws_pred(cl.Buffer(Float32, ctx, cl.CL_MEM_COPY_HOST_PTR,
-                                         hostbuf=C_NULL)) => (true, "error")
+            @fact_throws cl.Buffer(Float32, ctx, cl.CL_MEM_COPY_HOST_PTR,
+                                         hostbuf=C_NULL) "error"
             
-            @fact @throws_pred(cl.Buffer(Float32, ctx, cl.CL_MEM_USE_HOST_PTR,
-                                         hostbuf=C_NULL)) => (true, "error")
+            @fact_throws cl.Buffer(Float32, ctx, cl.CL_MEM_USE_HOST_PTR,
+                                         hostbuf=C_NULL) "error"
         end
      end
 
@@ -100,13 +98,12 @@ facts("OpenCL.Buffer") do
                                    ]
                          testarray = zeros(mtype, 100)
                          if mf2 == :copy || mf2 == :use
-                             @fact @throws_pred(cl.Buffer(mtype, ctx, (mf1, mf2), 
-                                                          hostbuf=testarray)) => (false, "no error")
+                             @fact cl.Buffer(mtype, ctx, (mf1, mf2), hostbuf=testarray) => anything "no error"
                              buf = cl.Buffer(mtype, ctx, (mf1, mf2), hostbuf=testarray)
                              @fact buf.len => length(testarray)
                          elseif mf2 == :alloc
-                             @fact @throws_pred(cl.Buffer(mtype, ctx, (mf1, mf2),
-                                                          length(testarray))) => (false, "no error")
+                             @fact cl.Buffer(mtype, ctx, (mf1, mf2),
+                                                          length(testarray)) => anything "no error"
                              buf = cl.Buffer(mtype, ctx, (mf1, mf2), length(testarray))
                              @fact buf.len => length(testarray)
                          end
@@ -115,23 +112,20 @@ facts("OpenCL.Buffer") do
              end
 
              test_array = Array(TestStruct, 100)
-             @fact @throws_pred(cl.Buffer(TestStruct, ctx, :alloc, length(test_array))) => (false, "no error")
-             @fact @throws_pred(cl.Buffer(TestStruct, ctx, :copy, hostbuf=test_array))  => (false, "no error")
+             @fact cl.Buffer(TestStruct, ctx, :alloc, length(test_array)) => anything "no error"
+             @fact cl.Buffer(TestStruct, ctx, :copy, hostbuf=test_array) => anything "no error"
 
              # invalid buffer size should throw error
-             @fact @throws_pred(cl.Buffer(Float32, ctx, :alloc, +0)) => (true, "error")
-             @fact @throws_pred(cl.Buffer(Float32, ctx, :alloc, -1)) => (true, "error")
+             @fact_throws cl.Buffer(Float32, ctx, :alloc, +0) "error"
+             @fact_throws cl.Buffer(Float32, ctx, :alloc, -1) "error"
 
              # invalid flag combinations should throw error
-             @fact @throws_pred(cl.Buffer(Float32, ctx, (:use, :alloc), 
-                                          hostbuf=testarray)) => (true, "error")
+             @fact_throws cl.Buffer(Float32, ctx, (:use, :alloc), hostbuf=testarray) "error"
 
              # invalid host pointer should throw error
-             @fact @throws_pred(cl.Buffer(Float32, ctx, :copy,
-                                          hostbuf=C_NULL)) => (true, "error")
+             @fact_throws cl.Buffer(Float32, ctx, :copy, hostbuf=C_NULL) "error"
             
-             @fact @throws_pred(cl.Buffer(Float32, ctx, :use, 
-                                          hostbuf=C_NULL)) => (true, "error")
+             @fact_throws cl.Buffer(Float32, ctx, :use, hostbuf=C_NULL) "error"
      
          end
      end
@@ -219,14 +213,14 @@ facts("OpenCL.Buffer") do
 
                 # cannot unmap a buffer without same host array
                 bad = similar(a)
-                @fact @throws_pred(cl.unmap!(queue, b, bad)) => (true, "error")
+                @fact_throws cl.unmap!(queue, b, bad) "error"
 
                 @fact cl.ismapped(b) => true
                 cl.unmap!(queue, b, a)
                 @fact cl.ismapped(b) => false
 
                 # cannot unmap an unmapped buffer
-                @fact @throws_pred(cl.unmap!(queue, b, a)) => (true, "error")
+                @fact_throws cl.unmap!(queue, b, a) "error"
                 
                 # gc here quickly force any memory errors
                 Base.gc()

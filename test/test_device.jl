@@ -3,8 +3,6 @@ using FactCheck
 import OpenCL 
 const cl = OpenCL
 
-macro throws_pred(ex) FactCheck.throws_pred(ex) end 
-
 facts("OpenCL.Device") do 
     
     context("Device Type") do
@@ -80,12 +78,12 @@ facts("OpenCL.Device") do
                 continue
             end
             @fact isa(p, cl.Platform) => true
-            @fact @throws_pred(p[:zjdlkf]) => (true, "error")
+            @fact_throws p[:zjdlkf] "error"
             for d in cl.devices(p)
                 @fact isa(d, cl.Device) => true
-                @fact @throws_pred(d[:zjdlkf]) => (true, "error")
+                @fact_throws d[:zjdlkf] "error"
                 for k in device_info_keys
-                    @fact @throws_pred(d[k]) => (false, "no error")
+                    @fact d[k] => anything "no error"
                     @fact d[k] => cl.info(d, k)
                     if k == :extensions
                         @fact isa(d[k], Array) => true 
@@ -106,5 +104,3 @@ facts("OpenCL.Device") do
         end
     end
 end
-
-

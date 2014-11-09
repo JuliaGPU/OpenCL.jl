@@ -9,6 +9,7 @@ const tests = [
             "kernel"
             "behaviour"
             "memory"
+            "buffer"
         ]
 
 const testdir = isdir("test") ? "test" : "."

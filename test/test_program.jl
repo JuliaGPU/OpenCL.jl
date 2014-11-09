@@ -4,8 +4,6 @@ using Base.Test
 import OpenCL 
 const cl = OpenCL
 
-macro throws_pred(ex) FactCheck.throws_pred(ex) end 
-
 facts("OpenCL.Program") do 
     
     test_source = "
@@ -27,7 +25,7 @@ facts("OpenCL.Program") do
         for device in cl.devices()
             ctx = cl.Context(device)
             prg = cl.Program(ctx, source=test_source)
-            @fact @throws_pred(cl.Program(ctx, source=test_source)) => (false, "no error")
+            @fact cl.Program(ctx, source=test_source) => anything "no error"
         end
     end
     context("OpenCL.Program info") do
@@ -54,7 +52,7 @@ facts("OpenCL.Program") do
         for device in cl.devices()
             ctx = cl.Context(device)
             prg = cl.Program(ctx, source=test_source)
-            @fact @throws_pred(cl.build!(prg)) => (false, "no error")
+            @fact cl.build!(prg) => anything "no error"
             
             # BUILD_SUCCESS undefined in POCL implementation..
             if device[:platform][:name] == "Portable Computing Language"
