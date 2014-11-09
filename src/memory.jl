@@ -32,7 +32,7 @@ end
 context(mem::CLMemObject) = begin
     param = Array(CL_context, 1)
     @check api.clGetMemObjectInfo(mem.id, CL_MEM_CONTEXT, 
-                                  sizeof(Csize_t), param_value, C_NULL)
+                                  sizeof(Csize_t), param, C_NULL)
     return Context(param[1], retain=true)
 end
 
