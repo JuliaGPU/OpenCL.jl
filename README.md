@@ -10,6 +10,9 @@ Julia interface for the OpenCL parallel computation API
 This package aims to be a complete solution for OpenCL programming in Julia, similar in scope to [PyOpenCL] for Python.
 It provides a high level api for OpenCL to make programing GPU's and multicore CPU's much less onerous.
 
+#### Support of Julia v0.4
+Currently `OpenCL.jl` only supports Julia v0.3 due to some breaking changes in Julia v0.4. Support is comming as soon as Julia v0.4 is entering its prerelease phase. 
+
 #### This package is based off the work of others:
   * [PyOpenCL] by Andreas Klockner
   * [oclpb]    by Sean Ross
