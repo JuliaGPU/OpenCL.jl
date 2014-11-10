@@ -9,10 +9,10 @@ macro throws_pred(ex) FactCheck.throws_pred(ex) end
 facts("OpenCL.Context") do
 
     context("OpenCL.Context constructor") do
-        @fact @throws_pred(cl.Context([])) => (true, "error")
+        @fact_throws (cl.Context([])) "error"
         for platform in cl.platforms()
             for device in cl.devices(platform)
-                @fact @throws_pred(cl.Context(device)) => (false, "no error")
+                @fact cl.Context(device) => anything "no error"
             end
         end
     end
@@ -38,8 +38,8 @@ facts("OpenCL.Context") do
                 if !cl.has_device_type(platform, sym_dev_type)
                     continue
                 end
-                @fact @throws_pred(cl.Context(sym_dev_type, properties=properties)) => (false, "no error")
-                @fact @throws_pred(cl.Context(cl_dev_type, properties=properties)) => (false, "no error") 
+                @fact cl.Context(sym_dev_type, properties=properties) => anything
+                @fact cl.Context(cl_dev_type, properties=properties) => anything
                 ctx = cl.Context(cl_dev_type, properties=properties)
                 @fact isempty(cl.properties(ctx)) => false
                 test_properties = cl.properties(ctx)
@@ -68,7 +68,7 @@ facts("OpenCL.Context") do
     end
 
     context("OpenCL.Context create_some_context") do
-        @fact @throws_pred(cl.create_some_context()) => (false, "no error")
+        @fact cl.create_some_context() => anything "no error"
         @fact typeof(cl.create_some_context()) => cl.Context
     end
 

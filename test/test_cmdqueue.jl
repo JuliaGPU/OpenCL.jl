@@ -10,13 +10,13 @@ facts("OpenCL.CmdQueue") do
      
     context("OpenCL.CmdQueue constructor") do
         has_warned = false
-        @fact @throws_pred(cl.CmdQueue(nothing, nothing)) => (true, "error")
+        @fact_throws cl.CmdQueue(nothing, nothing) "error"
         for platform in cl.platforms()
             for device in cl.devices(platform)
                 ctx = cl.Context(device)
-                @fact @throws_pred(cl.CmdQueue(ctx)) => (false, "no error")
-                @fact @throws_pred(cl.CmdQueue(ctx, device)) => (false, "no error")
-                @fact @throws_pred(cl.CmdQueue(ctx, :profile)) => (false, "no error")
+                @fact cl.CmdQueue(ctx) => anything "no error"
+                @fact cl.CmdQueue(ctx, device) => anything "no error"
+                @fact cl.CmdQueue(ctx, :profile) => anything "no error"
                 try
                     cl.CmdQueue(ctx, device, :out_of_order)
                     cl.CmdQueue(ctx, device, (:profile, :out_of_order))
@@ -27,13 +27,13 @@ facts("OpenCL.CmdQueue") do
                         has_warned = true
                     end
                 end
-                @fact @throws_pred(cl.CmdQueue(ctx, :unrecognized_flag)) => (true, "error")
-                @fact @throws_pred(cl.CmdQueue(ctx, device, :unrecognized_flag)) => (true, "error")
+                @fact_throws cl.CmdQueue(ctx, :unrecognized_flag) "error"
+                @fact_throws cl.CmdQueue(ctx, device, :unrecognized_flag) "error"
                 for flag in [:profile, :out_of_order]
-                    @fact @throws_pred(cl.CmdQueue(ctx, (flag, :unrecognized_flag))) => (true, "error")
-                    @fact @throws_pred(cl.CmdQueue(ctx, device, (:unrecognized_flag, flag))) => (true, "error")
-                    @fact @throws_pred(cl.CmdQueue(ctx, (flag, flag))) => (true, "error")
-                    @fact @throws_pred(cl.CmdQueue(ctx, device, (flag, flag))) => (true, "error")
+                    @fact_throws cl.CmdQueue(ctx, (flag, :unrecognized_flag)) "error"
+                    @fact_throws cl.CmdQueue(ctx, device, (:unrecognized_flag, flag)) "error"
+                    @fact_throws cl.CmdQueue(ctx, (flag, flag)) "error"
+                    @fact_throws cl.CmdQueue(ctx, device, (flag, flag)) "error"
                 end
             end
         end

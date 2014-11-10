@@ -32,9 +32,9 @@ facts("OpenCL.Kernel") do
             end
             ctx = cl.Context(device)
             prg = cl.Program(ctx, source=test_source)
-            @fact @throws_pred(cl.Kernel(prg, "sum")) => (true, "error")
+            @fact_throws cl.Kernel(prg, "sum") "error"
             cl.build!(prg)
-            @fact @throws_pred(cl.Kernel(prg, "sum")) => (false, "no error")
+            @fact cl.Kernel(prg, "sum") => anything "no error"
         end
     end
 
@@ -71,8 +71,8 @@ facts("OpenCL.Kernel") do
                               (:local_mem_size, cl.CL_KERNEL_LOCAL_MEM_SIZE),
                               (:private_mem_size, cl.CL_KERNEL_PRIVATE_MEM_SIZE),
                               (:prefered_size_multiple, cl.CL_KERNEL_PREFERRED_WORK_GROUP_SIZE_MULTIPLE)]
-                @fact @throws_pred(cl.work_group_info(k, sf, device)) => (false, "no error")
-                @fact @throws_pred(cl.work_group_info(k, clf, device)) => (false, "no error")
+                @fact cl.work_group_info(k, sf, device) => anything "no error"
+                @fact cl.work_group_info(k, clf, device) => anything "no error"
                 if sf != :compile_size
                     @fact cl.work_group_info(k, sf, device) => cl.work_group_info(k, clf, device)
                 end
@@ -110,10 +110,10 @@ facts("OpenCL.Kernel") do
             @fact sizeof(C) => nbytes
             
             # we use julia's index by one convention
-            @fact @throws_pred(cl.set_arg!(k, 1, A))   => (false, "no error")
-            @fact @throws_pred(cl.set_arg!(k, 2, B))   => (false, "no error")
-            @fact @throws_pred(cl.set_arg!(k, 3, C))   => (false, "no error")
-            @fact @throws_pred(cl.set_arg!(k, 4, uint32(count))) => (false, "no error")
+            @fact cl.set_arg!(k, 1, A)   => anything "no error"
+            @fact cl.set_arg!(k, 2, B)   => anything "no error"
+            @fact cl.set_arg!(k, 3, C)   => anything "no error"
+            @fact cl.set_arg!(k, 4, uint32(count)) => anything "no error"
 
             cl.enqueue_kernel(queue, k, count) |> cl.wait
             r = cl.read(queue, C)
@@ -164,16 +164,16 @@ facts("OpenCL.Kernel") do
             q = cl.CmdQueue(ctx)
            
             # dimensions must be the same size
-            @fact @throws_pred(cl.call(q, k, (1,), (1,1), d_buff)) => (true, "error")
-            @fact @throws_pred(cl.call(q, k, (1,1), (1,), d_buff)) => (true, "error")
+            @fact_throws cl.call(q, k, (1,), (1,1), d_buff) "error"
+            @fact_throws cl.call(q, k, (1,1), (1,), d_buff) "error"
 
             # dimensions are bounded
             max_work_dim = device[:max_work_item_dims]
             bad = tuple([1 for _ in 1:(max_work_dim + 1)])
-            @fact @throws_pred(cl.call(q, k, bad, d_buff)) => (true, "error")
+            @fact_throws cl.call(q, k, bad, d_buff) "error"
 
             # devices have finite work sizes
-            @fact @throws_pred(cl.call(q, k, (typemax(Int),), d_buff)) => (true, "error")
+            @fact_throws cl.call(q, k, (typemax(Int),), d_buff) "error"
 
             # blocking call to kernel finishes cmd queue
             cl.call(q, k, 1, 1, d_buff)

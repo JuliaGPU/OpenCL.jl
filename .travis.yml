@@ -9,7 +9,7 @@ notifications:
 env: 
   matrix:
     - JULIAVERSION="releases"
-    - JULIAVERSION="nightlies"
+#    - JULIAVERSION="nightlies"
 before_install:
   - if [ `uname` = "Linux" ]; then
       sudo add-apt-repository ppa:staticfloat/julia-deps -y;

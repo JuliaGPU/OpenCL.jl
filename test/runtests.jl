@@ -8,6 +8,8 @@ const tests = [
             "program"
             "kernel"
             "behaviour"
+            "memory"
+            "buffer"
         ]
 
 const testdir = isdir("test") ? "test" : "."
