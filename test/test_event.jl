@@ -1,11 +1,3 @@
-using FactCheck
-using Base.Test
-
-import OpenCL 
-const cl = OpenCL
-
-macro throws_pred(ex) FactCheck.throws_pred(ex) end 
-
 facts("OpenCL.Event") do
 
     context("OpenCL.Event status") do

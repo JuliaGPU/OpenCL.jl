@@ -1,8 +1,3 @@
-using FactCheck
-
-import OpenCL 
-const cl = OpenCL
-
 facts("OpenCL.Device") do 
     
     context("Device Type") do

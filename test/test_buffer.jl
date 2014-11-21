@@ -1,8 +1,3 @@
-using FactCheck 
-
-import OpenCL 
-const cl = OpenCL
-
 immutable TestStruct
     a::cl.CL_int
     b::cl.CL_float

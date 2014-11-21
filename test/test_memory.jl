@@ -1,10 +1,3 @@
-module TestMemory
-
-using FactCheck
-
-import OpenCL
-const cl = OpenCL
-
 facts("OpenCL.Memory") do
     function create_test_buffer()
         ctx = cl.create_some_context()
@@ -40,5 +33,3 @@ facts("OpenCL.Memory") do
         end
     end
 end
-
-end # module
