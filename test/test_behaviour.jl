@@ -223,7 +223,7 @@ immutable Params
     end
 end
 
-const test_struct = "
+let test_struct = "
     typedef struct Params
     {
         float A;
@@ -276,4 +276,5 @@ facts("OpenCL Struct Buffer Test") do
         r = cl.read(q, R_buf)
         @fact all(x -> x == 13.5, r) => true
     end
+end
 end
