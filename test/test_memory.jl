@@ -1,12 +1,4 @@
 facts("OpenCL.Memory") do
-    function create_test_buffer()
-        ctx = cl.create_some_context()
-        queue = cl.CmdQueue(ctx)
-        testarray = zeros(Float32, 1000)
-        buf = cl.Buffer(Float32, ctx, (:rw, :copy), hostbuf=testarray)
-        return (queue, buf, testarray, ctx)
-    end
-
     context("OpenCL.CLMemObject context") do
         _, buf, _, expected = create_test_buffer()
 
