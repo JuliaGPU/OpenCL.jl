@@ -106,7 +106,7 @@ facts("OpenCL.Buffer") do
              @fact_throws cl.Buffer(Float32, ctx, :alloc, -1) "error"
 
              # invalid flag combinations should throw error
-             @fact_throws cl.Buffer(Float32, ctx, (:use, :alloc), hostbuf=testarray) "error"
+             @fact_throws cl.Buffer(Float32, ctx, (:use, :alloc), hostbuf=test_array) "error"
 
              # invalid host pointer should throw error
              @fact_throws cl.Buffer(Float32, ctx, :copy, hostbuf=C_NULL) "error"
