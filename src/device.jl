@@ -1,11 +1,10 @@
 # OpenCL.Device 
 
-immutable Device
+immutable Device <: CLObject
     id :: CL_device_id
 end
 
 Base.pointer(d::Device) = d.id
-@ocl_object_equality(Device) 
 
 function Base.show(io::IO, d::Device)
     strip_extra_whitespace = r"\s+"

@@ -1,6 +1,6 @@
 # OpenCL.Context 
 
-type Context 
+type Context <: CLObject
     id :: CL_context
     
     function Context(ctx_id::CL_context; retain=false)
@@ -24,7 +24,6 @@ function release!(ctx::Context)
 end
 
 Base.pointer(ctx::Context) = ctx.id
-@ocl_object_equality(Context)
 
 function Base.show(io::IO, ctx::Context)
     dev_strs = [replace(d[:name], r"\s+", " ") for d in devices(ctx)]

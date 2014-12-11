@@ -1,6 +1,6 @@
 # OpenCL Memory Object
 
-abstract CLMemObject
+abstract CLMemObject <: CLObject
 
 #This should be implemented by all subtypes
 # type CLMemType <: CLMemObject
