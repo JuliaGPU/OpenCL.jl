@@ -198,7 +198,7 @@ let profile(d::Device) = begin
         return (width[1], height[1], depth[1])
     end
 
-    const info_map = (Symbol => Function)[
+    const info_map = @compat Dict{Symbol, Function}(
         :driver_version => driver_version,
         :version => version,
         :profile => profile,
@@ -232,7 +232,7 @@ let profile(d::Device) = begin
         :profiling_timer_resolution => profiling_timer_resolution,
         :max_image2d_shape => max_image2d_shape,
         :max_image3d_shape => max_image3d_shape
-    ]
+    )
 
     function info(d::Device, s::Symbol)
         try
