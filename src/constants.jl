@@ -59,11 +59,14 @@ const CL_INVALID_IMAGE_DESCRIPTOR                     = -65
 const CL_INVALID_COMPILER_OPTIONS                     = -66
 const CL_INVALID_LINKER_OPTIONS                       = -67
 const CL_INVALID_DEVICE_PARTITION_COUNT               = -68
+const CL_INVALID_PIPE_SIZE                            = -69
+const CL_INVALID_DEVICE_QUEUE                         = -70
 
 # OpenCL Version 
 const CL_VERSION_1_0                                  = cl_bool(1)
 const CL_VERSION_1_1                                  = cl_bool(1)
 const CL_VERSION_1_2                                  = cl_bool(1)
+const CL_VERSION_2_0                                  = cl_bool(1)
 
 # cl_bool
 const CL_FALSE                                        = cl_bool(0)
@@ -129,7 +132,8 @@ const CL_DEVICE_ENDIAN_LITTLE                         = cl_uint(0x1026)
 const CL_DEVICE_AVAILABLE                             = cl_uint(0x1027)
 const CL_DEVICE_COMPILER_AVAILABLE                    = cl_uint(0x1028)
 const CL_DEVICE_EXECUTION_CAPABILITIES                = cl_uint(0x1029)
-const CL_DEVICE_QUEUE_PROPERTIES                      = cl_uint(0x102A)
+const CL_DEVICE_QUEUE_PROPERTIES                      = cl_uint(0x102A) # deprecated
+const CL_DEVICE_QUEUE_ON_HOST_PROPERTIES              = cl_uint(0x102A)
 const CL_DEVICE_NAME                                  = cl_uint(0x102B)
 const CL_DEVICE_VENDOR                                = cl_uint(0x102C)
 const CL_DRIVER_VERSION                               = cl_uint(0x102D)
@@ -141,7 +145,7 @@ const CL_DEVICE_DOUBLE_FP_CONFIG                      = cl_uint(0x1032)
 
 # 0x1033 reserved for CL_DEVICE_HALF_FP_CONFIG 
 const CL_DEVICE_PREFERRED_VECTOR_WIDTH_HALF           = cl_uint(0x1034)
-const CL_DEVICE_HOST_UNIFIED_MEMORY                   = cl_uint(0x1035)
+const CL_DEVICE_HOST_UNIFIED_MEMORY                   = cl_uint(0x1035) # deprecated
 const CL_DEVICE_NATIVE_VECTOR_WIDTH_CHAR              = cl_uint(0x1036)
 const CL_DEVICE_NATIVE_VECTOR_WIDTH_SHORT             = cl_uint(0x1037)
 const CL_DEVICE_NATIVE_VECTOR_WIDTH_INT               = cl_uint(0x1038)
@@ -164,6 +168,21 @@ const CL_DEVICE_PREFERRED_INTEROP_USER_SYNC           = cl_uint(0x1048)
 const CL_DEVICE_PRINTF_BUFFER_SIZE                    = cl_uint(0x1049)
 const CL_DEVICE_IMAGE_PITCH_ALIGNMENT                 = cl_uint(0x104A)
 const CL_DEVICE_IMAGE_BASE_ADDRESS_ALIGNMENT          = cl_uint(0x104B)
+const CL_DEVICE_MAX_READ_WRITE_IMAGE_ARGS             = cl_uint(0x104C)
+const CL_DEVICE_MAX_GLOBAL_VARIABLE_SIZE              = cl_uint(0x104D)
+const CL_DEVICE_QUEUE_ON_DEVICE_PROPERTIES            = cl_uint(0x104E)
+const CL_DEVICE_QUEUE_ON_DEVICE_PREFERRED_SIZE        = cl_uint(0x104F)
+const CL_DEVICE_QUEUE_ON_DEVICE_MAX_SIZE              = cl_uint(0x1050)
+const CL_DEVICE_MAX_ON_DEVICE_QUEUES                  = cl_uint(0x1051)
+const CL_DEVICE_MAX_ON_DEVICE_EVENTS                  = cl_uint(0x1052)
+const CL_DEVICE_SVM_CAPABILITIES                      = cl_uint(0x1053)
+const CL_DEVICE_GLOBAL_VARIABLE_PREFERRED_TOTAL_SIZE  = cl_uint(0x1054)
+const CL_DEVICE_MAX_PIPE_ARGS                         = cl_uint(0x1055)
+const CL_DEVICE_PIPE_MAX_ACTIVE_RESERVATIONS          = cl_uint(0x1056)
+const CL_DEVICE_PIPE_MAX_PACKET_SIZE                  = cl_uint(0x1057)
+const CL_DEVICE_PREFERRED_PLATFORM_ATOMIC_ALIGNMENT   = cl_uint(0x1058)
+const CL_DEVICE_PREFERRED_GLOBAL_ATOMIC_ALIGNMENT     = cl_uint(0x1059)
+const CL_DEVICE_PREFERRED_LOCAL_ATOMIC_ALIGNMENT      = cl_uint(0x105A)
 
 # cl_device_fp_config - bitfield 
 const CL_FP_DENORM                                    = cl_bitfield(1 << 0)
@@ -191,6 +210,8 @@ const CL_EXEC_NATIVE_KERNEL                           = cl_bitfield(1 << 1)
 # cl_command_queue_properties - bitfield
 const CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE          = cl_bitfield(1 << 0)
 const CL_QUEUE_PROFILING_ENABLE                       = cl_bitfield(1 << 1)
+const CL_QUEUE_ON_DEVICE                              = cl_bitfield(1 << 2)
+const CL_QUEUE_ON_DEVICE_DEFAULT                      = cl_bitfield(1 << 3)
 
 # cl_context_info  
 const CL_CONTEXT_REFERENCE_COUNT                      = cl_uint(0x1080)
@@ -216,13 +237,20 @@ const CL_DEVICE_AFFINITY_DOMAIN_L2_CACHE              = cl_bitfield(1 << 3)
 const CL_DEVICE_AFFINITY_DOMAIN_L1_CACHE              = cl_bitfield(1 << 4)
 const CL_DEVICE_AFFINITY_DOMAIN_NEXT_PARTITIONABLE    = cl_bitfield(1 << 5)
 
+# cl_device_svm_capabilities
+const CL_DEVICE_SVM_COARSE_GRAIN_BUFFER               = cl_bitfield(1 << 0)
+const CL_DEVICE_SVM_FINE_GRAIN_BUFFER                 = cl_bitfield(1 << 1)
+const CL_DEVICE_SVM_FINE_GRAIN_SYSTEM                 = cl_bitfield(1 << 2)
+const CL_DEVICE_SVM_ATOMICS                           = cl_bitfield(1 << 3)
+
 # cl_command_queue_info
 const CL_QUEUE_CONTEXT                                = cl_uint(0x1090)
 const CL_QUEUE_DEVICE                                 = cl_uint(0x1091)
 const CL_QUEUE_REFERENCE_COUNT                        = cl_uint(0x1092)
 const CL_QUEUE_PROPERTIES                             = cl_uint(0x1093)
+const CL_QUEUE_SIZE                                   = cl_uint(0x1094)
 
-# cl_mem_flags - bitfield
+# cl_mem_flags and cl_svm_mem_flags - bitfield
 const CL_MEM_READ_WRITE                               = cl_bitfield(1 << 0)
 const CL_MEM_WRITE_ONLY                               = cl_bitfield(1 << 1)
 const CL_MEM_READ_ONLY                                = cl_bitfield(1 << 2)
@@ -233,6 +261,9 @@ const CL_MEM_COPY_HOST_PTR                            = cl_bitfield(1 << 5)
 const CL_MEM_HOST_WRITE_ONLY                          = cl_bitfield(1 << 7)
 const CL_MEM_HOST_READ_ONLY                           = cl_bitfield(1 << 8)
 const CL_MEM_HOST_NO_ACCESS                           = cl_bitfield(1 << 9)
+const CL_MEM_SVM_FINE_GRAIN_BUFFER                    = cl_bitfield(1 << 10) # used by cl_svm_mem_flags only
+const CL_MEM_SVM_ATOMICS                              = cl_bitfield(1 << 11) # used by cl_svm_mem_flags only
+const CL_MEM_KERNEL_READ_AND_WRITE                    = cl_bitfield(1 << 12)
 
 # cl_mem_migration_flags - bitfield 
 const CL_MIGRATE_MEM_OBJECT_HOST                      = cl_bitfield(1 << 0)
@@ -254,6 +285,11 @@ const CL_RGx                                          = cl_uint(0x10BB)
 const CL_RGBx                                         = cl_uint(0x10BC)
 const CL_DEPTH                                        = cl_uint(0x10BD)
 const CL_DEPTH_STENCIL                                = cl_uint(0x10BE)
+const CL_sRGB                                         = cl_uint(0x10BF)
+const CL_sRGBx                                        = cl_uint(0x10C0)
+const CL_sRGBA                                        = cl_uint(0x10C1)
+const CL_sBGRA                                        = cl_uint(0x10C2)
+const CL_ABGR                                         = cl_uint(0x10C3)
 
 # cl_channel_type
 const CL_SNORM_INT8                                   = cl_uint(0x10D0)
@@ -281,6 +317,7 @@ const CL_MEM_OBJECT_IMAGE2D_ARRAY                     = cl_uint(0x10F3)
 const CL_MEM_OBJECT_IMAGE1D                           = cl_uint(0x10F4)
 const CL_MEM_OBJECT_IMAGE1D_ARRAY                     = cl_uint(0x10F5)
 const CL_MEM_OBJECT_IMAGE1D_BUFFER                    = cl_uint(0x10F6)
+const CL_MEM_OBJECT_PIPE                              = cl_uint(0x10F7)
 
 # cl_mem_info 
 const CL_MEM_TYPE                                     = cl_uint(0x1100)
@@ -292,6 +329,7 @@ const CL_MEM_REFERENCE_COUNT                          = cl_uint(0x1105)
 const CL_MEM_CONTEXT                                  = cl_uint(0x1106)
 const CL_MEM_ASSOCIATED_MEMOBJECT                     = cl_uint(0x1107)
 const CL_MEM_OFFSET                                   = cl_uint(0x1108)
+const CL_MEM_USES_SVM_POINTER                         = cl_uint(0x1109)
 
 # cl_image_info
 const CL_IMAGE_FORMAT                                 = cl_uint(0x1110)
@@ -305,6 +343,10 @@ const CL_IMAGE_ARRAY_SIZE                             = cl_uint(0x1117)
 const CL_IMAGE_BUFFER                                 = cl_uint(0x1118)
 const CL_IMAGE_NUM_MIP_LEVELS                         = cl_uint(0x1119)
 const CL_IMAGE_NUM_SAMPLES                            = cl_uint(0x111A)
+
+# cl_pipe_info
+const CL_PIPE_PACKET_SIZE                             = cl_uint(0x1120)
+const CL_PIPE_MAX_PACKETS                             = cl_uint(0x1121)
 
 # cl_addressing_mode 
 const CL_ADDRESS_NONE                                 = cl_uint(0x1130)
@@ -323,6 +365,9 @@ const CL_SAMPLER_CONTEXT                              = cl_uint(0x1151)
 const CL_SAMPLER_NORMALIZED_COORDS                    = cl_uint(0x1152)
 const CL_SAMPLER_ADDRESSING_MODE                      = cl_uint(0x1153)
 const CL_SAMPLER_FILTER_MODE                          = cl_uint(0x1154)
+const CL_SAMPLER_MIP_FILTER_MODE                      = cl_uint(0x1155)
+const CL_SAMPLER_LOD_MIN                              = cl_uint(0x1156)
+const CL_SAMPLER_LOD_MAX                              = cl_uint(0x1157)
 
 # cl_map_flags - bitfield 
 const CL_MAP_READ                                     = cl_bitfield(1 << 0)
@@ -345,6 +390,7 @@ const CL_PROGRAM_BUILD_STATUS                         = cl_uint(0x1181)
 const CL_PROGRAM_BUILD_OPTIONS                        = cl_uint(0x1182)
 const CL_PROGRAM_BUILD_LOG                            = cl_uint(0x1183)
 const CL_PROGRAM_BINARY_TYPE                          = cl_uint(0x1184)
+const CL_PROGRAM_BUILD_GLOBAL_VARIABLE_TOTAL_SIZE     = cl_uint(0x1185)
     
 # cl_program_binary_type 
 const CL_PROGRAM_BINARY_TYPE_NONE                     = cl_uint(0x0)
@@ -399,6 +445,10 @@ const CL_KERNEL_PREFERRED_WORK_GROUP_SIZE_MULTIPLE    = cl_uint(0x11B3)
 const CL_KERNEL_PRIVATE_MEM_SIZE                      = cl_uint(0x11B4)
 const CL_KERNEL_GLOBAL_WORK_SIZE                      = cl_uint(0x11B5)
 
+# cl_kernel_exec_info
+const CL_KERNEL_EXEC_INFO_SVM_PTRS                    = cl_uint(0x11B6)
+const CL_KERNEL_EXEC_INFO_SVM_FINE_GRAIN_SYSTEM       = cl_uint(0x11B7)
+
 # cl_event_info 
 const CL_EVENT_COMMAND_QUEUE                          = cl_uint(0x11D0)
 const CL_EVENT_COMMAND_TYPE                           = cl_uint(0x11D1)
@@ -432,6 +482,11 @@ const CL_COMMAND_BARRIER                              = cl_uint(0x1205)
 const CL_COMMAND_MIGRATE_MEM_OBJECTS                  = cl_uint(0x1206)
 const CL_COMMAND_FILL_BUFFER                          = cl_uint(0x1207)
 const CL_COMMAND_FILL_IMAGE                           = cl_uint(0x1208)
+const CL_COMMAND_SVM_FREE                             = cl_uint(0x1209)
+const CL_COMMAND_SVM_MEMCPY                           = cl_uint(0x120A)
+const CL_COMMAND_SVM_MEMFILL                          = cl_uint(0x120B)
+const CL_COMMAND_SVM_MAP                              = cl_uint(0x120C)
+const CL_COMMAND_SVM_UNMAP                            = cl_uint(0x120D)
 
 # command execution status 
 const CL_COMPLETE                                     = cl_uint(0x0)
@@ -447,6 +502,7 @@ const CL_PROFILING_COMMAND_QUEUED                     = cl_uint(0x1280)
 const CL_PROFILING_COMMAND_SUBMIT                     = cl_uint(0x1281)
 const CL_PROFILING_COMMAND_START                      = cl_uint(0x1282)
 const CL_PROFILING_COMMAND_END                        = cl_uint(0x1283)
+const CL_PROFILING_COMMAND_COMPLETE                   = cl_uint(0x1284)
 
 # OpenCL OpenGL Constants
 
