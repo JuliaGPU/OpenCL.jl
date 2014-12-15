@@ -7,7 +7,7 @@
               (CL_context, CL_mem_flags, CL_uint, CL_uint, Ptr{CL_pipe_properties}, CL_int))
 
 @ocl_func(clGetPipeInfo, CL_int,
-              (CL_mem, CL_pipe_info, Csize_t, Ptr{Void}, Ptr{Csize_t})
+              (CL_mem, CL_pipe_info, Csize_t, Ptr{Void}, Ptr{Csize_t}))
 
 #=== SVM Allocation API ===#
 @ocl_func(clSVMAlloc, Ptr{Void},
@@ -33,7 +33,7 @@
                (CL_command_queue, CL_uint, Ptr{Ptr{Void}}, Ptr{Void}, Prt{Void},
                 CL_uint, Ptr{CL_event}, Ptr{CL_event}))
 
-@ocl_func(clEnqueueSVMMemcpy, CL_int
+@ocl_func(clEnqueueSVMMemcpy, CL_int,
                (CL_command_queue, CL_bool, Ptr{Void}, Ptr{Void}, Csize_t,
                 cl_uint, Ptr{CL_event}, Ptr{CL_event}))
 
@@ -45,7 +45,7 @@
                (CL_command_queue, CL_bool, CL_map_flags, Ptr{Void}, Csize_t,
                 Cl_uint, Ptr{CL_event}, Ptr{CL_event}))
 
-@ocl_func(clEnqueueSVMUnmap, CL_int, 
+@ocl_func(clEnqueueSVMUnmap, CL_int,
               (CL_command_queue, Ptr{Void}, CL_uint, Ptr{Cl_event}, Ptr{CL_event}))
 
 #=== deprecation ===#
