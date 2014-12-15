@@ -37,6 +37,7 @@ typealias CL_user_data Any
 include("api/opencl_1.0.0.jl")
 include("api/opencl_1.1.0.jl")
 include("api/opencl_1.2.0.jl")
+include("api/opencl_2.0.0.jl")
 
 function parse_version(version_string)
     mg = match(r"^OpenCL ([0-9]+)\.([0-9]+) .*$", version_string)
