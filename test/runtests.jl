@@ -5,6 +5,8 @@ module TestOpenCL
     import OpenCL
     const cl = OpenCL
 
+    FactCheck.onlystats(true)
+
     function create_test_buffer()
         ctx = cl.create_some_context()
         queue = cl.CmdQueue(ctx)
