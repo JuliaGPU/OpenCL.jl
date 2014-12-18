@@ -1,10 +1,3 @@
-using FactCheck
-
-import OpenCL 
-const cl = OpenCL
-
-macro throws_pred(ex) FactCheck.throws_pred(ex) end 
-
 facts("OpenCL.Platform") do 
     
     context("Platform Info") do

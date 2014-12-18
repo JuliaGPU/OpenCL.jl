@@ -1,9 +1,3 @@
-using FactCheck
-using Base.Test
-
-import OpenCL
-const cl = OpenCL
-
 facts("OpenCL.Macros") do
 
     context("OpenCL.Macros version platform") do

@@ -1,23 +1,9 @@
-using FactCheck 
-
-import OpenCL 
-const cl = OpenCL
-
 immutable TestStruct
     a::cl.CL_int
     b::cl.CL_float
 end
 
 facts("OpenCL.Buffer") do
-
-    function create_test_buffer()
-        ctx = cl.create_some_context()
-        queue = cl.CmdQueue(ctx)
-        testarray = zeros(Float32, 1000)
-        buf = cl.Buffer(Float32, ctx, (:rw, :copy), hostbuf=testarray)
-        return (queue, buf, testarray)
-    end
-
     context("OpenCL.Buffer constructors") do
         for device in cl.devices()
 
@@ -120,7 +106,7 @@ facts("OpenCL.Buffer") do
              @fact_throws cl.Buffer(Float32, ctx, :alloc, -1) "error"
 
              # invalid flag combinations should throw error
-             @fact_throws cl.Buffer(Float32, ctx, (:use, :alloc), hostbuf=testarray) "error"
+             @fact_throws cl.Buffer(Float32, ctx, (:use, :alloc), hostbuf=test_array) "error"
 
              # invalid host pointer should throw error
              @fact_throws cl.Buffer(Float32, ctx, :copy, hostbuf=C_NULL) "error"

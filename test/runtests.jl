@@ -1,37 +1,31 @@
-const tests = [
-            "platform"
-            "context"
-            "device"
-            "cmdqueue"
-            "macros"
-            "event"
-            "program"
-            "kernel"
-            "behaviour"
-            "memory"
-            "buffer"
-        ]
+module TestOpenCL
+    using FactCheck
+    using Base.Test
 
-const testdir = isdir("test") ? "test" : "."
-cd(testdir)
+    import OpenCL
+    const cl = OpenCL
 
-if haskey(ENV, "CODECOVERAGE")
-    println("Creating code-coverage files")
-    cmd = `julia --code-coverage`
-else
-    cmd = `julia`
-end
+    FactCheck.onlystats(true)
 
-if haskey(ENV, "TRAVIS")
-    results = map(tests) do test
-        try
-            run(`$cmd run.jl $test`)
-            return 0
-        catch e
-            return 1
-        end
+    function create_test_buffer()
+        ctx = cl.create_some_context()
+        queue = cl.CmdQueue(ctx)
+        testarray = zeros(Float32, 1000)
+        buf = cl.Buffer(Float32, ctx, (:rw, :copy), hostbuf=testarray)
+        return (queue, buf, testarray, ctx)
     end
-    all(r -> r == 0, results) ? exit() : exit(1)
-else
-    run(`$cmd run.jl $tests`)
-end
+
+    include("test_platform.jl")
+    include("test_context.jl")
+    include("test_device.jl")
+    include("test_cmdqueue.jl")
+    include("test_macros.jl")
+    include("test_event.jl")
+    include("test_program.jl")
+    include("test_kernel.jl")
+    include("test_behaviour.jl")
+    include("test_memory.jl")
+    include("test_buffer.jl")
+
+    FactCheck.exitstatus()
+end # module

@@ -19,7 +19,7 @@ script:
 
   - julia -e 'Pkg.add("FactCheck");'
 
-  - julia test/runtests.jl
+  - julia --color test/runtests.jl
 
   - julia examples/demo.jl
   - julia examples/performance.jl
