@@ -1,7 +1,7 @@
 # OpenCL.jl
 
-OpenCL 1.2 bindings for Julia
-
+OpenCL bindings for Julia
+OpenCL.jl supports OpenCL versions 1.0, 1.1, 1.2 and 2.0
 [![Build Status](https://travis-ci.org/JuliaGPU/OpenCL.jl.svg?branch=master)](https://travis-ci.org/JuliaGPU/OpenCL.jl?branch=master)
 [![Coverage Status](https://img.shields.io/coveralls/JuliaGPU/OpenCL.jl.png)](https://coveralls.io/r/JuliaGPU/OpenCL.jl?branch=master)
 
