@@ -114,5 +114,46 @@ let mem_type(m::CLMemObject) = begin
     end
 end
 
+function _symbols_to_cl_mem_flags(mem_flags::NTuple{2, Symbol})
+    f_r  = :r  in mem_flags
+    f_w  = :w  in mem_flags
+    f_rw = :rw in mem_flags
+
+    if f_r && f_w || f_r && f_rw || f_rw && f_w
+        throw(ArgumentError("only one flag in {:r, :w, :rw} can be defined"))
+    end
+
+    flags::CL_mem_flags
+    if f_rw && !(f_r || f_w)
+        flags = CL_MEM_READ_WRITE
+    elseif f_r && !(f_w || f_rw)
+        flags = CL_MEM_READ_ONLY
+    elseif f_w && !(f_r || f_rw)
+        flags = CL_MEM_WRITE_ONLY
+    else
+        # default buffer is read/write
+        flags = CL_MEM_READ_WRITE
+    end
+
+    f_alloc = :alloc in mem_flags
+    f_use   = :use   in mem_flags
+    f_copy  = :copy  in mem_flags
+    if f_alloc && f_use || f_alloc && f_copy || f_use && f_copy
+        throw(ArgumentError("only one flag in {:alloc, :use, :copy} can be defined"))
+    end
+
+    if f_alloc && !(f_use || f_copy)
+        flags |= CL_MEM_ALLOC_HOST_PTR
+    elseif f_use && !(f_alloc || f_copy)
+        flags |= CL_MEM_USE_HOST_PTR
+    elseif f_copy && !(f_alloc || f_use)
+        flags |= CL_MEM_COPY_HOST_PTR
+    end
+    return flags
+end
+
+#TODO: function hostbuf()
+#TODO: host_array()
+
 #TODO: enqueue_migrate_mem_objects(queue, mem_objects, flags=0, wait_for=None)
 #TODO: enqueue_migrate_mem_objects_ext(queue, mem_objects, flags=0, wait_for=None)

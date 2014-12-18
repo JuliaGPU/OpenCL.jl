@@ -48,40 +48,7 @@ function Buffer{T}(::Type{T}, ctx::Context, mem_flag::Symbol, len::Integer=0; ho
 end
 
 function Buffer{T}(::Type{T}, ctx::Context, mem_flags::NTuple{2, Symbol}, len::Integer=0; hostbuf=nothing)
-    f_r  = :r  in mem_flags
-    f_w  = :w  in mem_flags
-    f_rw = :rw in mem_flags
-
-    if f_r && f_w || f_r && f_rw || f_rw && f_w
-        throw(ArgumentError("only one flag in {:r, :w, :rw} can be defined"))
-    end
-
-    flags::CL_mem_flags
-    if f_rw && !(f_r || f_w)
-        flags = CL_MEM_READ_WRITE
-    elseif f_r && !(f_w || f_rw)
-        flags = CL_MEM_READ_ONLY
-    elseif f_w && !(f_r || f_rw)
-        flags = CL_MEM_WRITE_ONLY
-    else
-        # default buffer is read/write
-        flags = CL_MEM_READ_WRITE
-    end
-   
-    f_alloc = :alloc in mem_flags
-    f_use   = :use   in mem_flags
-    f_copy  = :copy  in mem_flags
-    if f_alloc && f_use || f_alloc && f_copy || f_use && f_copy
-        throw(ArgumentError("only one flag in {:alloc, :use, :copy} can be defined"))
-    end
-
-    if f_alloc && !(f_use || f_copy)
-        flags |= CL_MEM_ALLOC_HOST_PTR
-    elseif f_use && !(f_alloc || f_copy) 
-        flags |= CL_MEM_USE_HOST_PTR
-    elseif f_copy && !(f_alloc || f_use)
-        flags |= CL_MEM_COPY_HOST_PTR
-    end
+    flags = _symbols_to_cl_mem_flags(mem_flags)
     return Buffer(T, ctx, flags, len, hostbuf=hostbuf)
 end
 
