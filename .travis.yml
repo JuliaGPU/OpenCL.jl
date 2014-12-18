@@ -33,4 +33,4 @@ script:
   - julia examples/hands_on_opencl/exA/pi_vocl.jl 4  
   - julia examples/hands_on_opencl/exA/pi_vocl.jl 8 
 after_success:
-  - if [[ $CODECOVERAGE ]]; then julia -e 'Pkg.add("Coverage"); using Coverage; Coveralls.submit(Coveralls.process_folder())'; fi
+  - julia -e 'Pkg.add("Coverage"); using Coverage; Coveralls.submit(Coveralls.process_folder())'; fi
