@@ -1,7 +1,7 @@
 # OpenCL.jl
 
 OpenCL bindings for Julia
-OpenCL.jl supports OpenCL versions 1.0, 1.1, 1.2 and 2.0
+
 [![Build Status](https://travis-ci.org/JuliaGPU/OpenCL.jl.svg?branch=master)](https://travis-ci.org/JuliaGPU/OpenCL.jl?branch=master)
 [![Coverage Status](https://img.shields.io/coveralls/JuliaGPU/OpenCL.jl.png)](https://coveralls.io/r/JuliaGPU/OpenCL.jl?branch=master)
 
@@ -9,6 +9,8 @@ Julia interface for the OpenCL parallel computation API
 
 This package aims to be a complete solution for OpenCL programming in Julia, similar in scope to [PyOpenCL] for Python.
 It provides a high level api for OpenCL to make programing GPU's and multicore CPU's much less onerous.
+
+OpenCL.jl provides access to OpenCL API versions 1.0, 1.1, 1.2 and 2.0.
 
 #### Support of Julia v0.4
 Currently `OpenCL.jl` only supports Julia v0.3 due to some breaking changes in Julia v0.4. Support is comming as soon as Julia v0.4 is entering its prerelease phase. 
