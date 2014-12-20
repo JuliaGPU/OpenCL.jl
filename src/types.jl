@@ -1,5 +1,7 @@
 #=== TypeAliases ===# 
 
+using Compat
+
 # Opaque types
 typealias CL_platform_id        Ptr{Void}
 typealias CL_device_id          Ptr{Void}
@@ -13,15 +15,15 @@ typealias CL_sampler            Ptr{Void}
 
 # Scalar types
 typealias CL_char   Int8
-typealias CL_uchar  Uint8
+typealias CL_uchar  UInt8
 typealias CL_short  Int16
-typealias CL_ushort Uint16
+typealias CL_ushort UInt16
 typealias CL_int    Int32
-typealias CL_uint   Uint32
+typealias CL_uint   UInt32
 typealias CL_long   Int64
-typealias CL_ulong  Uint64
+typealias CL_ulong  UInt64
 
-typealias CL_half   Uint16
+typealias CL_half   UInt16
 typealias CL_float  Float32
 typealias CL_double Float64
 
@@ -71,7 +73,7 @@ typealias CL_kernel_exec_info           CL_uint
 
 # Scalar OpenGL types ! We should get these from OpenGL.jl
 
-typealias GL_uint                       Uint32
+typealias GL_uint                       UInt32
 typealias GL_int                        Int32
 
 typealias GL_enum                       GL_uint

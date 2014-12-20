@@ -1,4 +1,4 @@
-const _cl_error_codes = (Int => Symbol)[
+const _cl_error_codes = @compat Dict{Int,Symbol}(
      +0 => :CL_SUCCESS,
      -1 => :CL_DEVICE_NOT_FOUND,
      -2 => :CL_DEVICE_NOT_AVAILABLE,
@@ -83,9 +83,9 @@ const _cl_error_codes = (Int => Symbol)[
     
     -1092 => :CL_EGL_RESOURCE_NOT_ACQUIRED_KHR,    
     -1093 => :CL_INVALID_EGL_OBJECT_KHR,
-]
+)
 
-const _cl_err_desc = (Integer => String) [
+const _cl_err_desc = @compat Dict{Integer, String}(
     CL_INVALID_CONTEXT => 
     "Context is not a valid context.",
     
@@ -161,7 +161,7 @@ const _cl_err_desc = (Integer => String) [
     string("The CL_QUEUE_PROFILING_ENABLE flag ",
            "is not set for the command-queue, if the execution status of the command identified by ",
            "event is not CL_COMPLETE or if event is a user event objec"),
-]
+)
 
 immutable CLMemoryError <: Exception
     msg::String

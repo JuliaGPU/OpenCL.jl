@@ -92,13 +92,13 @@ let mem_type(m::CLMemObject) = begin
         return result[1]
     end
 
-    info_map = (Symbol => Function)[
+    info_map = @compat Dict{Symbol, Function}(
         :mem_type => mem_type,
         :mem_flags => mem_flags, 
         :size => size,
         :reference_count => reference_count,
         :map_count => map_count
-    ]
+    )
 
     function info(mem::CLMemObject, minfo::Symbol)
         try

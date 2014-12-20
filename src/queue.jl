@@ -134,12 +134,12 @@ let
         props[1]
     end
 
-    const info_map = (Symbol => Function)[
+    const info_map = @compat Dict{Symbol, Function}(
         :context => context,
         :device => device,
         :reference_count => reference_count,
         :properties => properties
-    ]
+    )
 
     function info(q::CmdQueue, qinfo::Symbol)
         try
