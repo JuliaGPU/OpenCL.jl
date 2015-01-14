@@ -64,99 +64,99 @@ const _cl_error_codes = (Int => Symbol)[
 
     -1000 => :CL_INVALID_GL_SHAREGROUP_REFERENCE_KHR,
     -1001 => :CL_PLATFORM_NOT_FOUND_KHR,
-    -1002 => :CL_INVALID_D3D10_DEVICE_KHR,                
-    -1003 => :CL_INVALID_D3D10_RESOURCE_KHR,              
-    -1004 => :CL_D3D10_RESOURCE_ALREADY_ACQUIRED_KHR,     
-    -1005 => :CL_D3D10_RESOURCE_NOT_ACQUIRED_KHR,         
-    -1006 => :CL_INVALID_D3D11_DEVICE_KHR,                
-    -1007 => :CL_INVALID_D3D11_RESOURCE_KHR,              
-    -1008 => :CL_D3D11_RESOURCE_ALREADY_ACQUIRED_KHR,     
-    -1009 => :CL_D3D11_RESOURCE_NOT_ACQUIRED_KHR,         
-    -1010 => :CL_INVALID_DX9_MEDIA_ADAPTER_KHR,              
-    -1011 => :CL_INVALID_DX9_MEDIA_SURFACE_KHR,              
-    -1012 => :CL_DX9_MEDIA_SURFACE_ALREADY_ACQUIRED_KHR,     
-    -1013 => :CL_DX9_MEDIA_SURFACE_NOT_ACQUIRED_KHR,       
+    -1002 => :CL_INVALID_D3D10_DEVICE_KHR,
+    -1003 => :CL_INVALID_D3D10_RESOURCE_KHR,
+    -1004 => :CL_D3D10_RESOURCE_ALREADY_ACQUIRED_KHR,
+    -1005 => :CL_D3D10_RESOURCE_NOT_ACQUIRED_KHR,
+    -1006 => :CL_INVALID_D3D11_DEVICE_KHR,
+    -1007 => :CL_INVALID_D3D11_RESOURCE_KHR,
+    -1008 => :CL_D3D11_RESOURCE_ALREADY_ACQUIRED_KHR,
+    -1009 => :CL_D3D11_RESOURCE_NOT_ACQUIRED_KHR,
+    -1010 => :CL_INVALID_DX9_MEDIA_ADAPTER_KHR,
+    -1011 => :CL_INVALID_DX9_MEDIA_SURFACE_KHR,
+    -1012 => :CL_DX9_MEDIA_SURFACE_ALREADY_ACQUIRED_KHR,
+    -1013 => :CL_DX9_MEDIA_SURFACE_NOT_ACQUIRED_KHR,
 
     -1057 => :CL_DEVICE_PARTITION_FAILED_EXT,
     -1058 => :CL_INVALID_PARTITION_COUNT_EXT,
     -1059 => :CL_INVALID_PARTITION_NAME_EXT,
-    
-    -1092 => :CL_EGL_RESOURCE_NOT_ACQUIRED_KHR,    
+
+    -1092 => :CL_EGL_RESOURCE_NOT_ACQUIRED_KHR,
     -1093 => :CL_INVALID_EGL_OBJECT_KHR,
 ]
 
 const _cl_err_desc = (Integer => String) [
-    CL_INVALID_CONTEXT => 
+    CL_INVALID_CONTEXT =>
     "Context is not a valid context.",
-    
-    CL_INVALID_BUFFER_SIZE => 
+
+    CL_INVALID_BUFFER_SIZE =>
     "Buffer size is 0",
-    
-    CL_INVALID_EVENT => 
+
+    CL_INVALID_EVENT =>
     "Event objects specified in event_list are not valid event objects",
-    
+
     CL_INVALID_HOST_PTR =>
-    string("If host_ptr is NULL and CL_MEM_USE_HOST_PTR or ",  
+    string("If host_ptr is NULL and CL_MEM_USE_HOST_PTR or ",
            "CL_MEM_COPY_HOST_PTR are set in flags or if host_ptr is not NULL but ",
            "CL_MEM_COPY_HOST_PTR or CL_MEM_USE_HOST_PTR are not set in flags."),
-    
+
     CL_MEM_OBJECT_ALLOCATION_FAILURE =>
     "Failure to allocate memory for buffer object.",
-    
+
     CL_OUT_OF_RESOURCES =>
     "Failure to allocate resources required by the OpenCL implementation on the device.",
-    
+
     CL_OUT_OF_HOST_MEMORY =>
     "Failure to allocate resources required by the OpenCL implementation on the host",
-    
-    CL_INVALID_PROGRAM => 
+
+    CL_INVALID_PROGRAM =>
     "Program is not a valid program object.",
-    
-    CL_INVALID_VALUE => 
+
+    CL_INVALID_VALUE =>
     "CL_INVALID_VALUE: this one should have been caught by julia!",
-    
-    CL_INVALID_DEVICE => 
+
+    CL_INVALID_DEVICE =>
     "OpenCL devices listed in device_list are not in the list of devices associated with program.",
-    
-    CL_INVALID_BINARY => 
+
+    CL_INVALID_BINARY =>
     string("program is created with clCreateWithProgramBinary and devices listed in ",
            "device_list do not have a valid program binary loaded."),
-    
+
     CL_INVALID_BUILD_OPTIONS =>
     "The build options specified by options are invalid.",
-    
-    CL_INVALID_OPERATION => 
+
+    CL_INVALID_OPERATION =>
     string("The build of a program executable for any of the devices listed in device_list by a ",
            "previous call to clBuildProgram for program has not  completed."),
-    
-    CL_COMPILER_NOT_AVAILABLE => 
+
+    CL_COMPILER_NOT_AVAILABLE =>
     "Program is created with clCreateProgramWithSource and a compiler is not available",
-    
+
     CL_BUILD_PROGRAM_FAILURE =>
     string("Failure to build the program executable. ",
            "This error will be returned if clBuildProgram ",
            "does not return until the build has completed"),
-    
-    CL_INVALID_OPERATION => 
+
+    CL_INVALID_OPERATION =>
     "There are kernel objects attached to program.",
-    
+
     CL_OUT_OF_HOST_MEMORY =>
     "if there is a failure to allocate resources required by the OpenCL implementation on the host.",
-    
-    CL_EXEC_STATUS_ERROR_FOR_EVENTS_IN_WAIT_LIST => 
+
+    CL_EXEC_STATUS_ERROR_FOR_EVENTS_IN_WAIT_LIST =>
     "The execution status of any of the events in event_list is a negative integer value",
-    
-    CL_INVALID_PROGRAM_EXECUTABLE => 
+
+    CL_INVALID_PROGRAM_EXECUTABLE =>
     "there is no successfully built executable for program",
-    
-    CL_INVALID_KERNEL_NAME =>  
-    "kernel_name is not found in program.", 
-    
+
+    CL_INVALID_KERNEL_NAME =>
+    "kernel_name is not found in program.",
+
     CL_INVALID_KERNEL_DEFINITION =>
     string("The function definition for __kernel  function ",
-           "given by kernel_name such as the number of arguments, the argument types are not the ", 
+           "given by kernel_name such as the number of arguments, the argument types are not the ",
            "same for all devices for which the program executable has been built"),
-                      
+
     CL_PROFILING_INFO_NOT_AVAILABLE =>
     string("The CL_QUEUE_PROFILING_ENABLE flag ",
            "is not set for the command-queue, if the execution status of the command identified by ",

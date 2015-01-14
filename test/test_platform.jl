@@ -1,5 +1,5 @@
-facts("OpenCL.Platform") do 
-    
+facts("OpenCL.Platform") do
+
     context("Platform Info") do
         @fact length(cl.platforms()) => cl.num_platforms()
         for p in cl.platforms()
@@ -13,15 +13,15 @@ facts("OpenCL.Platform") do
             @fact 0 <= v.minor <= 2  => true
          end
      end
-     
-     context("Platform Equality") do 
+
+     context("Platform Equality") do
         platform       = cl.platforms()[1]
         platform_copy  = cl.platforms()[1]
-        
-        @fact pointer(platform) => pointer(platform_copy) 
+
+        @fact pointer(platform) => pointer(platform_copy)
         @fact hash(platform) => hash(platform_copy)
         @fact isequal(platform, platform) => true
-        
+
         if length(cl.platforms()) > 1
             for p in cl.platforms()[2:end]
                 @fact pointer(platform) == pointer(p) => false

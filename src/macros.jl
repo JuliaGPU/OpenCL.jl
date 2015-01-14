@@ -12,7 +12,7 @@ end
 macro check_release(clfunc)
     quote
         local err::CL_int
-        err = $clfunc 
+        err = $clfunc
         if err != CL_SUCCESS
             error("release! $clfunc failed with code $(err[1]))")
         end
@@ -40,7 +40,7 @@ macro return_event(evt)
             @check api.clReleaseEvent($(esc(evt)))
             throw(err)
         end
-    end 
+    end
 end
 
 macro return_nanny_event(evt, obj)
@@ -59,12 +59,12 @@ macro int_info(what, cl_obj_id, cl_obj_info, ret_type)
     quote
         local result = Array($(esc(ret_type)), 1)
         local err::CL_int
-        err = $clFunc($(esc(cl_obj)), $(esc(cl_obj_info)), 
+        err = $clFunc($(esc(cl_obj)), $(esc(cl_obj_info)),
                       sizeof($(esc(ret_type))), result, C_NULL)
         if err != CL_SUCCESS
             throw(CLError(err))
         end
-        result[1] 
+        result[1]
     end
 end
 

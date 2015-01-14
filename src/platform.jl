@@ -45,7 +45,7 @@ let info_map = (Symbol => CL_platform_info)[
         :vendor  => CL_PLATFORM_VENDOR,
         :extensions => CL_PLATFORM_EXTENSIONS
     ]
-    
+
     function info(p::Platform, pinfo::Symbol)
         try
             cl_info = info_map[pinfo]
@@ -65,7 +65,7 @@ let info_map = (Symbol => CL_platform_info)[
 end
 
 function devices(p::Platform, dtype::CL_device_type)
-    try 
+    try
         ndevices = Array(CL_uint, 1)
         @check api.clGetDeviceIDs(p.id, dtype, 0, C_NULL, ndevices)
         if ndevices[1] == 0

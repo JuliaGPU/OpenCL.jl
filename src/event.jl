@@ -25,7 +25,7 @@ type NannyEvent <: CLEvent
             @check api.clRetainEvent(evt_id)
         end
         nanny_evt = new(evt_id, obj)
-        finalizer(nanny_evt, x -> begin 
+        finalizer(nanny_evt, x -> begin
             wait(x)
             x.obj = nothing
             release!(x)
@@ -55,7 +55,7 @@ Base.getindex(evt::CLEvent, evt_info::Symbol) = info(evt, evt_info)
 @ocl_v1_1_only begin
 
     type UserEvent <: CLEvent
-        id :: CL_event 
+        id :: CL_event
 
         function UserEvent(evt_id::CL_event, retain=false)
             if retain
@@ -66,7 +66,7 @@ Base.getindex(evt::CLEvent, evt_info::Symbol) = info(evt, evt_info)
             return evt
         end
     end
-    
+
     function UserEvent(ctx::Context; retain=false)
         status = Array(CL_int, 1)
         evt_id = api.clCreateUserEvent(ctx.id, status)
@@ -210,7 +210,7 @@ macro profile_info(func, profile_info)
         end
     end
 end
-    
+
 
 let command_queue(evt::CLEvent) = begin
         cmd_q = Array(CL_command_queue, 1)
@@ -218,7 +218,7 @@ let command_queue(evt::CLEvent) = begin
                                   sizeof(CL_command_queue), cmd_q, C_NULL)
         return CmdQueue(cmd_q[1])
     end
-    
+
     command_type(evt::CLEvent) = begin
         cmd_t = Array(CL_int , 1)
         @check api.clGetEventInfo(evt.id, CL_EVENT_COMMAND_TYPE,

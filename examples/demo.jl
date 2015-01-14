@@ -3,7 +3,7 @@ const cl = OpenCL
 
 const sum_kernel_src = "
    __kernel void sum(__global const float *a,
-                     __global const float *b, 
+                     __global const float *b,
                      __global float *c)
     {
       int gid = get_global_id(0);

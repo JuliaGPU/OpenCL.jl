@@ -13,7 +13,7 @@ It provides a high level api for OpenCL to make programing GPU's and multicore C
 OpenCL.jl provides access to OpenCL API versions 1.0, 1.1, 1.2 and 2.0.
 
 #### Support of Julia v0.4
-Currently `OpenCL.jl` only supports Julia v0.3 due to some breaking changes in Julia v0.4. Support is comming as soon as Julia v0.4 is entering its prerelease phase. 
+Currently `OpenCL.jl` only supports Julia v0.3 due to some breaking changes in Julia v0.4. Support is comming as soon as Julia v0.4 is entering its prerelease phase.
 
 #### This package is based off the work of others:
   * [PyOpenCL] by Andreas Klockner
@@ -39,11 +39,11 @@ Currently `OpenCL.jl` only supports Julia v0.3 due to some breaking changes in J
      ```julia
      Pkg.add("OpenCL")
      ```
-     
+
 3. OpenCL will be installed in your ``.julia`` directory
 4. ``cd`` into your ``.julia`` directory to run the tests and try out the examples
 5. To update to the latest development version, from the Julia repl:
-      
+
       ```julia
          Pkg.update()
       ```
@@ -66,7 +66,7 @@ const cl = OpenCL
 
 const sum_kernel = "
    __kernel void sum(__global const float *a,
-                     __global const float *b, 
+                     __global const float *b,
                      __global float *c)
     {
       int gid = get_global_id(0);

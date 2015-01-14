@@ -17,7 +17,7 @@ Base.pointer(k::Kernel) = k.id
 
 Base.show(io::IO, k::Kernel) = begin
     print(io, "OpenCL.Kernel(\"$(k[:name])\" nargs=$(k[:num_args]))")
-end 
+end
 
 Base.getindex(k::Kernel, kinfo::Symbol) = info(k, kinfo)
 
@@ -107,10 +107,10 @@ function set_args!(k::Kernel, args...)
 end
 
 function work_group_info(k::Kernel, winfo::CL_kernel_work_group_info, d::Device)
-    if (winfo == CL_KERNEL_LOCAL_MEM_SIZE || 
+    if (winfo == CL_KERNEL_LOCAL_MEM_SIZE ||
         winfo == CL_KERNEL_PRIVATE_MEM_SIZE)
         result = CL_ulong[0]
-        @check api.clGetKernelWorkGroupInfo(k.id, d.id, winfo, 
+        @check api.clGetKernelWorkGroupInfo(k.id, d.id, winfo,
                                             sizeof(CL_ulong), result, C_NULL)
         return int(result[1])
     elseif winfo == CL_KERNEL_COMPILE_WORK_GROUP_SIZE
@@ -141,9 +141,9 @@ function work_group_info(k::Kernel, winfo::Symbol, d::Device)
     else
         throw(ArgumentError(("Unknown work_group_info flag: :$winfo")))
     end
-end 
+end
 
-# produce a cl.call thunk with kernel queue, global/local sizes 
+# produce a cl.call thunk with kernel queue, global/local sizes
 Base.getindex(k::Kernel, args...) = begin
     if length(args) < 2 || length(args) > 3
         throw(ArgumentError("kernel must be called with a queue & global size as arguments"))
@@ -160,16 +160,16 @@ Base.getindex(k::Kernel, args...) = begin
     queue = args[1]
     global_size = args[2]
     local_size  = length(args) == 3 ? args[3] : nothing
-    # TODO: we cannot pass keywords in anon functions yet, return kernel call thunk 
+    # TODO: we cannot pass keywords in anon functions yet, return kernel call thunk
     return (args...) -> call(queue, k, global_size, local_size, args...)
 end
-    
+
 # blocking kernel call that finishes queue
 function call(q::CmdQueue, k::Kernel, global_work_size, local_work_size, args...;
               global_work_offset=nothing,
               wait_on::Union(Nothing, Vector{Event})=nothing)
     set_args!(k, args...)
-    evt = enqueue_kernel(q, k, 
+    evt = enqueue_kernel(q, k,
                          global_work_size,
                          local_work_size,
                          global_work_offset=global_work_offset,
@@ -189,7 +189,7 @@ function enqueue_kernel(q::CmdQueue,
                         global_work_offset=nothing,
                         wait_on::Union(Nothing,Vector{Event})=nothing)
     device = q[:device]
-    max_work_dim = device[:max_work_item_dims] 
+    max_work_dim = device[:max_work_item_dims]
     work_dim     = length(global_work_size)
     if work_dim > max_work_dim
         throw(ArgumentError("global_work_size has max dim of $max_work_dim"))
@@ -199,12 +199,12 @@ function enqueue_kernel(q::CmdQueue,
         gsize[i] = s
     end
 
-    goffset = C_NULL 
-    if global_work_offset != nothing 
+    goffset = C_NULL
+    if global_work_offset != nothing
         if length(global_work_offset) > max_work_dim
             throw(ArgumentError("global_work_offset has max dim of $max_work_dim"))
         end
-        if length(global_work_offset) != work_dim 
+        if length(global_work_offset) != work_dim
             throw(ArgumentError("global_work_size and global_work_offset have differing dims"))
         end
         goffset = Array(Csize_t, work_dim)
@@ -219,7 +219,7 @@ function enqueue_kernel(q::CmdQueue,
             throw(ArgumentError("local_work_offset has max dim of $max_work_dim"))
         end
         if length(local_work_size) != work_dim
-            throw(ArgumentError("global_work_size and local_work_size have differing dims")) 
+            throw(ArgumentError("global_work_size and local_work_size have differing dims"))
         end
         lsize = Array(Csize_t, work_dim)
         for (i, s) in enumerate(local_work_size)
@@ -240,7 +240,7 @@ function enqueue_kernel(q::CmdQueue,
                                       n_events, wait_event_ids, ret_event)
     return Event(ret_event[1], retain=false)
 end
-    
+
 
 function enqueue_task(q::CmdQueue, k::Kernel; wait_for=nothing)
     n_evts  = 0
@@ -266,7 +266,7 @@ let name(k::Kernel) = begin
         @check api.clGetKernelInfo(k.id, CL_KERNEL_FUNCTION_NAME,
                                    0, C_NULL, size)
         result = Array(Cchar, size[1])
-        @check api.clGetKernelInfo(k.id, CL_KERNEL_FUNCTION_NAME, 
+        @check api.clGetKernelInfo(k.id, CL_KERNEL_FUNCTION_NAME,
                                    size[1], result, size)
         return bytestring(convert(Ptr{Cchar}, result))
     end
@@ -283,18 +283,18 @@ let name(k::Kernel) = begin
         @check api.clGetKernelInfo(k.id, CL_KERNEL_REFERENCE_COUNT,
                                    sizeof(CL_uint), ret, C_NULL)
         return ret[1]
-    end 
+    end
 
     program(k::Kernel) = begin
         ret = Array(CL_program, 1)
         @check api.clGetKernelInfo(k.id, CL_KERNEL_PROGRAM,
-                                   sizeof(CL_program), ret, C_NULL) 
+                                   sizeof(CL_program), ret, C_NULL)
         return Program(ret[1], retain=true)
     end
 
     attributes(k::Kernel) = begin
         size = Csize_t[0,]
-        api.clGetKernelInfo(k.id, CL_KERNEL_ATTRIBUTES, 
+        api.clGetKernelInfo(k.id, CL_KERNEL_ATTRIBUTES,
                             0, C_NULL, size)
         if size[1] <= 1
             return ""
@@ -306,7 +306,7 @@ let name(k::Kernel) = begin
     end
 
     const info_map = (Symbol => Function)[
-        :name => name, 
+        :name => name,
         :num_args => num_args,
         :reference_count => reference_count,
         :program => program,

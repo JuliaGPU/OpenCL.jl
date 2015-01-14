@@ -6,13 +6,13 @@ Base.hash(x::CLObject) = hash(pointer(x))
 Base.isequal{T <: CLObject}(x :: T, y :: T) = Base.hash(x) == Base.hash(y)
 Base.(:(==)){T <: CLObject}(x :: T, y :: T) = Base.hash(x) == Base.hash(y)
 
-# OpenCL Types 
+# OpenCL Types
 include("types.jl")
 
-# OpenCL Constants 
+# OpenCL Constants
 include("constants.jl")
 
-# OpenCL low level api 
+# OpenCL low level api
 include("api.jl")
 
 # Errors
@@ -48,7 +48,7 @@ include("program.jl")
 # OpenCL Kernel
 include("kernel.jl")
 
-# Util functions 
+# Util functions
 include("util.jl")
 
 

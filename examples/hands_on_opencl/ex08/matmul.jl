@@ -8,7 +8,7 @@
 # set as a constant, ORDER (see definitions.py). This is so
 # we can make a quick test of the multiplication result.
 #
-# History:   C++ version written by Tim Mattson, August 2010 
+# History:   C++ version written by Tim Mattson, August 2010
 #            Modified by Simon McIntosh-Smith, September 2011
 #            Modified by Tom Deakin and Simon McIntosh-Smith, October 2012
 #            Ported to Python by Tom Deakin, July 2013
@@ -24,7 +24,7 @@ src_dir = dirname(Base.source_path())
 #### Definitions ###
 
 # Order of the square matrices A, B and C
-ORDER = 512 
+ORDER = 512
 
 # A elemetns are constant and equal to AVAL
 AVAL = 3.0
@@ -49,10 +49,10 @@ Ndim = ORDER
 Pdim = ORDER
 Mdim = ORDER
 
-# Number of elements in the matrix 
+# Number of elements in the matrix
 sizeA = Ndim * Pdim
 sizeB = Pdim * Mdim
-sizeC = Ndim * Mdim 
+sizeC = Ndim * Mdim
 
 # Number of elements in the matrix
 h_A = fill(float32(AVAL), sizeA)

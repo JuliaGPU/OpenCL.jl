@@ -11,7 +11,7 @@
 #          Ported to Julia by Jake Bolewski, Nov 2013
 
 import OpenCL
-const cl = OpenCL 
+const cl = OpenCL
 
 # get the directory of this file
 # (used for test runner)
@@ -23,7 +23,7 @@ ITERS = -1
 WGS = -1
 NAME = ""
 
-if length(ARGS) < 1 
+if length(ARGS) < 1
     info("Usage: julia pi_vocl.jl [num] (where num = 1, 4, or 8)")
     exit(1)
 end
@@ -32,7 +32,7 @@ vector_size = int(ARGS[1])
 if vector_size == 1
         ITERS = 262144
         WGS = 8
-elseif vector_size == 4 
+elseif vector_size == 4
         ITERS = 65536 # (262144/4)
         WGS = 32
 elseif vector_size == 8
@@ -105,8 +105,8 @@ println("$nsteps integration steps")
 
 d_partial_sums = cl.Buffer(Float32, ctx, :w, length(h_psum))
 
-# start timer 
-rtime = time() 
+# start timer
+rtime = time()
 
 # Execute the kernel over the entire range of our 1d input data et
 # using the maximum number of work group items for this device

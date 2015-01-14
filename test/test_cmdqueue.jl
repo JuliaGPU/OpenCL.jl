@@ -1,5 +1,5 @@
-facts("OpenCL.CmdQueue") do 
-     
+facts("OpenCL.CmdQueue") do
+
     context("OpenCL.CmdQueue constructor") do
         has_warned = false
         @fact_throws cl.CmdQueue(nothing, nothing) "error"
@@ -13,7 +13,7 @@ facts("OpenCL.CmdQueue") do
                     cl.CmdQueue(ctx, device, :out_of_order)
                     cl.CmdQueue(ctx, device, (:profile, :out_of_order))
                 catch err
-                    if !has_warned 
+                    if !has_warned
                         warn("Platform $(device[:platform][:name]) does not seem to " *
                              "suport out of order queues: \n$err")
                         has_warned = true
@@ -30,14 +30,14 @@ facts("OpenCL.CmdQueue") do
             end
         end
     end
-    
+
     context("OpenCL.CmdQueue info") do
         for platform in cl.platforms()
             for device in cl.devices(platform)
                 ctx = cl.Context(device)
                 q1 = cl.CmdQueue(ctx)
                 q2 = cl.CmdQueue(ctx, device)
-                for q in (q1, q2) 
+                for q in (q1, q2)
                     @fact q[:context] => ctx
                     @fact q[:device] => device
                     @fact q[:reference_count] > 0 => true

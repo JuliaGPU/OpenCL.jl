@@ -1,4 +1,4 @@
-#=== TypeAliases ===# 
+#=== TypeAliases ===#
 
 # Opaque types
 typealias CL_platform_id        Ptr{Void}
@@ -49,7 +49,7 @@ typealias CL_mem_flags                  CL_bitfield
 typealias CL_svm_mem_flags              CL_bitfield
 typealias CL_mem_object_type            CL_uint
 typealias CL_mem_info                   CL_uint
-typealias CL_mem_migration_flags        CL_bitfield 
+typealias CL_mem_migration_flags        CL_bitfield
 typealias CL_image_info                 CL_uint
 typealias CL_buffer_create_type         CL_uint
 typealias CL_addressing_mode            CL_uint
@@ -90,7 +90,7 @@ typealias GL_sync                       Ptr{Void}
 
 immutable CL_image_format
     image_channel_order::CL_channel_order
-    image_channel_data_type::CL_channel_type 
+    image_channel_data_type::CL_channel_type
 end
 
 immutable CL_image_desc
@@ -123,13 +123,13 @@ cl_long(x)     = int64(x)
 cl_ulong(x)    = uint64(x)
 
 cl_half(x)     = uint16(x)
-cl_float(x)    = float32(x) 
+cl_float(x)    = float32(x)
 cl_double(x)   = float64(x)
 
-cl_bool(x)     = bool(x) ? cl_uint(1) : cl_uint(0) 
+cl_bool(x)     = bool(x) ? cl_uint(1) : cl_uint(0)
 cl_bitfield(x) = cl_ulong(x)
 
-cl_command_queue_properties(x) = cl_ulong(x) 
+cl_command_queue_properties(x) = cl_ulong(x)
 cl_device_type(x)              = cl_bitfield(x)
 cl_platform_info(x)            = cl_uint(x)
 cl_device_info(x)              = cl_uint(x)

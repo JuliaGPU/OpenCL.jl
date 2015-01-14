@@ -1,4 +1,4 @@
-# OpenCL.CmdQueue 
+# OpenCL.CmdQueue
 
 type CmdQueue <: CLObject
     id::CL_command_queue
@@ -14,7 +14,7 @@ type CmdQueue <: CLObject
         end )
         return q
     end
-end 
+end
 
 function release!(q::CmdQueue)
     if q.id != C_NULL
@@ -34,7 +34,7 @@ Base.getindex(q::CmdQueue, qinfo::Symbol) = info(q, qinfo)
 
 function CmdQueue(ctx::Context)
     devs  = devices(ctx)
-    flags = cl_command_queue_properties(0) 
+    flags = cl_command_queue_properties(0)
     if isempty(devs)
         throw(ArgumentError("OpenCL.CmdQueue Context argument does not have any devices"))
     end
@@ -53,7 +53,7 @@ function CmdQueue(ctx::Context, props::NTuple{2, Symbol})
     devs = devices(ctx)
     if isempty(devs)
         throw(ArgumentError("OpenCL.CmdQueue Context argument does not have any devices"))
-    end 
+    end
     return CmdQueue(ctx, first(devs), props)
 end
 
@@ -92,7 +92,7 @@ function CmdQueue(ctx::Context, dev::Device, props::CL_command_queue_properties)
         throw(CLError(err_code[1]))
     end
     return CmdQueue(queue_id)
-end 
+end
 
 function flush(q::CmdQueue)
     @check api.clFlush(q.id)
@@ -104,24 +104,24 @@ function finish(q::CmdQueue)
     return q
 end
 
-let 
+let
     context(q::CmdQueue) = begin
         ctx_id = Array(CL_context, 1)
         @check api.clGetCommandQueueInfo(q.id, CL_QUEUE_CONTEXT,
                                          sizeof(CL_context), ctx_id, C_NULL)
         Context(ctx_id[1], retain=true)
     end
-                                          
+
     device(q::CmdQueue) = begin
         dev_id = Array(CL_device_id, 1)
-        @check api.clGetCommandQueueInfo(q.id, CL_QUEUE_DEVICE, 
+        @check api.clGetCommandQueueInfo(q.id, CL_QUEUE_DEVICE,
                                          sizeof(CL_device_id), dev_id, C_NULL)
         Device(dev_id[1])
     end
 
     reference_count(q::CmdQueue) = begin
         ref_count = Array(CL_uint, 1)
-        @check api.clGetCommandQueueInfo(q.id, CL_QUEUE_REFERENCE_COUNT, 
+        @check api.clGetCommandQueueInfo(q.id, CL_QUEUE_REFERENCE_COUNT,
                                          sizeof(CL_uint), ref_count, C_NULL)
         ref_count[1]
     end

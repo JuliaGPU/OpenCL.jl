@@ -1,11 +1,11 @@
-facts("OpenCL.Device") do 
-    
+facts("OpenCL.Device") do
+
     context("Device Type") do
         for p in cl.platforms()
-            for (t, k) in zip((cl.CL_DEVICE_TYPE_GPU, cl.CL_DEVICE_TYPE_CPU, 
-                               cl.CL_DEVICE_TYPE_ACCELERATOR, cl.CL_DEVICE_TYPE_ALL), 
+            for (t, k) in zip((cl.CL_DEVICE_TYPE_GPU, cl.CL_DEVICE_TYPE_CPU,
+                               cl.CL_DEVICE_TYPE_ACCELERATOR, cl.CL_DEVICE_TYPE_ALL),
                               (:gpu, :cpu, :accelerator, :all))
-                
+
                 #for (dk, dt) in zip(cl.devices(p, k), cl.devices(p, t))
                 #    @fact dk == dt => true
                 #end
@@ -32,7 +32,7 @@ facts("OpenCL.Device") do
 
     end
 
-    context("Device Info") do 
+    context("Device Info") do
         device_info_keys = Symbol[
                 :driver_version,
                 :version,
@@ -81,12 +81,12 @@ facts("OpenCL.Device") do
                     @fact d[k] => anything "no error"
                     @fact d[k] => cl.info(d, k)
                     if k == :extensions
-                        @fact isa(d[k], Array) => true 
+                        @fact isa(d[k], Array) => true
                         if length(d[k]) > 0
                             @fact isa(d[k], Array{String, 1}) => true
                         end
                     elseif k == :platform
-                        @fact d[k] => p 
+                        @fact d[k] => p
                     elseif k == :max_work_item_sizes
                         @fact length(d[k]) => 3
                     elseif k == :max_image2d_shape

@@ -63,8 +63,8 @@ println("$nsteps integration steps")
 
 d_partial_sums = cl.Buffer(Float32, ctx, :w, length(h_psum))
 
-# start timer 
-rtime = time() 
+# start timer
+rtime = time()
 
 # Execute the kernel over the entire range of our 1d input data et
 # using the maximum number of work group items for this device

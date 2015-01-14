@@ -38,7 +38,7 @@ facts("OpenCL.Event") do
 
                 # create marker event
                 mkr_evt = cl.enqueue_marker(q)
-                
+
                 @fact usr_evt[:status] => :submitted
                 @fact cl.cl_event_status(usr_evt[:status]) => cl.CL_SUBMITTED
                 @fact mkr_evt[:status] => :queued
@@ -57,7 +57,7 @@ facts("OpenCL.Event") do
 
     context("OpenCL.Event callback") do
         for platform in cl.platforms()
-            v = cl.opencl_version(platform) 
+            v = cl.opencl_version(platform)
             if v.major == 1 && v.minor < 1
                 info("Skipping OpenCL.Event callback for $(platform[:name]) version < 1.1")
                 continue
@@ -72,27 +72,27 @@ facts("OpenCL.Event") do
             for device in cl.devices(platform)
                 callback_called = false
 
-                function test_callback(evt, status) 
+                function test_callback(evt, status)
                     callback_called = true
-                    println("Test Callback") 
+                    println("Test Callback")
                 end
 
                 ctx = cl.Context(device)
                 usr_evt = cl.UserEvent(ctx)
                 queue = cl.CmdQueue(ctx)
-                
+
                 cl.enqueue_wait_for_events(queue, usr_evt)
-                
+
                 mkr_evt = cl.enqueue_marker(queue)
                 cl.add_callback(mkr_evt, test_callback)
 
                 @fact usr_evt[:status] => :submitted
                 @fact mkr_evt[:status] => :queued
                 @fact callback_called => false
-                
+
                 cl.complete(usr_evt)
                 @fact usr_evt[:status] => :complete
-                
+
                 cl.wait(mkr_evt)
 
                 # Give callback some time to finish
@@ -103,6 +103,6 @@ facts("OpenCL.Event") do
                 @fact callback_called => true
             end
         end
-    end       
+    end
 end
 

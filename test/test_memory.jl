@@ -19,7 +19,7 @@ facts("OpenCL.Memory") do
             (:map_count, 0)
         ]
 
-        for expectation in expectations 
+        for expectation in expectations
             prop, value = expectation
             @fact cl.info(buf, prop) => value prop
         end

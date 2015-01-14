@@ -17,9 +17,9 @@ facts("OpenCL.Context") do
                 @fact typeof(err) => cl.CLError
                 @fact err.desc => :CL_INVALID_PLATFORM
             end
-            
+
             if platform[:name] == "Portable Computing Language"
-                warn("Skipping OpenCL.Context platform properties for " * 
+                warn("Skipping OpenCL.Context platform properties for " *
                      "Portable Computing Language Platform")
                 continue
             end
@@ -38,7 +38,7 @@ facts("OpenCL.Context") do
 
                 @fact test_properties => properties
 
-                platform_in_properties = false 
+                platform_in_properties = false
                 for (t, v) in test_properties
                     if t == cl.CL_CONTEXT_PLATFORM
                         @fact v[:name] => platform[:name]
@@ -47,7 +47,7 @@ facts("OpenCL.Context") do
                         break
                     end
                 end
-                @fact platform_in_properties => true 
+                @fact platform_in_properties => true
             end
             try
                 ctx2 = cl.Context(cl.CL_DEVICE_TYPE_ACCELERATOR,

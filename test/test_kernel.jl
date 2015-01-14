@@ -1,8 +1,8 @@
-facts("OpenCL.Kernel") do 
+facts("OpenCL.Kernel") do
 
     test_source = "
     __kernel void sum(__global const float *a,
-                      __global const float *b, 
+                      __global const float *b,
                       __global float *c,
                       const unsigned int count)
     {
@@ -18,7 +18,7 @@ facts("OpenCL.Kernel") do
     context("OpenCL.Kernel constructor") do
         for device in cl.devices()
             if device[:platform][:name] == "Portable Computing Language"
-                warn("Skipping OpenCL.Kernel constructor for " * 
+                warn("Skipping OpenCL.Kernel constructor for " *
                      "Portable Computing Language Platform")
                 continue
             end
@@ -46,9 +46,9 @@ facts("OpenCL.Kernel") do
             @fact k[:program] => prg
             @fact typeof(k[:attributes]) => ASCIIString
         end
-    end 
+    end
 
-    context("OpenCL.Kernel mem/workgroup size") do 
+    context("OpenCL.Kernel mem/workgroup size") do
         for device in cl.devices()
             if device[:platform][:name] == "Portable Computing Language"
                 warn("Skipping OpenCL.Kernel mem/workgroup size for Portable Computing Language Platform")
@@ -75,7 +75,7 @@ facts("OpenCL.Kernel") do
 
     context("OpenCL.Kernel set_arg!/set_args!") do
          for device in cl.devices()
-            
+
             if device[:platform][:name] == "Portable Computing Language"
                 warn("Skipping OpenCL.Kernel mem/workgroup size for Portable Computing Language Platform")
                 continue
@@ -83,13 +83,13 @@ facts("OpenCL.Kernel") do
 
             ctx = cl.Context(device)
             queue = cl.CmdQueue(ctx)
-            
+
             prg = cl.Program(ctx, source=test_source) |> cl.build!
             k = cl.Kernel(prg, "sum")
 
             count  = 1024
             nbytes = count * sizeof(Float32)
-           
+
             h_ones = ones(Float32, count)
 
             A = cl.Buffer(Float32, ctx, (:r, :copy), hostbuf=h_ones)
@@ -100,7 +100,7 @@ facts("OpenCL.Kernel") do
             @fact sizeof(A) => nbytes
             @fact sizeof(B) => nbytes
             @fact sizeof(C) => nbytes
-            
+
             # we use julia's index by one convention
             @fact cl.set_arg!(k, 1, A)   => anything "no error"
             @fact cl.set_arg!(k, 2, B)   => anything "no error"
@@ -116,15 +116,15 @@ facts("OpenCL.Kernel") do
             # test set_args with new kernel
             k2 = cl.Kernel(prg, "sum")
             cl.set_args!(k2, A, B, C, uint32(count))
-            
+
             h_twos = fill(float32(2.0), count)
             cl.copy!(queue, A, h_twos)
             cl.copy!(queue, B, h_twos)
-            
+
             #TODO: check for ocl version, fill is opencl v1.2
             #cl.enqueue_fill(queue, A, float32(2.0))
             #cl.enqueue_fill(queue, B, float32(2.0))
-            
+
             cl.enqueue_kernel(queue, k, count)
             cl.finish(queue)
 
@@ -140,12 +140,12 @@ facts("OpenCL.Kernel") do
                 warn("Skipping OpenCL.Kernel mem/workgroup size for Portable Computing Language Platform")
                 continue
             end
-            
+
             simple_kernel = "
                 __kernel void test(__global float *i) {
                     *i += 1;
                 };"
-            
+
             ctx = cl.Context(device)
 
             h_buff = Float32[1,]
@@ -154,7 +154,7 @@ facts("OpenCL.Kernel") do
             p = cl.Program(ctx, source=simple_kernel) |> cl.build!
             k = cl.Kernel(p, "test")
             q = cl.CmdQueue(ctx)
-           
+
             # dimensions must be the same size
             @fact_throws cl.call(q, k, (1,), (1,1), d_buff) "error"
             @fact_throws cl.call(q, k, (1,1), (1,), d_buff) "error"
@@ -169,16 +169,16 @@ facts("OpenCL.Kernel") do
 
             # blocking call to kernel finishes cmd queue
             cl.call(q, k, 1, 1, d_buff)
-            
-            r = cl.read(q, d_buff) 
+
+            r = cl.read(q, d_buff)
             @fact r[1] => 2
 
             # alternative kernel call syntax
             k[q, (1,), (1,)](d_buff)
             r = cl.read(q, d_buff)
-            @fact r[1] => 3 
+            @fact r[1] => 3
 
-            # enqueue task is an alias for calling 
+            # enqueue task is an alias for calling
             # a kernel with a global/local size of 1
             evt = cl.enqueue_task(q, k)
             r = cl.read(q, d_buff)

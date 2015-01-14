@@ -61,7 +61,7 @@ h_g = rand(Float32, LENGTH)
 
 # create the input (a,b,e,g) arrays in device memory and copy data from the host
 
-# buffers can be passed memory flags: 
+# buffers can be passed memory flags:
 # {:r = readonly, :w = writeonly, :rw = read_write (default)}
 
 # buffers can also be passed flags for allocation:
@@ -82,7 +82,7 @@ vadd = cl.Kernel(program, "vadd")
 
 # execute the kernel over the entire range of 1d, input
 # cl.call is blocking, it accepts a queue, the kernel, global / local work sizes,
-# the the kernel's arguments. 
+# the the kernel's arguments.
 
 # here we call the kernel with work size set to the number of elements and a local
 # work size of nothing. This enables the opencl runtime to optimize the local size
@@ -105,7 +105,7 @@ correct = 0
 for i in 1:LENGTH
     tmp = h_a[i] + h_b[i] + h_e[i] + h_g[i]
     tmp -= h_f[i]
-    if tmp^2 < TOL^2 
+    if tmp^2 < TOL^2
         correct += 1
     else
         println("tmp $tmp h_a $(h_a[i]) h_b $(h_b[i]) ",

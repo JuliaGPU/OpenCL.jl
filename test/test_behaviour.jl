@@ -4,10 +4,10 @@ info(
       ======================================================================")
 
 facts("OpenCL Hello World Test") do
-    
+
     hello_world_kernel = "
         #pragma OPENCL EXTENSION cl_khr_byte_addressable_store : enable
-        
+
         __constant char hw[] = \"hello world\";
 
         __kernel void hello(__global char *out) {
@@ -16,7 +16,7 @@ facts("OpenCL Hello World Test") do
         }"
 
     hello_world_str = "hello world"
-    
+
     for device in cl.devices()
         if device[:platform][:name] == "Portable Computing Language"
             warn("Skipping OpenCL.Kernel mem/workgroup size for Portable Computing Language Platform")
@@ -25,13 +25,13 @@ facts("OpenCL Hello World Test") do
 
         ctx   = cl.Context(device)
         queue = cl.CmdQueue(ctx)
-        
-        str_len  = length(hello_world_str) + 1 
+
+        str_len  = length(hello_world_str) + 1
         out_buf  = cl.Buffer(Cchar, ctx, :w, sizeof(Cchar) * str_len)
 
         prg   = cl.Program(ctx, source=hello_world_kernel) |> cl.build!
         kern  = cl.Kernel(prg, "hello")
-        
+
         cl.call(queue, kern, str_len, nothing, out_buf)
         h = cl.read(queue, out_buf)
 
@@ -44,7 +44,7 @@ facts("OpenCL Low Level Api Test") do
 
   test_source = "
     __kernel void sum(__global const float *a,
-                      __global const float *b, 
+                      __global const float *b,
                       __global float *c,
                       const unsigned int count)
     {
@@ -56,7 +56,7 @@ facts("OpenCL Low Level Api Test") do
     "
 
     for device in cl.devices()
-        
+
         length = 1024
         h_a = Array(cl.CL_float, length)
         h_b = Array(cl.CL_float, length)
@@ -71,14 +71,14 @@ facts("OpenCL Low Level Api Test") do
             h_b[i] = cl.cl_float(rand())
             h_e[i] = cl.cl_float(rand())
             h_g[i] = cl.cl_float(rand())
-        end 
-        
+        end
+
         err_code = Array(cl.CL_int, 1)
 
         # create compute context (TODO: fails if function ptr's not passed...)
-        ctx_id = cl.api.clCreateContext(C_NULL, 1, [device.id], 
-                                        cl.ctx_callback_ptr, 
-                                        cl.raise_context_error, 
+        ctx_id = cl.api.clCreateContext(C_NULL, 1, [device.id],
+                                        cl.ctx_callback_ptr,
+                                        cl.raise_context_error,
                                         err_code)
         if err_code[1] != cl.CL_SUCCESS
             #error("Failed to create compute context")
@@ -102,7 +102,7 @@ facts("OpenCL Low Level Api Test") do
         if err != cl.CL_SUCCESS
             error("Failed to build program")
         end
-        
+
         # create compute kernel
         k_id = cl.api.clCreateKernel(prg_id, "sum", err_code)
         if err_code[1] != cl.CL_SUCCESS
@@ -138,12 +138,12 @@ facts("OpenCL Low Level Api Test") do
         if err_code[1] != cl.CL_SUCCESS
             error("Error creating buffer C")
         end
-        Did = cl.api.clCreateBuffer(ctx_id, cl.CL_MEM_READ_WRITE, 
+        Did = cl.api.clCreateBuffer(ctx_id, cl.CL_MEM_READ_WRITE,
                                     sizeof(cl.CL_float) * length, C_NULL, err_code)
         if err_code[1] != cl.CL_SUCCESS
             error("Error creating buffer D")
         end
-        Fid = cl.api.clCreateBuffer(ctx_id, cl.CL_MEM_WRITE_ONLY, 
+        Fid = cl.api.clCreateBuffer(ctx_id, cl.CL_MEM_WRITE_ONLY,
                                     sizeof(cl.CL_float) * length, C_NULL, err_code)
         if err_code[1] != cl.CL_SUCCESS
             error("Error creating buffer F")
@@ -156,7 +156,7 @@ facts("OpenCL Low Level Api Test") do
         if err != cl.CL_SUCCESS
             error("Error setting kernel 1 args")
         end
-        
+
         nglobal = Csize_t[length,]
         err = cl.api.clEnqueueNDRangeKernel(q_id, k_id,  1, C_NULL,
                                             nglobal, C_NULL, 0, C_NULL, C_NULL)
@@ -234,7 +234,7 @@ let test_struct = "
 
 
     __kernel void part3(__global const float *a,
-                        __global const float *b, 
+                        __global const float *b,
                         __global float *c,
                         __constant struct Params* test)
     {
@@ -254,22 +254,22 @@ facts("OpenCL Struct Buffer Test") do
         ctx = cl.Context(device)
         q   = cl.CmdQueue(ctx)
         p   = cl.Program(ctx, source=test_struct) |> cl.build!
-        
+
         part3 = cl.Kernel(p, "part3")
-       
+
         X = fill(float32(1.0), 10)
         Y = fill(float32(1.0), 10)
 
         P = [Params(0.5, 10.0, [0.0, 0.0], 3)]
-        
+
         #TODO: constructor for single immutable types.., check if passed parameter isbits
         P_buf = cl.Buffer(Params, ctx, :r, length(P))
         cl.write!(q, P_buf, P)
-        
+
         X_buf = cl.Buffer(Float32, ctx, (:r, :copy), hostbuf=X)
         Y_buf = cl.Buffer(Float32, ctx, (:r, :copy), hostbuf=Y)
         R_buf = cl.Buffer(Float32, ctx, :w, length(X))
-        
+
         global_size = size(X)
         cl.call(q, part3, global_size, nothing, X_buf, Y_buf, R_buf, P_buf)
 

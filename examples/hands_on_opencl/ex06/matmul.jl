@@ -8,7 +8,7 @@
 # set as a constant, ORDER (see definitions.py). This is so
 # we can make a quick test of the multiplication result.
 #
-# History:   C++ version written by Tim Mattson, August 2010 
+# History:   C++ version written by Tim Mattson, August 2010
 #            Modified by Simon McIntosh-Smith, September 2011
 #            Modified by Tom Deakin and Simon McIntosh-Smith, October 2012
 #            Ported to Python by Tom Deakin, July 2013
@@ -68,10 +68,10 @@ Ndim = ORDER
 Pdim = ORDER
 Mdim = ORDER
 
-# Number of elements in the matrix 
+# Number of elements in the matrix
 sizeA = Ndim * Pdim
 sizeB = Pdim * Mdim
-sizeC = Ndim * Mdim 
+sizeC = Ndim * Mdim
 
 # Number of elements in the matrix
 h_A = fill(float32(AVAL), sizeA)
@@ -124,12 +124,12 @@ info("=== OpenCL, matrix mult, C(i, j) per work item, order $Ndim ====")
 
 for i in 1:COUNT
     fill!(h_C, 0.0)
-    
+
     global_range = (Ndim, Mdim)
     mmul_ocl = mmul[queue, global_range]
-    
+
     evt = mmul_ocl(int32(Mdim), int32(Ndim), int32(Pdim), d_a, d_b, d_c)
-    
+
     # profiling events are measured in ns
     run_time = evt[:profile_duration] / 1e9
     cl.copy!(queue, h_C, d_c)

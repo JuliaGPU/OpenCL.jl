@@ -1,8 +1,8 @@
-# OpenCL.Context 
+# OpenCL.Context
 
 type Context <: CLObject
     id :: CL_context
-    
+
     function Context(ctx_id::CL_context; retain=false)
         if retain
             @check api.clRetainContext(ctx_id)
@@ -12,14 +12,14 @@ type Context <: CLObject
             retain || _deletecached!(c);
             release!(c)
         end )
-        return ctx 
+        return ctx
     end
 end
 
 function release!(ctx::Context)
     if ctx.id != C_NULL
         @check api.clReleaseContext(ctx.id)
-        ctx.id = C_NULL 
+        ctx.id = C_NULL
     end
 end
 
@@ -41,7 +41,7 @@ function ctx_notify_err(err_info::Ptr{Cchar}, priv_info::Ptr{Void},
 end
 
 
-const ctx_callback_ptr = cfunction(ctx_notify_err, Ptr{Void}, 
+const ctx_callback_ptr = cfunction(ctx_notify_err, Ptr{Void},
                                    (Ptr{Cchar}, Ptr{Void}, Csize_t, Ptr{Void}))
 
 function raise_context_error(error_info, private_info)
@@ -63,12 +63,12 @@ function Context(devs::Vector{Device};
     if callback != nothing
         ctx_user_data = callback
     else
-        ctx_user_data = raise_context_error 
+        ctx_user_data = raise_context_error
     end
     n_devices = length(devs)
     device_ids = Array(CL_device_id, n_devices)
     for (i, d) in enumerate(devs)
-        device_ids[i] = d.id 
+        device_ids[i] = d.id
     end
     err_code = Array(CL_int, 1)
     ctx_id = api.clCreateContext(ctx_properties, n_devices, device_ids,
@@ -80,7 +80,7 @@ function Context(devs::Vector{Device};
 end
 
 
-Context(d::Device; properties=nothing, callback=nothing) = 
+Context(d::Device; properties=nothing, callback=nothing) =
         Context([d], properties=properties, callback=callback)
 
 function Context(dev_type::CL_device_type;
@@ -108,15 +108,15 @@ function Context(dev_type::Symbol;
                  properties=nothing, callback=nothing)
     Context(cl_device_type(dev_type),
             properties=properties, callback=callback)
-end 
+end
 
 
 function properties(ctx_id::CL_context)
     nbytes = Csize_t[0]
     @check api.clGetContextInfo(ctx_id, CL_CONTEXT_PROPERTIES, 0, C_NULL, nbytes)
-    
+
     # Calculate length of storage array
-    # At nbytes[1] the size of the properties array in bytes is stored  
+    # At nbytes[1] the size of the properties array in bytes is stored
     # The length of the property array is then nbytes[1] / sizeof(CL_context_properties)
     # Note: nprops should be odd since it requires a C_NULL terminated array
     nprops = div(nbytes[1], sizeof(CL_context_properties))
@@ -160,7 +160,7 @@ end
 function _parse_properties(props)
     if isempty(props)
         return C_NULL
-    end 
+    end
     cl_props = CL_context_properties[]
     for prop_tuple in props
         if length(prop_tuple) != 2
@@ -198,7 +198,7 @@ end
 function devices(ctx::Context)
     n = num_devices(ctx)
     if n == 0
-        return [] 
+        return []
     end
     dev_ids = Array(CL_device_id, n)
     @check api.clGetContextInfo(ctx.id, CL_CONTEXT_DEVICES,
@@ -217,7 +217,7 @@ function create_some_context()
             try
                 ctx = Context(dev)
             catch
-                continue 
+                continue
             end
             return ctx
         end
@@ -229,7 +229,7 @@ function create_some_context()
             try
                 ctx = Context(dev)
             catch
-                continue 
+                continue
             end
             return ctx
         end

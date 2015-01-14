@@ -1,4 +1,4 @@
-# OpenCL.Device 
+# OpenCL.Device
 
 immutable Device <: CLObject
     id :: CL_device_id
@@ -33,7 +33,7 @@ let profile(d::Device) = begin
         result = Array(CL_char, size[1])
         @check api.clGetDeviceInfo(d.id, CL_DEVICE_PROFILE, size[1], result, C_NULL)
         bs = bytestring(convert(Ptr{CL_char}, result))
-        return bs 
+        return bs
     end
 
     version(d::Device) = begin
@@ -142,21 +142,21 @@ let profile(d::Device) = begin
 
     host_unified_memory(d::Device) = begin
         result = Array(CL_bool, 1)
-        @check api.clGetDeviceInfo(d.id, CL_DEVICE_HOST_UNIFIED_MEMORY, 
+        @check api.clGetDeviceInfo(d.id, CL_DEVICE_HOST_UNIFIED_MEMORY,
                                    sizeof(CL_bool), result, C_NULL)
         return bool(result[1])
     end
- 
+
     available(d::Device) = begin
         result = Array(CL_bool, 1)
-        @check api.clGetDeviceInfo(d.id, CL_DEVICE_AVAILABLE, 
+        @check api.clGetDeviceInfo(d.id, CL_DEVICE_AVAILABLE,
                                    sizeof(CL_bool), result, C_NULL)
         return bool(result[1])
     end
-       
+
     compiler_available(d::Device) = begin
         result = Array(CL_bool, 1)
-        @check api.clGetDeviceInfo(d.id, CL_DEVICE_COMPILER_AVAILABLE, 
+        @check api.clGetDeviceInfo(d.id, CL_DEVICE_COMPILER_AVAILABLE,
                                    sizeof(CL_bool), result, C_NULL)
         return bool(result[1])
     end
@@ -169,7 +169,7 @@ let profile(d::Device) = begin
         @check api.clGetDeviceInfo(d.id, CL_DEVICE_MAX_WORK_ITEM_SIZES,
                                    sizeof(Csize_t) * dims[1], result, C_NULL)
         return tuple([int(r) for r in result]...)
-    end 
+    end
 
     @int_info(max_work_group_size, CL_DEVICE_MAX_WORK_GROUP_SIZE, Csize_t)
     @int_info(max_parameter_size, CL_DEVICE_MAX_PARAMETER_SIZE,  Csize_t)
@@ -193,7 +193,7 @@ let profile(d::Device) = begin
                                    sizeof(Csize_t), width, C_NULL)
         @check api.clGetDeviceInfo(d.id, CL_DEVICE_IMAGE3D_MAX_HEIGHT,
                                    sizeof(Csize_t), height, C_NULL)
-        @check api.clGetDeviceInfo(d.id, CL_DEVICE_IMAGE3D_MAX_DEPTH, 
+        @check api.clGetDeviceInfo(d.id, CL_DEVICE_IMAGE3D_MAX_DEPTH,
                                    sizeof(Csize_t), depth, C_NULL)
         return (width[1], height[1], depth[1])
     end
@@ -203,18 +203,18 @@ let profile(d::Device) = begin
         :version => version,
         :profile => profile,
         :extensions => extensions,
-        :platform => platform, 
+        :platform => platform,
         :name => name,
-        :device_type => device_type, 
+        :device_type => device_type,
         :has_image_support => has_image_support,
         :queue_properties => queue_properties,
         :has_queue_out_of_order_exec => has_queue_out_of_order_exec,
         :has_queue_profiling => has_queue_profiling,
         :has_native_kernel => has_native_kernel,
         :vendor_id => vendor_id,
-        :max_compute_units => max_compute_units, 
+        :max_compute_units => max_compute_units,
         :max_work_item_size => max_work_item_size,
-        :max_clock_frequency => max_clock_frequency, 
+        :max_clock_frequency => max_clock_frequency,
         :address_bits => address_bits,
         :max_read_image_args => max_read_image_args,
         :max_write_image_args => max_write_image_args,
@@ -226,7 +226,7 @@ let profile(d::Device) = begin
         :host_unified_memory => host_unified_memory,
         :available => available,
         :compiler_available => compiler_available,
-        :max_work_group_size => max_work_group_size, 
+        :max_work_group_size => max_work_group_size,
         :max_work_item_dims => max_work_item_dims,
         :max_parameter_size => max_parameter_size,
         :profiling_timer_resolution => profiling_timer_resolution,

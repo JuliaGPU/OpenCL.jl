@@ -13,7 +13,7 @@ Base.pointer(mem::CLMemObject) = mem.id
 
 Base.sizeof(mem::CL_mem) = begin
     val = Csize_t[0,]
-    @check api.clGetMemObjectInfo(mem, CL_MEM_SIZE, sizeof(Csize_t), 
+    @check api.clGetMemObjectInfo(mem, CL_MEM_SIZE, sizeof(Csize_t),
                                   val, C_NULL)
     return val[1]
 end
@@ -31,7 +31,7 @@ end
 
 context(mem::CLMemObject) = begin
     param = Array(CL_context, 1)
-    @check api.clGetMemObjectInfo(mem.id, CL_MEM_CONTEXT, 
+    @check api.clGetMemObjectInfo(mem.id, CL_MEM_CONTEXT,
                                   sizeof(Csize_t), param, C_NULL)
     return Context(param[1], retain=true)
 end
@@ -39,7 +39,7 @@ end
 
 let mem_type(m::CLMemObject) = begin
         result = Array(CL_mem_object_type, 1)
-        @check api.clGetMemObjectInfo(m.id, CL_MEM_TYPE, 
+        @check api.clGetMemObjectInfo(m.id, CL_MEM_TYPE,
                         sizeof(CL_mem_object_type), result, C_NULL)
         return result[1]
     end
@@ -94,7 +94,7 @@ let mem_type(m::CLMemObject) = begin
 
     info_map = (Symbol => Function)[
         :mem_type => mem_type,
-        :mem_flags => mem_flags, 
+        :mem_flags => mem_flags,
         :size => size,
         :reference_count => reference_count,
         :map_count => map_count

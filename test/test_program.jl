@@ -1,8 +1,8 @@
-facts("OpenCL.Program") do 
-    
+facts("OpenCL.Program") do
+
     test_source = "
     __kernel void sum(__global const float *a,
-                      __global const float *b, 
+                      __global const float *b,
                       __global float *c)
     {
       uint gid = get_global_id(0);
@@ -26,11 +26,11 @@ facts("OpenCL.Program") do
         for device in cl.devices()
             ctx = cl.Context(device)
             prg = cl.Program(ctx, source=test_source)
-            
+
             @fact prg[:context] => ctx
-            
+
             @fact typeof(prg[:devices]) => Vector{cl.Device}
-            @fact length(prg[:devices]) > 0 => true 
+            @fact length(prg[:devices]) > 0 => true
             @fact device in prg[:devices] => true
 
             @fact typeof(prg[:source]) => ASCIIString
@@ -42,22 +42,22 @@ facts("OpenCL.Program") do
          end
     end
 
-    context("OpenCL.Program build") do 
+    context("OpenCL.Program build") do
         for device in cl.devices()
             ctx = cl.Context(device)
             prg = cl.Program(ctx, source=test_source)
             @fact cl.build!(prg) => anything "no error"
-            
+
             # BUILD_SUCCESS undefined in POCL implementation..
             if device[:platform][:name] == "Portable Computing Language"
                 warn("Skipping OpenCL.Program build for Portable Computing Language Platform")
                 continue
             end
-            @fact prg[:build_status][device] => cl.CL_BUILD_SUCCESS 
-            
+            @fact prg[:build_status][device] => cl.CL_BUILD_SUCCESS
+
             # test build by methods chaining
-            @fact prg[:build_status][device] => cl.CL_BUILD_SUCCESS 
-            @fact strip(prg[:build_log][device])=> "" 
+            @fact prg[:build_status][device] => cl.CL_BUILD_SUCCESS
+            @fact strip(prg[:build_log][device])=> ""
         end
     end
 
@@ -73,7 +73,7 @@ facts("OpenCL.Program") do
         for device in cl.devices()
             ctx = cl.Context(device)
             prg = cl.Program(ctx, source=test_source) |> cl.build!
-            
+
             @fact device in collect(keys(prg[:binaries])) => true
             binaries = prg[:binaries]
             @fact device in collect(keys(binaries)) => true
@@ -81,12 +81,12 @@ facts("OpenCL.Program") do
             @fact length(binaries[device]) > 0 => true
             prg2 = cl.Program(ctx, binaries=binaries)
             @fact prg2[:binaries] == binaries => true
-            try 
+            try
                 prg2[:source]
                 error("should not happen")
             catch err
                 @fact isa(err, cl.CLError) => true
-                @fact err.code => -45 
+                @fact err.code => -45
                 @fact err.desc => :CL_INVALID_PROGRAM_EXECUTABLE
             end
         end
