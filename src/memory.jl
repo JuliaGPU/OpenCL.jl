@@ -11,9 +11,9 @@ abstract CLMemObject <: CLObject
 
 Base.pointer(mem::CLMemObject) = mem.id
 
-Base.sizeof(mem::CL_mem) = begin
+Base.sizeof(mem::CLMemObject) = begin
     val = Csize_t[0,]
-    @check api.clGetMemObjectInfo(mem, CL_MEM_SIZE, sizeof(Csize_t),
+    @check api.clGetMemObjectInfo(mem.id, CL_MEM_SIZE, sizeof(Csize_t),
                                   val, C_NULL)
     return val[1]
 end
