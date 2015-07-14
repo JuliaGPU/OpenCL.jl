@@ -56,7 +56,7 @@ end
 Base.ndims(l::LocalMem) = 1
 Base.eltype{T}(l::LocalMem{T}) = T
 Base.sizeof{T}(l::LocalMem{T}) = l.nbytes
-Base.length{T}(l::LocalMem{T}) = int(l.nbytes / sizeof(T))
+Base.length{T}(l::LocalMem{T}) = @compat Int(l.nbytes / sizeof(T))
 
 function set_arg!(k::Kernel, idx::Integer, arg::Nothing)
     @assert idx > 0
@@ -112,18 +112,18 @@ function work_group_info(k::Kernel, winfo::CL_kernel_work_group_info, d::Device)
         result = CL_ulong[0]
         @check api.clGetKernelWorkGroupInfo(k.id, d.id, winfo,
                                             sizeof(CL_ulong), result, C_NULL)
-        return int(result[1])
+        return @compat Int(result[1])
     elseif winfo == CL_KERNEL_COMPILE_WORK_GROUP_SIZE
         size = Csize_t[0]
         @check api.clGetKernelWorkGroupInfo(k.id, d.id, winfo, 0, C_NULL, size)
         result = Array(Csize_t, size[1])
         @check api.clGetKernelWorkGroupInfo(k.id, d.id, winfo, sizeof(result), result, C_NULL)
-        return int(result)
+        return @compat map(Int, result)
     else
         result = Csize_t[0]
         @check api.clGetKernelWorkGroupInfo(k.id, d.id, winfo,
                                             sizeof(CL_ulong), result, C_NULL)
-        return int(result[1])
+        return @compat Int(result[1])
     end
 end
 

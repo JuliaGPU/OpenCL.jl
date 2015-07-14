@@ -180,7 +180,7 @@ immutable CLError <: Exception
     desc::Symbol
 
     function CLError(c::Integer)
-        new(c, _cl_error_codes[int(c)])
+        @compat new(c, _cl_error_codes[Int(c)])
     end
 end
 

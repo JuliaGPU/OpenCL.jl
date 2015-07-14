@@ -30,8 +30,8 @@ end
 
 Base.ndims(b::Buffer) = 1
 Base.eltype{T}(b::Buffer{T}) = T
-Base.length{T}(b::Buffer{T}) = int(b.len)
-Base.sizeof{T}(b::Buffer{T}) = int(b.len * sizeof(T))
+Base.length{T}(b::Buffer{T}) = @compat Int(b.len)
+Base.sizeof{T}(b::Buffer{T}) = @compat Int(b.len * sizeof(T))
 
 Base.show{T}(io::IO, b::Buffer{T}) = begin
     ptr_address = "0x$(hex(unsigned(Base.pointer(b)), WORD_SIZE>>2))"
@@ -144,7 +144,7 @@ function enqueue_read_buffer{T}(q::CmdQueue,
                                 dev_offset::Csize_t,
                                 wait_for::Union(Nothing, Vector{Event}),
                                 is_blocking::Bool)
-    n_evts  = wait_for == nothing ? uint(0) : length(wait_for)
+    n_evts  = @compat wait_for == nothing ? UInt(0) : length(wait_for)
     evt_ids = wait_for == nothing ? C_NULL  : [evt.id for evt in wait_for]
     ret_evt = Array(CL_event, 1)
     nbytes  = sizeof(hostbuf)
@@ -163,7 +163,7 @@ function enqueue_write_buffer{T}(q::CmdQueue,
                                  offset::Csize_t,
                                  wait_for::Union(Nothing, Vector{Event}),
                                  is_blocking::Bool)
-    n_evts  = wait_for == nothing ? uint(0) : length(wait_for)
+    n_evts  = @compat wait_for == nothing ? UInt(0) : length(wait_for)
     evt_ids = wait_for == nothing ? C_NULL  : [evt.id for evt in wait_for]
     ret_evt = Array(CL_event, 1)
     nbytes  = sizeof(hostbuf)
@@ -182,7 +182,7 @@ function enqueue_copy_buffer{T}(q::CmdQueue,
                                 src_offset::Csize_t,
                                 dst_offset::Csize_t,
                                 wait_for::Union(Nothing, Vector{Event}))
-    n_evts  = wait_for == nothing ? uint(0) : length(wait_for)
+    n_evts  = @compat wait_for == nothing ? UInt(0) : length(wait_for)
     evt_ids = wait_for == nothing ? C_NULL  : [evt.id for evt in wait_for]
     ret_evt = Array(CL_event, 1)
     if byte_count < 0
@@ -355,7 +355,7 @@ function copy!{T}(q::CmdQueue, dst::Array{T}, src::Buffer{T})
     if sizeof(dst) != sizeof(src)
         throw(ArgumentError("Buffer and Array to be copied must be the same size"))
     end
-    evt = enqueue_read_buffer(q, src, dst, uint(0), nothing, true)
+    evt = @compat enqueue_read_buffer(q, src, dst, UInt(0), nothing, true)
     return evt
 end
 

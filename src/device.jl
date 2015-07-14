@@ -168,7 +168,7 @@ let profile(d::Device) = begin
         result = Array(Csize_t, dims[1])
         @check api.clGetDeviceInfo(d.id, CL_DEVICE_MAX_WORK_ITEM_SIZES,
                                    sizeof(Csize_t) * dims[1], result, C_NULL)
-        return tuple([int(r) for r in result]...)
+        return @compat tuple([Int(r) for r in result]...)
     end
 
     @int_info(max_work_group_size, CL_DEVICE_MAX_WORK_GROUP_SIZE, Csize_t)

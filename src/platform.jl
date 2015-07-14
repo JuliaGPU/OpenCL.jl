@@ -26,7 +26,7 @@ end
 function num_platforms()
     nplatforms = Array(CL_uint, 1)
     @check api.clGetPlatformIDs(0, C_NULL, nplatforms)
-    return int(nplatforms[1])
+    return @compat Int(nplatforms[1])
 end
 
 function info(p::Platform, pinfo::CL_platform_info)
