@@ -1,6 +1,7 @@
 module TestOpenCL
     using FactCheck
     using Base.Test
+    using Compat
 
     import OpenCL
     const cl = OpenCL
