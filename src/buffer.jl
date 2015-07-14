@@ -34,7 +34,8 @@ Base.length{T}(b::Buffer{T}) = @compat Int(b.len)
 Base.sizeof{T}(b::Buffer{T}) = @compat Int(b.len * sizeof(T))
 
 Base.show{T}(io::IO, b::Buffer{T}) = begin
-    ptr_address = "0x$(hex(unsigned(Base.pointer(b)), WORD_SIZE>>2))"
+    ptr_val = @compat convert(UInt, Base.pointer(b))
+    ptr_address = "0x$(hex(ptr_val, WORD_SIZE>>2))"
     print(io, "Buffer{$T}(@$ptr_address)")
 end
 

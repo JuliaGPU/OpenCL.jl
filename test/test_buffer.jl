@@ -135,7 +135,7 @@ facts("OpenCL.Buffer") do
                  info("Skipping OpenCL.Buffer fill for $platform_name: fill is a v1.2 command")
                  continue
              end
-             cl.fill!(queue, buf, float32(1.0))
+             cl.fill!(queue, buf, 1f0)
              readback = cl.read(queue, buf)
              @fact all(x -> x == 1.0, readback) => true
              @fact all(x -> x == 0.0, testarray) => true
@@ -172,7 +172,7 @@ facts("OpenCL.Buffer") do
         for device in cl.devices()
             ctx = cl.Context(device)
             queue = cl.CmdQueue(ctx)
-            test_array = fill(float32(2.0), 1000)
+            test_array = fill(2f0, 1000)
             a_buf = cl.Buffer(Float32, ctx, length(test_array))
             b_buf = cl.Buffer(Float32, ctx, length(test_array))
             c_arr = Array(Float32, length(test_array))

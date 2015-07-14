@@ -119,13 +119,13 @@ facts("OpenCL.Kernel") do
             k2 = cl.Kernel(prg, "sum")
             @compat cl.set_args!(k2, A, B, C, UInt32(count))
 
-            h_twos = fill(float32(2.0), count)
+            h_twos = fill(2f0, count)
             cl.copy!(queue, A, h_twos)
             cl.copy!(queue, B, h_twos)
 
             #TODO: check for ocl version, fill is opencl v1.2
-            #cl.enqueue_fill(queue, A, float32(2.0))
-            #cl.enqueue_fill(queue, B, float32(2.0))
+            #cl.enqueue_fill(queue, A, 2f0)
+            #cl.enqueue_fill(queue, B, 2f0)
 
             cl.enqueue_kernel(queue, k, count)
             cl.finish(queue)

@@ -259,8 +259,8 @@ facts("OpenCL Struct Buffer Test") do
 
         part3 = cl.Kernel(p, "part3")
 
-        X = fill(float32(1.0), 10)
-        Y = fill(float32(1.0), 10)
+        X = fill(1f0, 10)
+        Y = fill(1f0, 10)
 
         P = [Params(0.5, 10.0, [0.0, 0.0], 3)]
 
