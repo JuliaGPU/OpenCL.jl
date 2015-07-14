@@ -50,12 +50,12 @@ function Program(ctx::Context; source=nothing, binaries=nothing)
         device_ids = Array(CL_device_id, ndevices)
         bin_lengths = Array(Csize_t, ndevices)
         binary_status = Array(CL_int, ndevices)
-        binary_ptrs= Array(Ptr{Uint8}, ndevices)
+        binary_ptrs= Array(Ptr{UInt8}, ndevices)
         try
             for (i, (dev, bin)) in enumerate(binaries)
                 device_ids[i] = dev.id
                 bin_lengths[i] = length(bin)
-                binary_ptrs[i] = Compat.unsafe_convert(Ptr{Uint8}, pointer(bin))
+                binary_ptrs[i] = Compat.unsafe_convert(Ptr{UInt8}, pointer(bin))
             end
             err_code = Array(CL_int, 1)
             program_id = api.clCreateProgramWithBinary(ctx.id, ndevices, device_ids, bin_lengths,
@@ -139,7 +139,7 @@ let
     end
 
     binaries(p::Program) = begin
-        binary_dict = Dict{Device, Array{Uint8}}()
+        binary_dict = Dict{Device, Array{UInt8}}()
         slen = Array(CL_int, 1)
         @check api.clGetProgramInfo(p.id, CL_PROGRAM_BINARY_SIZES,
                                     0, C_NULL, pointer(slen))
@@ -147,22 +147,22 @@ let
         sizes = zeros(Csize_t, slen[1])
         @check api.clGetProgramInfo(p.id, CL_PROGRAM_BINARY_SIZES,
                                     slen[1], sizes, C_NULL)
-        bins = Array(Ptr{Uint8}, length(sizes))
+        bins = Array(Ptr{UInt8}, length(sizes))
         # keep a reference to the underlying binary arrays
         # as storing the pointer to the array hides the additional
         # reference from julia's garbage collector
         bin_arrays = Any[]
         for (i, s) in enumerate(sizes)
             if s > 0
-                bin = Array(Uint8, s)
+                bin = Array(UInt8, s)
                 bins[i] = pointer(bin)
                 push!(bin_arrays, bin)
             else
-                bins[i] = Compat.unsafe_convert(Ptr{Uint8}, C_NULL)
+                bins[i] = Compat.unsafe_convert(Ptr{UInt8}, C_NULL)
             end
         end
         @check api.clGetProgramInfo(p.id, CL_PROGRAM_BINARIES,
-                                    length(sizes) * sizeof(Ptr{Uint8}),
+                                    length(sizes) * sizeof(Ptr{UInt8}),
                                     bins, C_NULL)
         bidx = 1
         for (i, d) in enumerate(devices(p))
