@@ -108,7 +108,7 @@ let
     end
 
     build_status(p::Program) = begin
-        status_dict = (Device => CL_build_status)[]
+        status_dict = Dict{Device, CL_build_status}()
         status = Array(CL_build_status, 1)
         err_code = Array(CL_int, 1)
         for d in devices(p)
@@ -120,7 +120,7 @@ let
     end
 
     build_logs(p::Program) = begin
-        logs = (Device => ASCIIString)[]
+        logs = Dict{Device, ASCIIString}()
         log_len = Csize_t[0]
         log_bytestring = Array(Cchar, log_len[1])
         for d in devices(p)
@@ -139,7 +139,7 @@ let
     end
 
     binaries(p::Program) = begin
-        binary_dict = (Device => Array{Uint8})[]
+        binary_dict = Dict{Device, Array{Uint8}}()
         slen = Array(CL_int, 1)
         @check api.clGetProgramInfo(p.id, CL_PROGRAM_BINARY_SIZES,
                                     0, C_NULL, pointer(slen))
@@ -151,7 +151,7 @@ let
         # keep a reference to the underlying binary arrays
         # as storing the pointer to the array hides the additional
         # reference from julia's garbage collector
-        bin_arrays = {}
+        bin_arrays = Any[]
         for (i, s) in enumerate(sizes)
             if s > 0
                 bin = Array(Uint8, s)
@@ -198,7 +198,7 @@ let
         return ret[1]
     end
 
-    const info_map = (Symbol => Function)[
+    const info_map = @compat Dict{Symbol, Function}(
         :reference_count => reference_count,
         :devices => devices,
         :context => context,
@@ -207,7 +207,7 @@ let
         :binaries => binaries,
         :build_log => build_logs,
         :build_status => build_status,
-    ]
+    )
 
     function info(p::Program, pinfo::Symbol)
         try

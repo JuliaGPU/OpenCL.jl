@@ -89,7 +89,8 @@ end
 function Buffer{T}(::Type{T}, ctx::Context, flags::CL_mem_flags, len::Integer=0;
                    hostbuf::Union(Nothing, Array{T})=nothing)
 
-    if (hostbuf != nothing && !bool((flags & (CL_MEM_USE_HOST_PTR | CL_MEM_COPY_HOST_PTR))))
+    if (hostbuf != nothing &&
+        (flags & (CL_MEM_USE_HOST_PTR | CL_MEM_COPY_HOST_PTR)) == 0)
         warn("'hostbuf' was passed, but no memory flags to make use of it")
     end
 
@@ -101,7 +102,7 @@ function Buffer{T}(::Type{T}, ctx::Context, flags::CL_mem_flags, len::Integer=0;
     retain_buf::Union(Nothing, Array{T}) = nothing
 
     if hostbuf != nothing
-        if bool(flags & CL_MEM_USE_HOST_PTR)
+        if (flags & CL_MEM_USE_HOST_PTR) != 0
             retain_buf = hostbuf
         end
         if len > length(hostbuf)
@@ -281,7 +282,7 @@ function enqueue_map_mem{T}(q::CmdQueue,
     nbytes  = unsigned(prod(dims) * sizeof(T))
     ret_evt = Array(CL_event, 1)
     status  = Cint[0]
-    mapped  = api.clEnqueueMapBuffer(q.id, b.id, cl_bool(is_blocking? 1:0),
+    mapped  = api.clEnqueueMapBuffer(q.id, b.id, cl_bool(is_blocking ? 1 : 0),
                                      flags, offset, nbytes,
                                      n_evts, evt_ids, ret_evt, status)
     if status[1] != CL_SUCCESS

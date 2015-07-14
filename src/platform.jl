@@ -38,13 +38,13 @@ function info(p::Platform, pinfo::CL_platform_info)
 end
 
 
-let info_map = (Symbol => CL_platform_info)[
+let info_map = @compat Dict{Symbol, CL_platform_info}(
         :profile => CL_PLATFORM_PROFILE,
         :version => CL_PLATFORM_VERSION,
         :name    => CL_PLATFORM_NAME,
         :vendor  => CL_PLATFORM_VENDOR,
         :extensions => CL_PLATFORM_EXTENSIONS
-    ]
+    )
 
     function info(p::Platform, pinfo::Symbol)
         try

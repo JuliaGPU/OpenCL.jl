@@ -1,5 +1,7 @@
 module api
 
+using Compat
+
 include("types.jl")
 
 @osx_only begin

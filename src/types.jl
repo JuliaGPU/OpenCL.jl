@@ -113,20 +113,20 @@ end
 
 #=== Conversion Functions ===#
 
-cl_char(x)     = int8(x)
-cl_uchar(x)    = uint8(x)
-cl_short(x)    = int16(x)
-cl_ushort(x)   = uint16(x)
-cl_int(x)      = int32(x)
-cl_uint(x)     = uint32(x)
-cl_long(x)     = int64(x)
-cl_ulong(x)    = uint64(x)
+cl_char(x)     = @compat Int8(x)
+cl_uchar(x)    = @compat UInt8(x)
+cl_short(x)    = @compat Int16(x)
+cl_ushort(x)   = @compat UInt16(x)
+cl_int(x)      = @compat Int32(x)
+cl_uint(x)     = @compat UInt32(x)
+cl_long(x)     = @compat Int64(x)
+cl_ulong(x)    = @compat UInt64(x)
 
-cl_half(x)     = uint16(x)
-cl_float(x)    = float32(x)
-cl_double(x)   = float64(x)
+cl_half(x)     = @compat UInt16(x)
+cl_float(x)    = @compat Float32(x)
+cl_double(x)   = @compat Float64(x)
 
-cl_bool(x)     = bool(x) ? cl_uint(1) : cl_uint(0)
+cl_bool(x)     = x != 0 ? cl_uint(1) : cl_uint(0)
 cl_bitfield(x) = cl_ulong(x)
 
 cl_command_queue_properties(x) = cl_ulong(x)

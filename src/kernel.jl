@@ -305,13 +305,13 @@ let name(k::Kernel) = begin
         return bytestring(convert(Ptr{Cchar}, result))
     end
 
-    const info_map = (Symbol => Function)[
+    const info_map = @compat Dict{Symbol, Function}(
         :name => name,
         :num_args => num_args,
         :reference_count => reference_count,
         :program => program,
         :attributes => attributes
-    ]
+    )
 
     function info(k::Kernel, kinfo::Symbol)
         try

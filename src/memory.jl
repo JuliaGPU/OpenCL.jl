@@ -50,22 +50,22 @@ let mem_type(m::CLMemObject) = begin
                         sizeof(CL_mem_flags), result, C_NULL)
         mf = result[1]
         flags = Symbol[]
-        if bool(mf & CL_MEM_READ_WRITE)
+        if (mf & CL_MEM_READ_WRITE) != 0
             push!(flags, :rw)
         end
-        if bool(mf & CL_MEM_WRITE_ONLY)
+        if (mf & CL_MEM_WRITE_ONLY) != 0
             push!(flags, :w)
         end
-        if bool(mf & CL_MEM_READ_ONLY)
+        if (mf & CL_MEM_READ_ONLY) != 0
             push!(flags, :r)
         end
-        if bool(mf & CL_MEM_USE_HOST_PTR)
+        if (mf & CL_MEM_USE_HOST_PTR) != 0
             push!(flags, :use)
         end
-        if bool(mf & CL_MEM_ALLOC_HOST_PTR)
+        if (mf & CL_MEM_ALLOC_HOST_PTR) != 0
             push!(flags, :alloc)
         end
-        if bool(mf & CL_MEM_COPY_HOST_PTR)
+        if (mf & CL_MEM_COPY_HOST_PTR) != 0
             push!(flags, :copy)
         end
         return tuple(flags...)
@@ -92,13 +92,13 @@ let mem_type(m::CLMemObject) = begin
         return result[1]
     end
 
-    info_map = (Symbol => Function)[
+    info_map = @compat Dict{Symbol, Function}(
         :mem_type => mem_type,
         :mem_flags => mem_flags,
         :size => size,
         :reference_count => reference_count,
         :map_count => map_count
-    ]
+    )
 
     function info(mem::CLMemObject, minfo::Symbol)
         try
