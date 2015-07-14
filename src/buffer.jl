@@ -288,7 +288,7 @@ function enqueue_map_mem{T}(q::CmdQueue,
     if status[1] != CL_SUCCESS
         throw(CLError(status[1]))
     end
-    mapped = convert(Ptr{T}, mapped)
+    mapped = Compat.unsafe_convert(Ptr{T}, mapped)
     N = length(dims)
     local mapped_arr::Array{T, N}
     try

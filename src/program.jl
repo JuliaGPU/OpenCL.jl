@@ -55,7 +55,7 @@ function Program(ctx::Context; source=nothing, binaries=nothing)
             for (i, (dev, bin)) in enumerate(binaries)
                 device_ids[i] = dev.id
                 bin_lengths[i] = length(bin)
-                binary_ptrs[i] = convert(Ptr{Uint8}, pointer(bin))
+                binary_ptrs[i] = Compat.unsafe_convert(Ptr{Uint8}, pointer(bin))
             end
             err_code = Array(CL_int, 1)
             program_id = api.clCreateProgramWithBinary(ctx.id, ndevices, device_ids, bin_lengths,
@@ -158,7 +158,7 @@ let
                 bins[i] = pointer(bin)
                 push!(bin_arrays, bin)
             else
-                bins[i] = convert(Ptr{Uint8}, C_NULL)
+                bins[i] = Compat.unsafe_convert(Ptr{Uint8}, C_NULL)
             end
         end
         @check api.clGetProgramInfo(p.id, CL_PROGRAM_BINARIES,

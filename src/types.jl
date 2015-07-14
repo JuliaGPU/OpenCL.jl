@@ -169,4 +169,8 @@ cl_profiling_info(x)           = cl_uint(x)
 cl_sampler_properties(x)       = cl_bitfield(x)
 cl_kernel_exec(x)              = cl_uint(x)
 
-cl_platform_id(x) = convert(Ptr{Void}, x)
+if VERSION < v"0.4.0-dev+1419"
+    cl_platform_id(x) = convert(Ptr{Void}, x)
+else
+    cl_platform_id(x) = Ptr{Void}(x)
+end

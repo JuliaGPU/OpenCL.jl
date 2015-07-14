@@ -1,3 +1,5 @@
+using Compat
+
 info(
 "======================================================================
                               Running Behavior Tests
@@ -35,7 +37,7 @@ facts("OpenCL Hello World Test") do
         cl.call(queue, kern, str_len, nothing, out_buf)
         h = cl.read(queue, out_buf)
 
-        @fact bytestring(convert(Ptr{Cchar}, h)) => hello_world_str
+        @fact bytestring(Compat.unsafe_convert(Ptr{Cchar}, h)) => hello_world_str
     end
 end
 

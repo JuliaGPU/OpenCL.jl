@@ -1,3 +1,5 @@
+using Compat
+
 facts("OpenCL.Kernel") do
 
     test_source = "

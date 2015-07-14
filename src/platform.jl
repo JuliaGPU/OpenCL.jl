@@ -34,7 +34,7 @@ function info(p::Platform, pinfo::CL_platform_info)
     @check api.clGetPlatformInfo(p.id, pinfo, 0, C_NULL, size)
     result = Array(CL_char, size[1])
     @check api.clGetPlatformInfo(p.id, pinfo, size[1], result, C_NULL)
-    return bytestring(convert(Ptr{CL_char}, result))
+    return bytestring(Compat.unsafe_convert(Ptr{CL_char}, result))
 end
 
 

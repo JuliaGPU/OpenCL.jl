@@ -268,7 +268,7 @@ let name(k::Kernel) = begin
         result = Array(Cchar, size[1])
         @check api.clGetKernelInfo(k.id, CL_KERNEL_FUNCTION_NAME,
                                    size[1], result, size)
-        return bytestring(convert(Ptr{Cchar}, result))
+        return bytestring(Compat.unsafe_convert(Ptr{Cchar}, result))
     end
 
     num_args(k::Kernel) = begin
@@ -302,7 +302,7 @@ let name(k::Kernel) = begin
         result = Array(Cchar, size[1])
         @check api.clGetKernelInfo(k.id, CL_KERNEL_ATTRIBUTES,
                                    size[1], result, size)
-        return bytestring(convert(Ptr{Cchar}, result))
+        return bytestring(Compat.unsafe_convert(Ptr{Cchar}, result))
     end
 
     const info_map = @compat Dict{Symbol, Function}(

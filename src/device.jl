@@ -32,7 +32,7 @@ let profile(d::Device) = begin
         @check api.clGetDeviceInfo(d.id, CL_DEVICE_PROFILE, 0, C_NULL, size)
         result = Array(CL_char, size[1])
         @check api.clGetDeviceInfo(d.id, CL_DEVICE_PROFILE, size[1], result, C_NULL)
-        bs = bytestring(convert(Ptr{CL_char}, result))
+        bs = bytestring(Compat.unsafe_convert(Ptr{CL_char}, result))
         return bs
     end
 
@@ -41,7 +41,7 @@ let profile(d::Device) = begin
         @check api.clGetDeviceInfo(d.id, CL_DEVICE_VERSION, 0, C_NULL, size)
         result = Array(CL_char, size[1])
         @check api.clGetDeviceInfo(d.id, CL_DEVICE_VERSION, size[1], result, C_NULL)
-        bs = bytestring(convert(Ptr{CL_char}, result))
+        bs = bytestring(Compat.unsafe_convert(Ptr{CL_char}, result))
         return bs
     end
 
@@ -50,7 +50,7 @@ let profile(d::Device) = begin
         @check api.clGetDeviceInfo(d.id, CL_DRIVER_VERSION, 0, C_NULL, size)
         result = Array(CL_char, size[1])
         @check api.clGetDeviceInfo(d.id, CL_DRIVER_VERSION, size[1], result, C_NULL)
-        bs = bytestring(convert(Ptr{CL_char}, result))
+        bs = bytestring(Compat.unsafe_convert(Ptr{CL_char}, result))
         return string(replace(bs, r"\s+", " "))
     end
 
@@ -59,7 +59,7 @@ let profile(d::Device) = begin
         @check api.clGetDeviceInfo(d.id, CL_DEVICE_EXTENSIONS, 0, C_NULL, size)
         result = Array(CL_char, size[1])
         @check api.clGetDeviceInfo(d.id, CL_DEVICE_EXTENSIONS, size[1], result, C_NULL)
-        bs = bytestring(convert(Ptr{CL_char}, result))
+        bs = bytestring(Compat.unsafe_convert(Ptr{CL_char}, result))
         return String[string(s) for s in split(bs)]
     end
 
@@ -76,7 +76,7 @@ let profile(d::Device) = begin
         result = Array(CL_char, size[1])
         @check api.clGetDeviceInfo(d.id, CL_DEVICE_NAME,
                                    size[1] * sizeof(CL_char), result, C_NULL)
-        n = bytestring(convert(Ptr{Cchar}, result))
+        n = bytestring(Compat.unsafe_convert(Ptr{Cchar}, result))
         return string(replace(n, r"\s+", " "))
     end
 
