@@ -130,6 +130,7 @@ let
                 logs[d] = ""
                 continue
             end
+            resize!(log_bytestring, log_len[1])
             @check api.clGetProgramBuildInfo(p.id, d.id, CL_PROGRAM_BUILD_LOG,
                                             log_len[1], log_bytestring, C_NULL)
             logs[d] = bytestring(pointer(log_bytestring))
