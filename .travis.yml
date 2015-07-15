@@ -4,7 +4,7 @@ os:
   - osx
 julia:
   - release
-#  - nightly
+  - nightly
 notifications:
   email: false
 before_install:
@@ -19,7 +19,7 @@ script:
 
   - julia -e 'Pkg.add("FactCheck");'
 
-  - julia --color test/runtests.jl
+  - julia --color=yes test/runtests.jl
 
   - julia examples/demo.jl
   - julia examples/performance.jl
