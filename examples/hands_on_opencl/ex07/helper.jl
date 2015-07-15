@@ -1,8 +1,10 @@
+using Compat
+
 import Base: error
 
 function error{T}(Mdim::Int, Ndim::Int, Pdim::Int, C::Array{T})
-    cval  = float32(Pdim * AVAL * BVAL)
-    errsq = float32(0.0)
+    cval  = @compat Float32(Pdim * AVAL * BVAL)
+    errsq = 0f0
     for i in 1:Ndim
         for j in 1:Mdim
             err = C[(i-1)*Ndim+j] - cval

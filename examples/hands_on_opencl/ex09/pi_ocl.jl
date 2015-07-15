@@ -10,6 +10,8 @@
 #          Ported to Python by Tom Deakin, July 2013
 #          Ported to Julia by Jake Bolewski, Nov 2013
 
+using Compat
+
 import OpenCL
 const cl = OpenCL
 
@@ -43,13 +45,13 @@ work_group_size = device[:max_work_group_size]
 
 # now that we know the size of the work_groups, we can set the number
 # of work groups, the actual number of steps, and the step size
-nwork_groups = int(in_nsteps / (work_group_size * niters))
+nwork_groups = in_nsteps ÷ (work_group_size * niters)
 
 if nwork_groups < 1
     # you can get opencl object info through the obj[:symbol] syntax
     # or cl.info(obj, :symbol)
     nwork_groups = device[:max_compute_units]
-    work_group_size = in_nsteps / (nwork_groups * niters)
+    work_group_size = in_nsteps ÷ (nwork_groups * niters)
 end
 
 nsteps = work_group_size * niters * nwork_groups
@@ -73,8 +75,8 @@ global_size = (nwork_groups * work_group_size,)
 local_size  = (work_group_size,)
 localmem    = cl.LocalMem(Float32, work_group_size)
 
-cl.call(queue, pi_kernel, global_size, local_size,
-        int32(niters), float32(step_size), localmem, d_partial_sums)
+@compat cl.call(queue, pi_kernel, global_size, local_size,
+                Int32(niters), Float32(step_size), localmem, d_partial_sums)
 
 cl.copy!(queue, h_psum, d_partial_sums)
 

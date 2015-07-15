@@ -56,7 +56,7 @@ end
 Base.ndims(l::LocalMem) = 1
 Base.eltype{T}(l::LocalMem{T}) = T
 Base.sizeof{T}(l::LocalMem{T}) = l.nbytes
-Base.length{T}(l::LocalMem{T}) = @compat Int(l.nbytes / sizeof(T))
+Base.length{T}(l::LocalMem{T}) = @compat Int(l.nbytes ÷ sizeof(T))
 
 function set_arg!(k::Kernel, idx::Integer, arg::Nothing)
     @assert idx > 0

@@ -1,3 +1,5 @@
+using Compat
+
 import OpenCL
 const cl = OpenCL
 
@@ -36,7 +38,7 @@ function cl_performance(ndatapts::Integer, nworkers::Integer)
     for i in 1:ndatapts
         c_temp = a[i] + b[i]
         c_temp = c_temp * c_temp
-        c[i]   = c_temp * (a[i] / float32(2.0))
+        c[i]   = @compat c_temp * (a[i] / 2f0)
     end
     t2 = time()
 
@@ -109,6 +111,6 @@ end
 # N_WORKERS has to be less than or equal to the device's max work group size
 # ex. N_WORKERS = 1 is non parallel execution on the gpu
 
-const N_DATA_PTS = int(2^23) # ~8 million
-const N_WORKERS  = int(2^7)
+const N_DATA_PTS = @compat Int(2^23) # ~8 million
+const N_WORKERS  = @compat Int(2^7)
 cl_performance(N_DATA_PTS, N_WORKERS)
