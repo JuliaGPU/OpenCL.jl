@@ -30,11 +30,12 @@ end
 
 Base.ndims(b::Buffer) = 1
 Base.eltype{T}(b::Buffer{T}) = T
-Base.length{T}(b::Buffer{T}) = int(b.len)
-Base.sizeof{T}(b::Buffer{T}) = int(b.len * sizeof(T))
+Base.length{T}(b::Buffer{T}) = @compat Int(b.len)
+Base.sizeof{T}(b::Buffer{T}) = @compat Int(b.len * sizeof(T))
 
 Base.show{T}(io::IO, b::Buffer{T}) = begin
-    ptr_address = "0x$(hex(unsigned(Base.pointer(b)), WORD_SIZE>>2))"
+    ptr_val = @compat convert(UInt, Base.pointer(b))
+    ptr_address = "0x$(hex(ptr_val, WORD_SIZE>>2))"
     print(io, "Buffer{$T}(@$ptr_address)")
 end
 
@@ -89,7 +90,8 @@ end
 function Buffer{T}(::Type{T}, ctx::Context, flags::CL_mem_flags, len::Integer=0;
                    hostbuf::Union(Nothing, Array{T})=nothing)
 
-    if (hostbuf != nothing && !bool((flags & (CL_MEM_USE_HOST_PTR | CL_MEM_COPY_HOST_PTR))))
+    if (hostbuf != nothing &&
+        (flags & (CL_MEM_USE_HOST_PTR | CL_MEM_COPY_HOST_PTR)) == 0)
         warn("'hostbuf' was passed, but no memory flags to make use of it")
     end
 
@@ -101,7 +103,7 @@ function Buffer{T}(::Type{T}, ctx::Context, flags::CL_mem_flags, len::Integer=0;
     retain_buf::Union(Nothing, Array{T}) = nothing
 
     if hostbuf != nothing
-        if bool(flags & CL_MEM_USE_HOST_PTR)
+        if (flags & CL_MEM_USE_HOST_PTR) != 0
             retain_buf = hostbuf
         end
         if len > length(hostbuf)
@@ -143,7 +145,7 @@ function enqueue_read_buffer{T}(q::CmdQueue,
                                 dev_offset::Csize_t,
                                 wait_for::Union(Nothing, Vector{Event}),
                                 is_blocking::Bool)
-    n_evts  = wait_for == nothing ? uint(0) : length(wait_for)
+    n_evts  = @compat wait_for == nothing ? UInt(0) : length(wait_for)
     evt_ids = wait_for == nothing ? C_NULL  : [evt.id for evt in wait_for]
     ret_evt = Array(CL_event, 1)
     nbytes  = sizeof(hostbuf)
@@ -162,7 +164,7 @@ function enqueue_write_buffer{T}(q::CmdQueue,
                                  offset::Csize_t,
                                  wait_for::Union(Nothing, Vector{Event}),
                                  is_blocking::Bool)
-    n_evts  = wait_for == nothing ? uint(0) : length(wait_for)
+    n_evts  = @compat wait_for == nothing ? UInt(0) : length(wait_for)
     evt_ids = wait_for == nothing ? C_NULL  : [evt.id for evt in wait_for]
     ret_evt = Array(CL_event, 1)
     nbytes  = sizeof(hostbuf)
@@ -181,7 +183,7 @@ function enqueue_copy_buffer{T}(q::CmdQueue,
                                 src_offset::Csize_t,
                                 dst_offset::Csize_t,
                                 wait_for::Union(Nothing, Vector{Event}))
-    n_evts  = wait_for == nothing ? uint(0) : length(wait_for)
+    n_evts  = @compat wait_for == nothing ? UInt(0) : length(wait_for)
     evt_ids = wait_for == nothing ? C_NULL  : [evt.id for evt in wait_for]
     ret_evt = Array(CL_event, 1)
     if byte_count < 0
@@ -281,13 +283,13 @@ function enqueue_map_mem{T}(q::CmdQueue,
     nbytes  = unsigned(prod(dims) * sizeof(T))
     ret_evt = Array(CL_event, 1)
     status  = Cint[0]
-    mapped  = api.clEnqueueMapBuffer(q.id, b.id, cl_bool(is_blocking? 1:0),
+    mapped  = api.clEnqueueMapBuffer(q.id, b.id, cl_bool(is_blocking ? 1 : 0),
                                      flags, offset, nbytes,
                                      n_evts, evt_ids, ret_evt, status)
     if status[1] != CL_SUCCESS
         throw(CLError(status[1]))
     end
-    mapped = convert(Ptr{T}, mapped)
+    mapped = Compat.unsafe_convert(Ptr{T}, mapped)
     N = length(dims)
     local mapped_arr::Array{T, N}
     try
@@ -354,7 +356,7 @@ function copy!{T}(q::CmdQueue, dst::Array{T}, src::Buffer{T})
     if sizeof(dst) != sizeof(src)
         throw(ArgumentError("Buffer and Array to be copied must be the same size"))
     end
-    evt = enqueue_read_buffer(q, src, dst, uint(0), nothing, true)
+    evt = @compat enqueue_read_buffer(q, src, dst, UInt(0), nothing, true)
     return evt
 end
 

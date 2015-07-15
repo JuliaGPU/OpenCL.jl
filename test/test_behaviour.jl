@@ -35,7 +35,7 @@ facts("OpenCL Hello World Test") do
         cl.call(queue, kern, str_len, nothing, out_buf)
         h = cl.read(queue, out_buf)
 
-        @fact bytestring(convert(Ptr{Cchar}, h)) => hello_world_str
+        @fact bytestring(Compat.unsafe_convert(Ptr{Cchar}, h)) => hello_world_str
     end
 end
 
@@ -215,11 +215,11 @@ immutable Params
     X2::Float32
     C::Int32
     Params(a, b, x, c) = begin
-        new(float32(a),
-            float32(b),
-            float32(x[1]),
-            float32(x[2]),
-            int32(c))
+        @compat new(Float32(a),
+                    Float32(b),
+                    Float32(x[1]),
+                    Float32(x[2]),
+                    Int32(c))
     end
 end
 
@@ -257,8 +257,8 @@ facts("OpenCL Struct Buffer Test") do
 
         part3 = cl.Kernel(p, "part3")
 
-        X = fill(float32(1.0), 10)
-        Y = fill(float32(1.0), 10)
+        X = fill(1f0, 10)
+        Y = fill(1f0, 10)
 
         P = [Params(0.5, 10.0, [0.0, 0.0], 3)]
 

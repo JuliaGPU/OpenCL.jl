@@ -35,7 +35,7 @@ end
 function ctx_notify_err(err_info::Ptr{Cchar}, priv_info::Ptr{Void},
                         cb::Csize_t, julia_func::Ptr{Void})
     err = bytestring(err_info)
-    private  = bytestring(convert(Ptr{Cchar}, err_info))
+    private  = bytestring(Compat.unsafe_convert(Ptr{Cchar}, err_info))
     callback = unsafe_pointer_to_objref(julia_func)::Function
     callback(err, private)::Ptr{Void}
 end
@@ -125,7 +125,7 @@ function properties(ctx_id::CL_context)
     @check api.clGetContextInfo(ctx_id, CL_CONTEXT_PROPERTIES,
                                 nbytes[1], props, C_NULL)
     #properties array of [key,value..., C_NULL]
-    result = {}
+    result = Any[]
     for i in 1:2:nprops
         key = props[i]
         value = i < nprops ? props[i+1] : nothing

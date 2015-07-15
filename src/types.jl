@@ -13,15 +13,15 @@ typealias CL_sampler            Ptr{Void}
 
 # Scalar types
 typealias CL_char   Int8
-typealias CL_uchar  Uint8
+typealias CL_uchar  UInt8
 typealias CL_short  Int16
-typealias CL_ushort Uint16
+typealias CL_ushort UInt16
 typealias CL_int    Int32
-typealias CL_uint   Uint32
+typealias CL_uint   UInt32
 typealias CL_long   Int64
-typealias CL_ulong  Uint64
+typealias CL_ulong  UInt64
 
-typealias CL_half   Uint16
+typealias CL_half   UInt16
 typealias CL_float  Float32
 typealias CL_double Float64
 
@@ -71,7 +71,7 @@ typealias CL_kernel_exec_info           CL_uint
 
 # Scalar OpenGL types ! We should get these from OpenGL.jl
 
-typealias GL_uint                       Uint32
+typealias GL_uint                       UInt32
 typealias GL_int                        Int32
 
 typealias GL_enum                       GL_uint
@@ -113,20 +113,20 @@ end
 
 #=== Conversion Functions ===#
 
-cl_char(x)     = int8(x)
-cl_uchar(x)    = uint8(x)
-cl_short(x)    = int16(x)
-cl_ushort(x)   = uint16(x)
-cl_int(x)      = int32(x)
-cl_uint(x)     = uint32(x)
-cl_long(x)     = int64(x)
-cl_ulong(x)    = uint64(x)
+cl_char(x)     = @compat Int8(x)
+cl_uchar(x)    = @compat UInt8(x)
+cl_short(x)    = @compat Int16(x)
+cl_ushort(x)   = @compat UInt16(x)
+cl_int(x)      = @compat Int32(x)
+cl_uint(x)     = @compat UInt32(x)
+cl_long(x)     = @compat Int64(x)
+cl_ulong(x)    = @compat UInt64(x)
 
-cl_half(x)     = uint16(x)
-cl_float(x)    = float32(x)
-cl_double(x)   = float64(x)
+cl_half(x)     = @compat UInt16(x)
+cl_float(x)    = @compat Float32(x)
+cl_double(x)   = @compat Float64(x)
 
-cl_bool(x)     = bool(x) ? cl_uint(1) : cl_uint(0)
+cl_bool(x)     = x != 0 ? cl_uint(1) : cl_uint(0)
 cl_bitfield(x) = cl_ulong(x)
 
 cl_command_queue_properties(x) = cl_ulong(x)
@@ -169,4 +169,8 @@ cl_profiling_info(x)           = cl_uint(x)
 cl_sampler_properties(x)       = cl_bitfield(x)
 cl_kernel_exec(x)              = cl_uint(x)
 
-cl_platform_id(x) = convert(Ptr{Void}, x)
+if VERSION < v"0.4.0-dev+1419"
+    cl_platform_id(x) = convert(Ptr{Void}, x)
+else
+    cl_platform_id(x) = Ptr{Void}(x)
+end

@@ -1,5 +1,7 @@
 module OpenCL
 
+using Compat
+
 abstract CLObject
 
 Base.hash(x::CLObject) = hash(pointer(x))

@@ -105,7 +105,7 @@ facts("OpenCL.Kernel") do
             @fact cl.set_arg!(k, 1, A)   => anything "no error"
             @fact cl.set_arg!(k, 2, B)   => anything "no error"
             @fact cl.set_arg!(k, 3, C)   => anything "no error"
-            @fact cl.set_arg!(k, 4, uint32(count)) => anything "no error"
+            @compat @fact cl.set_arg!(k, 4, UInt32(count)) => anything "no error"
 
             cl.enqueue_kernel(queue, k, count) |> cl.wait
             r = cl.read(queue, C)
@@ -115,15 +115,15 @@ facts("OpenCL.Kernel") do
 
             # test set_args with new kernel
             k2 = cl.Kernel(prg, "sum")
-            cl.set_args!(k2, A, B, C, uint32(count))
+            @compat cl.set_args!(k2, A, B, C, UInt32(count))
 
-            h_twos = fill(float32(2.0), count)
+            h_twos = fill(2f0, count)
             cl.copy!(queue, A, h_twos)
             cl.copy!(queue, B, h_twos)
 
             #TODO: check for ocl version, fill is opencl v1.2
-            #cl.enqueue_fill(queue, A, float32(2.0))
-            #cl.enqueue_fill(queue, B, float32(2.0))
+            #cl.enqueue_fill(queue, A, 2f0)
+            #cl.enqueue_fill(queue, B, 2f0)
 
             cl.enqueue_kernel(queue, k, count)
             cl.finish(queue)

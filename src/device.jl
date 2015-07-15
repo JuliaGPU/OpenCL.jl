@@ -32,7 +32,7 @@ let profile(d::Device) = begin
         @check api.clGetDeviceInfo(d.id, CL_DEVICE_PROFILE, 0, C_NULL, size)
         result = Array(CL_char, size[1])
         @check api.clGetDeviceInfo(d.id, CL_DEVICE_PROFILE, size[1], result, C_NULL)
-        bs = bytestring(convert(Ptr{CL_char}, result))
+        bs = bytestring(Compat.unsafe_convert(Ptr{CL_char}, result))
         return bs
     end
 
@@ -41,7 +41,7 @@ let profile(d::Device) = begin
         @check api.clGetDeviceInfo(d.id, CL_DEVICE_VERSION, 0, C_NULL, size)
         result = Array(CL_char, size[1])
         @check api.clGetDeviceInfo(d.id, CL_DEVICE_VERSION, size[1], result, C_NULL)
-        bs = bytestring(convert(Ptr{CL_char}, result))
+        bs = bytestring(Compat.unsafe_convert(Ptr{CL_char}, result))
         return bs
     end
 
@@ -50,7 +50,7 @@ let profile(d::Device) = begin
         @check api.clGetDeviceInfo(d.id, CL_DRIVER_VERSION, 0, C_NULL, size)
         result = Array(CL_char, size[1])
         @check api.clGetDeviceInfo(d.id, CL_DRIVER_VERSION, size[1], result, C_NULL)
-        bs = bytestring(convert(Ptr{CL_char}, result))
+        bs = bytestring(Compat.unsafe_convert(Ptr{CL_char}, result))
         return string(replace(bs, r"\s+", " "))
     end
 
@@ -59,7 +59,7 @@ let profile(d::Device) = begin
         @check api.clGetDeviceInfo(d.id, CL_DEVICE_EXTENSIONS, 0, C_NULL, size)
         result = Array(CL_char, size[1])
         @check api.clGetDeviceInfo(d.id, CL_DEVICE_EXTENSIONS, size[1], result, C_NULL)
-        bs = bytestring(convert(Ptr{CL_char}, result))
+        bs = bytestring(Compat.unsafe_convert(Ptr{CL_char}, result))
         return String[string(s) for s in split(bs)]
     end
 
@@ -76,7 +76,7 @@ let profile(d::Device) = begin
         result = Array(CL_char, size[1])
         @check api.clGetDeviceInfo(d.id, CL_DEVICE_NAME,
                                    size[1] * sizeof(CL_char), result, C_NULL)
-        n = bytestring(convert(Ptr{Cchar}, result))
+        n = bytestring(Compat.unsafe_convert(Ptr{Cchar}, result))
         return string(replace(n, r"\s+", " "))
     end
 
@@ -109,16 +109,16 @@ let profile(d::Device) = begin
     @int_info(queue_properties, CL_DEVICE_QUEUE_PROPERTIES, CL_command_queue_properties)
 
     has_queue_out_of_order_exec(d::Device) =
-            bool(queue_properties(d) & CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE)
+        (queue_properties(d) & CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE) != 0
 
     has_queue_profiling(d::Device) =
-            bool(queue_properties(d) & CL_QUEUE_PROFILING_ENABLE)
+        (queue_properties(d) & CL_QUEUE_PROFILING_ENABLE) != 0
 
     has_native_kernel(d::Device) = begin
         result = Array(CL_device_exec_capabilities, 1)
         @check api.clGetDeviceInfo(d.id, CL_DEVICE_EXECUTION_CAPABILITIES,
                                    sizeof(CL_device_exec_capabilities), result, C_NULL)
-        return bool(result[1] & CL_EXEC_NATIVE_KERNEL)
+        return (result[1] & CL_EXEC_NATIVE_KERNEL) != 0
     end
 
     @int_info(vendor_id,             CL_DEVICE_VENDOR_ID,                CL_uint)
@@ -137,28 +137,28 @@ let profile(d::Device) = begin
         result = Array(CL_device_local_mem_type, 1)
         @check api.clGetDeviceInfo(d.id, CL_DEVICE_LOCAL_MEM_TYPE,
                                    sizeof(CL_device_local_mem_type), result, C_NULL)
-        return bool(result[1] == CL_LOCAL)
+        return result[1] == CL_LOCAL
     end
 
     host_unified_memory(d::Device) = begin
         result = Array(CL_bool, 1)
         @check api.clGetDeviceInfo(d.id, CL_DEVICE_HOST_UNIFIED_MEMORY,
                                    sizeof(CL_bool), result, C_NULL)
-        return bool(result[1])
+        return result[1] != 0
     end
 
     available(d::Device) = begin
         result = Array(CL_bool, 1)
         @check api.clGetDeviceInfo(d.id, CL_DEVICE_AVAILABLE,
                                    sizeof(CL_bool), result, C_NULL)
-        return bool(result[1])
+        return result[1] != 0
     end
 
     compiler_available(d::Device) = begin
         result = Array(CL_bool, 1)
         @check api.clGetDeviceInfo(d.id, CL_DEVICE_COMPILER_AVAILABLE,
                                    sizeof(CL_bool), result, C_NULL)
-        return bool(result[1])
+        return result[1] != 0
     end
 
     max_work_item_size(d::Device) = begin
@@ -168,7 +168,7 @@ let profile(d::Device) = begin
         result = Array(Csize_t, dims[1])
         @check api.clGetDeviceInfo(d.id, CL_DEVICE_MAX_WORK_ITEM_SIZES,
                                    sizeof(Csize_t) * dims[1], result, C_NULL)
-        return tuple([int(r) for r in result]...)
+        return @compat tuple([Int(r) for r in result]...)
     end
 
     @int_info(max_work_group_size, CL_DEVICE_MAX_WORK_GROUP_SIZE, Csize_t)
@@ -198,7 +198,7 @@ let profile(d::Device) = begin
         return (width[1], height[1], depth[1])
     end
 
-    const info_map = (Symbol => Function)[
+    const info_map = @compat Dict{Symbol, Function}(
         :driver_version => driver_version,
         :version => version,
         :profile => profile,
@@ -232,7 +232,7 @@ let profile(d::Device) = begin
         :profiling_timer_resolution => profiling_timer_resolution,
         :max_image2d_shape => max_image2d_shape,
         :max_image3d_shape => max_image3d_shape
-    ]
+    )
 
     function info(d::Device, s::Symbol)
         try

@@ -26,7 +26,7 @@ end
 function num_platforms()
     nplatforms = Array(CL_uint, 1)
     @check api.clGetPlatformIDs(0, C_NULL, nplatforms)
-    return int(nplatforms[1])
+    return @compat Int(nplatforms[1])
 end
 
 function info(p::Platform, pinfo::CL_platform_info)
@@ -34,17 +34,17 @@ function info(p::Platform, pinfo::CL_platform_info)
     @check api.clGetPlatformInfo(p.id, pinfo, 0, C_NULL, size)
     result = Array(CL_char, size[1])
     @check api.clGetPlatformInfo(p.id, pinfo, size[1], result, C_NULL)
-    return bytestring(convert(Ptr{CL_char}, result))
+    return bytestring(Compat.unsafe_convert(Ptr{CL_char}, result))
 end
 
 
-let info_map = (Symbol => CL_platform_info)[
+let info_map = @compat Dict{Symbol, CL_platform_info}(
         :profile => CL_PLATFORM_PROFILE,
         :version => CL_PLATFORM_VERSION,
         :name    => CL_PLATFORM_NAME,
         :vendor  => CL_PLATFORM_VENDOR,
         :extensions => CL_PLATFORM_EXTENSIONS
-    ]
+    )
 
     function info(p::Platform, pinfo::Symbol)
         try

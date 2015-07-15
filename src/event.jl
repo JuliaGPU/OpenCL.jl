@@ -267,7 +267,7 @@ let command_queue(evt::CLEvent) = begin
         return evt[:profile_end] - evt[:profile_start]
     end
 
-    const info_map = (Symbol => Function)[
+    const info_map = @compat Dict{Symbol, Function}(
         :context => context,
         :command_queue => command_queue,
         :reference_count => reference_count,
@@ -278,7 +278,7 @@ let command_queue(evt::CLEvent) = begin
         :profile_queued => profile_queued,
         :profile_submit => profile_submit,
         :profile_duration => profile_duration,
-    ]
+    )
 
     function info(evt::CLEvent, evt_info::Symbol)
         try
