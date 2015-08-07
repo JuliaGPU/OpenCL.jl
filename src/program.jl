@@ -16,7 +16,8 @@ type Program <: CLObject
 end
 
 Base.show(io::IO, p::Program) = begin
-    ptr_address = "0x$(hex(unsigned(Base.pointer(p)), WORD_SIZE>>2))"
+    ptr_val = @compat convert(UInt, Base.pointer(p))
+    ptr_address = "0x$(hex(ptr_val, WORD_SIZE>>2))"
     print(io, "OpenCL.Program(@$ptr_address)")
 end
 

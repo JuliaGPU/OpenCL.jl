@@ -28,7 +28,8 @@ Base.pointer(ctx::Context) = ctx.id
 function Base.show(io::IO, ctx::Context)
     dev_strs = [replace(d[:name], r"\s+", " ") for d in devices(ctx)]
     devs_str = join(dev_strs, ",")
-    ptr_address = "0x$(hex(unsigned(Base.pointer(ctx)), WORD_SIZE>>2))"
+    ptr_val = @compat convert(UInt, Base.pointer(ctx))
+    ptr_address = "0x$(hex(ptr_val, WORD_SIZE>>2))"
     print(io, "OpenCL.Context(@$ptr_address on $devs_str)")
 end
 
