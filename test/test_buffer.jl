@@ -11,40 +11,40 @@ facts("OpenCL.Buffer") do
             testarray = zeros(Float32, 1000)
 
             @fact cl.Buffer(Float32, ctx, cl.CL_MEM_ALLOC_HOST_PTR | cl.CL_MEM_READ_ONLY,
-                                         length(testarray)) => anything "no error"
+                                         length(testarray)) --> anything "no error"
 
             @fact cl.Buffer(Float32, ctx, cl.CL_MEM_ALLOC_HOST_PTR | cl.CL_MEM_WRITE_ONLY,
-                                         length(testarray)) => anything "no error"
+                                         length(testarray)) --> anything "no error"
 
             @fact cl.Buffer(Float32, ctx, cl.CL_MEM_ALLOC_HOST_PTR | cl.CL_MEM_READ_WRITE,
-                                         length(testarray)) => anything "no error"
+                                         length(testarray)) --> anything "no error"
 
             buf = cl.Buffer(Float32, ctx, cl.CL_MEM_ALLOC_HOST_PTR | cl.CL_MEM_READ_WRITE, length(testarray))
-            @fact buf.len => length(testarray)
+            @fact buf.len --> length(testarray)
 
             @fact cl.Buffer(Float32, ctx, cl.CL_MEM_COPY_HOST_PTR | cl.CL_MEM_READ_ONLY,
-                                         hostbuf=testarray) => anything "no error"
+                                         hostbuf=testarray) --> anything "no error"
 
             @fact cl.Buffer(Float32, ctx, cl.CL_MEM_COPY_HOST_PTR | cl.CL_MEM_WRITE_ONLY,
-                                         hostbuf=testarray) => anything "no error"
+                                         hostbuf=testarray) --> anything "no error"
 
             @fact cl.Buffer(Float32, ctx, cl.CL_MEM_COPY_HOST_PTR | cl.CL_MEM_READ_WRITE,
-                                         hostbuf=testarray) => anything "no error"
+                                         hostbuf=testarray) --> anything "no error"
 
             buf = cl.Buffer(Float32, ctx, cl.CL_MEM_COPY_HOST_PTR | cl.CL_MEM_READ_WRITE, hostbuf=testarray)
-            @fact buf.len => length(testarray)
+            @fact buf.len --> length(testarray)
 
             @fact cl.Buffer(Float32, ctx, cl.CL_MEM_USE_HOST_PTR | cl.CL_MEM_READ_ONLY,
-                                         hostbuf=testarray) => anything "no error"
+                                         hostbuf=testarray) --> anything "no error"
 
             @fact cl.Buffer(Float32, ctx, cl.CL_MEM_USE_HOST_PTR | cl.CL_MEM_WRITE_ONLY,
-                                         hostbuf=testarray) => anything "no error"
+                                         hostbuf=testarray) --> anything "no error"
 
             @fact cl.Buffer(Float32, ctx, cl.CL_MEM_USE_HOST_PTR | cl.CL_MEM_READ_WRITE,
-                                         hostbuf=testarray) => anything "no error"
+                                         hostbuf=testarray) --> anything "no error"
 
             buf = cl.Buffer(Float32, ctx, cl.CL_MEM_USE_HOST_PTR | cl.CL_MEM_READ_WRITE, hostbuf=testarray)
-            @fact buf.len => length(testarray)
+            @fact buf.len --> length(testarray)
 
             # invalid buffer size should throw error
             @fact_throws cl.Buffer(Float32, ctx, cl.CL_MEM_ALLOC_HOST_PTR, +0) "error"
@@ -84,22 +84,22 @@ facts("OpenCL.Buffer") do
                                    ]
                          testarray = zeros(mtype, 100)
                          if mf2 == :copy || mf2 == :use
-                             @fact cl.Buffer(mtype, ctx, (mf1, mf2), hostbuf=testarray) => anything "no error"
+                             @fact cl.Buffer(mtype, ctx, (mf1, mf2), hostbuf=testarray) --> anything "no error"
                              buf = cl.Buffer(mtype, ctx, (mf1, mf2), hostbuf=testarray)
-                             @fact buf.len => length(testarray)
+                             @fact buf.len --> length(testarray)
                          elseif mf2 == :alloc
                              @fact cl.Buffer(mtype, ctx, (mf1, mf2),
-                                                          length(testarray)) => anything "no error"
+                                                          length(testarray)) --> anything "no error"
                              buf = cl.Buffer(mtype, ctx, (mf1, mf2), length(testarray))
-                             @fact buf.len => length(testarray)
+                             @fact buf.len --> length(testarray)
                          end
                      end
                  end
              end
 
              test_array = Array(TestStruct, 100)
-             @fact cl.Buffer(TestStruct, ctx, :alloc, length(test_array)) => anything "no error"
-             @fact cl.Buffer(TestStruct, ctx, :copy, hostbuf=test_array) => anything "no error"
+             @fact cl.Buffer(TestStruct, ctx, :alloc, length(test_array)) --> anything "no error"
+             @fact cl.Buffer(TestStruct, ctx, :copy, hostbuf=test_array) --> anything "no error"
 
              # invalid buffer size should throw error
              @fact_throws cl.Buffer(Float32, ctx, :alloc, +0) "error"
@@ -127,7 +127,7 @@ facts("OpenCL.Buffer") do
              queue = cl.CmdQueue(ctx)
              testarray = zeros(Float32, 1000)
              buf = cl.Buffer(Float32, ctx, (:rw, :copy), hostbuf=testarray)
-             @fact buf.len == length(testarray) => true
+             @fact buf.len == length(testarray) --> true
 
              v = cl.opencl_version(device)
              if v.major == 1 && v.minor < 2
@@ -137,9 +137,9 @@ facts("OpenCL.Buffer") do
              end
              cl.fill!(queue, buf, 1f0)
              readback = cl.read(queue, buf)
-             @fact all(x -> x == 1.0, readback) => true
-             @fact all(x -> x == 0.0, testarray) => true
-             @fact buf.valid => true
+             @fact all(x -> x == 1.0, readback) --> true
+             @fact all(x -> x == 0.0, testarray) --> true
+             @fact buf.valid --> true
         end
     end
 
@@ -149,11 +149,11 @@ facts("OpenCL.Buffer") do
             queue = cl.CmdQueue(ctx)
             testarray = zeros(Float32, 1000)
             buf = cl.Buffer(Float32, ctx, (:rw, :copy), hostbuf=testarray)
-            @fact buf.len == length(testarray) => true
+            @fact buf.len == length(testarray) --> true
             cl.write!(queue, buf, ones(Float32, length(testarray)))
             readback = cl.read(queue, buf)
-            @fact all(x -> x == 1.0, readback) => true
-            @fact buf.valid => true
+            @fact all(x -> x == 1.0, readback) --> true
+            @fact buf.valid --> true
         end
     end
 
@@ -164,7 +164,7 @@ facts("OpenCL.Buffer") do
             testarray = zeros(Float32, 1000)
             buf = cl.Buffer(Float32, ctx, (:rw, :copy), hostbuf=testarray)
 
-            @fact sizeof(cl.empty_like(ctx, buf)) => sizeof(testarray)
+            @fact sizeof(cl.empty_like(ctx, buf)) --> sizeof(testarray)
         end
     end
 
@@ -182,7 +182,7 @@ facts("OpenCL.Buffer") do
             cl.copy!(queue, b_buf, a_buf)
             # device buffer to host
             cl.copy!(queue, c_arr, b_buf)
-            @fact all(x -> isapprox(x, 2.0), c_arr) => true
+            @fact all(x -> isapprox(x, 2.0), c_arr) --> true
         end
     end
 
@@ -194,16 +194,16 @@ facts("OpenCL.Buffer") do
             for f in (:r, :w, :rw)
                 a, evt = cl.enqueue_map_mem(queue, b, f, 0, (10,10))
                 cl.wait(evt)
-                @fact size(a) => (10,10)
-                @fact typeof(a) => Array{Float32,2}
+                @fact size(a) --> (10,10)
+                @fact typeof(a) --> Array{Float32,2}
 
                 # cannot unmap a buffer without same host array
                 bad = similar(a)
                 @fact_throws cl.unmap!(queue, b, bad) "error"
 
-                @fact cl.ismapped(b) => true
+                @fact cl.ismapped(b) --> true
                 cl.unmap!(queue, b, a)
-                @fact cl.ismapped(b) => false
+                @fact cl.ismapped(b) --> false
 
                 # cannot unmap an unmapped buffer
                 @fact_throws cl.unmap!(queue, b, a) "error"
@@ -211,12 +211,12 @@ facts("OpenCL.Buffer") do
                 # gc here quickly force any memory errors
                 Base.gc()
             end
-            @fact cl.ismapped(b) => false
+            @fact cl.ismapped(b) --> false
             a, evt = cl.enqueue_map_mem(queue, b, :rw, 0, (10,10))
-            @fact cl.ismapped(b) => true
+            @fact cl.ismapped(b) --> true
             evt = cl.enqueue_unmap_mem(queue, b, a, wait_for=evt)
             cl.wait(evt)
-            @fact cl.ismapped(b) => false
+            @fact cl.ismapped(b) --> false
         end
     end
 end

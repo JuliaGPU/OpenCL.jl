@@ -26,7 +26,7 @@ facts("OpenCL.Kernel") do
             prg = cl.Program(ctx, source=test_source)
             @fact_throws cl.Kernel(prg, "sum") "error"
             cl.build!(prg)
-            @fact cl.Kernel(prg, "sum") => anything "no error"
+            @fact cl.Kernel(prg, "sum") --> anything "no error"
         end
     end
 
@@ -40,11 +40,11 @@ facts("OpenCL.Kernel") do
             prg = cl.Program(ctx, source=test_source)
             cl.build!(prg)
             k = cl.Kernel(prg, "sum")
-            @fact k[:name] => "sum"
-            @fact k[:num_args] => 4
-            @fact k[:reference_count] > 0 => true
-            @fact k[:program] => prg
-            @fact typeof(k[:attributes]) => ASCIIString
+            @fact k[:name] --> "sum"
+            @fact k[:num_args] --> 4
+            @fact k[:reference_count] > 0 --> true
+            @fact k[:program] --> prg
+            @fact typeof(k[:attributes]) --> ASCIIString
         end
     end
 
@@ -63,10 +63,10 @@ facts("OpenCL.Kernel") do
                               (:local_mem_size, cl.CL_KERNEL_LOCAL_MEM_SIZE),
                               (:private_mem_size, cl.CL_KERNEL_PRIVATE_MEM_SIZE),
                               (:prefered_size_multiple, cl.CL_KERNEL_PREFERRED_WORK_GROUP_SIZE_MULTIPLE)]
-                @fact cl.work_group_info(k, sf, device) => anything "no error"
-                @fact cl.work_group_info(k, clf, device) => anything "no error"
+                @fact cl.work_group_info(k, sf, device) --> anything "no error"
+                @fact cl.work_group_info(k, clf, device) --> anything "no error"
                 if sf != :compile_size
-                    @fact cl.work_group_info(k, sf, device) => cl.work_group_info(k, clf, device)
+                    @fact cl.work_group_info(k, sf, device) --> cl.work_group_info(k, clf, device)
                 end
             end
         end
@@ -97,20 +97,20 @@ facts("OpenCL.Kernel") do
             C = cl.Buffer(Float32, ctx, :w, count)
 
             # sizeof mem object for buffer in bytes
-            @fact sizeof(A) => nbytes
-            @fact sizeof(B) => nbytes
-            @fact sizeof(C) => nbytes
+            @fact sizeof(A) --> nbytes
+            @fact sizeof(B) --> nbytes
+            @fact sizeof(C) --> nbytes
 
             # we use julia's index by one convention
-            @fact cl.set_arg!(k, 1, A)   => anything "no error"
-            @fact cl.set_arg!(k, 2, B)   => anything "no error"
-            @fact cl.set_arg!(k, 3, C)   => anything "no error"
-            @compat @fact cl.set_arg!(k, 4, UInt32(count)) => anything "no error"
+            @fact cl.set_arg!(k, 1, A)   --> anything "no error"
+            @fact cl.set_arg!(k, 2, B)   --> anything "no error"
+            @fact cl.set_arg!(k, 3, C)   --> anything "no error"
+            @compat @fact cl.set_arg!(k, 4, UInt32(count)) --> anything "no error"
 
             cl.enqueue_kernel(queue, k, count) |> cl.wait
             r = cl.read(queue, C)
 
-            @fact all(x -> x == 2.0, r) => true
+            @fact all(x -> x == 2.0, r) --> true
             cl.flush(queue)
 
             # test set_args with new kernel
@@ -130,7 +130,7 @@ facts("OpenCL.Kernel") do
 
             r = cl.read(queue, C)
 
-            @fact all(x -> x == 4.0, r) => true
+            @fact all(x -> x == 4.0, r) --> true
         end
     end
 
@@ -171,18 +171,18 @@ facts("OpenCL.Kernel") do
             cl.call(q, k, 1, 1, d_buff)
 
             r = cl.read(q, d_buff)
-            @fact r[1] => 2
+            @fact r[1] --> 2
 
             # alternative kernel call syntax
             k[q, (1,), (1,)](d_buff)
             r = cl.read(q, d_buff)
-            @fact r[1] => 3
+            @fact r[1] --> 3
 
             # enqueue task is an alias for calling
             # a kernel with a global/local size of 1
             evt = cl.enqueue_task(q, k)
             r = cl.read(q, d_buff)
-            @fact r[1] => 4
+            @fact r[1] --> 4
         end
     end
 end

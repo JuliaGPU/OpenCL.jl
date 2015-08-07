@@ -4,8 +4,8 @@ facts("OpenCL.Memory") do
 
         ctx = cl.context(buf)
 
-        @fact ctx => anything
-        @fact isequal(ctx, expected) => true
+        @fact ctx --> anything
+        @fact isequal(ctx, expected) --> true
     end
 
     context("OpenCL.CLMemObject properties") do
@@ -21,7 +21,7 @@ facts("OpenCL.Memory") do
 
         for expectation in expectations
             prop, value = expectation
-            @fact cl.info(buf, prop) => value prop
+            @fact cl.info(buf, prop) --> value prop
         end
     end
 end

@@ -35,7 +35,7 @@ facts("OpenCL Hello World Test") do
         cl.call(queue, kern, str_len, nothing, out_buf)
         h = cl.read(queue, out_buf)
 
-        @fact bytestring(Compat.unsafe_convert(Ptr{Cchar}, h)) => hello_world_str
+        @fact bytestring(Compat.unsafe_convert(Ptr{Cchar}, h)) --> hello_world_str
     end
 end
 
@@ -203,7 +203,7 @@ facts("OpenCL Low Level Api Test") do
                 ncorrect += 1
             end
         end
-        @fact ncorrect => length
+        @fact ncorrect --> length
     end
 end
 
@@ -274,7 +274,7 @@ facts("OpenCL Struct Buffer Test") do
         cl.call(q, part3, global_size, nothing, X_buf, Y_buf, R_buf, P_buf)
 
         r = cl.read(q, R_buf)
-        @fact all(x -> x == 13.5, r) => true
+        @fact all(x -> x == 13.5, r) --> true
     end
 end
 end

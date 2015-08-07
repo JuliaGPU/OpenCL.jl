@@ -10,24 +10,24 @@ facts("OpenCL.Macros") do
             v20 = cl.@min_v20? platform true : false
 
             if version == v"1.0"
-                @fact v11 => false
-                @fact v12 => false
-                @fact v20 => false
+                @fact v11 --> false
+                @fact v12 --> false
+                @fact v20 --> false
 
             elseif version == v"1.1"
-                @fact v11 => true
-                @fact v12 => false
-                @fact v20 => false
+                @fact v11 --> true
+                @fact v12 --> false
+                @fact v20 --> false
 
             elseif version == v"1.2"
-                @fact v11 => true
-                @fact v12 => true
-                @fact v20 => false
+                @fact v11 --> true
+                @fact v12 --> true
+                @fact v20 --> false
 
             elseif version == v"2.0"
-                @fact v11 => true
-                @fact v12 => true
-                @fact v20 => true
+                @fact v11 --> true
+                @fact v12 --> true
+                @fact v20 --> true
 
             end
         end
@@ -43,24 +43,24 @@ facts("OpenCL.Macros") do
                 v20 = cl.@min_v20? device true : false
 
                 if version == v"1.0"
-                    @fact v11 => false
-                    @fact v12 => false
-                    @fact v20 => false
+                    @fact v11 --> false
+                    @fact v12 --> false
+                    @fact v20 --> false
 
                 elseif version == v"1.1"
-                    @fact v11 => true
-                    @fact v12 => false
-                    @fact v20 => false
+                    @fact v11 --> true
+                    @fact v12 --> false
+                    @fact v20 --> false
 
                 elseif version == v"1.2"
-                    @fact v11 => true
-                    @fact v12 => true
-                    @fact v20 => false
+                    @fact v11 --> true
+                    @fact v12 --> true
+                    @fact v20 --> false
 
                 elseif version == v"2.0"
-                    @fact v11 => true
-                    @fact v12 => true
-                    @fact v20 => true
+                    @fact v11 --> true
+                    @fact v12 --> true
+                    @fact v20 --> true
 
                 end
             end
