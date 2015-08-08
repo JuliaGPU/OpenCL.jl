@@ -26,7 +26,8 @@ end
 Base.pointer(q::CmdQueue) = q.id
 
 function Base.show(io::IO, q::CmdQueue)
-    ptr_address = "0x$(hex(unsigned(Base.pointer(q)), WORD_SIZE>>2))"
+    ptr_val = @compat convert(UInt, Base.pointer(q))
+    ptr_address = "0x$(hex(ptr_val, WORD_SIZE>>2))"
     print(io, "OpenCL.CmdQueue(@$ptr_address)")
 end
 

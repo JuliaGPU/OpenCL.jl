@@ -10,7 +10,8 @@ function Base.show(io::IO, d::Device)
     strip_extra_whitespace = r"\s+"
     device_name = replace(d[:name], strip_extra_whitespace, " ")
     platform_name = replace(d[:platform][:name], strip_extra_whitespace, " ")
-    ptr_address = "0x$(hex(unsigned(Base.pointer(d)), WORD_SIZE>>2))"
+    ptr_val = @compat convert(UInt, Base.pointer(d))
+    ptr_address = "0x$(hex(ptr_val, WORD_SIZE>>2))"
     print(io, "OpenCL.Device($device_name on $platform_name @$ptr_address)")
 end
 
