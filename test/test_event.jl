@@ -13,9 +13,9 @@ facts("OpenCL.Event") do
                 ctx = cl.Context(device)
                 evt = cl.UserEvent(ctx)
                 evt[:status]
-                @fact evt[:status] => :submitted
+                @fact evt[:status] --> :submitted
                 cl.complete(evt)
-                @fact evt[:status] => :complete
+                @fact evt[:status] --> :complete
             end
         end
     end
@@ -39,18 +39,18 @@ facts("OpenCL.Event") do
                 # create marker event
                 mkr_evt = cl.enqueue_marker(q)
 
-                @fact usr_evt[:status] => :submitted
-                @fact cl.cl_event_status(usr_evt[:status]) => cl.CL_SUBMITTED
-                @fact mkr_evt[:status] => :queued
-                @fact cl.cl_event_status(mkr_evt[:status]) => cl.CL_QUEUED
+                @fact usr_evt[:status] --> :submitted
+                @fact cl.cl_event_status(usr_evt[:status]) --> cl.CL_SUBMITTED
+                @fact mkr_evt[:status] --> :queued
+                @fact cl.cl_event_status(mkr_evt[:status]) --> cl.CL_QUEUED
 
                 cl.complete(usr_evt)
-                @fact usr_evt[:status] => :complete
-                @fact cl.cl_event_status(usr_evt[:status]) => cl.CL_COMPLETE
+                @fact usr_evt[:status] --> :complete
+                @fact cl.cl_event_status(usr_evt[:status]) --> cl.CL_COMPLETE
 
                 cl.wait(mkr_evt)
-                @fact mkr_evt[:status] => :complete
-                @fact cl.cl_event_status(mkr_evt[:status]) => cl.CL_COMPLETE
+                @fact mkr_evt[:status] --> :complete
+                @fact cl.cl_event_status(mkr_evt[:status]) --> cl.CL_COMPLETE
             end
         end
     end
@@ -86,12 +86,12 @@ facts("OpenCL.Event") do
                 mkr_evt = cl.enqueue_marker(queue)
                 cl.add_callback(mkr_evt, test_callback)
 
-                @fact usr_evt[:status] => :submitted
-                @fact mkr_evt[:status] => :queued
-                @fact callback_called => false
+                @fact usr_evt[:status] --> :submitted
+                @fact mkr_evt[:status] --> :queued
+                @fact callback_called --> false
 
                 cl.complete(usr_evt)
-                @fact usr_evt[:status] => :complete
+                @fact usr_evt[:status] --> :complete
 
                 cl.wait(mkr_evt)
 
@@ -99,10 +99,9 @@ facts("OpenCL.Event") do
                 yield()
                 sleep(0.5)
 
-                @fact mkr_evt[:status] => :complete
-                @fact callback_called => true
+                @fact mkr_evt[:status] --> :complete
+                @fact callback_called --> true
             end
         end
     end
 end
-

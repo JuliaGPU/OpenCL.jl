@@ -7,11 +7,11 @@ facts("OpenCL.Device") do
                               (:gpu, :cpu, :accelerator, :all))
 
                 #for (dk, dt) in zip(cl.devices(p, k), cl.devices(p, t))
-                #    @fact dk == dt => true
+                #    @fact dk == dt --> true
                 #end
                 #devices = cl.devices(p, k)
                 #for d in devices
-                #    @fact d[:device_type] == t => true
+                #    @fact d[:device_type] == t --> true
                 #end
             end
         end
@@ -23,9 +23,9 @@ facts("OpenCL.Device") do
             if length(devices) > 1
                 test_dev = devices[1]
                 for dev in devices[2:end]
-                   @fact pointer(dev) != pointer(test_dev) => true
-                   @fact hash(dev) != hash(test_dev) => true
-                   @fact isequal(dev, test_dev) => false
+                   @fact pointer(dev) != pointer(test_dev) --> true
+                   @fact hash(dev) != hash(test_dev) --> true
+                   @fact isequal(dev, test_dev) --> false
                end
            end
        end
@@ -72,27 +72,27 @@ facts("OpenCL.Device") do
                 warn(msg)
                 continue
             end
-            @fact isa(p, cl.Platform) => true
+            @fact isa(p, cl.Platform) --> true
             @fact_throws p[:zjdlkf] "error"
             for d in cl.devices(p)
-                @fact isa(d, cl.Device) => true
+                @fact isa(d, cl.Device) --> true
                 @fact_throws d[:zjdlkf] "error"
                 for k in device_info_keys
-                    @fact d[k] => anything "no error"
-                    @fact d[k] => cl.info(d, k)
+                    @fact d[k] --> anything "no error"
+                    @fact d[k] --> cl.info(d, k)
                     if k == :extensions
-                        @fact isa(d[k], Array) => true
+                        @fact isa(d[k], Array) --> true
                         if length(d[k]) > 0
-                            @fact isa(d[k], Array{String, 1}) => true
+                            @fact isa(d[k], Array{String, 1}) --> true
                         end
                     elseif k == :platform
-                        @fact d[k] => p
+                        @fact d[k] --> p
                     elseif k == :max_work_item_sizes
-                        @fact length(d[k]) => 3
+                        @fact length(d[k]) --> 3
                     elseif k == :max_image2d_shape
-                        @fact length(d[k]) => 2
+                        @fact length(d[k]) --> 2
                     elseif k == :max_image3d_shape
-                        @fact length(d[k]) => 3
+                        @fact length(d[k]) --> 3
                     end
                 end
             end
