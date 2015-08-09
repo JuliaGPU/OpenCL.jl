@@ -43,7 +43,7 @@ include("api/opencl_2.0.0.jl")
 
 function parse_version(version_string)
     mg = match(r"^OpenCL ([0-9]+)\.([0-9]+) .*$", version_string)
-    if mg == nothing
+    if mg === nothing
         error("Non conforming version string: $(ver)")
     end
     return @compat VersionNumber(parse(Int, mg.captures[1]),

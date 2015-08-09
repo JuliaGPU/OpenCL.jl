@@ -34,10 +34,10 @@ end
 
 function Program(ctx::Context; source=nothing, binaries=nothing)
     local program_id::CL_program
-    if source != nothing && binaries != nothing
+    if source !== nothing && binaries !== nothing
         throw(ArgumentError("Program be source or binary"))
     end
-    if source != nothing
+    if source !== nothing
         byte_source = [bytestring(source)]
         err_code = Array(CL_int, 1)
         program_id = api.clCreateProgramWithSource(ctx.id, 1, byte_source, C_NULL, err_code)
@@ -46,7 +46,7 @@ function Program(ctx::Context; source=nothing, binaries=nothing)
         end
         return Program(program_id, binary=false)
 
-    elseif binaries != nothing
+    elseif binaries !== nothing
         ndevices = length(binaries)
         device_ids = Array(CL_device_id, ndevices)
         bin_lengths = Array(Csize_t, ndevices)

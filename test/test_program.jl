@@ -57,7 +57,11 @@ facts("OpenCL.Program") do
 
             # test build by methods chaining
             @fact prg[:build_status][device] --> cl.CL_BUILD_SUCCESS
-            @fact strip(prg[:build_log][device])--> ""
+            if device[:platform][:name] != "Intel(R) OpenCL"
+                # The intel CPU driver is very verbose on Linux and output
+                # compilation status even without any warnings
+                @fact strip(prg[:build_log][device])--> ""
+            end
         end
     end
 
