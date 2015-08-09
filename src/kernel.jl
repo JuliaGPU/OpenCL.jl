@@ -200,7 +200,7 @@ function enqueue_kernel(q::CmdQueue,
     end
 
     goffset = C_NULL
-    if global_work_offset != nothing
+    if global_work_offset !== nothing
         if length(global_work_offset) > max_work_dim
             throw(ArgumentError("global_work_offset has max dim of $max_work_dim"))
         end
@@ -214,7 +214,7 @@ function enqueue_kernel(q::CmdQueue,
     end
 
     lsize = C_NULL
-    if local_work_size != nothing
+    if local_work_size !== nothing
         if length(local_work_size) > max_work_dim
             throw(ArgumentError("local_work_offset has max dim of $max_work_dim"))
         end
@@ -227,7 +227,7 @@ function enqueue_kernel(q::CmdQueue,
         end
     end
 
-    if wait_on != nothing
+    if wait_on !== nothing
         n_events = cl_uint(length(wait_on))
         wait_event_ids = [evt.id for evt in wait_on]
     else
@@ -246,7 +246,7 @@ function enqueue_task(q::CmdQueue, k::Kernel; wait_for=nothing)
     n_evts  = 0
     evt_ids = C_NULL
     #TODO: this should be split out into its own function
-    if wait_for != nothing
+    if wait_for !== nothing
         if isa(wait_for, Event)
             n_evts = 1
             evt_ids = [wait_for.id]

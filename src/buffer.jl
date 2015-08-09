@@ -90,7 +90,7 @@ end
 function Buffer{T}(::Type{T}, ctx::Context, flags::CL_mem_flags, len::Integer=0;
                    hostbuf::Union(Nothing, Array{T})=nothing)
 
-    if (hostbuf != nothing &&
+    if (hostbuf !== nothing &&
         (flags & (CL_MEM_USE_HOST_PTR | CL_MEM_COPY_HOST_PTR)) == 0)
         warn("'hostbuf' was passed, but no memory flags to make use of it")
     end
@@ -102,7 +102,7 @@ function Buffer{T}(::Type{T}, ctx::Context, flags::CL_mem_flags, len::Integer=0;
     nbytes = 0
     retain_buf::Union(Nothing, Array{T}) = nothing
 
-    if hostbuf != nothing
+    if hostbuf !== nothing
         if (flags & CL_MEM_USE_HOST_PTR) != 0
             retain_buf = hostbuf
         end
@@ -124,7 +124,7 @@ function Buffer{T}(::Type{T}, ctx::Context, flags::CL_mem_flags, len::Integer=0;
 
     err_code = Array(CL_int, 1)
     mem_id = api.clCreateBuffer(ctx.id, flags, cl_uint(nbytes),
-                                hostbuf != nothing ? hostbuf : C_NULL,
+                                hostbuf !== nothing ? hostbuf : C_NULL,
                                 err_code)
     if err_code[1] != CL_SUCCESS
         throw(CLError(err_code[1]))
@@ -145,8 +145,8 @@ function enqueue_read_buffer{T}(q::CmdQueue,
                                 dev_offset::Csize_t,
                                 wait_for::Union(Nothing, Vector{Event}),
                                 is_blocking::Bool)
-    n_evts  = @compat wait_for == nothing ? UInt(0) : length(wait_for)
-    evt_ids = wait_for == nothing ? C_NULL  : [evt.id for evt in wait_for]
+    n_evts  = @compat wait_for === nothing ? UInt(0) : length(wait_for)
+    evt_ids = wait_for === nothing ? C_NULL  : [evt.id for evt in wait_for]
     ret_evt = Array(CL_event, 1)
     nbytes  = sizeof(hostbuf)
     @assert nbytes > 0
@@ -164,8 +164,8 @@ function enqueue_write_buffer{T}(q::CmdQueue,
                                  offset::Csize_t,
                                  wait_for::Union(Nothing, Vector{Event}),
                                  is_blocking::Bool)
-    n_evts  = @compat wait_for == nothing ? UInt(0) : length(wait_for)
-    evt_ids = wait_for == nothing ? C_NULL  : [evt.id for evt in wait_for]
+    n_evts  = @compat wait_for === nothing ? UInt(0) : length(wait_for)
+    evt_ids = wait_for === nothing ? C_NULL  : [evt.id for evt in wait_for]
     ret_evt = Array(CL_event, 1)
     nbytes  = sizeof(hostbuf)
     @assert nbytes > 0
@@ -183,8 +183,8 @@ function enqueue_copy_buffer{T}(q::CmdQueue,
                                 src_offset::Csize_t,
                                 dst_offset::Csize_t,
                                 wait_for::Union(Nothing, Vector{Event}))
-    n_evts  = @compat wait_for == nothing ? UInt(0) : length(wait_for)
-    evt_ids = wait_for == nothing ? C_NULL  : [evt.id for evt in wait_for]
+    n_evts  = @compat wait_for === nothing ? UInt(0) : length(wait_for)
+    evt_ids = wait_for === nothing ? C_NULL  : [evt.id for evt in wait_for]
     ret_evt = Array(CL_event, 1)
     if byte_count < 0
         byte_count_src = Array(Csize_t, 1)
@@ -218,7 +218,7 @@ function enqueue_unmap_mem{T}(q::CmdQueue,
     end
     n_evts  = 0
     evt_ids = C_NULL
-    if wait_for != nothing
+    if wait_for !== nothing
         if isa(wait_for, Event)
             n_evts = 1
             evt_ids = [wait_for.id]
@@ -276,8 +276,8 @@ function enqueue_map_mem{T}(q::CmdQueue,
         throw(ArgumentError("Buffer length must be greater than or
                              equal to prod(dims) + offset"))
     end
-    n_evts  = wait_for == nothing ? cl_uint(0) : cl_uint(length(wait_for))
-    evt_ids = wait_for == nothing ? C_NULL  : [evt.id for evt in wait_for]
+    n_evts  = wait_for === nothing ? cl_uint(0) : cl_uint(length(wait_for))
+    evt_ids = wait_for === nothing ? C_NULL  : [evt.id for evt in wait_for]
     flags   = cl_map_flags(flags)
     offset  = unsigned(offset)
     nbytes  = unsigned(prod(dims) * sizeof(T))
@@ -320,7 +320,7 @@ end
                                     offset::Csize_t, nbytes::Csize_t,
                                     wait_for::Union(Vector{Event}, Nothing))
 
-        if wait_for == nothing
+        if wait_for === nothing
             evt_ids = C_NULL
             n_evts = cl_uint(0)
         else
@@ -339,7 +339,8 @@ end
     # enqueue a fill operation, return an event
     function enqueue_fill{T}(q::CmdQueue, buf::Buffer{T}, x::T)
         nbytes = sizeof(buf)
-        evt = enqueue_fill_buffer(q, buf, x, unsigned(0), unsigned(nbytes), nothing)
+        evt = enqueue_fill_buffer(q, buf, x, unsigned(0),
+                                  unsigned(nbytes), nothing)
         return evt
     end
 
@@ -376,7 +377,8 @@ function copy!{T}(q::CmdQueue, dst::Buffer{T}, src::Buffer{T})
         throw(ArgumentError("Buffers to be copied must be the same size"))
     end
     nbytes = convert(Csize_t, sizeof(src))
-    evt = enqueue_copy_buffer(q, src, dst, nbytes, unsigned(0), unsigned(0), nothing)
+    evt = enqueue_copy_buffer(q, src, dst, nbytes, unsigned(0),
+                              unsigned(0), nothing)
     wait(evt)
     return evt
 end

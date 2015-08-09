@@ -56,12 +56,12 @@ function Context(devs::Vector{Device};
     if isempty(devs)
         ArgumentError("No devices specified for context")
     end
-    if properties != nothing
+    if properties !== nothing
         ctx_properties = _parse_properties(properties)
     else
         ctx_properties = C_NULL
     end
-    if callback != nothing
+    if callback !== nothing
         ctx_user_data = callback
     else
         ctx_user_data = raise_context_error
@@ -86,12 +86,12 @@ Context(d::Device; properties=nothing, callback=nothing) =
 
 function Context(dev_type::CL_device_type;
                  properties=nothing, callback=nothing)
-    if properties != nothing
+    if properties !== nothing
         ctx_properties = _parse_properties(properties)
     else
         ctx_properties = C_NULL
     end
-    if callback != nothing
+    if callback !== nothing
         ctx_user_data = callback
     else
         ctx_user_data = raise_context_error
