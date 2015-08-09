@@ -15,7 +15,9 @@ facts("OpenCL.Context") do
                 cl.Context(cl.CL_DEVICE_TYPE_CPU)
             catch err
                 @fact typeof(err) --> cl.CLError
-                @fact err.desc --> :CL_INVALID_PLATFORM
+                # CL_DEVICE_NOT_FOUND could be throw for GPU only drivers
+                @fact err.desc --> anyof(:CL_INVALID_PLATFORM,
+                                         :CL_DEVICE_NOT_FOUND)
             end
 
             if platform[:name] == "Portable Computing Language"

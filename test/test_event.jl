@@ -40,17 +40,18 @@ facts("OpenCL.Event") do
                 mkr_evt = cl.enqueue_marker(q)
 
                 @fact usr_evt[:status] --> :submitted
-                @fact cl.cl_event_status(usr_evt[:status]) --> cl.CL_SUBMITTED
-                @fact mkr_evt[:status] --> :queued
-                @fact cl.cl_event_status(mkr_evt[:status]) --> cl.CL_QUEUED
+                @fact mkr_evt[:status] --> anyof(:queued, :submitted)
 
                 cl.complete(usr_evt)
                 @fact usr_evt[:status] --> :complete
-                @fact cl.cl_event_status(usr_evt[:status]) --> cl.CL_COMPLETE
 
                 cl.wait(mkr_evt)
                 @fact mkr_evt[:status] --> :complete
-                @fact cl.cl_event_status(mkr_evt[:status]) --> cl.CL_COMPLETE
+
+                @fact cl.cl_event_status(:running) --> cl.CL_RUNNING
+                @fact cl.cl_event_status(:submitted) --> cl.CL_SUBMITTED
+                @fact cl.cl_event_status(:queued) --> cl.CL_QUEUED
+                @fact cl.cl_event_status(:complete) --> cl.CL_COMPLETE
             end
         end
     end
@@ -87,7 +88,7 @@ facts("OpenCL.Event") do
                 cl.add_callback(mkr_evt, test_callback)
 
                 @fact usr_evt[:status] --> :submitted
-                @fact mkr_evt[:status] --> :queued
+                @fact mkr_evt[:status] --> anyof(:queued, :submitted)
                 @fact callback_called --> false
 
                 cl.complete(usr_evt)
