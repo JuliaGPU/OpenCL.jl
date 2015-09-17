@@ -61,7 +61,7 @@ let profile(d::Device) = begin
         result = Array(CL_char, size[1])
         @check api.clGetDeviceInfo(d.id, CL_DEVICE_EXTENSIONS, size[1], result, C_NULL)
         bs = bytestring(Compat.unsafe_convert(Ptr{CL_char}, result))
-        return String[string(s) for s in split(bs)]
+        return AbstractString[string(s) for s in split(bs)]
     end
 
     platform(d::Device) = begin

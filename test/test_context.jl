@@ -4,7 +4,7 @@ facts("OpenCL.Context") do
         @fact_throws (cl.Context([])) "error"
         for platform in cl.platforms()
             for device in cl.devices(platform)
-                @fact cl.Context(device) --> anything "no error"
+                @fact cl.Context(device) --> not(nothing) "no error"
             end
         end
     end
@@ -32,8 +32,8 @@ facts("OpenCL.Context") do
                 if !cl.has_device_type(platform, sym_dev_type)
                     continue
                 end
-                @fact cl.Context(sym_dev_type, properties=properties) --> anything
-                @fact cl.Context(cl_dev_type, properties=properties) --> anything
+                @fact cl.Context(sym_dev_type, properties=properties) --> not(nothing)
+                @fact cl.Context(cl_dev_type, properties=properties) --> not(nothing)
                 ctx = cl.Context(cl_dev_type, properties=properties)
                 @fact isempty(cl.properties(ctx)) --> false
                 test_properties = cl.properties(ctx)
@@ -62,7 +62,7 @@ facts("OpenCL.Context") do
     end
 
     context("OpenCL.Context create_some_context") do
-        @fact cl.create_some_context() --> anything "no error"
+        @fact cl.create_some_context() --> not(nothing) "no error"
         @fact typeof(cl.create_some_context()) --> cl.Context
     end
 

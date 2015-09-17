@@ -50,9 +50,9 @@ function raise_context_error(error_info, private_info)
 end
 
 
-function Context(devs::Vector{Device};
-                 properties=nothing,
-                 callback::Union(Nothing, Function)=nothing)
+@compat function Context(devs::Vector{Device};
+                         properties=nothing,
+                         callback::Union{Void,Function}=nothing)
     if isempty(devs)
         ArgumentError("No devices specified for context")
     end

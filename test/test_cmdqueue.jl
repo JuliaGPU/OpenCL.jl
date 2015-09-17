@@ -6,9 +6,9 @@ facts("OpenCL.CmdQueue") do
         for platform in cl.platforms()
             for device in cl.devices(platform)
                 ctx = cl.Context(device)
-                @fact cl.CmdQueue(ctx) --> anything "no error"
-                @fact cl.CmdQueue(ctx, device) --> anything "no error"
-                @fact cl.CmdQueue(ctx, :profile) --> anything "no error"
+                @fact cl.CmdQueue(ctx) --> not(nothing) "no error"
+                @fact cl.CmdQueue(ctx, device) --> not(nothing) "no error"
+                @fact cl.CmdQueue(ctx, :profile) --> not(nothing) "no error"
                 try
                     cl.CmdQueue(ctx, device, :out_of_order)
                     cl.CmdQueue(ctx, device, (:profile, :out_of_order))

@@ -19,7 +19,7 @@ facts("OpenCL.Program") do
         for device in cl.devices()
             ctx = cl.Context(device)
             prg = cl.Program(ctx, source=test_source)
-            @fact cl.Program(ctx, source=test_source) --> anything "no error"
+            @fact cl.Program(ctx, source=test_source) --> not(nothing) "no error"
         end
     end
     context("OpenCL.Program info") do
@@ -46,7 +46,7 @@ facts("OpenCL.Program") do
         for device in cl.devices()
             ctx = cl.Context(device)
             prg = cl.Program(ctx, source=test_source)
-            @fact cl.build!(prg) --> anything "no error"
+            @fact cl.build!(prg) --> not(nothing) "no error"
 
             # BUILD_SUCCESS undefined in POCL implementation..
             if device[:platform][:name] == "Portable Computing Language"
