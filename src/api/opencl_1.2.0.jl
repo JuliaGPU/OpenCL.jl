@@ -66,7 +66,7 @@
 # @deprecate clEnqueueMarker clEnqueueMarkerWithWaitList
 # @deprecate clEnqueueBarrier clEnqueueMarkerWithWaitList
 # @deprecate clEnqueueWaitForEvents clEnqueueMarkerWithWaitList
-# @deprecate clUnloadCompiler Nothing()
+# @deprecate clUnloadCompiler Void()
 
 # @deprecate clCreateFromGLTexture2D clCreateFromGLTexture
 # @deprecate clCreateFromGLTexture3D clCreateFromGLTexture

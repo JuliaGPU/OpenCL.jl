@@ -87,8 +87,8 @@ function Buffer{T}(::Type{T}, ctx::Context, mem_flags::NTuple{2, Symbol}, len::I
 end
 
 # low level Buffer constructor with integer parameter flags
-function Buffer{T}(::Type{T}, ctx::Context, flags::CL_mem_flags, len::Integer=0;
-                   hostbuf::Union(Nothing, Array{T})=nothing)
+@compat function Buffer{T}(::Type{T}, ctx::Context, flags::CL_mem_flags,
+                           len::Integer=0; hostbuf::Union{Void,Array{T}}=nothing)
 
     if (hostbuf !== nothing &&
         (flags & (CL_MEM_USE_HOST_PTR | CL_MEM_COPY_HOST_PTR)) == 0)
@@ -100,7 +100,7 @@ function Buffer{T}(::Type{T}, ctx::Context, flags::CL_mem_flags, len::Integer=0;
     end
 
     nbytes = 0
-    retain_buf::Union(Nothing, Array{T}) = nothing
+    retain_buf::Union{Void,Array{T}} = nothing
 
     if hostbuf !== nothing
         if (flags & CL_MEM_USE_HOST_PTR) != 0
@@ -139,13 +139,13 @@ function Buffer{T}(::Type{T}, ctx::Context, flags::CL_mem_flags, len::Integer=0;
 end
 
 # enqueue a read from buffer to hoast array from buffer, return an event
-function enqueue_read_buffer{T}(q::CmdQueue,
-                                buf::Buffer{T},
-                                hostbuf::Array{T},
-                                dev_offset::Csize_t,
-                                wait_for::Union(Nothing, Vector{Event}),
-                                is_blocking::Bool)
-    n_evts  = @compat wait_for === nothing ? UInt(0) : length(wait_for)
+@compat function enqueue_read_buffer{T}(q::CmdQueue,
+                                        buf::Buffer{T},
+                                        hostbuf::Array{T},
+                                        dev_offset::Csize_t,
+                                        wait_for::Union{Void,Vector{Event}},
+                                        is_blocking::Bool)
+    n_evts  = wait_for === nothing ? UInt(0) : length(wait_for)
     evt_ids = wait_for === nothing ? C_NULL  : [evt.id for evt in wait_for]
     ret_evt = Array(CL_event, 1)
     nbytes  = sizeof(hostbuf)
@@ -157,14 +157,14 @@ function enqueue_read_buffer{T}(q::CmdQueue,
 end
 
 # enqueue a write from host array to buffer, return an event
-function enqueue_write_buffer{T}(q::CmdQueue,
-                                 buf::Buffer{T},
-                                 hostbuf::Array{T},
-                                 byte_count::Csize_t,
-                                 offset::Csize_t,
-                                 wait_for::Union(Nothing, Vector{Event}),
-                                 is_blocking::Bool)
-    n_evts  = @compat wait_for === nothing ? UInt(0) : length(wait_for)
+@compat function enqueue_write_buffer{T}(q::CmdQueue,
+                                         buf::Buffer{T},
+                                         hostbuf::Array{T},
+                                         byte_count::Csize_t,
+                                         offset::Csize_t,
+                                         wait_for::Union{Void,Vector{Event}},
+                                         is_blocking::Bool)
+    n_evts  = wait_for === nothing ? UInt(0) : length(wait_for)
     evt_ids = wait_for === nothing ? C_NULL  : [evt.id for evt in wait_for]
     ret_evt = Array(CL_event, 1)
     nbytes  = sizeof(hostbuf)
@@ -176,14 +176,14 @@ function enqueue_write_buffer{T}(q::CmdQueue,
 end
 
 # enqueue a copy from one buffer to another, return an event
-function enqueue_copy_buffer{T}(q::CmdQueue,
-                                src::Buffer{T},
-                                dst::Buffer{T},
-                                byte_count::Csize_t,
-                                src_offset::Csize_t,
-                                dst_offset::Csize_t,
-                                wait_for::Union(Nothing, Vector{Event}))
-    n_evts  = @compat wait_for === nothing ? UInt(0) : length(wait_for)
+@compat function enqueue_copy_buffer{T}(q::CmdQueue,
+                                        src::Buffer{T},
+                                        dst::Buffer{T},
+                                        byte_count::Csize_t,
+                                        src_offset::Csize_t,
+                                        dst_offset::Csize_t,
+                                        wait_for::Union{Void,Vector{Event}})
+    n_evts  = wait_for === nothing ? UInt(0) : length(wait_for)
     evt_ids = wait_for === nothing ? C_NULL  : [evt.id for evt in wait_for]
     ret_evt = Array(CL_event, 1)
     if byte_count < 0
@@ -316,9 +316,10 @@ end
 @ocl_v1_2_only begin
 
     # low level enqueue fill operation, return event
-    function enqueue_fill_buffer{T}(q::CmdQueue, buf::Buffer{T}, pattern::T,
-                                    offset::Csize_t, nbytes::Csize_t,
-                                    wait_for::Union(Vector{Event}, Nothing))
+    @compat function enqueue_fill_buffer{T}(q::CmdQueue, buf::Buffer{T},
+                                            pattern::T, offset::Csize_t,
+                                            nbytes::Csize_t,
+                                            wait_for::Union{Vector{Event},Void})
 
         if wait_for === nothing
             evt_ids = C_NULL

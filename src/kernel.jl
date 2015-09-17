@@ -28,7 +28,7 @@ function release!(k::Kernel)
     end
 end
 
-function Kernel(p::Program, kernel_name::String)
+function Kernel(p::Program, kernel_name::AbstractString)
     for (dev, status) in info(p, :build_status)
         if status != CL_BUILD_SUCCESS
             msg = "OpenCL.Program has to be built before Kernel constructor invoked"
@@ -58,7 +58,7 @@ Base.eltype{T}(l::LocalMem{T}) = T
 Base.sizeof{T}(l::LocalMem{T}) = l.nbytes
 Base.length{T}(l::LocalMem{T}) = @compat Int(l.nbytes ÷ sizeof(T))
 
-function set_arg!(k::Kernel, idx::Integer, arg::Nothing)
+@compat function set_arg!(k::Kernel, idx::Integer, arg::Void)
     @assert idx > 0
     @check api.clSetKernelArg(k.id, cl_uint(idx-1), sizeof(CL_mem), C_NULL)
     return k
@@ -165,9 +165,9 @@ Base.getindex(k::Kernel, args...) = begin
 end
 
 # blocking kernel call that finishes queue
-function call(q::CmdQueue, k::Kernel, global_work_size, local_work_size, args...;
-              global_work_offset=nothing,
-              wait_on::Union(Nothing, Vector{Event})=nothing)
+@compat function call(q::CmdQueue, k::Kernel, global_work_size, local_work_size,
+                      args...; global_work_offset=nothing,
+                      wait_on::Union{Void,Vector{Event}}=nothing)
     set_args!(k, args...)
     evt = enqueue_kernel(q, k,
                          global_work_size,
@@ -182,12 +182,12 @@ function enqueue_kernel(q::CmdQueue, k::Kernel, global_work_size)
     enqueue_kernel(q, k, global_work_size, nothing)
 end
 
-function enqueue_kernel(q::CmdQueue,
-                        k::Kernel,
-                        global_work_size,
-                        local_work_size;
-                        global_work_offset=nothing,
-                        wait_on::Union(Nothing,Vector{Event})=nothing)
+@compat function enqueue_kernel(q::CmdQueue,
+                                k::Kernel,
+                                global_work_size,
+                                local_work_size;
+                                global_work_offset=nothing,
+                                wait_on::Union{Void,Vector{Event}}=nothing)
     device = q[:device]
     max_work_dim = device[:max_work_item_dims]
     work_dim     = length(global_work_size)
