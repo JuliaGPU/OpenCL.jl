@@ -26,7 +26,7 @@ facts("OpenCL.Kernel") do
             prg = cl.Program(ctx, source=test_source)
             @fact_throws cl.Kernel(prg, "sum") "error"
             cl.build!(prg)
-            @fact cl.Kernel(prg, "sum") --> anything "no error"
+            @fact cl.Kernel(prg, "sum") --> not(nothing) "no error"
         end
     end
 
@@ -63,8 +63,8 @@ facts("OpenCL.Kernel") do
                               (:local_mem_size, cl.CL_KERNEL_LOCAL_MEM_SIZE),
                               (:private_mem_size, cl.CL_KERNEL_PRIVATE_MEM_SIZE),
                               (:prefered_size_multiple, cl.CL_KERNEL_PREFERRED_WORK_GROUP_SIZE_MULTIPLE)]
-                @fact cl.work_group_info(k, sf, device) --> anything "no error"
-                @fact cl.work_group_info(k, clf, device) --> anything "no error"
+                @fact cl.work_group_info(k, sf, device) --> not(nothing) "no error"
+                @fact cl.work_group_info(k, clf, device) --> not(nothing) "no error"
                 if sf != :compile_size
                     @fact cl.work_group_info(k, sf, device) --> cl.work_group_info(k, clf, device)
                 end
@@ -102,10 +102,10 @@ facts("OpenCL.Kernel") do
             @fact sizeof(C) --> nbytes
 
             # we use julia's index by one convention
-            @fact cl.set_arg!(k, 1, A)   --> anything "no error"
-            @fact cl.set_arg!(k, 2, B)   --> anything "no error"
-            @fact cl.set_arg!(k, 3, C)   --> anything "no error"
-            @compat @fact cl.set_arg!(k, 4, UInt32(count)) --> anything "no error"
+            @fact cl.set_arg!(k, 1, A)   --> not(nothing) "no error"
+            @fact cl.set_arg!(k, 2, B)   --> not(nothing) "no error"
+            @fact cl.set_arg!(k, 3, C)   --> not(nothing) "no error"
+            @compat @fact cl.set_arg!(k, 4, UInt32(count)) --> not(nothing) "no error"
 
             cl.enqueue_kernel(queue, k, count) |> cl.wait
             r = cl.read(queue, C)

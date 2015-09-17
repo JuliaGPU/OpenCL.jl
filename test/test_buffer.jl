@@ -11,37 +11,37 @@ facts("OpenCL.Buffer") do
             testarray = zeros(Float32, 1000)
 
             @fact cl.Buffer(Float32, ctx, cl.CL_MEM_ALLOC_HOST_PTR | cl.CL_MEM_READ_ONLY,
-                                         length(testarray)) --> anything "no error"
+                                         length(testarray)) --> not(nothing) "no error"
 
             @fact cl.Buffer(Float32, ctx, cl.CL_MEM_ALLOC_HOST_PTR | cl.CL_MEM_WRITE_ONLY,
-                                         length(testarray)) --> anything "no error"
+                                         length(testarray)) --> not(nothing) "no error"
 
             @fact cl.Buffer(Float32, ctx, cl.CL_MEM_ALLOC_HOST_PTR | cl.CL_MEM_READ_WRITE,
-                                         length(testarray)) --> anything "no error"
+                                         length(testarray)) --> not(nothing) "no error"
 
             buf = cl.Buffer(Float32, ctx, cl.CL_MEM_ALLOC_HOST_PTR | cl.CL_MEM_READ_WRITE, length(testarray))
             @fact buf.len --> length(testarray)
 
             @fact cl.Buffer(Float32, ctx, cl.CL_MEM_COPY_HOST_PTR | cl.CL_MEM_READ_ONLY,
-                                         hostbuf=testarray) --> anything "no error"
+                                         hostbuf=testarray) --> not(nothing) "no error"
 
             @fact cl.Buffer(Float32, ctx, cl.CL_MEM_COPY_HOST_PTR | cl.CL_MEM_WRITE_ONLY,
-                                         hostbuf=testarray) --> anything "no error"
+                                         hostbuf=testarray) --> not(nothing) "no error"
 
             @fact cl.Buffer(Float32, ctx, cl.CL_MEM_COPY_HOST_PTR | cl.CL_MEM_READ_WRITE,
-                                         hostbuf=testarray) --> anything "no error"
+                                         hostbuf=testarray) --> not(nothing) "no error"
 
             buf = cl.Buffer(Float32, ctx, cl.CL_MEM_COPY_HOST_PTR | cl.CL_MEM_READ_WRITE, hostbuf=testarray)
             @fact buf.len --> length(testarray)
 
             @fact cl.Buffer(Float32, ctx, cl.CL_MEM_USE_HOST_PTR | cl.CL_MEM_READ_ONLY,
-                                         hostbuf=testarray) --> anything "no error"
+                                         hostbuf=testarray) --> not(nothing) "no error"
 
             @fact cl.Buffer(Float32, ctx, cl.CL_MEM_USE_HOST_PTR | cl.CL_MEM_WRITE_ONLY,
-                                         hostbuf=testarray) --> anything "no error"
+                                         hostbuf=testarray) --> not(nothing) "no error"
 
             @fact cl.Buffer(Float32, ctx, cl.CL_MEM_USE_HOST_PTR | cl.CL_MEM_READ_WRITE,
-                                         hostbuf=testarray) --> anything "no error"
+                                         hostbuf=testarray) --> not(nothing) "no error"
 
             buf = cl.Buffer(Float32, ctx, cl.CL_MEM_USE_HOST_PTR | cl.CL_MEM_READ_WRITE, hostbuf=testarray)
             @fact buf.len --> length(testarray)
@@ -84,12 +84,12 @@ facts("OpenCL.Buffer") do
                                    ]
                          testarray = zeros(mtype, 100)
                          if mf2 == :copy || mf2 == :use
-                             @fact cl.Buffer(mtype, ctx, (mf1, mf2), hostbuf=testarray) --> anything "no error"
+                             @fact cl.Buffer(mtype, ctx, (mf1, mf2), hostbuf=testarray) --> not(nothing) "no error"
                              buf = cl.Buffer(mtype, ctx, (mf1, mf2), hostbuf=testarray)
                              @fact buf.len --> length(testarray)
                          elseif mf2 == :alloc
                              @fact cl.Buffer(mtype, ctx, (mf1, mf2),
-                                                          length(testarray)) --> anything "no error"
+                                                          length(testarray)) --> not(nothing) "no error"
                              buf = cl.Buffer(mtype, ctx, (mf1, mf2), length(testarray))
                              @fact buf.len --> length(testarray)
                          end
@@ -98,8 +98,8 @@ facts("OpenCL.Buffer") do
              end
 
              test_array = Array(TestStruct, 100)
-             @fact cl.Buffer(TestStruct, ctx, :alloc, length(test_array)) --> anything "no error"
-             @fact cl.Buffer(TestStruct, ctx, :copy, hostbuf=test_array) --> anything "no error"
+             @fact cl.Buffer(TestStruct, ctx, :alloc, length(test_array)) --> not(nothing) "no error"
+             @fact cl.Buffer(TestStruct, ctx, :copy, hostbuf=test_array) --> not(nothing) "no error"
 
              # invalid buffer size should throw error
              @fact_throws cl.Buffer(Float32, ctx, :alloc, +0) "error"

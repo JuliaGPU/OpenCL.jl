@@ -4,7 +4,7 @@ facts("OpenCL.Memory") do
 
         ctx = cl.context(buf)
 
-        @fact ctx --> anything
+        @fact ctx --> not(nothing)
         @fact isequal(ctx, expected) --> true
     end
 

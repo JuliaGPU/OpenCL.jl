@@ -78,7 +78,7 @@ facts("OpenCL.Device") do
                 @fact isa(d, cl.Device) --> true
                 @fact_throws d[:zjdlkf] "error"
                 for k in device_info_keys
-                    @fact d[k] --> anything "no error"
+                    @fact d[k] --> not(nothing) "no error"
                     @fact d[k] --> cl.info(d, k)
                     if k == :extensions
                         @fact isa(d[k], Array) --> true
