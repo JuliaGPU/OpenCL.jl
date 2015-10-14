@@ -3,18 +3,19 @@
 type Buffer{T} <: CLMemObject
     valid::Bool
     id::CL_mem
-    len::Int
+    sz::@compat(Tuple{Vararg{Int}})
     mapped::Bool
     hostbuf::Ptr{T}
-
-    function Buffer(mem_id::CL_mem, retain::Bool, len::Integer) #hostbuf
+    
+    @compat function Buffer(mem_id::CL_mem, retain::Bool, sz::Tuple{Vararg{Integer}})       
+        len = prod(sz)
         @assert len > 0
         @assert mem_id != C_NULL
         if retain
             @check api.clRetainMemObject(mem_id)
         end
         nbytes = sizeof(T) * len
-        buff = new(true, mem_id, len, false, C_NULL)
+        buff = new(true, mem_id, sz, false, C_NULL)
         finalizer(buff, mem_obj -> begin
             if !mem_obj.valid
                 throw(CLMemoryError("Attempted to double free OpenCL.Buffer $mem_obj"))
@@ -26,12 +27,20 @@ type Buffer{T} <: CLMemObject
         end)
         return buff
     end
+
+    
 end
+
+function Base.call{T}(::Type{Buffer{T}}, mem_id::CL_mem, retain::Bool, len::Integer)
+    Buffer{T}(mem_id, retain, (len,))
+end
+
 
 Base.ndims(b::Buffer) = 1
 Base.eltype{T}(b::Buffer{T}) = T
-Base.length{T}(b::Buffer{T}) = @compat Int(b.len)
-Base.sizeof{T}(b::Buffer{T}) = @compat Int(b.len * sizeof(T))
+Base.size{T}(b::Buffer{T}) = b.sz
+Base.length{T}(b::Buffer{T}) = @compat Int(prod(size(b)))
+Base.sizeof{T}(b::Buffer{T}) = @compat Int(length(b) * sizeof(T))
 
 Base.show{T}(io::IO, b::Buffer{T}) = begin
     ptr_val = @compat convert(UInt, Base.pointer(b))

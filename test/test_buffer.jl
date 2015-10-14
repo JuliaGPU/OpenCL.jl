@@ -20,7 +20,7 @@ facts("OpenCL.Buffer") do
                                          length(testarray)) --> not(nothing) "no error"
 
             buf = cl.Buffer(Float32, ctx, cl.CL_MEM_ALLOC_HOST_PTR | cl.CL_MEM_READ_WRITE, length(testarray))
-            @fact buf.len --> length(testarray)
+            @fact length(buf) --> length(testarray)
 
             @fact cl.Buffer(Float32, ctx, cl.CL_MEM_COPY_HOST_PTR | cl.CL_MEM_READ_ONLY,
                                          hostbuf=testarray) --> not(nothing) "no error"
@@ -32,7 +32,7 @@ facts("OpenCL.Buffer") do
                                          hostbuf=testarray) --> not(nothing) "no error"
 
             buf = cl.Buffer(Float32, ctx, cl.CL_MEM_COPY_HOST_PTR | cl.CL_MEM_READ_WRITE, hostbuf=testarray)
-            @fact buf.len --> length(testarray)
+            @fact length(buf) --> length(testarray)
 
             @fact cl.Buffer(Float32, ctx, cl.CL_MEM_USE_HOST_PTR | cl.CL_MEM_READ_ONLY,
                                          hostbuf=testarray) --> not(nothing) "no error"
@@ -44,7 +44,7 @@ facts("OpenCL.Buffer") do
                                          hostbuf=testarray) --> not(nothing) "no error"
 
             buf = cl.Buffer(Float32, ctx, cl.CL_MEM_USE_HOST_PTR | cl.CL_MEM_READ_WRITE, hostbuf=testarray)
-            @fact buf.len --> length(testarray)
+            @fact length(buf) --> length(testarray)
 
             # invalid buffer size should throw error
             @fact_throws cl.Buffer(Float32, ctx, cl.CL_MEM_ALLOC_HOST_PTR, +0) "error"
@@ -86,12 +86,12 @@ facts("OpenCL.Buffer") do
                          if mf2 == :copy || mf2 == :use
                              @fact cl.Buffer(mtype, ctx, (mf1, mf2), hostbuf=testarray) --> not(nothing) "no error"
                              buf = cl.Buffer(mtype, ctx, (mf1, mf2), hostbuf=testarray)
-                             @fact buf.len --> length(testarray)
+                             @fact length(buf) --> length(testarray)
                          elseif mf2 == :alloc
                              @fact cl.Buffer(mtype, ctx, (mf1, mf2),
                                                           length(testarray)) --> not(nothing) "no error"
                              buf = cl.Buffer(mtype, ctx, (mf1, mf2), length(testarray))
-                             @fact buf.len --> length(testarray)
+                             @fact length(buf) --> length(testarray)
                          end
                      end
                  end
@@ -127,7 +127,7 @@ facts("OpenCL.Buffer") do
              queue = cl.CmdQueue(ctx)
              testarray = zeros(Float32, 1000)
              buf = cl.Buffer(Float32, ctx, (:rw, :copy), hostbuf=testarray)
-             @fact buf.len == length(testarray) --> true
+             @fact length(buf) == length(testarray) --> true
 
              v = cl.opencl_version(device)
              if v.major == 1 && v.minor < 2
@@ -149,7 +149,7 @@ facts("OpenCL.Buffer") do
             queue = cl.CmdQueue(ctx)
             testarray = zeros(Float32, 1000)
             buf = cl.Buffer(Float32, ctx, (:rw, :copy), hostbuf=testarray)
-            @fact buf.len == length(testarray) --> true
+            @fact length(buf) == length(testarray) --> true
             cl.write!(queue, buf, ones(Float32, length(testarray)))
             readback = cl.read(queue, buf)
             @fact all(x -> x == 1.0, readback) --> true
