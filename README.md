@@ -12,9 +12,6 @@ It provides a high level api for OpenCL to make programing GPU's and multicore C
 
 OpenCL.jl provides access to OpenCL API versions 1.0, 1.1, 1.2 and 2.0.
 
-#### Support of Julia v0.4
-Currently `OpenCL.jl` only supports Julia v0.3 due to some breaking changes in Julia v0.4. Support is comming as soon as Julia v0.4 is entering its prerelease phase.
-
 #### This package is based off the work of others:
   * [PyOpenCL] by Andreas Klockner
   * [oclpb]    by Sean Ross
