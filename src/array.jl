@@ -1,28 +1,5 @@
 
-# sources of inspiration:
-#  - PyOpenCL
-#  - AbstractGPUArray.jl
-
-
-
-if !isdefined(:__EXPRESSION_HASHES__)
-    __EXPRESSION_HASHES__ = Set{UInt64}()
-end
-
-macro runonce(expr)
-    h = hash(expr)
-    return esc(quote
-        if !in($h, __EXPRESSION_HASHES__)
-            push!(__EXPRESSION_HASHES__, $h)
-            $expr
-        end
-    end)
-end
-
-
-
-
-@runonce type CLArray{T,N} <: CLObject
+type CLArray{T,N} <: CLObject
     buffer::Buffer{T}
     size::NTuple{N,Int}
     t::Bool
@@ -80,7 +57,7 @@ end
 to_host{T,N}(q::CmdQueue, A::CLArray{T,N}) = begin
     hA = Array(T, size(A))
     copy!(q, hA, buffer(A))
-    return hA
+    return istransposed(A) ? hA' : A
 end
 
 
@@ -89,11 +66,3 @@ end
 Base.show{T,N}(io::IO, A::CLArray{T,N}) = 
     print(io, "CLArray{$T,$N}($(buffer(A)),$(size(A)))")
 
-
-function main()
-    import OpenCL: Buffer, Context, CLObject, CmdQueue, copy!
-    device, ctx, queue = OpenCL.create_compute_context()
-
-    A = CLArray(ctx, rand(100, 20))
-    
-end
