@@ -44,6 +44,9 @@ include("memory.jl")
 # OpenCL Buffer
 include("buffer.jl")
 
+# Multidimensional array
+include("array.jl")
+
 # OpenCL Program
 include("program.jl")
 
