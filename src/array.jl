@@ -55,9 +55,11 @@ end
 ##  to_host
 
 to_host{T,N}(q::CmdQueue, A::CLArray{T,N}) = begin
-    hA = Array(T, size(A))
-    copy!(q, hA, buffer(A))
-    return istransposed(A) ? hA' : A
+    t = istransposed(A)
+    nA = t ? A' : A            # "untranspose" if needed
+    hA = Array(T, size(nA))
+    copy!(q, hA, buffer(nA))
+    return t ? hA' : hA        # transpose result if needed
 end
 
 
