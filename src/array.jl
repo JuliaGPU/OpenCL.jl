@@ -10,7 +10,7 @@ typealias CLVector{T} CLArray{T,1}
 
 ##  main constructors (overload them if you add new fields)
 
-function CLArray{T,N}(ctx::Context, flags::Tuple{Vararg{Symbol}},
+@compat function CLArray{T,N}(ctx::Context, flags::Tuple{Vararg{Symbol}},
                       hostarray::AbstractArray{T,N})
     buf = Buffer(T, ctx, flags, hostbuf=hostarray)
     sz = size(hostarray)
