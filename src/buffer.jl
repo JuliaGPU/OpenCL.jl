@@ -16,9 +16,6 @@ type Buffer{T} <: CLMemObject
         nbytes = sizeof(T) * len
         buff = new(true, mem_id, len, false, C_NULL)
         finalizer(buff, mem_obj -> begin
-            if !mem_obj.valid
-                throw(CLMemoryError("Attempted to double free OpenCL.Buffer $mem_obj"))
-            end
             release!(mem_obj)
             mem_obj.valid   = false
             mem_obj.mapped  = false

@@ -19,9 +19,6 @@ Base.sizeof(mem::CLMemObject) = begin
 end
 
 function release!(mem::CLMemObject)
-    if !mem.valid
-        throw(CLMemoryError("attempted to double free mem object $mem"))
-    end
     if mem.id != C_NULL
         @check_release api.clReleaseMemObject(mem.id)
         mem.id = C_NULL
