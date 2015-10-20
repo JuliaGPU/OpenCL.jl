@@ -180,7 +180,7 @@ immutable CLError <: Exception
     desc::Symbol
 
     function CLError(c::Integer)
-        @compat new(c, _cl_error_codes[Int(c)])
+        @compat new(c, get(_cl_error_codes, Int(c), :CL_UNKNOWN_ERROR_CODE))
     end
 end
 
@@ -188,9 +188,5 @@ Base.show(io::IO, err::CLError) =
         Base.print(io, "CLError(code=$(err.code), $(err.desc))")
 
 function error_description(err::CLError)
-    try
-        _cl_error_descriptions[err.code]
-    catch
-        return "no description for error $(err.desc)"
-    end
+    get(_cl_error_descriptions, err.code, "no description for error $(err.code)")
 end
