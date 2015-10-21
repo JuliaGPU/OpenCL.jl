@@ -149,16 +149,21 @@ end
 kernel_source = open(readall, joinpath(src_dir, "C_row_priv.cl"))
 prg  = cl.Program(ctx, source=kernel_source) |> cl.build!
 mmul = cl.Kernel(prg, "mmul")
+wk_size = cl.info(first(cl.devices(ctx)), :max_work_group_size)
+if Ndim * (ORDER ÷ 16) >= wk_size
+    warn("Specified work_size is bigger than $wk_size")
+else
 
 info("=== OpenCL, matrix mult, C row, A row in priv mem, order $Ndim ====")
 
 for i in 1:COUNT
     fill!(h_C, 0.0)
-    evt = @compat cl.call(queue, mmul, (Ndim,), (ORDER ÷ 16,),
+    evt = @compat cl.call(queue, mmul, (Ndim,), (ORDER,),
                           Int32(Mdim), Int32(Ndim), Int32(Pdim),
                           d_a, d_b, d_c)
     # profiling events are measured in ns
     run_time = evt[:profile_duration] / 1e9
     cl.copy!(queue, h_C, d_c)
     results(Mdim, Ndim, Pdim, h_C, run_time)
+end
 end
