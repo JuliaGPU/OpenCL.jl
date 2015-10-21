@@ -10,7 +10,7 @@ type Event <: CLEvent
             @check api.clRetainEvent(evt_id)
         end
         evt = new(evt_id)
-        finalizer(evt, release!)
+        finalizer(evt, _finalize)
         return evt
     end
 end
@@ -28,20 +28,16 @@ type NannyEvent <: CLEvent
         finalizer(nanny_evt, x -> begin
             wait(x)
             x.obj = nothing
-            release!(x)
+            if evt.id != C_NULL
+                @check api.clReleaseEvent(evt.id)
+                evt.id = C_NULL
+            end
         end)
         nanny_evt
     end
 end
 
 NannyEvent(evt::Event, obj::Any; retain=false) = NannyEvent(evt.id, obj, retain=retain)
-
-function release!(evt::CLEvent)
-    if evt.id != C_NULL
-        @check api.clReleaseEvent(evt.id)
-        evt.id = C_NULL
-    end
-end
 
 Base.pointer(evt::CLEvent) = evt.id
 

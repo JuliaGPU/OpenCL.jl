@@ -8,8 +8,15 @@ type Kernel <: CLObject
             @check api.clRetainKernel(k)
         end
         kernel = new(k)
-        finalizer(kernel, x -> release!(x))
+        finalizer(kernel, _finalize)
         return kernel
+    end
+end
+
+function _finalize(k::Kernel)
+    if k.id != C_NULL
+        @check api.clReleaseKernel(k.id)
+        k.id = C_NULL
     end
 end
 
@@ -20,13 +27,6 @@ Base.show(io::IO, k::Kernel) = begin
 end
 
 Base.getindex(k::Kernel, kinfo::Symbol) = info(k, kinfo)
-
-function release!(k::Kernel)
-    if k.id != C_NULL
-        @check api.clReleaseKernel(k.id)
-        k.id = C_NULL
-    end
-end
 
 function Kernel(p::Program, kernel_name::AbstractString)
     for (dev, status) in info(p, :build_status)

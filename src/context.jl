@@ -10,16 +10,12 @@ type Context <: CLObject
         ctx = new(ctx_id)
         finalizer(ctx, c -> begin
             retain || _deletecached!(c);
-            release!(c)
+            if ctx.id != C_NULL
+                @check api.clReleaseContext(ctx.id)
+                ctx.id = C_NULL
+            end
         end )
         return ctx
-    end
-end
-
-function release!(ctx::Context)
-    if ctx.id != C_NULL
-        @check api.clReleaseContext(ctx.id)
-        ctx.id = C_NULL
     end
 end
 

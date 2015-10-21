@@ -53,5 +53,5 @@ include("kernel.jl")
 # Util functions
 include("util.jl")
 
-
+@deprecate release! finalize
 end # module
