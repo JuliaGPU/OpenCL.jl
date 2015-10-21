@@ -19,7 +19,7 @@ type Buffer{T} <: CLMemObject
             if !mem_obj.valid
                 throw(CLMemoryError("Attempted to double free OpenCL.Buffer $mem_obj"))
             end
-            release!(mem_obj)
+            _finalize(mem_obj)
             mem_obj.valid   = false
             mem_obj.mapped  = false
             mem_obj.hostbuf = C_NULL

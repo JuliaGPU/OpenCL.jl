@@ -18,7 +18,7 @@ Base.sizeof(mem::CLMemObject) = begin
     return val[1]
 end
 
-function release!(mem::CLMemObject)
+function _finalize(mem::CLMemObject)
     if !mem.valid
         throw(CLMemoryError("attempted to double free mem object $mem"))
     end
