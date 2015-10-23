@@ -10,8 +10,15 @@ type Program <: CLObject
             @check api.clRetainProgram(program_id)
         end
         p = new(program_id, binary)
-        finalizer(p, prog -> release!(prog))
+        finalizer(p, _finalize)
         return p
+    end
+end
+
+function _finalize(p::Program)
+    if p.id != C_NULL
+        @check api.clReleaseProgram(p.id)
+        p.id = C_NULL
     end
 end
 
@@ -24,13 +31,6 @@ end
 Base.pointer(p::Program) = p.id
 
 Base.getindex(p::Program, pinfo::Symbol) = info(p, pinfo)
-
-function release!(p::Program)
-    if p.id != C_NULL
-        @check api.clReleaseProgram(p.id)
-        p.id = C_NULL
-    end
-end
 
 function Program(ctx::Context; source=nothing, binaries=nothing)
     local program_id::CL_program

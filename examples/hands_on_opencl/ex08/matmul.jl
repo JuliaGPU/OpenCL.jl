@@ -148,6 +148,10 @@ end
 kernel_source = open(readall, joinpath(src_dir, "C_row_priv_block.cl"))
 prg  = cl.Program(ctx, source=kernel_source) |> cl.build!
 mmul = cl.Kernel(prg, "mmul")
+wk_size = cl.info(first(cl.devices(ctx)), :max_work_group_size)
+if Ndim * (ORDER ÷ 16) >= wk_size
+    warn("Specified work_size is bigger than $wk_size")
+else
 
 info("=== OpenCL, matrix mult, C row, priv A, B, cols loc, order $Ndim ====")
 
@@ -165,6 +169,7 @@ for i in 1:COUNT
     cl.copy!(queue, h_C, d_c)
     results(Mdim, Ndim, Pdim, h_C, run_time)
 end
+end
 
 #--------------------------------------------------------------------------------
 # OpenCL matrix multiplication ... C row per work item, A row pivate, B col local
@@ -172,6 +177,10 @@ end
 kernel_source = open(readall, joinpath(src_dir, "C_block_form.cl"))
 prg  = cl.Program(ctx, source=kernel_source) |> cl.build!
 mmul = cl.Kernel(prg, "mmul")
+wk_size = cl.info(first(cl.devices(ctx)), :max_work_group_size)
+if Ndim * (ORDER ÷ 16) >= wk_size
+    warn("Specified work_size is bigger than $wk_size")
+else
 
 info("=== OpenCL, matrix mult, A and B in block form in local memory, order $Ndim ====")
 blocksize = 16
@@ -187,4 +196,5 @@ for i in 1:COUNT
     run_time = evt[:profile_duration] / 1e9
     cl.copy!(queue, h_C, d_c)
     results(Mdim, Ndim, Pdim, h_C, run_time)
+end
 end
