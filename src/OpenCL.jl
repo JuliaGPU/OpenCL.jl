@@ -44,9 +44,6 @@ include("memory.jl")
 # OpenCL Buffer
 include("buffer.jl")
 
-# Multidimensional array
-include("array.jl")
-
 # OpenCL Program
 include("program.jl")
 
@@ -56,5 +53,7 @@ include("kernel.jl")
 # Util functions
 include("util.jl")
 
+# Multidimensional array
+include("array.jl")
 
 end # module
