@@ -26,14 +26,18 @@ type NannyEvent <: CLEvent
         end
         nanny_evt = new(evt_id, obj)
         finalizer(nanny_evt, x -> begin
-            wait(x)
+            _finalize(x)
             x.obj = nothing
-            if evt.id != C_NULL
-                @check api.clReleaseEvent(evt.id)
-                evt.id = C_NULL
-            end
         end)
         nanny_evt
+    end
+end
+
+function _finalize(evt::CLEvent)
+    wait(evt)   # should this be inside the if statement?
+    if evt.id != C_NULL
+        @check api.clReleaseEvent(evt.id)
+        evt.id = C_NULL
     end
 end
 
@@ -59,7 +63,7 @@ Base.getindex(evt::CLEvent, evt_info::Symbol) = info(evt, evt_info)
                 @check api.clRetainEvent(evt_id)
             end
             evt = new(evt_id)
-            finalizer(evt, release!)
+            finalizer(evt, _finalize)
             return evt
         end
     end
