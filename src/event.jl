@@ -26,15 +26,15 @@ type NannyEvent <: CLEvent
         end
         nanny_evt = new(evt_id, obj)
         finalizer(nanny_evt, x -> begin
-            _finalize(x)
+            wait(x)
             x.obj = nothing
+            _finalize(x)
         end)
         nanny_evt
     end
 end
 
 function _finalize(evt::CLEvent)
-    wait(evt)   # should this be inside the if statement?
     if evt.id != C_NULL
         @check api.clReleaseEvent(evt.id)
         evt.id = C_NULL
