@@ -10,9 +10,9 @@ type Context <: CLObject
         ctx = new(ctx_id)
         finalizer(ctx, c -> begin
             retain || _deletecached!(c);
-            if ctx.id != C_NULL
-                @check api.clReleaseContext(ctx.id)
-                ctx.id = C_NULL
+            if c.id != C_NULL
+                @check api.clReleaseContext(c.id)
+                c.id = C_NULL
             end
         end )
         return ctx

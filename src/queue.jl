@@ -10,9 +10,9 @@ type CmdQueue <: CLObject
         q = new(q_id)
         finalizer(q, x -> begin
             retain || _deletecached!(q)
-            if q.id != C_NULL
-                @check api.clReleaseCommandQueue(q.id)
-                q.id = C_NULL
+            if x.id != C_NULL
+                @check api.clReleaseCommandQueue(x.id)
+                x.id = C_NULL
             end
         end )
         return q
