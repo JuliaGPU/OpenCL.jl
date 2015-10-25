@@ -354,7 +354,7 @@ end
 end
 
 # copy the contents of a buffer into an array
-function copy!{T}(q::CmdQueue, dst::Array{T}, src::Buffer{T})
+function Base.copy!{T}(q::CmdQueue, dst::Array{T}, src::Buffer{T})
     if sizeof(dst) != sizeof(src)
         throw(ArgumentError("Buffer and Array to be copied must be the same size"))
     end
@@ -363,7 +363,7 @@ function copy!{T}(q::CmdQueue, dst::Array{T}, src::Buffer{T})
 end
 
 # copy the contents of an array into a buffer
-function copy!{T}(q::CmdQueue, dst::Buffer{T}, src::Array{T})
+function Base.copy!{T}(q::CmdQueue, dst::Buffer{T}, src::Array{T})
     if sizeof(dst) != sizeof(src)
         throw(ArgumentError("Array and Buffer to be copied must be the same size"))
     end
@@ -373,7 +373,7 @@ function copy!{T}(q::CmdQueue, dst::Buffer{T}, src::Array{T})
 end
 
 # copy the contents of a buffer into another buffer
-function copy!{T}(q::CmdQueue, dst::Buffer{T}, src::Buffer{T})
+function Base.copy!{T}(q::CmdQueue, dst::Buffer{T}, src::Buffer{T})
     if sizeof(dst) != sizeof(src)
         throw(ArgumentError("Buffers to be copied must be the same size"))
     end
@@ -385,7 +385,7 @@ function copy!{T}(q::CmdQueue, dst::Buffer{T}, src::Buffer{T})
 end
 
 # copy bufer into identical buffer object
-function copy{T}(q::CmdQueue, src::Buffer{T})
+function Base.copy{T}(q::CmdQueue, src::Buffer{T})
     nbytes = sizeof(src)
     new_buff = empty_like(q[:context], src)
     copy!(q, new_buff, src)
