@@ -30,4 +30,5 @@ module TestOpenCL
     include("test_array.jl")
 
     FactCheck.exitstatus()
+
 end # module

@@ -23,11 +23,7 @@ OpenCL.jl provides access to OpenCL API versions 1.0, 1.1, 1.2 and 2.0.
 [Boost.Compute]:https://github.com/kylelutz/compute
 [rust-opencl]: https://github.com/luqmana/rust-opencl
 
-#### Contributors
- * Jake Bolewski (@jakebolewski)
- * Valentin Churavy (@vchuravy)
- * Simon Danisch (@SimonDanisch)
-
+OpenCL.jl has had contributions from [many developers](https://github.com/JuliaGPU/OpenCL.jl/graphs/contributors).
 
 ## Setup
 1. Install an OpenCL driver. If you use OSX, OpenCL is already available

@@ -16,6 +16,7 @@ facts("OpenCL.Event") do
                 @fact evt[:status] --> :submitted
                 cl.complete(evt)
                 @fact evt[:status] --> :complete
+                finalize(evt)
             end
         end
     end
