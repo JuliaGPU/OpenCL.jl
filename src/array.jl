@@ -25,7 +25,7 @@ function CLArray{T,N}(ctx::Context, hostarray::AbstractArray{T,N};
     CLArray(ctx, CmdQueue(ctx), (:rw, :copy), hostarray)
 end
 
-function CLArray{T}(buf::Buffer{T}, sz::Tuple{Vararg{Int}})
+@compat function CLArray{T}(buf::Buffer{T}, sz::Tuple{Vararg{Int}})
     ctx = context(buf)
     queue = CmdQueue(ctx)
     CLArray(context(buf), queue, buf, sz)
