@@ -54,15 +54,10 @@ facts("OpenCL.CLArray") do
         for device in cl.devices()
             ctx = cl.Context(device)
             queue = cl.CmdQueue(ctx)
-            A = CLArray(ctx, rand(Float32, 128, 64))
-            B = cl.zeros(Float32, queue, 64, 128)
+            A = CLArray(ctx, rand(Float32, 32, 64))
+            B = cl.zeros(Float32, queue, 64, 32)
             transpose!(B, A) 
-            @fact cl.to_host(A') --> cl.to_host(B)
-            # double
-            Ad = CLArray(ctx, rand(Float64, 128, 64))
-            Bd = cl.zeros(Float64, queue, 64, 128)
-            transpose!(Bd, Ad) 
-            @fact cl.to_host(Ad') --> cl.to_host(Bd)
+            @fact cl.to_host(A') --> cl.to_host(B)            
         end
      end
 
