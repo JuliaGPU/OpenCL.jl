@@ -18,9 +18,7 @@ script:
   - julia -e 'Pkg.init(); Pkg.clone(pwd())'
   - julia -e 'using OpenCL; @assert isdefined(:OpenCL); @assert typeof(OpenCL) === Module'
 
-  - julia -e 'Pkg.add("FactCheck");'
-
-  - julia --color=yes test/runtests.jl
+  - julia --color=yes --depwarn=error test/runtests.jl
 
   - julia examples/demo.jl
   - julia examples/performance.jl
