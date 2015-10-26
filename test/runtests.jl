@@ -27,6 +27,7 @@ module TestOpenCL
     include("test_behaviour.jl")
     include("test_memory.jl")
     include("test_buffer.jl")
+    include("test_array.jl")
 
     FactCheck.exitstatus()
 

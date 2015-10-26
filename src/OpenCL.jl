@@ -53,5 +53,8 @@ include("kernel.jl")
 # Util functions
 include("util.jl")
 
+# Multidimensional array
+include("array.jl")
+
 @deprecate release! finalize
 end # module
