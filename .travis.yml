@@ -1,28 +1,39 @@
 language: julia
+
 os:
   - linux
   - osx
+
 julia:
   - 0.3
   - 0.4
   - nightly
+
 notifications:
   email: false
+
 before_install:
   - if [ $TRAVIS_OS_NAME = "linux" ]; then
       sudo apt-get update -qq -y;
       sudo apt-get install -qq fglrx opencl-headers;
     fi;
   - if [[ -a .git/shallow ]]; then git fetch --unshallow; fi
+
 script:
   - julia -e 'Pkg.init(); Pkg.clone(pwd())'
   - julia -e 'using OpenCL; @assert isdefined(:OpenCL); @assert typeof(OpenCL) === Module'
 
   - if [ $TRAVIS_JULIA_VERSION = "0.3"]; then
-      julia -e 'Pkg.add("FactCheck")'
-      julia --color=yes test/runtests.jl
-    else
-      julia --color=yes --depwarn=error test/runtests.jl
+      julia -e 'Pkg.add("FactCheck")';
+      julia --color=yes test/runtests.jl;
+    fi;
+
+  - if [ $TRAVIS_JULIA_VERSION = "0.4"]; then
+      julia --color=yes --depwarn=error test/runtests.jl;
+    fi;
+
+  - if [ $TRAVIS_JULIA_VERSION = "nightly"]; then
+      julia --color=yes --depwarn=error test/runtests.jl;
     fi;
 
   - julia examples/demo.jl
@@ -45,5 +56,6 @@ script:
   - if [ $TRAVIS_OS_NAME = "linux" ]; then
       julia examples/hands_on_opencl/exA/pi_vocl.jl 8;
     fi;
+
 after_success:
   - julia -e 'Pkg.add("Coverage"); using Coverage; Coveralls.submit(Coveralls.process_folder())'; fi
