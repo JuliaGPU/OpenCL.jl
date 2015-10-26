@@ -4,7 +4,9 @@ facts("OpenCL.Context") do
         @fact_throws (cl.Context([])) "error"
         for platform in cl.platforms()
             for device in cl.devices(platform)
-                @fact cl.Context(device) --> not(nothing) "no error"
+                ctx = cl.Context(device)
+                @fact ctx --> not(nothing) "no error"
+                finalize(ctx)
             end
         end
     end

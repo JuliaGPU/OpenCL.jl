@@ -29,4 +29,5 @@ module TestOpenCL
     include("test_buffer.jl")
 
     FactCheck.exitstatus()
+
 end # module
