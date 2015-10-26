@@ -66,6 +66,7 @@ Base.ones(q::CmdQueue, dims...) = fill(Float64, q, Float64(1), dims...)
 buffer(A::CLArray) = A.buffer
 bufptr(A::CLArray) = A.buffer.id
 context(A::CLArray) = context(A.buffer)
+queue(A::CLArray) = context(A.queue)
 Base.size(A::CLArray) = A.size
 Base.ndims(A::CLArray) = length(size(A))
 Base.length(A::CLArray) = prod(size(A))
@@ -80,7 +81,6 @@ end
 
 Base.show{T,N}(io::IO, A::CLArray{T,N}) =
     print(io, "CLArray{$T,$N}($(buffer(A)),$(size(A)))")
-
 
 ##  to_host
 
@@ -118,7 +118,6 @@ function build_kernel(ctx::Context, program::AbstractString,
 end
 
 ## other array operations
-
 
 """Transpose CLMatrix A, write result to a preallicated CLMatrix B"""
 function Base.transpose!(B::CLMatrix{Float32}, A::CLMatrix{Float32};
@@ -162,19 +161,3 @@ function Base.transpose(A::CLMatrix{Float64};
     return B
 end
 
-
-
-
-function main()
-    ## import OpenCL: CLArray, CLObject, Buffer, CmdQueue, Program, Kernel, LocalMem
-    ## import OpenCL: create_compute_context, build!, context, set_args!
-    ## import OpenCL: enqueue_kernel, build_kernel
-    import OpenCL: CLArray
-    const cl = OpenCL
-    device, ctx, queue = cl.create_compute_context()
-    A = CLArray(ctx, rand(Float32, 64, 64))
-    B = cl.zeros(Float32, ctx, 64, 64)
-    ev = transpose!(B, A, queue=queue)
-
-
-end
