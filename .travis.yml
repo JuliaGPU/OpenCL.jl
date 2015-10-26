@@ -18,7 +18,12 @@ script:
   - julia -e 'Pkg.init(); Pkg.clone(pwd())'
   - julia -e 'using OpenCL; @assert isdefined(:OpenCL); @assert typeof(OpenCL) === Module'
 
-  - julia --color=yes --depwarn=error test/runtests.jl
+  - if [ $TRAVIS_JULIA_VERSION = "0.3"]; then
+      julia -e 'Pkg.add("FactCheck")'
+      julia --color=yes test/runtests.jl
+    else
+      julia --color=yes --depwarn=error test/runtests.jl
+    fi;
 
   - julia examples/demo.jl
   - julia examples/performance.jl
@@ -27,6 +32,7 @@ script:
   - julia examples/hands_on_opencl/ex06/matmul.jl
   - julia examples/hands_on_opencl/ex07/matmul.jl
   - julia examples/hands_on_opencl/ex08/matmul.jl
+
   - if [ $TRAVIS_OS_NAME = "linux" ]; then
       julia examples/hands_on_opencl/ex09/pi_ocl.jl;
     fi;
