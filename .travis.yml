@@ -29,11 +29,11 @@ script:
     fi;
 
   - if [ $TRAVIS_JULIA_VERSION = "0.4" ]; then
-      julia --color=yes --depwarn=error test/runtests.jl;
+      julia --color=yes --depwarn=error -e "Pkg.test(\"OpenCL\")";
     fi;
 
   - if [ $TRAVIS_JULIA_VERSION = "nightly" ]; then
-      julia --color=yes --depwarn=error test/runtests.jl;
+      julia --color=yes --depwarn=error -e "Pkg.test(\"OpenCL\")";
     fi;
 
   - julia examples/demo.jl
