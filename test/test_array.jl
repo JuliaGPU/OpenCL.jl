@@ -7,7 +7,7 @@ facts("OpenCL.CLArray") do
 
             ctx = cl.Context(device)
             queue = cl.CmdQueue(ctx)
-            hostarray = zeros(Float32, 128*64)
+            hostarray = zeros(Float32, 32*64)
             A = CLArray(ctx, hostarray)
 
             @fact CLArray(ctx, queue, (:rw, :copy), hostarray) --> not(nothing) "no error"
@@ -18,7 +18,7 @@ facts("OpenCL.CLArray") do
             @fact CLArray(ctx, hostarray) --> not(nothing) "no error"
 
             @fact CLArray(cl.Buffer(Float32, ctx, (:r, :copy), hostbuf=hostarray),
-                          (128, 64)) --> not(nothing) "no error"
+                          (32, 64)) --> not(nothing) "no error"
 
             @fact copy(A) --> A
         end
