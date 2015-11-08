@@ -56,7 +56,7 @@ facts("OpenCL.CLArray") do
             queue = cl.CmdQueue(ctx)
             A = CLArray(ctx, rand(Float32, 32, 64))
             B = cl.zeros(Float32, queue, 64, 32)
-            Base.transpose!(B, A; block_size=16) 
+            Base.transpose!(B, A; block_size=8) 
             @fact cl.to_host(A)' --> cl.to_host(B)            
         end
      end
