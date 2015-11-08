@@ -51,13 +51,19 @@ facts("OpenCL.CLArray") do
      end
 
     context("OpenCL.CLArray transpose") do
-        for device in cl.devices()
-            ctx = cl.Context(device)
-            queue = cl.CmdQueue(ctx)
-            A = CLArray(ctx, rand(Float32, 32, 64))
-            B = cl.zeros(Float32, queue, 64, 32)
-            Base.transpose!(B, A; block_size=8) 
-            @fact cl.to_host(A)' --> cl.to_host(B)            
+        # Travis has too little LocalMemory, so it's not possible to test
+        # optimized transpose
+        if ENV["TRAVIS"] != "true"
+            for device in cl.devices()
+                ctx = cl.Context(device)
+                queue = cl.CmdQueue(ctx)
+                A = CLArray(ctx, rand(Float32, 32, 64))
+                B = cl.zeros(Float32, queue, 64, 32)
+                Base.transpose!(B, A)
+                @fact cl.to_host(A') --> cl.to_host(B)
+            end
+        else
+            warn("Running tests on Travis, not checking transpose")
         end
      end
 
