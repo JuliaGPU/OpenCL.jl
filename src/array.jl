@@ -55,10 +55,10 @@ function Base.fill{T}(::Type{T}, q::CmdQueue, x::T, dims...)
     return CLArray(buf, dims)
 end
 
-Base.zeros{T}(::Type{T}, q::CmdQueue, dims...) = fill(T, q, T(0), dims...)
-Base.zeros(q::CmdQueue, dims...) = fill(Float64, q, Float64(0), dims...)
-Base.ones{T}(::Type{T}, q::CmdQueue, dims...) = fill(T, q, T(1), dims...)
-Base.ones(q::CmdQueue, dims...) = fill(Float64, q, Float64(1), dims...)
+Base.zeros{T}(::Type{T}, q::CmdQueue, dims...) = fill(T, q, convert(T, 0), dims...)
+Base.zeros(q::CmdQueue, dims...) = fill(Float64, q, @compat Float64(0), dims...)
+Base.ones{T}(::Type{T}, q::CmdQueue, dims...) = fill(T, q, convert(T, 1), dims...)
+Base.ones(q::CmdQueue, dims...) = fill(Float64, q, @compat Float64(1), dims...)
 
 
 ##  core functions
@@ -102,7 +102,8 @@ function Base.transpose!(B::CLMatrix{Float32}, A::CLMatrix{Float32};
                           block_size=block_size)
     h, w = size(A)
     lmem = LocalMem(Float32, block_size * (block_size + 1))
-    set_args!(kernel, buffer(B), buffer(A), UInt32(h), UInt32(w), lmem)
+    set_args!(kernel, buffer(B), buffer(A),
+              @compat(UInt32(h)), @compat(UInt32(w)), lmem)
     return enqueue_kernel(queue, kernel, (h, w), (block_size, block_size))
 end
 
@@ -110,7 +111,7 @@ end
 function Base.transpose(A::CLMatrix{Float32};
                         queue=A.queue, block_size=32)
     B = zeros(Float32, queue, reverse(size(A))...)
-    ev = transpose!(B, A, queue=queue, block_size=block_size)
+    ev = Base.transpose!(B, A, queue=queue, block_size=block_size)
     wait(ev)
     return B
 end
@@ -123,7 +124,8 @@ function Base.transpose!(B::CLMatrix{Float64}, A::CLMatrix{Float64};
                           block_size=block_size)
     h, w = size(A)
     lmem = LocalMem(Float64, block_size * (block_size + 1))
-    set_args!(kernel, buffer(B), buffer(A), UInt32(h), UInt32(w), lmem)
+    set_args!(kernel, buffer(B), buffer(A),
+              @compat(UInt32(h)), @compat(UInt32(w)), lmem)
     return enqueue_kernel(queue, kernel, (h, w), (block_size, block_size))
 end
 
@@ -131,7 +133,7 @@ end
 function Base.transpose(A::CLMatrix{Float64};
                         queue=A.queue, block_size=32)
     B = zeros(Float64, queue, reverse(size(A))...)
-    ev = transpose!(B, A, queue=queue, block_size=block_size)
+    ev = Base.transpose!(B, A, queue=queue, block_size=block_size)
     wait(ev)
     return B
 end
