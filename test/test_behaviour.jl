@@ -35,7 +35,7 @@ facts("OpenCL Hello World Test") do
         cl.call(queue, kern, str_len, nothing, out_buf)
         h = cl.read(queue, out_buf)
 
-        @fact bytestring(Compat.unsafe_convert(Ptr{Cchar}, h)) --> hello_world_str
+        @fact bytestring(Base.unsafe_convert(Ptr{Cchar}, h)) --> hello_world_str
     end
 end
 
@@ -215,11 +215,11 @@ immutable Params
     X2::Float32
     C::Int32
     Params(a, b, x, c) = begin
-        @compat new(Float32(a),
-                    Float32(b),
-                    Float32(x[1]),
-                    Float32(x[2]),
-                    Int32(c))
+        new(Float32(a),
+            Float32(b),
+            Float32(x[1]),
+            Float32(x[2]),
+            Int32(c))
     end
 end
 

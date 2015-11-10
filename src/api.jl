@@ -1,7 +1,5 @@
 module api
 
-using Compat
-
 include("types.jl")
 
 @osx_only begin
@@ -46,7 +44,7 @@ function parse_version(version_string)
     if mg === nothing
         error("Non conforming version string: $(ver)")
     end
-    return @compat VersionNumber(parse(Int, mg.captures[1]),
+    return VersionNumber(parse(Int, mg.captures[1]),
                                  parse(Int, mg.captures[2]))
 end
 

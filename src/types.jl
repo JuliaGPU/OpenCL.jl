@@ -113,18 +113,18 @@ end
 
 #=== Conversion Functions ===#
 
-cl_char(x)     = @compat Int8(x)
-cl_uchar(x)    = @compat UInt8(x)
-cl_short(x)    = @compat Int16(x)
-cl_ushort(x)   = @compat UInt16(x)
-cl_int(x)      = @compat Int32(x)
-cl_uint(x)     = @compat UInt32(x)
-cl_long(x)     = @compat Int64(x)
-cl_ulong(x)    = @compat UInt64(x)
+cl_char(x)     = Int8(x)
+cl_uchar(x)    = UInt8(x)
+cl_short(x)    = Int16(x)
+cl_ushort(x)   = UInt16(x)
+cl_int(x)      = Int32(x)
+cl_uint(x)     = UInt32(x)
+cl_long(x)     = Int64(x)
+cl_ulong(x)    = UInt64(x)
 
-cl_half(x)     = @compat UInt16(x)
-cl_float(x)    = @compat Float32(x)
-cl_double(x)   = @compat Float64(x)
+cl_half(x)     = UInt16(x)
+cl_float(x)    = Float32(x)
+cl_double(x)   = Float64(x)
 
 cl_bool(x)     = x != 0 ? cl_uint(1) : cl_uint(0)
 cl_bitfield(x) = cl_ulong(x)
@@ -168,9 +168,4 @@ cl_command_type(x)             = cl_uint(x)
 cl_profiling_info(x)           = cl_uint(x)
 cl_sampler_properties(x)       = cl_bitfield(x)
 cl_kernel_exec(x)              = cl_uint(x)
-
-if VERSION < v"0.4.0-dev+1419"
-    cl_platform_id(x) = convert(Ptr{Void}, x)
-else
-    cl_platform_id(x) = Ptr{Void}(x)
-end
+cl_platform_id(x)              = Ptr{Void}(x)

@@ -56,9 +56,9 @@ end
 Base.ndims(l::LocalMem) = 1
 Base.eltype{T}(l::LocalMem{T}) = T
 Base.sizeof{T}(l::LocalMem{T}) = l.nbytes
-Base.length{T}(l::LocalMem{T}) = @compat Int(l.nbytes ÷ sizeof(T))
+Base.length{T}(l::LocalMem{T}) = Int(l.nbytes ÷ sizeof(T))
 
-@compat function set_arg!(k::Kernel, idx::Integer, arg::Void)
+function set_arg!(k::Kernel, idx::Integer, arg::Void)
     @assert idx > 0
     @check api.clSetKernelArg(k.id, cl_uint(idx-1), sizeof(CL_mem), C_NULL)
     return k
@@ -112,18 +112,18 @@ function work_group_info(k::Kernel, winfo::CL_kernel_work_group_info, d::Device)
         result = CL_ulong[0]
         @check api.clGetKernelWorkGroupInfo(k.id, d.id, winfo,
                                             sizeof(CL_ulong), result, C_NULL)
-        return @compat Int(result[1])
+        return Int(result[1])
     elseif winfo == CL_KERNEL_COMPILE_WORK_GROUP_SIZE
         size = Csize_t[0]
         @check api.clGetKernelWorkGroupInfo(k.id, d.id, winfo, 0, C_NULL, size)
         result = Array(Csize_t, size[1])
         @check api.clGetKernelWorkGroupInfo(k.id, d.id, winfo, sizeof(result), result, C_NULL)
-        return @compat map(Int, result)
+        return map(Int, result)
     else
         result = Csize_t[0]
         @check api.clGetKernelWorkGroupInfo(k.id, d.id, winfo,
                                             sizeof(CL_ulong), result, C_NULL)
-        return @compat Int(result[1])
+        return Int(result[1])
     end
 end
 
@@ -165,7 +165,7 @@ Base.getindex(k::Kernel, args...) = begin
 end
 
 # blocking kernel call that finishes queue
-@compat function call(q::CmdQueue, k::Kernel, global_work_size, local_work_size,
+function call(q::CmdQueue, k::Kernel, global_work_size, local_work_size,
                       args...; global_work_offset=nothing,
                       wait_on::Union{Void,Vector{Event}}=nothing)
     set_args!(k, args...)
@@ -182,7 +182,7 @@ function enqueue_kernel(q::CmdQueue, k::Kernel, global_work_size)
     enqueue_kernel(q, k, global_work_size, nothing)
 end
 
-@compat function enqueue_kernel(q::CmdQueue,
+function enqueue_kernel(q::CmdQueue,
                                 k::Kernel,
                                 global_work_size,
                                 local_work_size;
@@ -268,7 +268,7 @@ let name(k::Kernel) = begin
         result = Array(Cchar, size[1])
         @check api.clGetKernelInfo(k.id, CL_KERNEL_FUNCTION_NAME,
                                    size[1], result, size)
-        return bytestring(Compat.unsafe_convert(Ptr{Cchar}, result))
+        return bytestring(Base.unsafe_convert(Ptr{Cchar}, result))
     end
 
     num_args(k::Kernel) = begin
@@ -302,10 +302,10 @@ let name(k::Kernel) = begin
         result = Array(Cchar, size[1])
         @check api.clGetKernelInfo(k.id, CL_KERNEL_ATTRIBUTES,
                                    size[1], result, size)
-        return bytestring(Compat.unsafe_convert(Ptr{Cchar}, result))
+        return bytestring(Base.unsafe_convert(Ptr{Cchar}, result))
     end
 
-    const info_map = @compat Dict{Symbol, Function}(
+    const info_map = Dict{Symbol, Function}(
         :name => name,
         :num_args => num_args,
         :reference_count => reference_count,

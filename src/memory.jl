@@ -92,7 +92,7 @@ let mem_type(m::CLMemObject) = begin
         return result[1]
     end
 
-    info_map = @compat Dict{Symbol, Function}(
+    info_map = Dict{Symbol, Function}(
         :mem_type => mem_type,
         :mem_flags => mem_flags,
         :size => size,

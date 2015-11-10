@@ -5,7 +5,6 @@ os:
   - osx
 
 julia:
-  - 0.3
   - 0.4
   - nightly
 
@@ -23,18 +22,7 @@ script:
   - julia -e 'Pkg.init(); Pkg.clone(pwd())'
   - julia -e 'using OpenCL; @assert isdefined(:OpenCL); @assert typeof(OpenCL) === Module'
 
-  - if [ $TRAVIS_JULIA_VERSION = "0.3" ]; then
-      julia -e 'Pkg.add("FactCheck")';
-      julia --color=yes test/runtests.jl;
-    fi;
-
-  - if [ $TRAVIS_JULIA_VERSION = "0.4" ]; then
-      julia --color=yes --depwarn=error -e "Pkg.test(\"OpenCL\")";
-    fi;
-
-  - if [ $TRAVIS_JULIA_VERSION = "nightly" ]; then
-      julia --color=yes --depwarn=error -e "Pkg.test(\"OpenCL\")";
-    fi;
+  - julia --color=yes --depwarn=error -e "Pkg.test(\"OpenCL\")"
 
   - julia examples/demo.jl
   - julia examples/performance.jl

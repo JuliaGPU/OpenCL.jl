@@ -14,8 +14,6 @@
 #            Ported to Python by Tom Deakin, July 2013
 #            Ported to Julia by Jake Bolewski, Nov 2013
 
-using Compat
-
 import OpenCL
 const cl = OpenCL
 
@@ -76,8 +74,8 @@ sizeB = Pdim * Mdim
 sizeC = Ndim * Mdim
 
 # Number of elements in the matrix
-h_A = @compat fill(Float32(AVAL), sizeA)
-h_B = @compat fill(Float32(BVAL), sizeB)
+h_A = fill(Float32(AVAL), sizeA)
+h_B = fill(Float32(BVAL), sizeB)
 h_C = Array(Float32, sizeC)
 
 # %20 improvment using @inbounds
@@ -130,7 +128,7 @@ for i in 1:COUNT
     global_range = (Ndim, Mdim)
     mmul_ocl = mmul[queue, global_range]
 
-    evt = @compat mmul_ocl(Int32(Mdim), Int32(Ndim), Int32(Pdim),
+    evt = mmul_ocl(Int32(Mdim), Int32(Ndim), Int32(Pdim),
                            d_a, d_b, d_c)
 
     # profiling events are measured in ns

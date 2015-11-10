@@ -46,7 +46,7 @@ NannyEvent(evt::Event, obj::Any; retain=false) = NannyEvent(evt.id, obj, retain=
 Base.pointer(evt::CLEvent) = evt.id
 
 function Base.show(io::IO, evt::Event)
-    ptr_val = @compat convert(UInt, Base.pointer(evt))
+    ptr_val = convert(UInt, Base.pointer(evt))
     ptr_address = "0x$(hex(ptr_val, WORD_SIZE>>2))"
     print(io, "OpenCL.Event(@$ptr_address)")
 end
@@ -83,7 +83,7 @@ Base.getindex(evt::CLEvent, evt_info::Symbol) = info(evt, evt_info)
     end
 
     function Base.show(io::IO, evt::UserEvent)
-        ptr_val = @compat convert(UInt, Base.pointer(evt))
+        ptr_val = convert(UInt, Base.pointer(evt))
         ptr_address = "0x$(hex(ptr_val, WORD_SIZE>>2))"
         print(io, "OpenCL.UserEvent(@$ptr_address)")
     end
@@ -269,7 +269,7 @@ let command_queue(evt::CLEvent) = begin
         return evt[:profile_end] - evt[:profile_start]
     end
 
-    const info_map = @compat Dict{Symbol, Function}(
+    const info_map = Dict{Symbol, Function}(
         :context => context,
         :command_queue => command_queue,
         :reference_count => reference_count,

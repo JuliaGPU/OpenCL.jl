@@ -24,7 +24,7 @@ Base.pointer(ctx::Context) = ctx.id
 function Base.show(io::IO, ctx::Context)
     dev_strs = [replace(d[:name], r"\s+", " ") for d in devices(ctx)]
     devs_str = join(dev_strs, ",")
-    ptr_val = @compat convert(UInt, Base.pointer(ctx))
+    ptr_val = convert(UInt, Base.pointer(ctx))
     ptr_address = "0x$(hex(ptr_val, WORD_SIZE>>2))"
     print(io, "OpenCL.Context(@$ptr_address on $devs_str)")
 end
@@ -32,7 +32,7 @@ end
 function ctx_notify_err(err_info::Ptr{Cchar}, priv_info::Ptr{Void},
                         cb::Csize_t, julia_func::Ptr{Void})
     err = bytestring(err_info)
-    private  = bytestring(Compat.unsafe_convert(Ptr{Cchar}, err_info))
+    private  = bytestring(Base.unsafe_convert(Ptr{Cchar}, err_info))
     callback = unsafe_pointer_to_objref(julia_func)::Function
     callback(err, private)::Ptr{Void}
 end
@@ -46,7 +46,7 @@ function raise_context_error(error_info, private_info)
 end
 
 
-@compat function Context(devs::Vector{Device};
+function Context(devs::Vector{Device};
                          properties=nothing,
                          callback::Union{Void,Function}=nothing)
     if isempty(devs)

@@ -11,7 +11,7 @@ Base.getindex(p::Platform, pinfo::Symbol) = info(p, pinfo)
 function Base.show(io::IO, p::Platform)
     strip_extra_whitespace = r"\s+"
     platform_name = replace(p[:name], strip_extra_whitespace, " ")
-    ptr_val = @compat convert(UInt, Base.pointer(p))
+    ptr_val = convert(UInt, Base.pointer(p))
     ptr_address = "0x$(hex(ptr_val, WORD_SIZE>>2))"
     print(io, "OpenCL.Platform('$platform_name' @$ptr_address)")
 end
@@ -27,7 +27,7 @@ end
 function num_platforms()
     nplatforms = Array(CL_uint, 1)
     @check api.clGetPlatformIDs(0, C_NULL, nplatforms)
-    return @compat Int(nplatforms[1])
+    return Int(nplatforms[1])
 end
 
 function info(p::Platform, pinfo::CL_platform_info)
@@ -35,11 +35,11 @@ function info(p::Platform, pinfo::CL_platform_info)
     @check api.clGetPlatformInfo(p.id, pinfo, 0, C_NULL, size)
     result = Array(CL_char, size[1])
     @check api.clGetPlatformInfo(p.id, pinfo, size[1], result, C_NULL)
-    return bytestring(Compat.unsafe_convert(Ptr{CL_char}, result))
+    return bytestring(Base.unsafe_convert(Ptr{CL_char}, result))
 end
 
 
-let info_map = @compat Dict{Symbol, CL_platform_info}(
+let info_map = Dict{Symbol, CL_platform_info}(
         :profile => CL_PLATFORM_PROFILE,
         :version => CL_PLATFORM_VERSION,
         :name    => CL_PLATFORM_NAME,
