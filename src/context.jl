@@ -29,16 +29,27 @@ function Base.show(io::IO, ctx::Context)
     print(io, "OpenCL.Context(@$ptr_address on $devs_str)")
 end
 
+immutable _CtxErr
+    handle :: Ptr{Void}
+    err_info :: Ptr{Cchar}
+    priv_info :: Ptr{Void}
+    cb :: Csize_t
+end
+
 function ctx_notify_err(err_info::Ptr{Cchar}, priv_info::Ptr{Void},
                         cb::Csize_t, julia_func::Ptr{Void})
-    err = bytestring(err_info)
-    private  = bytestring(Base.unsafe_convert(Ptr{Cchar}, err_info))
-    callback = unsafe_pointer_to_objref(julia_func)::Function
-    callback(err, private)::Ptr{Void}
+    ptr = convert(Ptr{_CtxErr}, payload)
+    handle = unsafe_load(ptr, 1).handle
+
+    val = _CtxErr(handle, err_info, priv_info, cb)
+    unsafe_store!(ptr, val, 1)
+
+    ccall(:uv_async_send, Void, (Ptr{Void},), handle)
+    nothing
 end
 
 
-const ctx_callback_ptr = cfunction(ctx_notify_err, Ptr{Void},
+const ctx_callback_ptr = cfunction(ctx_notify_err, Void,
                                    (Ptr{Cchar}, Ptr{Void}, Csize_t, Ptr{Void}))
 
 function raise_context_error(error_info, private_info)
@@ -48,7 +59,7 @@ end
 
 function Context(devs::Vector{Device};
                          properties=nothing,
-                         callback::Union{Void,Function}=nothing)
+                         callback::Union{Function, Void} = nothing)
     if isempty(devs)
         ArgumentError("No devices specified for context")
     end
@@ -57,22 +68,40 @@ function Context(devs::Vector{Device};
     else
         ctx_properties = C_NULL
     end
-    if callback !== nothing
-        ctx_user_data = callback
-    else
-        ctx_user_data = raise_context_error
-    end
+
     n_devices = length(devs)
     device_ids = Array(CL_device_id, n_devices)
     for (i, d) in enumerate(devs)
         device_ids[i] = d.id
     end
-    err_code = Array(CL_int, 1)
+
+    cond = Condition()
+    cb = Base.SingleAsyncWork(data -> notify(cond))
+    ctx_user_data = Ref(_CtxErr(cb.handle, 0, 0, 0))
+
+    err_code = Ref{CL_int}()
     ctx_id = api.clCreateContext(ctx_properties, n_devices, device_ids,
                                  ctx_callback_ptr, ctx_user_data, err_code)
-    if err_code[1] != CL_SUCCESS
+    if err_code[] != CL_SUCCESS
         throw(CLError(err_code[1]))
     end
+
+    true_callback = callback == nothing ? raise_context_error : callback :: Function
+
+    @async begin
+        try
+            Base.wait(cond)
+            err = ctx_user_data[]
+            error_info = bytestring(err.error_info)
+            private_info = bytestring(convert(Ptr{Cchar}, err.private_info))
+            true_callback(error_info, private_info)
+        catch
+            rethrow()
+        finally
+            Base.close(cb)
+        end
+    end
+
     return Context(ctx_id)
 end
 
