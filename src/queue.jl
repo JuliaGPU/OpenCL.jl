@@ -22,7 +22,7 @@ end
 Base.pointer(q::CmdQueue) = q.id
 
 function Base.show(io::IO, q::CmdQueue)
-    ptr_val = @compat convert(UInt, Base.pointer(q))
+    ptr_val = convert(UInt, Base.pointer(q))
     ptr_address = "0x$(hex(ptr_val, WORD_SIZE>>2))"
     print(io, "OpenCL.CmdQueue(@$ptr_address)")
 end
@@ -131,7 +131,7 @@ let
         props[1]
     end
 
-    const info_map = @compat Dict{Symbol, Function}(
+    const info_map = Dict{Symbol, Function}(
         :context => context,
         :device => device,
         :reference_count => reference_count,

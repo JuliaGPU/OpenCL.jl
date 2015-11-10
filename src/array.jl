@@ -11,7 +11,7 @@ typealias CLVector{T} CLArray{T,1}
 
 ##  constructors
 
-@compat function CLArray{T,N}(ctx::Context,
+function CLArray{T,N}(ctx::Context,
                               queue::CmdQueue,
                               flags::Tuple{Vararg{Symbol}},
                               hostarray::AbstractArray{T,N})
@@ -25,7 +25,7 @@ function CLArray{T,N}(ctx::Context, hostarray::AbstractArray{T,N};
     CLArray(ctx, CmdQueue(ctx), (:rw, :copy), hostarray)
 end
 
-@compat function CLArray{T}(buf::Buffer{T}, sz::Tuple{Vararg{Int}})
+function CLArray{T}(buf::Buffer{T}, sz::Tuple{Vararg{Int}})
     ctx = context(buf)
     queue = CmdQueue(ctx)
     CLArray(context(buf), queue, buf, sz)

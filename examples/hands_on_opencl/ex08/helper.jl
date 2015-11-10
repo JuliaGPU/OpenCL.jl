@@ -1,7 +1,5 @@
-using Compat
-
 function error{T}(Mdim::Int, Ndim::Int, Pdim::Int, C::Array{T})
-    cval  = @compat Float32(Pdim * AVAL * BVAL)
+    cval  = Float32(Pdim * AVAL * BVAL)
     errsq = 0f0
     for i in 1:Ndim
         for j in 1:Mdim

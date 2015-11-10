@@ -10,8 +10,6 @@
 #          Ported to Python by Tom Deakin, July 2013
 #          Ported to Julia by Jake Bolewski, Nov 2013
 
-using Compat
-
 import OpenCL
 const cl = OpenCL
 
@@ -75,8 +73,8 @@ global_size = (nwork_groups * work_group_size,)
 local_size  = (work_group_size,)
 localmem    = cl.LocalMem(Float32, work_group_size)
 
-@compat cl.call(queue, pi_kernel, global_size, local_size,
-                Int32(niters), Float32(step_size), localmem, d_partial_sums)
+cl.call(queue, pi_kernel, global_size, local_size,
+        Int32(niters), Float32(step_size), localmem, d_partial_sums)
 
 cl.copy!(queue, h_psum, d_partial_sums)
 

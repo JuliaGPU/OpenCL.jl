@@ -1,14 +1,9 @@
 module TestOpenCL
     using FactCheck
     using Base.Test
-    using Compat
 
     import OpenCL
     const cl = OpenCL
-
-    if VERSION < v"0.4.0-dev+1969"
-        finalize(x) = nothing
-    end
 
     FactCheck.onlystats(true)
 

@@ -10,8 +10,6 @@
 # Ported to Python by Tom Deakin, July 2013
 # Ported to Julia  by Jake Bolewski, Nov 2013
 
-using Compat
-
 import OpenCL
 const cl = OpenCL
 
@@ -89,14 +87,14 @@ vadd = cl.Kernel(program, "vadd")
 # here we call the kernel with work size set to the number of elements and a local
 # work size of nothing. This enables the opencl runtime to optimize the local size
 # for simple kernels
-@compat cl.call(queue, vadd, size(h_a), nothing, d_a, d_b, d_c, UInt32(LENGTH))
+cl.call(queue, vadd, size(h_a), nothing, d_a, d_b, d_c, UInt32(LENGTH))
 
 # an alternative syntax is to create an partial function to cl.call
 # by julia's getindex syntax for Kernel types.
 # here the queue, global_size, and (optional) local_size are passed in which
 # returns a partial cl.call function with these parameters set.
-@compat vadd[queue, size(h_e)](d_e, d_c, d_d, UInt32(LENGTH))
-@compat vadd[queue, size(h_g)](d_g, d_d, d_f, UInt32(LENGTH))
+vadd[queue, size(h_e)](d_e, d_c, d_d, UInt32(LENGTH))
+vadd[queue, size(h_g)](d_g, d_d, d_f, UInt32(LENGTH))
 
 # copy back the results from the compute device
 # copy!(queue, dst, src) follows same interface as julia's built in copy!

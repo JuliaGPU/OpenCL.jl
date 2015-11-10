@@ -10,8 +10,6 @@
 #          Ported to Python by Tom Deakin, July 2013
 #          Ported to Julia by Jake Bolewski, Nov 2013
 
-using Compat
-
 import OpenCL
 const cl = OpenCL
 
@@ -64,7 +62,7 @@ d_r = cl.Buffer(Float32, ctx, :w, LENGTH)
 vadd = cl.Kernel(program, "vadd")
 
 # execute the kernel over the entire range of the input
-@compat vadd[queue, size(h_a)](d_a, d_b, d_c, d_r, UInt32(LENGTH))
+vadd[queue, size(h_a)](d_a, d_b, d_c, d_r, UInt32(LENGTH))
 
 # read the results back from the compute device
 # by convention..

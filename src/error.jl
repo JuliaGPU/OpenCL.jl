@@ -1,4 +1,4 @@
-const _cl_error_codes = @compat Dict{Int, Symbol}(
+const _cl_error_codes = Dict{Int, Symbol}(
      +0 => :CL_SUCCESS,
      -1 => :CL_DEVICE_NOT_FOUND,
      -2 => :CL_DEVICE_NOT_AVAILABLE,
@@ -85,7 +85,7 @@ const _cl_error_codes = @compat Dict{Int, Symbol}(
     -1093 => :CL_INVALID_EGL_OBJECT_KHR,
 )
 
-const _cl_err_desc = @compat Dict{Integer, AbstractString}(
+const _cl_err_desc = Dict{Integer, AbstractString}(
     CL_INVALID_CONTEXT =>
     "Context is not a valid context.",
 
@@ -180,7 +180,7 @@ immutable CLError <: Exception
     desc::Symbol
 
     function CLError(c::Integer)
-        @compat new(c, get(_cl_error_codes, Int(c), :CL_UNKNOWN_ERROR_CODE))
+        new(c, get(_cl_error_codes, Int(c), :CL_UNKNOWN_ERROR_CODE))
     end
 end
 

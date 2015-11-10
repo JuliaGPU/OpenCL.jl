@@ -10,7 +10,7 @@ function Base.show(io::IO, d::Device)
     strip_extra_whitespace = r"\s+"
     device_name = replace(d[:name], strip_extra_whitespace, " ")
     platform_name = replace(d[:platform][:name], strip_extra_whitespace, " ")
-    ptr_val = @compat convert(UInt, Base.pointer(d))
+    ptr_val = convert(UInt, Base.pointer(d))
     ptr_address = "0x$(hex(ptr_val, WORD_SIZE>>2))"
     print(io, "OpenCL.Device($device_name on $platform_name @$ptr_address)")
 end
@@ -33,7 +33,7 @@ let profile(d::Device) = begin
         @check api.clGetDeviceInfo(d.id, CL_DEVICE_PROFILE, 0, C_NULL, size)
         result = Array(CL_char, size[1])
         @check api.clGetDeviceInfo(d.id, CL_DEVICE_PROFILE, size[1], result, C_NULL)
-        bs = bytestring(Compat.unsafe_convert(Ptr{CL_char}, result))
+        bs = bytestring(Base.unsafe_convert(Ptr{CL_char}, result))
         return bs
     end
 
@@ -42,7 +42,7 @@ let profile(d::Device) = begin
         @check api.clGetDeviceInfo(d.id, CL_DEVICE_VERSION, 0, C_NULL, size)
         result = Array(CL_char, size[1])
         @check api.clGetDeviceInfo(d.id, CL_DEVICE_VERSION, size[1], result, C_NULL)
-        bs = bytestring(Compat.unsafe_convert(Ptr{CL_char}, result))
+        bs = bytestring(Base.unsafe_convert(Ptr{CL_char}, result))
         return bs
     end
 
@@ -51,7 +51,7 @@ let profile(d::Device) = begin
         @check api.clGetDeviceInfo(d.id, CL_DRIVER_VERSION, 0, C_NULL, size)
         result = Array(CL_char, size[1])
         @check api.clGetDeviceInfo(d.id, CL_DRIVER_VERSION, size[1], result, C_NULL)
-        bs = bytestring(Compat.unsafe_convert(Ptr{CL_char}, result))
+        bs = bytestring(Base.unsafe_convert(Ptr{CL_char}, result))
         return string(replace(bs, r"\s+", " "))
     end
 
@@ -60,7 +60,7 @@ let profile(d::Device) = begin
         @check api.clGetDeviceInfo(d.id, CL_DEVICE_EXTENSIONS, 0, C_NULL, size)
         result = Array(CL_char, size[1])
         @check api.clGetDeviceInfo(d.id, CL_DEVICE_EXTENSIONS, size[1], result, C_NULL)
-        bs = bytestring(Compat.unsafe_convert(Ptr{CL_char}, result))
+        bs = bytestring(Base.unsafe_convert(Ptr{CL_char}, result))
         return AbstractString[string(s) for s in split(bs)]
     end
 
@@ -77,7 +77,7 @@ let profile(d::Device) = begin
         result = Array(CL_char, size[1])
         @check api.clGetDeviceInfo(d.id, CL_DEVICE_NAME,
                                    size[1] * sizeof(CL_char), result, C_NULL)
-        n = bytestring(Compat.unsafe_convert(Ptr{Cchar}, result))
+        n = bytestring(Base.unsafe_convert(Ptr{Cchar}, result))
         return string(replace(n, r"\s+", " "))
     end
 
@@ -169,7 +169,7 @@ let profile(d::Device) = begin
         result = Array(Csize_t, dims[1])
         @check api.clGetDeviceInfo(d.id, CL_DEVICE_MAX_WORK_ITEM_SIZES,
                                    sizeof(Csize_t) * dims[1], result, C_NULL)
-        return @compat tuple([Int(r) for r in result]...)
+        return tuple([Int(r) for r in result]...)
     end
 
     @int_info(max_work_group_size, CL_DEVICE_MAX_WORK_GROUP_SIZE, Csize_t)
@@ -199,7 +199,7 @@ let profile(d::Device) = begin
         return (width[1], height[1], depth[1])
     end
 
-    const info_map = @compat Dict{Symbol, Function}(
+    const info_map = Dict{Symbol, Function}(
         :driver_version => driver_version,
         :version => version,
         :profile => profile,

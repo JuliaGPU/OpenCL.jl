@@ -14,8 +14,6 @@
 #            Ported to Python by Tom Deakin, July 2013
 #            Ported to Julia by Jake Bolewski, Nov 2013
 
-using Compat
-
 import OpenCL
 const cl = OpenCL
 
@@ -57,8 +55,8 @@ sizeB = Pdim * Mdim
 sizeC = Ndim * Mdim
 
 # Number of elements in the matrix
-h_A = @compat fill(Float32(AVAL), sizeA)
-h_B = @compat fill(Float32(BVAL), sizeB)
+h_A = fill(Float32(AVAL), sizeA)
+h_B = fill(Float32(BVAL), sizeB)
 h_C = Array(Float32, sizeC)
 
 # %20 improvment using @inbounds
@@ -112,9 +110,9 @@ info("=== OpenCL, matrix mult, C(i, j) per work item, order $Ndim ====")
 
 for i in 1:COUNT
     fill!(h_C, 0.0)
-    evt = @compat cl.call(queue, mmul, (Ndim, Mdim), nothing,
-                          Int32(Mdim), Int32(Ndim), Int32(Pdim),
-                          d_a, d_b, d_c)
+    evt = cl.call(queue, mmul, (Ndim, Mdim), nothing,
+                  Int32(Mdim), Int32(Ndim), Int32(Pdim),
+                  d_a, d_b, d_c)
     # profiling events are measured in ns
     run_time = evt[:profile_duration] / 1e9
     cl.copy!(queue, h_C, d_c)
@@ -135,7 +133,7 @@ for i in 1:COUNT
     fill!(h_C, 0.0)
     mmul_ocl = mmul[queue, (Ndim,), (div(ORDER, 16),)]
 
-    evt = @compat mmul_ocl(Int32(Mdim), Int32(Ndim), Int32(Pdim), d_a, d_b, d_c)
+    evt = mmul_ocl(Int32(Mdim), Int32(Ndim), Int32(Pdim), d_a, d_b, d_c)
 
     # profiling events are measured in ns
     run_time = evt[:profile_duration] / 1e9
@@ -158,9 +156,9 @@ info("=== OpenCL, matrix mult, C row, A row in priv mem, order $Ndim ====")
 
 for i in 1:COUNT
     fill!(h_C, 0.0)
-    evt = @compat cl.call(queue, mmul, (Ndim,), (ORDER,),
-                          Int32(Mdim), Int32(Ndim), Int32(Pdim),
-                          d_a, d_b, d_c)
+    evt = cl.call(queue, mmul, (Ndim,), (ORDER,),
+                  Int32(Mdim), Int32(Ndim), Int32(Pdim),
+                  d_a, d_b, d_c)
     # profiling events are measured in ns
     run_time = evt[:profile_duration] / 1e9
     cl.copy!(queue, h_C, d_c)

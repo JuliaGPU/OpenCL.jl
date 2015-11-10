@@ -86,7 +86,7 @@ macro str_info(what, arg1, arg2)
         @check $(esc(clFunc))($(esc(arg1)), $(esc(arg2)), 0, C_NULL, size)
         local result = Array(CL_char, size[1])
         @check $(esc(clFunc))($(esc(arg1)), $(esc(arg2)), size[1], result, size)
-        bytestring(Compat.unsafe_convert(Ptr{CL_char}, result))
+        bytestring(Base.unsafe_convert(Ptr{CL_char}, result))
     end
 end
 

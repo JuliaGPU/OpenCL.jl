@@ -43,7 +43,7 @@ function build_kernel(ctx::Context, program::AbstractString,
 end
 
 # cache for kernels; dict of form `(program_file, kernel_name, vars) -> kernel`
-@compat const CACHED_KERNELS = Dict{Tuple{AbstractString, AbstractString, Dict}, Kernel}()
+const CACHED_KERNELS = Dict{Tuple{AbstractString, AbstractString, Dict}, Kernel}()
 
 function get_kernel(ctx::Context, program_file::AbstractString,
                     kernel_name::AbstractString; vars...)
@@ -53,7 +53,6 @@ function get_kernel(ctx::Context, program_file::AbstractString,
     else
         kernel = build_kernel(ctx, readall(program_file), kernel_name; vars...)
         CACHED_KERNELS[key] = kernel
-        return kernel       
+        return kernel
     end
 end
-

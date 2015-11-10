@@ -30,11 +30,11 @@ end
 
 Base.ndims(b::Buffer) = 1
 Base.eltype{T}(b::Buffer{T}) = T
-Base.length{T}(b::Buffer{T}) = @compat Int(b.len)
-Base.sizeof{T}(b::Buffer{T}) = @compat Int(b.len * sizeof(T))
+Base.length{T}(b::Buffer{T}) = Int(b.len)
+Base.sizeof{T}(b::Buffer{T}) = Int(b.len * sizeof(T))
 
 Base.show{T}(io::IO, b::Buffer{T}) = begin
-    ptr_val = @compat convert(UInt, Base.pointer(b))
+    ptr_val = convert(UInt, Base.pointer(b))
     ptr_address = "0x$(hex(ptr_val, WORD_SIZE>>2))"
     print(io, "Buffer{$T}(@$ptr_address)")
 end
@@ -87,7 +87,7 @@ function Buffer{T}(::Type{T}, ctx::Context, mem_flags::NTuple{2, Symbol}, len::I
 end
 
 # low level Buffer constructor with integer parameter flags
-@compat function Buffer{T}(::Type{T}, ctx::Context, flags::CL_mem_flags,
+function Buffer{T}(::Type{T}, ctx::Context, flags::CL_mem_flags,
                            len::Integer=0; hostbuf::Union{Void,Array{T}}=nothing)
 
     if (hostbuf !== nothing &&
@@ -139,7 +139,7 @@ end
 end
 
 # enqueue a read from buffer to hoast array from buffer, return an event
-@compat function enqueue_read_buffer{T}(q::CmdQueue,
+function enqueue_read_buffer{T}(q::CmdQueue,
                                         buf::Buffer{T},
                                         hostbuf::Array{T},
                                         dev_offset::Csize_t,
@@ -157,7 +157,7 @@ end
 end
 
 # enqueue a write from host array to buffer, return an event
-@compat function enqueue_write_buffer{T}(q::CmdQueue,
+function enqueue_write_buffer{T}(q::CmdQueue,
                                          buf::Buffer{T},
                                          hostbuf::Array{T},
                                          byte_count::Csize_t,
@@ -176,7 +176,7 @@ end
 end
 
 # enqueue a copy from one buffer to another, return an event
-@compat function enqueue_copy_buffer{T}(q::CmdQueue,
+function enqueue_copy_buffer{T}(q::CmdQueue,
                                         src::Buffer{T},
                                         dst::Buffer{T},
                                         byte_count::Csize_t,
@@ -289,7 +289,7 @@ function enqueue_map_mem{T}(q::CmdQueue,
     if status[1] != CL_SUCCESS
         throw(CLError(status[1]))
     end
-    mapped = Compat.unsafe_convert(Ptr{T}, mapped)
+    mapped = Base.unsafe_convert(Ptr{T}, mapped)
     N = length(dims)
     local mapped_arr::Array{T, N}
     try
@@ -316,7 +316,7 @@ end
 @ocl_v1_2_only begin
 
     # low level enqueue fill operation, return event
-    @compat function enqueue_fill_buffer{T}(q::CmdQueue, buf::Buffer{T},
+    function enqueue_fill_buffer{T}(q::CmdQueue, buf::Buffer{T},
                                             pattern::T, offset::Csize_t,
                                             nbytes::Csize_t,
                                             wait_for::Union{Vector{Event},Void})
@@ -358,7 +358,7 @@ function Base.copy!{T}(q::CmdQueue, dst::Array{T}, src::Buffer{T})
     if sizeof(dst) != sizeof(src)
         throw(ArgumentError("Buffer and Array to be copied must be the same size"))
     end
-    evt = @compat enqueue_read_buffer(q, src, dst, UInt(0), nothing, true)
+    evt = enqueue_read_buffer(q, src, dst, UInt(0), nothing, true)
     return evt
 end
 

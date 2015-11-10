@@ -23,7 +23,7 @@ function _finalize(p::Program)
 end
 
 Base.show(io::IO, p::Program) = begin
-    ptr_val = @compat convert(UInt, Base.pointer(p))
+    ptr_val = convert(UInt, Base.pointer(p))
     ptr_address = "0x$(hex(ptr_val, WORD_SIZE>>2))"
     print(io, "OpenCL.Program(@$ptr_address)")
 end
@@ -56,7 +56,7 @@ function Program(ctx::Context; source=nothing, binaries=nothing)
             for (i, (dev, bin)) in enumerate(binaries)
                 device_ids[i] = dev.id
                 bin_lengths[i] = length(bin)
-                binary_ptrs[i] = Compat.unsafe_convert(Ptr{UInt8}, pointer(bin))
+                binary_ptrs[i] = Base.unsafe_convert(Ptr{UInt8}, pointer(bin))
             end
             err_code = Array(CL_int, 1)
             program_id = api.clCreateProgramWithBinary(ctx.id, ndevices, device_ids, bin_lengths,
@@ -159,7 +159,7 @@ let
                 bins[i] = pointer(bin)
                 push!(bin_arrays, bin)
             else
-                bins[i] = Compat.unsafe_convert(Ptr{UInt8}, C_NULL)
+                bins[i] = Base.unsafe_convert(Ptr{UInt8}, C_NULL)
             end
         end
         @check api.clGetProgramInfo(p.id, CL_PROGRAM_BINARIES,
@@ -199,7 +199,7 @@ let
         return ret[1]
     end
 
-    const info_map = @compat Dict{Symbol, Function}(
+    const info_map = Dict{Symbol, Function}(
         :reference_count => reference_count,
         :devices => devices,
         :context => context,
