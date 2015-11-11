@@ -15,13 +15,13 @@ for device in cl.devices()
 
     hostarray = rand(Float32, 32, 64)
     
-    CLArray(ctx, rand(Float32, 32, 64))
+    CLArray(ctx, rand(Float32, 32, 64); queue=queue)
     
     CLArray(ctx, queue, (:rw, :copy), hostarray)
     
     CLArray(ctx, hostarray, queue=queue, flags=(:rw, :copy))
     
-    CLArray(ctx, hostarray)
+    CLArray(ctx, hostarray; queue=queue)
     
     A = CLArray(cl.Buffer(Float32, ctx, (:r, :copy), hostbuf=hostarray), (32, 64))
     
@@ -39,7 +39,7 @@ for device in cl.devices()
     
     # # core functions
 
-    A = CLArray(ctx, rand(Float32, 32, 64))
+    A = CLArray(ctx, rand(Float32, 32, 64); queue=queue)
     @assert size(A) == (32, 64)
     @assert ndims(A) == 2
     @assert length(A) == 32*64
