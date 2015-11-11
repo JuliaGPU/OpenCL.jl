@@ -30,18 +30,18 @@ for device in cl.devices()
 
     # fill
     
-    cl.to_host(cl.fill(Float32, queue, @compat(Float32(0.5)), 32, 64)) == fill(@compat(Float32(0.5)), 32, 64)
-    cl.to_host(cl.zeros(Float32, queue, 64)) == zeros(Float32, 64)
-    cl.to_host(cl.ones(Float32, queue, 64)) == ones(Float32, 64)
+    # cl.to_host(cl.fill(Float32, queue, @compat(Float32(0.5)), 32, 64)) == fill(@compat(Float32(0.5)), 32, 64)
+    # cl.to_host(cl.zeros(Float32, queue, 64)) == zeros(Float32, 64)
+    # cl.to_host(cl.ones(Float32, queue, 64)) == ones(Float32, 64)
     
     # # core functions
 
-    # A = CLArray(ctx, rand(Float32, 32, 64))
-    # @assert size(A) == (32, 64)
-    # @assert ndims(A) == 2
-    # @assert length(A) == 32*64
-    # B = reshape(A, 32*64)
-    # @assert reshape(B, 32, 64) == A
+    A = CLArray(ctx, rand(Float32, 32, 64))
+    @assert size(A) == (32, 64)
+    @assert ndims(A) == 2
+    @assert length(A) == 32*64
+    B = reshape(A, 32*64)
+    @assert reshape(B, 32, 64) == A
     
     
     # # transpose
