@@ -6,8 +6,9 @@ for device in cl.devices()
     
     ctx = cl.Context(device)
     queue = cl.CmdQueue(ctx)
-    hostarray = zeros(Float32, 32, 64)
+    hostarray = zeros(Float32, 32*64)
     A = CLArray(ctx, hostarray)
+    X = CLArray(ctx, rand(Float32, 32, 64))
     
     # constructors
     
