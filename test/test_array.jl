@@ -29,7 +29,8 @@ for device in cl.devices()
     @assert cl.to_host(cl.ones(Float32, queue, 64)) == ones(Float32, 64)
     
     # core functions
-    
+
+    A = CLArray(ctx, rand(Float32, 32, 64))
     @assert size(A) == (32, 64)
     @assert ndims(A) == 2
     @assert length(A) == 32*64
