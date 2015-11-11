@@ -3,6 +3,8 @@ import OpenCL.CLArray
 using Base.Test
 
 for device in cl.devices()
+
+    println("Starting testing arrays")
     
     ctx = cl.Context(device)
     queue = cl.CmdQueue(ctx)
@@ -28,9 +30,9 @@ for device in cl.devices()
 
     # fill
     
-    # @assert cl.to_host(cl.fill(Float32, queue, @compat(Float32(0.5)), 32, 64)) == fill(@compat(Float32(0.5)), 32, 64)
-    # @assert cl.to_host(cl.zeros(Float32, queue, 64)) == zeros(Float32, 64)
-    # @assert cl.to_host(cl.ones(Float32, queue, 64)) == ones(Float32, 64)
+    cl.to_host(cl.fill(Float32, queue, @compat(Float32(0.5)), 32, 64)) == fill(@compat(Float32(0.5)), 32, 64)
+    cl.to_host(cl.zeros(Float32, queue, 64)) == zeros(Float32, 64)
+    cl.to_host(cl.ones(Float32, queue, 64)) == ones(Float32, 64)
     
     # # core functions
 
@@ -49,6 +51,8 @@ for device in cl.devices()
     # Base.transpose!(B, A)
     # @assert cl.to_host(A') == cl.to_host(B)
 
+    println("Finished testing arrays")
+    
 end
     
 # facts("OpenCL.CLArray") do
