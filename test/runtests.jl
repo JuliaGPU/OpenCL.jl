@@ -28,10 +28,10 @@ module TestOpenCL
     # include("test_event.jl")
     # include("test_program.jl")
     # include("test_kernel.jl")
-    # include("test_behaviour.jl")
+    # include("test_behaviour.jl")    
+    # include("test_memory.jl")
+    # include("test_buffer.jl")
     include("test_array.jl")
-    include("test_memory.jl")
-    include("test_buffer.jl")
 
     FactCheck.exitstatus()
 
