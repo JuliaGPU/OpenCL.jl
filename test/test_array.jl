@@ -27,6 +27,9 @@ for device in cl.devices()
     
     copy(A) == A
 
+    
+    X = CLArray(ctx, rand(Float32, 32, 64))
+
 
     # fill
     
