@@ -50,7 +50,9 @@ function Base.fill{T}(::Type{T}, q::CmdQueue, x::T, dims...)
         buf = Buffer(T, ctx, prod(dims))
         fill!(q, buf, x)
     else
-        buf = Buffer(T, ctx, (:rw, :copy), prod(dims), hostbuf=fill(x, dims))
+        hostarray = fill(x, dims)
+        println("hostarray = $hostarray")
+        buf = Buffer(T, ctx, (:rw, :copy), prod(dims), hostbuf=hostarray)
     end
     return CLArray(buf, dims)
 end
