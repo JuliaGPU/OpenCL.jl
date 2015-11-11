@@ -21,7 +21,7 @@ for device in cl.devices()
     
     CLArray(ctx, hostarray)
     
-    CLArray(cl.Buffer(Float32, ctx, (:r, :copy), hostbuf=hostarray), (32, 64))
+    A = CLArray(cl.Buffer(Float32, ctx, (:r, :copy), hostbuf=hostarray), (32, 64))
     
     copy(A) == A
 
