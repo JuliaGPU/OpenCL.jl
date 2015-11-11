@@ -11,6 +11,8 @@ for device in cl.devices()
     
     # constructors
 
+    hostarray = rand(Float32, 32, 64)
+    
     CLArray(ctx, rand(Float32, 32, 64))
     
     CLArray(ctx, queue, (:rw, :copy), hostarray)
