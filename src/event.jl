@@ -94,23 +94,56 @@ Base.getindex(evt::CLEvent, evt_info::Symbol) = info(evt, evt_info)
     end
 end
 
-function event_notify(evt_id::CL_event, status::CL_int, julia_func::Ptr{Void})
-    # Obtain the Function object from the opaque pointer
-    callback = unsafe_pointer_to_objref(julia_func)::Function
-
-    # In order to callback into the Julia thread create an AsyncWork package.
-    cb_packaged = Base.SingleAsyncWork(data -> callback(evt_id, status))
-
-    # Use uv_async_send to notify the main thread
-    ccall(:uv_async_send, Void, (Ptr{Void},), cb_packaged.handle)
+immutable _EventCB
+    handle :: Ptr{Void}
+    evt_id :: CL_event
+    status :: CL_int
 end
 
-const event_notify_ptr = cfunction(event_notify, Void,
-                                   (CL_event, CL_int, Ptr{Void}))
+function event_notify(evt_id::CL_event, status::CL_int, payload::Ptr{Void})
+    ptr = convert(Ptr{_EventCB}, payload)
+    handle = unsafe_load(ptr, 1).handle
+
+    val = _EventCB(handle, evt_id, status)
+    unsafe_store!(ptr, val, 1)
+
+    # Use uv_async_send to notify the main thread
+    ccall(:uv_async_send, Void, (Ptr{Void},), handle)
+    nothing
+end
+
+function preserve_callback(evt :: CLEvent, cb, ptr)
+    evt._cbs[cb] = 0
+    push!(evt._memory, ptr)
+end
 
 
 function add_callback(evt::CLEvent, callback::Function)
-    @check api.clSetEventCallback(evt.id, CL_COMPLETE, event_notify_ptr, callback)
+    event_notify_ptr = cfunction(event_notify, Void,
+                                   (CL_event, CL_int, Ptr{Void}))
+
+    # The uv_callback is going to notify a task that,
+    # then executes the real callback.
+    cond = Condition()
+    cb = Base.SingleAsyncWork(data -> notify(cond))
+
+    # Storing the results of our c_callback needs to be
+    # isbits && isimmutable
+    r_ecb = Ref(_EventCB(cb.handle, 0, 0))
+
+    @check api.clSetEventCallback(evt.id, CL_COMPLETE, event_notify_ptr, r_ecb)
+
+    @async begin
+       try
+         Base.wait(cond)
+         ecb = r_ecb[]
+         callback(ecb.evt_id, ecb.status)
+       catch
+         rethrow()
+       finally
+         Base.close(cb)
+       end
+    end
 end
 
 function wait(evt::CLEvent)
