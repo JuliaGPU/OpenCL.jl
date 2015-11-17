@@ -37,7 +37,7 @@ immutable _CtxErr
 end
 
 function ctx_notify_err(err_info::Ptr{Cchar}, priv_info::Ptr{Void},
-                        cb::Csize_t, julia_func::Ptr{Void})
+                        cb::Csize_t, payload::Ptr{Void})
     ptr = convert(Ptr{_CtxErr}, payload)
     handle = unsafe_load(ptr, 1).handle
 
