@@ -92,8 +92,8 @@ function Context(devs::Vector{Device};
         try
             Base.wait(cond)
             err = ctx_user_data[]
-            error_info = bytestring(err.error_info)
-            private_info = bytestring(convert(Ptr{Cchar}, err.private_info))
+            error_info = bytestring(err.err_info)
+            private_info = bytestring(convert(Ptr{Cchar}, err.priv_info))
             true_callback(error_info, private_info)
         catch
             rethrow()
