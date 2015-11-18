@@ -112,12 +112,6 @@ function event_notify(evt_id::CL_event, status::CL_int, payload::Ptr{Void})
     nothing
 end
 
-function preserve_callback(evt :: CLEvent, cb, ptr)
-    evt._cbs[cb] = 0
-    push!(evt._memory, ptr)
-end
-
-
 function add_callback(evt::CLEvent, callback::Function)
     event_notify_ptr = cfunction(event_notify, Void,
                                    (CL_event, CL_int, Ptr{Void}))
