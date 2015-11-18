@@ -12,9 +12,9 @@ typealias CLVector{T} CLArray{T,1}
 ##  constructors
 
 function CLArray{T,N}(ctx::Context,
-                              queue::CmdQueue,
-                              flags::Tuple{Vararg{Symbol}},
-                              hostarray::AbstractArray{T,N})
+                      queue::CmdQueue,
+                      flags::Tuple{Vararg{Symbol}},
+                      hostarray::AbstractArray{T,N})
     buf = Buffer(T, ctx, flags, hostbuf=hostarray)
     sz = size(hostarray)
     CLArray(ctx, queue, buf, sz)
@@ -22,12 +22,11 @@ end
 
 function CLArray{T,N}(ctx::Context, hostarray::AbstractArray{T,N};
                       queue=CmdQueue(ctx), flags=(:rw, :copy))
-    CLArray(ctx, CmdQueue(ctx), (:rw, :copy), hostarray)
+    CLArray(ctx, queue, (:rw, :copy), hostarray)
 end
 
-function CLArray{T}(buf::Buffer{T}, sz::Tuple{Vararg{Int}})
+function CLArray{T}(buf::Buffer{T}, sz::Tuple{Vararg{Int}}; queue=CmdQueue(context(buf)))
     ctx = context(buf)
-    queue = CmdQueue(ctx)
     CLArray(context(buf), queue, buf, sz)
 end
 
@@ -52,7 +51,7 @@ function Base.fill{T}(::Type{T}, q::CmdQueue, x::T, dims...)
     else
         buf = Buffer(T, ctx, (:rw, :copy), prod(dims), hostbuf=fill(x, dims))
     end
-    return CLArray(buf, dims)
+    return CLArray(buf, dims; queue=q)
 end
 
 Base.zeros{T}(::Type{T}, q::CmdQueue, dims...) = fill(T, q, T(0), dims...)
@@ -66,7 +65,7 @@ Base.ones(q::CmdQueue, dims...) = fill(Float64, q, Float64(1), dims...)
 buffer(A::CLArray) = A.buffer
 bufptr(A::CLArray) = A.buffer.id
 context(A::CLArray) = context(A.buffer)
-queue(A::CLArray) = context(A.queue)
+queue(A::CLArray) = A.queue
 Base.size(A::CLArray) = A.size
 Base.ndims(A::CLArray) = length(size(A))
 Base.length(A::CLArray) = prod(size(A))
@@ -101,7 +100,7 @@ function Base.transpose!(B::CLMatrix{Float32}, A::CLMatrix{Float32};
     kernel = get_kernel(ctx, TRANSPOSE_PROGRAM_PATH, "transpose",
                           block_size=block_size)
     h, w = size(A)
-    lmem = LocalMem(Float32, block_size * (block_size + 1))
+    lmem = LocalMem(Float32, block_size * (block_size + 1))    
     set_args!(kernel, buffer(B), buffer(A), UInt32(h), UInt32(w), lmem)
     return enqueue_kernel(queue, kernel, (h, w), (block_size, block_size))
 end
@@ -122,7 +121,8 @@ function Base.transpose!(B::CLMatrix{Float64}, A::CLMatrix{Float64};
     kernel = get_kernel(ctx, TRANSPOSE_PROGRAM_PATH, "transpose_double",
                           block_size=block_size)
     h, w = size(A)
-    lmem = LocalMem(Float64, block_size * (block_size + 1))
+    # lmem = LocalMem(Float64, block_size * (block_size + 1))
+    lmem = LocalMem(Float64, block_size * block_size)
     set_args!(kernel, buffer(B), buffer(A), UInt32(h), UInt32(w), lmem)
     return enqueue_kernel(queue, kernel, (h, w), (block_size, block_size))
 end
