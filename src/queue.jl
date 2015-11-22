@@ -151,3 +151,5 @@ let
         end
     end
 end
+
+context(queue::CmdQueue) = info(queue, :context)
