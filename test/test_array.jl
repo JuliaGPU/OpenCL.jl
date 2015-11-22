@@ -38,9 +38,7 @@ facts("OpenCL.CLArray") do
      end
 
     context("OpenCL.CLArray core functions") do
-        for device in cl.devices()
-            println("MAX_WORK_ITEM_SIZE $(cl.info(device, :max_work_item_size))")
-            
+        for device in cl.devices()            
             ctx = cl.Context(device)
             queue = cl.CmdQueue(ctx)
             A = CLArray(ctx, rand(Float32, 128, 64); queue=queue)
@@ -55,7 +53,7 @@ facts("OpenCL.CLArray") do
             B = cl.zeros(Float32, queue, 64, 128)
             # on Travis in a build for Mac, MAX_WORK_ITEM_SIZE is equal (1024, 1, 1)
             # while transpose's default block_size is 32, so skipping this test for Mac
-            if ENV["TRAVIS"] != "true" || (@linux ? true : false)
+            if get(ENV, "TRAVIS", "false") != "true" || (@linux ? true : false)
                 ev = transpose!(B, A)
                 cl.wait(ev)
                 @fact cl.to_host(A') --> cl.to_host(B)

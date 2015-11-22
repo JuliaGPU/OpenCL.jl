@@ -21,11 +21,12 @@ function CLArray{T,N}(ctx::Context,
 end
 
 function CLArray{T,N}(ctx::Context, hostarray::AbstractArray{T,N};
-                      queue=CmdQueue(ctx), flags=(:rw, :copy))
+                      queue=default_queue(ctx), flags=(:rw, :copy))
     CLArray(ctx, queue, (:rw, :copy), hostarray)
 end
 
-function CLArray{T}(buf::Buffer{T}, sz::Tuple{Vararg{Int}}; queue=CmdQueue(context(buf)))
+function CLArray{T}(buf::Buffer{T}, sz::Tuple{Vararg{Int}};
+                    queue=default_queue(context(buf)))
     ctx = context(buf)
     CLArray(context(buf), queue, buf, sz)
 end
