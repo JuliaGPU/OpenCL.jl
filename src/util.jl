@@ -1,8 +1,21 @@
+# cached queues
+const DEFAULT_QUEUES = WeakKeyDict{Context, CmdQueue}()
+
 function create_compute_context()
     ctx    = create_some_context()
     device = first(devices(ctx))
     queue  = CmdQueue(ctx)
+    DEFAULT_QUEUES[ctx] = queue
     return (device, ctx, queue)
+end
+
+function default_queue(ctx::Context)
+    # for some reason WeakKeyDict requires wrapping keys of type Context
+    # into WeakRef(), though other types seem to behave normally
+    if !haskey(DEFAULT_QUEUES, WeakRef(ctx))  
+        DEFAULT_QUEUES[ctx] = CmdQueue(ctx)
+    end
+    return DEFAULT_QUEUES[WeakRef(ctx)]
 end
 
 opencl_version(obj :: CLObject) = api.parse_version(obj[:version])
