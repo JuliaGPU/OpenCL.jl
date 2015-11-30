@@ -11,23 +11,23 @@ typealias CLVector{T} CLArray{T,1}
 
 ##  constructors
 
-function CLArray{T,N}(ctx::Context,
-                      queue::CmdQueue,
+function CLArray{T}(buf::Buffer{T}, queue::CmdQueue, sz::Tuple{Vararg{Int}})
+    ctx = context(buf)
+    CLArray(ctx, queue, buf, sz)
+end
+
+function CLArray{T,N}(queue::CmdQueue,
                       flags::Tuple{Vararg{Symbol}},
                       hostarray::AbstractArray{T,N})
+    ctx = context(queue)
     buf = Buffer(T, ctx, flags, hostbuf=hostarray)
     sz = size(hostarray)
     CLArray(ctx, queue, buf, sz)
 end
 
-function CLArray{T,N}(ctx::Context, hostarray::AbstractArray{T,N};
-                      queue=CmdQueue(ctx), flags=(:rw, :copy))
-    CLArray(ctx, queue, (:rw, :copy), hostarray)
-end
-
-function CLArray{T}(buf::Buffer{T}, sz::Tuple{Vararg{Int}}; queue=CmdQueue(context(buf)))
-    ctx = context(buf)
-    CLArray(context(buf), queue, buf, sz)
+function CLArray{T,N}(queue::CmdQueue, hostarray::AbstractArray{T,N};
+                      flags=(:rw, :copy))
+    CLArray(queue, (:rw, :copy), hostarray)
 end
 
 Base.copy(A::CLArray; ctx=A.ctx, queue=A.queue, buffer=A.buffer, size=A.size) =
@@ -51,7 +51,7 @@ function Base.fill{T}(::Type{T}, q::CmdQueue, x::T, dims...)
     else
         buf = Buffer(T, ctx, (:rw, :copy), prod(dims), hostbuf=fill(x, dims))
     end
-    return CLArray(buf, dims; queue=q)
+    return CLArray(buf, q, dims)
 end
 
 Base.zeros{T}(::Type{T}, q::CmdQueue, dims...) = fill(T, q, T(0), dims...)
@@ -63,7 +63,7 @@ Base.ones(q::CmdQueue, dims...) = fill(Float64, q, Float64(1), dims...)
 ##  core functions
 
 buffer(A::CLArray) = A.buffer
-bufptr(A::CLArray) = A.buffer.id
+Base.pointer(A::CLArray) = A.buffer.id
 context(A::CLArray) = context(A.buffer)
 queue(A::CLArray) = A.queue
 Base.size(A::CLArray) = A.size
