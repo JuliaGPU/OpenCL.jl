@@ -1,5 +1,5 @@
 
-type CLArray{T,N} <: CLObject
+type CLArray{T,N} <: AbstractArray{T,N}
     ctx::Context
     queue::CmdQueue
     buffer::Buffer{T}
