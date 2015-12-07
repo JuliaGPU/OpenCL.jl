@@ -1,5 +1,5 @@
 
-type CLArray{T,N} <: CLObject
+type CLArray{T,N} <: AbstractArray{T,N}
     ctx::Context
     queue::CmdQueue
     buffer::Buffer{T}
@@ -32,6 +32,8 @@ end
 
 Base.copy(A::CLArray; ctx=A.ctx, queue=A.queue, buffer=A.buffer, size=A.size) =
     CLArray(ctx, queue, buffer, size)
+Base.copy!{T}(dest::Array{T}, src::CLArray{T}; queue=src.queue)  = copy!(queue, dest, src.buffer)
+Base.copy!{T}(dest::CLArray{T}, src::Array{T}; queue=dest.queue) = copy!(queue, dest.buffer, src)
 function Base.deepcopy{T,N}(A::CLArray{T,N})
     new_buf = Buffer(T, A.ctx, prod(A.size))
     copy!(A.queue, new_buf, A.buffer)
@@ -71,10 +73,11 @@ Base.ndims(A::CLArray) = length(size(A))
 Base.length(A::CLArray) = prod(size(A))
 Base.(:(==))(A:: CLArray, B:: CLArray) =
     buffer(A) == buffer(B) && size(A) == size(B)
-Base.reshape(A::CLArray, dims...) = begin
+Base.reshape(A::CLArray, dims::Tuple{Vararg{Int}}) = begin
     @assert prod(dims) == prod(size(A))
     return copy(A, size=dims)
 end
+Base.reshape(A::CLArray, dims::Int...) = reshape(A, dims)
 
 ##  show
 
@@ -135,3 +138,14 @@ function Base.transpose(A::CLMatrix{Float64};
     wait(ev)
     return B
 end
+
+"""Conjugate transpose for reals just wraps transpose"""
+Base.ctranspose{T<:Union{Float32,Float64}}(A::CLMatrix{T};
+                        queue=A.queue, block_size=32) = transpose(A;
+                        queue=queue, block_size=block_size);
+
+"""Conjugate transpose! for reals just wraps transpose!"""
+Base.ctranspose!{T<:Union{Float32,Float64}}(A::CLMatrix{T}, B::CLMatrix{T};
+                        queue=A.queue, block_size=32) = transpose!(A, B;
+                        queue=queue, block_size=block_size);
+
