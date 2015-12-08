@@ -9,7 +9,7 @@ end
 typealias CLMatrix{T} CLArray{T,2}
 typealias CLVector{T} CLArray{T,1}
 
-##  constructors
+## constructors
 
 function CLArray{T}(buf::Buffer{T}, queue::CmdQueue, sz::Tuple{Vararg{Int}})
     ctx = context(buf)
@@ -30,7 +30,8 @@ function CLArray{T,N}(queue::CmdQueue, hostarray::AbstractArray{T,N};
     CLArray(queue, (:rw, :copy), hostarray)
 end
 
-Base.copy(A::CLArray; ctx=A.ctx, queue=A.queue, buffer=A.buffer, size=A.size) =
+Base.copy(A::CLArray; ctx=A.ctx, queue=A.queue,
+          buffer=A.buffer, size=A.size) =
     CLArray(ctx, queue, buffer, size)
 function Base.deepcopy{T,N}(A::CLArray{T,N})
     new_buf = Buffer(T, A.ctx, prod(A.size))
@@ -60,13 +61,14 @@ Base.ones{T}(::Type{T}, q::CmdQueue, dims...) = fill(T, q, T(1), dims...)
 Base.ones(q::CmdQueue, dims...) = fill(Float64, q, Float64(1), dims...)
 
 
-##  core functions
+## core functions
 
 buffer(A::CLArray) = A.buffer
 Base.pointer(A::CLArray) = A.buffer.id
 context(A::CLArray) = context(A.buffer)
 queue(A::CLArray) = A.queue
 Base.size(A::CLArray) = A.size
+Base.size(A::CLArray, dim::Integer) = A.size[dim]
 Base.ndims(A::CLArray) = length(size(A))
 Base.length(A::CLArray) = prod(size(A))
 Base.(:(==))(A:: CLArray, B:: CLArray) =
@@ -76,12 +78,12 @@ Base.reshape(A::CLArray, dims...) = begin
     return copy(A, size=dims)
 end
 
-##  show
+## show
 
 Base.show{T,N}(io::IO, A::CLArray{T,N}) =
     print(io, "CLArray{$T,$N}($(buffer(A)),$(size(A)))")
 
-##  to_host
+## to_host
 
 function to_host{T,N}(A::CLArray{T,N}; queue=A.queue)
     hA = Array(T, size(A))
@@ -93,30 +95,40 @@ end
 
 const TRANSPOSE_PROGRAM_PATH = joinpath(dirname(@__FILE__), "kernels/transpose.cl")
 
+function max_block_size(queue::CmdQueue, h::Int, w::Int)
+    dev = info(queue, :device)
+    dim1, dim2 = info(dev, :max_work_item_size)[1:2]
+    wgsize = info(dev, :max_work_group_size)
+    wglimit = floor(Int, sqrt(wgsize))
+    return gcd(dim1, dim2, h, w, wglimit)
+end
+
 """Transpose CLMatrix A, write result to a preallicated CLMatrix B"""
 function Base.transpose!(B::CLMatrix{Float32}, A::CLMatrix{Float32};
-                         queue=A.queue, block_size=32)
+                         queue=A.queue)
+    block_size = max_block_size(queue, size(A, 1), size(A, 2))
     ctx = context(A)
     kernel = get_kernel(ctx, TRANSPOSE_PROGRAM_PATH, "transpose",
                           block_size=block_size)
     h, w = size(A)
-    lmem = LocalMem(Float32, block_size * (block_size + 1))    
+    lmem = LocalMem(Float32, block_size * (block_size + 1))
     set_args!(kernel, buffer(B), buffer(A), UInt32(h), UInt32(w), lmem)
     return enqueue_kernel(queue, kernel, (h, w), (block_size, block_size))
 end
 
 """Transpose CLMatrix A"""
 function Base.transpose(A::CLMatrix{Float32};
-                        queue=A.queue, block_size=32)
+                        queue=A.queue)
     B = zeros(Float32, queue, reverse(size(A))...)
-    ev = transpose!(B, A, queue=queue, block_size=block_size)
+    ev = transpose!(B, A, queue=queue)
     wait(ev)
     return B
 end
 
 """Transpose CLMatrix A, write result to a preallicated CLMatrix B"""
 function Base.transpose!(B::CLMatrix{Float64}, A::CLMatrix{Float64};
-                         queue=A.queue, block_size=32)
+                         queue=A.queue)
+    block_size = max_block_size(queue, size(A, 1), size(A, 2))
     ctx = context(A)
     kernel = get_kernel(ctx, TRANSPOSE_PROGRAM_PATH, "transpose_double",
                           block_size=block_size)
@@ -129,9 +141,9 @@ end
 
 """Transpose CLMatrix A"""
 function Base.transpose(A::CLMatrix{Float64};
-                        queue=A.queue, block_size=32)
+                        queue=A.queue)
     B = zeros(Float64, queue, reverse(size(A))...)
-    ev = transpose!(B, A, queue=queue, block_size=block_size)
+    ev = transpose!(B, A, queue=queue)
     wait(ev)
     return B
 end

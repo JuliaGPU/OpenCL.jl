@@ -39,7 +39,7 @@ facts("OpenCL.CLArray") do
      end
 
     context("OpenCL.CLArray core functions") do
-        for device in cl.devices()            
+        for device in cl.devices()
             ctx = cl.Context(device)
             queue = cl.CmdQueue(ctx)
             A = CLArray(queue, rand(Float32, 128, 64))
@@ -52,13 +52,9 @@ facts("OpenCL.CLArray") do
             # transpose
             X = CLArray(queue, rand(Float32, 32, 32))
             B = cl.zeros(Float32, queue, 64, 128)
-            # on Travis in a build for Mac, MAX_WORK_ITEM_SIZE is equal (1024, 1, 1)
-            # while transpose's default block_size is 32, so skipping this test for Mac
-            if get(ENV, "TRAVIS", "false") != "true" || (@linux ? true : false)
-                ev = transpose!(B, A)
-                cl.wait(ev)
-                @fact cl.to_host(A') --> cl.to_host(B)
-            end
+            ev = transpose!(B, A)
+            cl.wait(ev)
+            @fact cl.to_host(A') --> cl.to_host(B)
         end
      end
 
