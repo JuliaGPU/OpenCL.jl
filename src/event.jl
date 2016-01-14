@@ -26,7 +26,7 @@ type NannyEvent <: CLEvent
         end
         nanny_evt = new(evt_id, obj)
         finalizer(nanny_evt, x -> begin
-            wait(x)
+            x.id != C_NULL && wait(x)
             x.obj = nothing
             _finalize(x)
         end)
@@ -190,7 +190,7 @@ function enqueue_wait_for_events{T<:CLEvent}(q::CmdQueue, wait_for::Vector{T})
     n_wait_events = cl_uint(length(wait_for))
     wait_evt_ids = [evt.id for evt in wait_for]
     @check api.clEnqueueWaitForEvents(q.id, n_wait_events,
-                                      isempty(wait_evt_ids) ? C_NULL : wait_evt_ids)
+                                      isempty(wait_evt_ids) ? C_NULL : pointer(wait_evt_ids))
 end
 
 function enqueue_wait_for_events(q::CmdQueue, wait_for::CLEvent)
