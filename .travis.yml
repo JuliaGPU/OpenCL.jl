@@ -13,10 +13,9 @@ notifications:
   email: false
 
 before_install:
+  - if [[ -a .git/shallow ]]; then git fetch --unshallow; fi
   - if [ $TRAVIS_OS_NAME = "linux" ]; then
-      git clone https://gist.github.com/1faa40c2df51e3a9ee55.git amd;
-      cd amd;
-      bash amd_sdk.sh;
+      bash .travis/amd_sdk.sh;
       tar -xjf AMD-SDK.tar.bz2;
       AMDAPPSDK=${HOME}/AMDAPPSDK;
       export OPENCL_VENDOR_PATH=${AMDAPPSDK}/etc/OpenCL/vendors;
@@ -24,12 +23,9 @@ before_install:
       sh AMD-APP-SDK*.sh --tar -xf -C ${AMDAPPSDK};
       echo libamdocl64.so > ${OPENCL_VENDOR_PATH}/amdocl64.icd;
       export LD_LIBRARY_PATH=${AMDAPPSDK}/lib/x86_64:${LD_LIBRARY_PATH};
-      cd ..;
       chmod +x ${AMDAPPSDK}/bin/x86_64/clinfo;
       ${AMDAPPSDK}/bin/x86_64/clinfo;
     fi;
-  - if [[ -a .git/shallow ]]; then git fetch --unshallow; fi
-
 script:
   - julia -e 'Pkg.init(); Pkg.clone(pwd())'
   - julia -e 'using OpenCL; @assert isdefined(:OpenCL); @assert typeof(OpenCL) === Module'
