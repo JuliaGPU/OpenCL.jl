@@ -9,7 +9,7 @@ facts("OpenCL.Platform") do
                 @fact p[k] == cl.info(p, k) --> true
             end
             v = cl.opencl_version(p)
-            @fact v.major --> 1
+            @fact 1 <= v.major <= 2  --> true
             @fact 0 <= v.minor <= 2  --> true
          end
      end
