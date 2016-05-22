@@ -87,6 +87,11 @@ end
 #TODO: type safe calling of set args for kernel (with clang)
 
 # set scalar/vector kernel args
+function kernelarg_size{T}(x::Vector{T})
+    mul = length(x)
+    mul = mul == 3 ? 4 : mul # 3 component vectors are 4 packed
+    mul*sizeof(T)
+end
 for cl_type in [:CL_char, :CL_uchar, :CL_short, :CL_ushort,
                 :CL_int,  :CL_uint,  :CL_long,  :CL_ulong,
                 :CL_half, :CL_float, :CL_double]
@@ -94,7 +99,11 @@ for cl_type in [:CL_char, :CL_uchar, :CL_short, :CL_ushort,
         function set_arg!(k::Kernel, idx::Integer, arg::$cl_type)
             @assert idx > 0
             boxed_arg = $cl_type[arg,]
-            @check api.clSetKernelArg(k.id, cl_uint(idx-1), sizeof($cl_type), boxed_arg)
+            return set_arg!(k, idx, boxed_arg)
+        end
+        function set_arg!(k::Kernel, idx::Integer, arg::Vector{$cl_type})
+            @assert idx > 0
+            @check api.clSetKernelArg(k.id, cl_uint(idx-1), kernelarg_size(arg), arg)
             return k
         end
     end
@@ -234,7 +243,6 @@ function enqueue_kernel(q::CmdQueue,
         n_events = cl_uint(0)
         wait_event_ids = C_NULL
     end
-
     ret_event = Array(CL_event, 1)
     @check api.clEnqueueNDRangeKernel(q.id, k.id, cl_uint(work_dim), goffset, gsize, lsize,
                                       n_events, wait_event_ids, ret_event)
