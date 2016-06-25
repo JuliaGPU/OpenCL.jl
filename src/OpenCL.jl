@@ -1,5 +1,8 @@
 module OpenCL
 
+export cl
+module cl
+
 abstract CLObject
 
 Base.hash(x::CLObject) = hash(pointer(x))
@@ -55,4 +58,5 @@ include("util.jl")
 include("array.jl")
 
 @deprecate release! finalize
+end # cl
 end # module

@@ -55,7 +55,6 @@ OpenCL.jl has had contributions from [many developers](https://github.com/JuliaG
 ```julia
 
 import OpenCL
-const cl = OpenCL
 
 const sum_kernel = "
    __kernel void sum(__global const float *a,
