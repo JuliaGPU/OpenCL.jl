@@ -35,7 +35,7 @@ function info(p::Platform, pinfo::CL_platform_info)
     @check api.clGetPlatformInfo(p.id, pinfo, 0, C_NULL, size)
     result = Array(CL_char, size[])
     @check api.clGetPlatformInfo(p.id, pinfo, size[], result, C_NULL)
-    return String(convert(Array{Char}, result))
+    return String(reinterpret(UInt8, result))
 end
 
 

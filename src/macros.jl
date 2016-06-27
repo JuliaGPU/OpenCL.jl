@@ -82,11 +82,11 @@ end
 macro str_info(what, arg1, arg2)
     local clFunc = Symbol("api.clGet$(what)Info")
     quote
-        local size = Array(Csize_t, 1)
+        local size = Ref{Csize_t}()
         @check $(esc(clFunc))($(esc(arg1)), $(esc(arg2)), 0, C_NULL, size)
-        local result = Array(CL_char, size[1])
-        @check $(esc(clFunc))($(esc(arg1)), $(esc(arg2)), size[1], result, size)
-        bytestring(Base.unsafe_convert(Ptr{CL_char}, result))
+        local result = Array(CL_char, size[])
+        @check $(esc(clFunc))($(esc(arg1)), $(esc(arg2)), size[], result, size)
+        String(reinterpret(UInt8, result))
     end
 end
 
@@ -96,7 +96,7 @@ function _version_test(qm, elem :: Symbol, ex :: Expr, version :: VersionNumber)
     @assert length(ex.args) == 2
 
     esc(quote
-        if OpenCL.check_version($elem, $version)
+        if cl.check_version($elem, $version)
             $(ex.args[1])
         else
             $(ex.args[2])

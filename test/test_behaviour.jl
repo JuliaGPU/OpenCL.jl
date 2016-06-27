@@ -35,7 +35,7 @@ facts("OpenCL Hello World Test") do
         cl.call(queue, kern, str_len, nothing, out_buf)
         h = cl.read(queue, out_buf)
 
-        @fact bytestring(Base.unsafe_convert(Ptr{Cchar}, h)) --> hello_world_str
+        @fact String(h) --> hello_world_str
     end
 end
 
@@ -91,7 +91,7 @@ facts("OpenCL Low Level Api Test") do
         end
 
         # create program
-        bytesource = bytestring(test_source)
+        bytesource = String(test_source)
         prg_id = cl.api.clCreateProgramWithSource(ctx_id, 1, [bytesource], C_NULL, err_code)
         if err_code[1] != cl.CL_SUCCESS
             error("Failed to create program")

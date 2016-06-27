@@ -39,10 +39,10 @@ function Program(ctx::Context; source=nothing, binaries=nothing)
     end
     if source !== nothing
         byte_source = [String(source)]
-        err_code = Array(CL_int, 1)
+        err_code = Ref{CL_int}()
         program_id = api.clCreateProgramWithSource(ctx.id, 1, byte_source, C_NULL, err_code)
-        if err_code[1] != CL_SUCCESS
-            throw(CLError(err_code[1]))
+        if err_code[] != CL_SUCCESS
+            throw(CLError(err_code[]))
         end
         return Program(program_id, binary=false)
 
@@ -95,9 +95,9 @@ end
 
 let
     num_devices(p::Program) = begin
-        ret = Array(CL_uint, 1)
+        ret = Ref{CL_uint}()
         @check api.clGetProgramInfo(p.id, CL_PROGRAM_NUM_DEVICES, sizeof(ret), ret, C_NULL)
-        return ret[1]
+        return ret[]
     end
 
     devices(p::Program) = begin
@@ -121,33 +121,32 @@ let
     end
 
     build_logs(p::Program) = begin
-        logs = Dict{Device, ASCIIString}()
-        log_len = Csize_t[0]
-        log_bytestring = Array(Cchar, log_len[1])
+        logs = Dict{Device, String}()
         for d in devices(p)
+            log_len = Ref{Csize_t}()
             @check api.clGetProgramBuildInfo(p.id, d.id, CL_PROGRAM_BUILD_LOG,
-                                            0, C_NULL, log_len)
-            if log_len[1] == 0
+                                             0, C_NULL, log_len)
+            if log_len[] == 0
                 logs[d] = ""
                 continue
             end
-            resize!(log_bytestring, log_len[1])
+            log_bytestring = Array(CL_char, log_len[])
             @check api.clGetProgramBuildInfo(p.id, d.id, CL_PROGRAM_BUILD_LOG,
-                                            log_len[1], log_bytestring, C_NULL)
-            logs[d] = bytestring(pointer(log_bytestring))
+                                            log_len[], log_bytestring, C_NULL)
+            logs[d] = String(reinterpret(UInt8, log_bytestring))
         end
         return logs
     end
 
     binaries(p::Program) = begin
         binary_dict = Dict{Device, Array{UInt8}}()
-        slen = Array(CL_int, 1)
+        slen = Ref{Csize_t}()
         @check api.clGetProgramInfo(p.id, CL_PROGRAM_BINARY_SIZES,
-                                    0, C_NULL, pointer(slen))
+                                    0, C_NULL, slen)
 
-        sizes = zeros(Csize_t, slen[1])
+        sizes = zeros(Csize_t, slen[])
         @check api.clGetProgramInfo(p.id, CL_PROGRAM_BINARY_SIZES,
-                                    slen[1], sizes, C_NULL)
+                                    slen[], sizes, C_NULL)
         bins = Array(Ptr{UInt8}, length(sizes))
         # keep a reference to the underlying binary arrays
         # as storing the pointer to the array hides the additional
@@ -177,26 +176,26 @@ let
 
     source(p::Program) = begin
         p.binary && throw(CLError(-45))
-        src_len = Array(Csize_t, 1)
+        src_len = Ref{Csize_t}()
         @check api.clGetProgramInfo(p.id, CL_PROGRAM_SOURCE, 0, C_NULL, src_len)
-        src_len[1] <= 1 && return nothing
-        src = Array(Cchar, src_len[1])
-        @check api.clGetProgramInfo(p.id, CL_PROGRAM_SOURCE, src_len[1], src, C_NULL)
-        return bytestring(pointer(src))
+        src_len[] <= 1 && return nothing
+        src = Array(Cchar, src_len[])
+        @check api.clGetProgramInfo(p.id, CL_PROGRAM_SOURCE, src_len[], src, C_NULL)
+        return String(reinterpret(UInt8, src))
     end
 
     context(p::Program) = begin
-        ret = Array(CL_context, 1)
+        ret = Ref{CL_context}()
         @check api.clGetProgramInfo(p.id, CL_PROGRAM_CONTEXT,
                                     sizeof(CL_context), ret, C_NULL)
-        return Context(ret[1], retain = true)
+        return Context(ret[], retain = true)
     end
 
     reference_count(p::Program) = begin
-        ret = Array(CL_uint, 1)
+        ret = Ref{CL_uint}()
         @check api.clGetProgramInfo(p.id, CL_PROGRAM_REFERENCE_COUNT,
                                     sizeof(CL_uint), ret, C_NULL)
-        return ret[1]
+        return ret[]
     end
 
     const info_map = Dict{Symbol, Function}(

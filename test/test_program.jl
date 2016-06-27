@@ -33,7 +33,7 @@ facts("OpenCL.Program") do
             @fact length(prg[:devices]) > 0 --> true
             @fact device in prg[:devices] --> true
 
-            @fact typeof(prg[:source]) --> ASCIIString
+            @fact typeof(prg[:source]) --> String
             @fact prg[:source] --> test_source
 
             @fact prg[:reference_count] > 0 --> true
