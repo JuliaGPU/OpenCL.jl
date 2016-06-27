@@ -11,7 +11,7 @@ function Base.show(io::IO, d::Device)
     device_name = replace(d[:name], strip_extra_whitespace, " ")
     platform_name = replace(d[:platform][:name], strip_extra_whitespace, " ")
     ptr_val = convert(UInt, Base.pointer(d))
-    ptr_address = "0x$(hex(ptr_val, WORD_SIZE>>2))"
+    ptr_address = "0x$(hex(ptr_val, Sys.WORD_SIZE>>2))"
     print(io, "OpenCL.Device($device_name on $platform_name @$ptr_address)")
 end
 
@@ -33,7 +33,7 @@ let profile(d::Device) = begin
         @check api.clGetDeviceInfo(d.id, CL_DEVICE_PROFILE, 0, C_NULL, size)
         result = Array(CL_char, size[])
         @check api.clGetDeviceInfo(d.id, CL_DEVICE_PROFILE, size[], result, C_NULL)
-        bs = String(reinterpret(UInt8, result)) 
+        bs = CLString(result)
         return bs
     end
 
@@ -42,7 +42,7 @@ let profile(d::Device) = begin
         @check api.clGetDeviceInfo(d.id, CL_DEVICE_VERSION, 0, C_NULL, size)
         result = Array(CL_char, size[])
         @check api.clGetDeviceInfo(d.id, CL_DEVICE_VERSION, size[], result, C_NULL)
-        bs = String(reinterpret(UInt8, result)) 
+        bs = CLString(result)
         return bs
     end
 
@@ -51,7 +51,7 @@ let profile(d::Device) = begin
         @check api.clGetDeviceInfo(d.id, CL_DRIVER_VERSION, 0, C_NULL, size)
         result = Array(CL_char, size[])
         @check api.clGetDeviceInfo(d.id, CL_DRIVER_VERSION, size[], result, C_NULL)
-        bs = String(reinterpret(UInt8, result))
+        bs = CLString(result)
         return string(replace(bs, r"\s+", " "))
     end
 
@@ -60,7 +60,7 @@ let profile(d::Device) = begin
         @check api.clGetDeviceInfo(d.id, CL_DEVICE_EXTENSIONS, 0, C_NULL, size)
         result = Array(CL_char, size[])
         @check api.clGetDeviceInfo(d.id, CL_DEVICE_EXTENSIONS, size[], result, C_NULL)
-        bs = String(reinterpret(UInt8, result))
+        bs = CLString(result)
         return String[string(s) for s in split(bs)]
     end
 
@@ -77,7 +77,7 @@ let profile(d::Device) = begin
         result = Array(CL_char, size[])
         @check api.clGetDeviceInfo(d.id, CL_DEVICE_NAME,
                                    size[] * sizeof(CL_char), result, C_NULL)
-        n = String(reinterpret(UInt8, result))
+        n = CLString(result)
         return string(replace(n, r"\s+", " "))
     end
 

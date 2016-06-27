@@ -1,4 +1,4 @@
-import OpenCL.CLArray
+import OpenCL.cl.CLArray
 
 facts("OpenCL.CLArray") do
 

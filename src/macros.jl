@@ -86,7 +86,7 @@ macro str_info(what, arg1, arg2)
         @check $(esc(clFunc))($(esc(arg1)), $(esc(arg2)), 0, C_NULL, size)
         local result = Array(CL_char, size[])
         @check $(esc(clFunc))($(esc(arg1)), $(esc(arg2)), size[], result, size)
-        String(reinterpret(UInt8, result))
+        CLString(result)
     end
 end
 

@@ -25,7 +25,7 @@ function Base.show(io::IO, ctx::Context)
     dev_strs = [replace(d[:name], r"\s+", " ") for d in devices(ctx)]
     devs_str = join(dev_strs, ",")
     ptr_val = convert(UInt, Base.pointer(ctx))
-    ptr_address = "0x$(hex(ptr_val, WORD_SIZE>>2))"
+    ptr_address = "0x$(hex(ptr_val, Sys.WORD_SIZE>>2))"
     print(io, "OpenCL.Context(@$ptr_address on $devs_str)")
 end
 
@@ -92,8 +92,8 @@ function Context(devs::Vector{Device};
         try
             Base.wait(cond)
             err = ctx_user_data[]
-            error_info = bytestring(err.err_info)
-            private_info = bytestring(convert(Ptr{Cchar}, err.priv_info))
+            error_info = String(err.err_info)
+            private_info = unsafe_string(err.priv_info)
             true_callback(error_info, private_info)
         catch
             rethrow()

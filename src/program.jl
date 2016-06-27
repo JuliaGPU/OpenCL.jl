@@ -24,7 +24,7 @@ end
 
 Base.show(io::IO, p::Program) = begin
     ptr_val = convert(UInt, Base.pointer(p))
-    ptr_address = "0x$(hex(ptr_val, WORD_SIZE>>2))"
+    ptr_address = "0x$(hex(ptr_val, Sys.WORD_SIZE>>2))"
     print(io, "OpenCL.Program(@$ptr_address)")
 end
 
@@ -133,7 +133,7 @@ let
             log_bytestring = Array(CL_char, log_len[])
             @check api.clGetProgramBuildInfo(p.id, d.id, CL_PROGRAM_BUILD_LOG,
                                             log_len[], log_bytestring, C_NULL)
-            logs[d] = String(reinterpret(UInt8, log_bytestring))
+            logs[d] = CLString(log_bytestring)
         end
         return logs
     end
@@ -181,7 +181,7 @@ let
         src_len[] <= 1 && return nothing
         src = Array(Cchar, src_len[])
         @check api.clGetProgramInfo(p.id, CL_PROGRAM_SOURCE, src_len[], src, C_NULL)
-        return String(reinterpret(UInt8, src))
+        return CLString(src)
     end
 
     context(p::Program) = begin

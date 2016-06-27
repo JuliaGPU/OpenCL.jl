@@ -47,7 +47,7 @@ Base.pointer(evt::CLEvent) = evt.id
 
 function Base.show(io::IO, evt::Event)
     ptr_val = convert(UInt, Base.pointer(evt))
-    ptr_address = "0x$(hex(ptr_val, WORD_SIZE>>2))"
+    ptr_address = "0x$(hex(ptr_val, Sys.WORD_SIZE>>2))"
     print(io, "OpenCL.Event(@$ptr_address)")
 end
 
@@ -84,7 +84,7 @@ Base.getindex(evt::CLEvent, evt_info::Symbol) = info(evt, evt_info)
 
     function Base.show(io::IO, evt::UserEvent)
         ptr_val = convert(UInt, Base.pointer(evt))
-        ptr_address = "0x$(hex(ptr_val, WORD_SIZE>>2))"
+        ptr_address = "0x$(hex(ptr_val, Sys.WORD_SIZE>>2))"
         print(io, "OpenCL.UserEvent(@$ptr_address)")
     end
 

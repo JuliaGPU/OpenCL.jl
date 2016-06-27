@@ -12,7 +12,7 @@ function Base.show(io::IO, p::Platform)
     strip_extra_whitespace = r"\s+"
     platform_name = replace(p[:name], strip_extra_whitespace, " ")
     ptr_val = convert(UInt, Base.pointer(p))
-    ptr_address = "0x$(hex(ptr_val, WORD_SIZE>>2))"
+    ptr_address = "0x$(hex(ptr_val, Sys.WORD_SIZE>>2))"
     print(io, "OpenCL.Platform('$platform_name' @$ptr_address)")
 end
 
@@ -35,7 +35,7 @@ function info(p::Platform, pinfo::CL_platform_info)
     @check api.clGetPlatformInfo(p.id, pinfo, 0, C_NULL, size)
     result = Array(CL_char, size[])
     @check api.clGetPlatformInfo(p.id, pinfo, size[], result, C_NULL)
-    return String(reinterpret(UInt8, result))
+    return CLString(result)
 end
 
 

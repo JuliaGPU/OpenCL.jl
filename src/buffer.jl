@@ -35,7 +35,7 @@ Base.sizeof{T}(b::Buffer{T}) = Int(b.len * sizeof(T))
 
 Base.show{T}(io::IO, b::Buffer{T}) = begin
     ptr_val = convert(UInt, Base.pointer(b))
-    ptr_address = "0x$(hex(ptr_val, WORD_SIZE>>2))"
+    ptr_address = "0x$(hex(ptr_val, Sys.WORD_SIZE>>2))"
     print(io, "Buffer{$T}(@$ptr_address)")
 end
 
@@ -294,7 +294,7 @@ function enqueue_map_mem{T}(q::CmdQueue,
     local mapped_arr::Array{T, N}
     try
         # julia owns pointer to mapped memory
-        mapped_arr = pointer_to_array(mapped, dims, false)
+        mapped_arr = unsafe_wrap(mapped, dims, false)
         # when array is gc'd, unmap buffer
         b.mapped  = true
         b.hostbuf = mapped
