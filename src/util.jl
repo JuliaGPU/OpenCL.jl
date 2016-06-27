@@ -27,15 +27,15 @@ Example:
     s = "Hello, %(name)"
     format(s, name="Tom")  ==> "Hello, Tom"
 """
-function format(s::AbstractString; vars...)
+function format(s::String; vars...)
     for (k, v) in vars
         s = replace(s, "%($k)", v)
     end
     s
 end
 
-function build_kernel(ctx::Context, program::AbstractString,
-                      kernel_name::AbstractString; vars...)
+function build_kernel(ctx::Context, program::String,
+                      kernel_name::String; vars...)
     src = format(program; vars...)
     p = Program(ctx, source=src)
     build!(p)
@@ -43,10 +43,10 @@ function build_kernel(ctx::Context, program::AbstractString,
 end
 
 # cache for kernels; dict of form `(program_file, kernel_name, vars) -> kernel`
-const CACHED_KERNELS = Dict{Tuple{AbstractString, AbstractString, Dict}, Kernel}()
+const CACHED_KERNELS = Dict{Tuple{String, String, Dict}, Kernel}()
 
-function get_kernel(ctx::Context, program_file::AbstractString,
-                    kernel_name::AbstractString; vars...)
+function get_kernel(ctx::Context, program_file::String,
+                    kernel_name::String; vars...)
     key = (program_file, kernel_name, Dict(vars))
     if in(key, keys(CACHED_KERNELS))
         return CACHED_KERNELS[key]

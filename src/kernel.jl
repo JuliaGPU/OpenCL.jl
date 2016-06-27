@@ -28,7 +28,7 @@ end
 
 Base.getindex(k::Kernel, kinfo::Symbol) = info(k, kinfo)
 
-function Kernel(p::Program, kernel_name::AbstractString)
+function Kernel(p::Program, kernel_name::String)
     for (dev, status) in info(p, :build_status)
         if status != CL_BUILD_SUCCESS
             msg = "OpenCL.Program has to be built before Kernel constructor invoked"
@@ -161,7 +161,7 @@ Base.getindex(k::Kernel, args...) = begin
     global_size = args[2]
     local_size  = length(args) == 3 ? args[3] : nothing
     # TODO: we cannot pass keywords in anon functions yet, return kernel call thunk
-    return (args...) -> call(queue, k, global_size, local_size, args...)
+    return (args...) -> queue(k, global_size, local_size, args...)
 end
 
 # blocking kernel call that finishes queue

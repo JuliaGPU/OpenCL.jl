@@ -83,7 +83,7 @@ facts("OpenCL.Device") do
                     if k == :extensions
                         @fact isa(d[k], Array) --> true
                         if length(d[k]) > 0
-                            @fact isa(d[k], Array{AbstractString, 1}) --> true
+                            @fact isa(d[k], Array{String, 1}) --> true
                         end
                     elseif k == :platform
                         @fact d[k] --> p

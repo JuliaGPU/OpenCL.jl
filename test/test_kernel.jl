@@ -44,7 +44,7 @@ facts("OpenCL.Kernel") do
             @fact k[:num_args] --> 4
             @fact k[:reference_count] > 0 --> true
             @fact k[:program] --> prg
-            @fact typeof(k[:attributes]) --> ASCIIString
+            @fact typeof(k[:attributes]) --> String
         end
     end
 

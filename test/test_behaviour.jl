@@ -35,7 +35,7 @@ facts("OpenCL Hello World Test") do
         cl.call(queue, kern, str_len, nothing, out_buf)
         h = cl.read(queue, out_buf)
 
-        @fact String(h) --> hello_world_str
+        @fact cl.CLString(h) --> hello_world_str
     end
 end
 
