@@ -7,7 +7,7 @@ abstract CLObject
 
 Base.hash(x::CLObject) = hash(pointer(x))
 Base.isequal{T <: CLObject}(x :: T, y :: T) = Base.hash(x) == Base.hash(y)
-Base.(:(==)){T <: CLObject}(x :: T, y :: T) = Base.hash(x) == Base.hash(y)
+Base.:(==){T <: CLObject}(x :: T, y :: T) = Base.hash(x) == Base.hash(y)
 
 # OpenCL Types
 include("types.jl")

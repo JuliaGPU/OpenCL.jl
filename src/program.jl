@@ -38,7 +38,7 @@ function Program(ctx::Context; source=nothing, binaries=nothing)
         throw(ArgumentError("Program be source or binary"))
     end
     if source !== nothing
-        byte_source = [bytestring(source)]
+        byte_source = [String(source)]
         err_code = Array(CL_int, 1)
         program_id = api.clCreateProgramWithSource(ctx.id, 1, byte_source, C_NULL, err_code)
         if err_code[1] != CL_SUCCESS
@@ -78,7 +78,7 @@ end
 
 #TODO: build callback...
 function build!(p::Program; options="", raise=true)
-    opts = bytestring(options)
+    opts = String(options)
     ndevices = 0
     device_ids = C_NULL
     @check api.clBuildProgram(p.id, cl_uint(ndevices), device_ids, opts, C_NULL, C_NULL)

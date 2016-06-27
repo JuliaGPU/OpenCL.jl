@@ -165,7 +165,7 @@ Base.getindex(k::Kernel, args...) = begin
 end
 
 # blocking kernel call that finishes queue
-function call(q::CmdQueue, k::Kernel, global_work_size, local_work_size,
+function (q::CmdQueue)(k::Kernel, global_work_size, local_work_size,
                       args...; global_work_offset=nothing,
                       wait_on::Union{Void,Vector{Event}}=nothing)
     set_args!(k, args...)

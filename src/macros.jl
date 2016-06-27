@@ -55,7 +55,7 @@ macro return_nanny_event(evt, obj)
 end
 
 macro int_info(what, cl_obj_id, cl_obj_info, ret_type)
-    local clFunc = symbol(string("clGet$(what)Info"))
+    local clFunc = Symbol("clGet$(what)Info")
     quote
         local result = Array($(esc(ret_type)), 1)
         local err::CL_int
@@ -69,7 +69,7 @@ macro int_info(what, cl_obj_id, cl_obj_info, ret_type)
 end
 
 macro vec_info(what, arg1, arg2, res_vec)
-    local clFunc = symbol(string("api.clGet$(what)Info"))
+    local clFunc = Symbol("api.clGet$(what)Info")
     quote
         local size = Array(Csize_t, 1)
         @check clFunc($arg1, $arg2, 0, C_NULL, size)
@@ -80,7 +80,7 @@ macro vec_info(what, arg1, arg2, res_vec)
 end
 
 macro str_info(what, arg1, arg2)
-    local clFunc = symbol("api.clGet$(what)Info")
+    local clFunc = Symbol("api.clGet$(what)Info")
     quote
         local size = Array(Csize_t, 1)
         @check $(esc(clFunc))($(esc(arg1)), $(esc(arg2)), 0, C_NULL, size)

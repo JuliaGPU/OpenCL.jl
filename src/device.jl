@@ -20,10 +20,10 @@ Base.getindex(d::Device, dinfo::Symbol) = info(d, dinfo)
 macro int_info(func, cl_device_info, return_type)
     quote
         function $(esc(func))(d::Device)
-            result = Array($return_type, 1)
+            result = Ref{$return_type}()
             @check api.clGetDeviceInfo(d.id, $cl_device_info,
                                        sizeof($return_type), result, C_NULL)
-            return result[1]
+            return result[]
         end
     end
 end
@@ -47,41 +47,40 @@ let profile(d::Device) = begin
     end
 
     driver_version(d::Device) = begin
-        size = Array(Csize_t, 1)
+        size = Ref{Csize_t}()
         @check api.clGetDeviceInfo(d.id, CL_DRIVER_VERSION, 0, C_NULL, size)
-        result = Array(CL_char, size[1])
-        @check api.clGetDeviceInfo(d.id, CL_DRIVER_VERSION, size[1], result, C_NULL)
-        bs = bytestring(Base.unsafe_convert(Ptr{CL_char}, result))
+        result = Array(CL_char, size[])
+        @check api.clGetDeviceInfo(d.id, CL_DRIVER_VERSION, size[], result, C_NULL)
+        bs = String(convert(Array{Char}, result))
         return string(replace(bs, r"\s+", " "))
     end
 
     extensions(d::Device) = begin
-        size = Array(Csize_t, 1)
+        size = Ref{Csize_t}()
         @check api.clGetDeviceInfo(d.id, CL_DEVICE_EXTENSIONS, 0, C_NULL, size)
-        result = Array(CL_char, size[1])
+        result = Array(CL_char, size[])
         @check api.clGetDeviceInfo(d.id, CL_DEVICE_EXTENSIONS, size[1], result, C_NULL)
-        bs = bytestring(Base.unsafe_convert(Ptr{CL_char}, result))
-        return AbstractString[string(s) for s in split(bs)]
+        bs = String(convert(Array{Char}, result))
+        return String[string(s) for s in split(bs)]
     end
 
     platform(d::Device) = begin
-        result = Array(CL_platform_id, 1)
+        result = Ref{CL_platform_id}()
         @check api.clGetDeviceInfo(d.id, CL_DEVICE_PLATFORM,
                                    sizeof(CL_platform_id), result, C_NULL)
-        return Platform(result[1])
+        return Platform(result[])
     end
 
     name(d::Device) = begin
-        size = Array(Csize_t, 1)
+        size = Ref{Csize_t}()
         @check api.clGetDeviceInfo(d.id, CL_DEVICE_NAME, 0, C_NULL, size)
-        result = Array(CL_char, size[1])
+        result = Array(CL_char, size[])
         @check api.clGetDeviceInfo(d.id, CL_DEVICE_NAME,
                                    size[1] * sizeof(CL_char), result, C_NULL)
         n = bytestring(Base.unsafe_convert(Ptr{Cchar}, result))
         return string(replace(n, r"\s+", " "))
     end
 
-    @int_info(device_type, CL_DEVICE_TYPE, CL_device_type)
     device_type(d::Device) = begin
         result = Array(CL_device_type, 1)
         @check api.clGetDeviceInfo(d.id, CL_DEVICE_TYPE,
