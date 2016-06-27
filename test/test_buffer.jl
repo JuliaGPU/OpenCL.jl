@@ -3,67 +3,67 @@ immutable TestStruct
     b::cl.CL_float
 end
 
-facts("OpenCL.Buffer") do
-    context("OpenCL.Buffer constructors") do
+@testset "OpenCL.Buffer" begin
+    @testset "OpenCL.Buffer constructors" begin
         for device in cl.devices()
 
             ctx = cl.Context(device)
             testarray = zeros(Float32, 1000)
 
-            @fact cl.Buffer(Float32, ctx, cl.CL_MEM_ALLOC_HOST_PTR | cl.CL_MEM_READ_ONLY,
-                                         length(testarray)) --> not(nothing) "no error"
+            @test cl.Buffer(Float32, ctx, cl.CL_MEM_ALLOC_HOST_PTR | cl.CL_MEM_READ_ONLY,
+                                         length(testarray)) != nothing
 
-            @fact cl.Buffer(Float32, ctx, cl.CL_MEM_ALLOC_HOST_PTR | cl.CL_MEM_WRITE_ONLY,
-                                         length(testarray)) --> not(nothing) "no error"
+            @test cl.Buffer(Float32, ctx, cl.CL_MEM_ALLOC_HOST_PTR | cl.CL_MEM_WRITE_ONLY,
+                                         length(testarray)) != nothing
 
-            @fact cl.Buffer(Float32, ctx, cl.CL_MEM_ALLOC_HOST_PTR | cl.CL_MEM_READ_WRITE,
-                                         length(testarray)) --> not(nothing) "no error"
+            @test cl.Buffer(Float32, ctx, cl.CL_MEM_ALLOC_HOST_PTR | cl.CL_MEM_READ_WRITE,
+                                         length(testarray)) != nothing
 
             buf = cl.Buffer(Float32, ctx, cl.CL_MEM_ALLOC_HOST_PTR | cl.CL_MEM_READ_WRITE, length(testarray))
-            @fact length(buf) --> length(testarray)
+            @test length(buf) == length(testarray)
 
-            @fact cl.Buffer(Float32, ctx, cl.CL_MEM_COPY_HOST_PTR | cl.CL_MEM_READ_ONLY,
-                                         hostbuf=testarray) --> not(nothing) "no error"
+            @test cl.Buffer(Float32, ctx, cl.CL_MEM_COPY_HOST_PTR | cl.CL_MEM_READ_ONLY,
+                                         hostbuf=testarray) != nothing
 
-            @fact cl.Buffer(Float32, ctx, cl.CL_MEM_COPY_HOST_PTR | cl.CL_MEM_WRITE_ONLY,
-                                         hostbuf=testarray) --> not(nothing) "no error"
+            @test cl.Buffer(Float32, ctx, cl.CL_MEM_COPY_HOST_PTR | cl.CL_MEM_WRITE_ONLY,
+                                         hostbuf=testarray) != nothing
 
-            @fact cl.Buffer(Float32, ctx, cl.CL_MEM_COPY_HOST_PTR | cl.CL_MEM_READ_WRITE,
-                                         hostbuf=testarray) --> not(nothing) "no error"
+            @test cl.Buffer(Float32, ctx, cl.CL_MEM_COPY_HOST_PTR | cl.CL_MEM_READ_WRITE,
+                                         hostbuf=testarray) != nothing
 
             buf = cl.Buffer(Float32, ctx, cl.CL_MEM_COPY_HOST_PTR | cl.CL_MEM_READ_WRITE, hostbuf=testarray)
-            @fact length(buf) --> length(testarray)
+            @test length(buf) == length(testarray)
 
-            @fact cl.Buffer(Float32, ctx, cl.CL_MEM_USE_HOST_PTR | cl.CL_MEM_READ_ONLY,
-                                         hostbuf=testarray) --> not(nothing) "no error"
+            @test cl.Buffer(Float32, ctx, cl.CL_MEM_USE_HOST_PTR | cl.CL_MEM_READ_ONLY,
+                                         hostbuf=testarray) != nothing
 
-            @fact cl.Buffer(Float32, ctx, cl.CL_MEM_USE_HOST_PTR | cl.CL_MEM_WRITE_ONLY,
-                                         hostbuf=testarray) --> not(nothing) "no error"
+            @test cl.Buffer(Float32, ctx, cl.CL_MEM_USE_HOST_PTR | cl.CL_MEM_WRITE_ONLY,
+                                         hostbuf=testarray) != nothing
 
-            @fact cl.Buffer(Float32, ctx, cl.CL_MEM_USE_HOST_PTR | cl.CL_MEM_READ_WRITE,
-                                         hostbuf=testarray) --> not(nothing) "no error"
+            @test cl.Buffer(Float32, ctx, cl.CL_MEM_USE_HOST_PTR | cl.CL_MEM_READ_WRITE,
+                                         hostbuf=testarray) != nothing
 
             buf = cl.Buffer(Float32, ctx, cl.CL_MEM_USE_HOST_PTR | cl.CL_MEM_READ_WRITE, hostbuf=testarray)
-            @fact length(buf) --> length(testarray)
+            @test length(buf) == length(testarray)
 
             # invalid buffer size should throw error
-            @fact_throws cl.Buffer(Float32, ctx, cl.CL_MEM_ALLOC_HOST_PTR, +0) "error"
-            @fact_throws cl.Buffer(Float32, ctx, cl.CL_MEM_ALLOC_HOST_PTR, -1) "error"
+            @test_throws cl.CLError cl.Buffer(Float32, ctx, cl.CL_MEM_ALLOC_HOST_PTR, +0)
+            @test_throws InexactError cl.Buffer(Float32, ctx, cl.CL_MEM_ALLOC_HOST_PTR, -1)
 
             # invalid flag combinations should throw error
-            @fact_throws cl.Buffer(Float32, ctx, cl.CL_MEM_USE_HOST_PTR | cl.CL_MEM_ALLOC_HOST_PTR,
-                                             hostbuf=testarray) "error"
+            @test_throws cl.CLError cl.Buffer(Float32, ctx, cl.CL_MEM_USE_HOST_PTR | cl.CL_MEM_ALLOC_HOST_PTR,
+                                             hostbuf=testarray)
 
             # invalid host pointer should throw error
-            @fact_throws cl.Buffer(Float32, ctx, cl.CL_MEM_COPY_HOST_PTR,
-                                         hostbuf=C_NULL) "error"
+            @test_throws TypeError cl.Buffer(Float32, ctx, cl.CL_MEM_COPY_HOST_PTR,
+                                         hostbuf=C_NULL)
 
-            @fact_throws cl.Buffer(Float32, ctx, cl.CL_MEM_USE_HOST_PTR,
-                                         hostbuf=C_NULL) "error"
+            @test_throws TypeError cl.Buffer(Float32, ctx, cl.CL_MEM_USE_HOST_PTR,
+                                         hostbuf=C_NULL)
         end
      end
 
-     context("OpenCL.Buffer constructors symbols") do
+     @testset "OpenCL.Buffer constructors symbols" begin
          for device in cl.devices()
              ctx = cl.Context(device)
 
@@ -84,39 +84,39 @@ facts("OpenCL.Buffer") do
                                    ]
                          testarray = zeros(mtype, 100)
                          if mf2 == :copy || mf2 == :use
-                             @fact cl.Buffer(mtype, ctx, (mf1, mf2), hostbuf=testarray) --> not(nothing) "no error"
+                             @test cl.Buffer(mtype, ctx, (mf1, mf2), hostbuf=testarray) != nothing
                              buf = cl.Buffer(mtype, ctx, (mf1, mf2), hostbuf=testarray)
-                             @fact length(buf) --> length(testarray)
+                             @test length(buf) == length(testarray)
                          elseif mf2 == :alloc
-                             @fact cl.Buffer(mtype, ctx, (mf1, mf2),
-                                                          length(testarray)) --> not(nothing) "no error"
+                             @test cl.Buffer(mtype, ctx, (mf1, mf2),
+                                                          length(testarray)) != nothing
                              buf = cl.Buffer(mtype, ctx, (mf1, mf2), length(testarray))
-                             @fact length(buf) --> length(testarray)
+                             @test length(buf) == length(testarray)
                          end
                      end
                  end
              end
 
              test_array = Array(TestStruct, 100)
-             @fact cl.Buffer(TestStruct, ctx, :alloc, length(test_array)) --> not(nothing) "no error"
-             @fact cl.Buffer(TestStruct, ctx, :copy, hostbuf=test_array) --> not(nothing) "no error"
+             @test cl.Buffer(TestStruct, ctx, :alloc, length(test_array)) != nothing
+             @test cl.Buffer(TestStruct, ctx, :copy, hostbuf=test_array) != nothing
 
              # invalid buffer size should throw error
-             @fact_throws cl.Buffer(Float32, ctx, :alloc, +0) "error"
-             @fact_throws cl.Buffer(Float32, ctx, :alloc, -1) "error"
+             @test_throws cl.CLError cl.Buffer(Float32, ctx, :alloc, +0)
+             @test_throws InexactError cl.Buffer(Float32, ctx, :alloc, -1)
 
              # invalid flag combinations should throw error
-             @fact_throws cl.Buffer(Float32, ctx, (:use, :alloc), hostbuf=test_array) "error"
+             @test_throws ArgumentError cl.Buffer(Float32, ctx, (:use, :alloc), hostbuf=test_array)
 
              # invalid host pointer should throw error
-             @fact_throws cl.Buffer(Float32, ctx, :copy, hostbuf=C_NULL) "error"
+             @test_throws TypeError cl.Buffer(Float32, ctx, :copy, hostbuf=C_NULL)
 
-             @fact_throws cl.Buffer(Float32, ctx, :use, hostbuf=C_NULL) "error"
+             @test_throws TypeError cl.Buffer(Float32, ctx, :use, hostbuf=C_NULL)
 
          end
      end
 
-     context("OpenCL.Buffer fill") do
+     @testset "OpenCL.Buffer fill" begin
         for device in cl.devices()
              if contains(device[:platform][:name], "Portable")
                  # the pocl platform claims to implement v1.2 of the spec, but does not
@@ -127,7 +127,7 @@ facts("OpenCL.Buffer") do
              queue = cl.CmdQueue(ctx)
              testarray = zeros(Float32, 1000)
              buf = cl.Buffer(Float32, ctx, (:rw, :copy), hostbuf=testarray)
-             @fact length(buf) == length(testarray) --> true
+             @test length(buf) == length(testarray)
 
              v = cl.opencl_version(device)
              if v.major == 1 && v.minor < 2
@@ -137,38 +137,38 @@ facts("OpenCL.Buffer") do
              end
              cl.fill!(queue, buf, 1f0)
              readback = cl.read(queue, buf)
-             @fact all(x -> x == 1.0, readback) --> true
-             @fact all(x -> x == 0.0, testarray) --> true
-             @fact buf.valid --> true
+             @test all(x -> x == 1.0, readback)
+             @test all(x -> x == 0.0, testarray)
+             @test buf.valid == true
         end
     end
 
-    context("OpenCL.Buffer write!") do
+    @testset "OpenCL.Buffer write!" begin
         for device in cl.devices()
             ctx = cl.Context(device)
             queue = cl.CmdQueue(ctx)
             testarray = zeros(Float32, 1000)
             buf = cl.Buffer(Float32, ctx, (:rw, :copy), hostbuf=testarray)
-            @fact length(buf) == length(testarray) --> true
+            @test length(buf) == length(testarray)
             cl.write!(queue, buf, ones(Float32, length(testarray)))
             readback = cl.read(queue, buf)
-            @fact all(x -> x == 1.0, readback) --> true
-            @fact buf.valid --> true
+            @test all(x -> x == 1.0, readback) == true
+            @test buf.valid == true
         end
     end
 
-    context("OpenCL.Buffer empty_like") do
+    @testset "OpenCL.Buffer empty_like" begin
         for device in cl.devices()
             ctx = cl.Context(device)
             queue = cl.CmdQueue(ctx)
             testarray = zeros(Float32, 1000)
             buf = cl.Buffer(Float32, ctx, (:rw, :copy), hostbuf=testarray)
 
-            @fact sizeof(cl.empty_like(ctx, buf)) --> sizeof(testarray)
+            @test sizeof(cl.empty_like(ctx, buf)) == sizeof(testarray)
         end
     end
 
-    context("OpenCL.Buffer copy!") do
+    @testset "OpenCL.Buffer copy!" begin
         for device in cl.devices()
             ctx = cl.Context(device)
             queue = cl.CmdQueue(ctx)
@@ -182,11 +182,11 @@ facts("OpenCL.Buffer") do
             cl.copy!(queue, b_buf, a_buf)
             # device buffer to host
             cl.copy!(queue, c_arr, b_buf)
-            @fact all(x -> isapprox(x, 2.0), c_arr) --> true
+            @test all(x -> isapprox(x, 2.0), c_arr) == true
         end
     end
 
-    context("OpenCL.Buffer map/unmap") do
+    @testset "OpenCL.Buffer map/unmap" begin
         for device in cl.devices()
             ctx = cl.Context(device)
             queue = cl.CmdQueue(ctx)
@@ -194,29 +194,29 @@ facts("OpenCL.Buffer") do
             for f in (:r, :w, :rw)
                 a, evt = cl.enqueue_map_mem(queue, b, f, 0, (10,10))
                 cl.wait(evt)
-                @fact size(a) --> (10,10)
-                @fact typeof(a) --> Array{Float32,2}
+                @test size(a) == (10,10)
+                @test typeof(a) == Array{Float32,2}
 
                 # cannot unmap a buffer without same host array
                 bad = similar(a)
-                @fact_throws cl.unmap!(queue, b, bad) "error"
+                @test_throws ArgumentError cl.unmap!(queue, b, bad)
 
-                @fact cl.ismapped(b) --> true
+                @test cl.ismapped(b) == true
                 cl.unmap!(queue, b, a)
-                @fact cl.ismapped(b) --> false
+                @test cl.ismapped(b) == false
 
                 # cannot unmap an unmapped buffer
-                @fact_throws cl.unmap!(queue, b, a) "error"
+                @test_throws ArgumentError cl.unmap!(queue, b, a)
 
                 # gc here quickly force any memory errors
                 Base.gc()
             end
-            @fact cl.ismapped(b) --> false
+            @test cl.ismapped(b) == false
             a, evt = cl.enqueue_map_mem(queue, b, :rw, 0, (10,10))
-            @fact cl.ismapped(b) --> true
+            @test cl.ismapped(b) == true
             evt = cl.enqueue_unmap_mem(queue, b, a, wait_for=evt)
             cl.wait(evt)
-            @fact cl.ismapped(b) --> false
+            @test cl.ismapped(b) == false
         end
     end
 end

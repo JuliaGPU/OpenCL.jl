@@ -1,6 +1,5 @@
-facts("OpenCL.Event") do
-
-    context("OpenCL.Event status") do
+@testset "OpenCL.Event" begin
+    @testset "OpenCL.Event status" begin
         for platform in cl.platforms()
 
             if contains(platform[:name], "Portable")
@@ -13,15 +12,15 @@ facts("OpenCL.Event") do
                 ctx = cl.Context(device)
                 evt = cl.UserEvent(ctx)
                 evt[:status]
-                @fact evt[:status] --> :submitted
+                @test evt[:status] == :submitted
                 cl.complete(evt)
-                @fact evt[:status] --> :complete
+                @test evt[:status] == :complete
                 finalize(evt)
             end
         end
     end
 
-    context("OpenCL.Event wait") do
+    @testset "OpenCL.Event wait" begin
         for platform in cl.platforms()
 
             if contains(platform[:name], "Portable")
@@ -40,24 +39,24 @@ facts("OpenCL.Event") do
                 # create marker event
                 mkr_evt = cl.enqueue_marker(q)
 
-                @fact usr_evt[:status] --> :submitted
-                @fact mkr_evt[:status] --> anyof(:queued, :submitted)
+                @test usr_evt[:status] == :submitted
+                @test mkr_evt[:status] in (:queued, :submitted)
 
                 cl.complete(usr_evt)
-                @fact usr_evt[:status] --> :complete
+                @test usr_evt[:status] == :complete
 
                 cl.wait(mkr_evt)
-                @fact mkr_evt[:status] --> :complete
+                @test mkr_evt[:status] == :complete
 
-                @fact cl.cl_event_status(:running) --> cl.CL_RUNNING
-                @fact cl.cl_event_status(:submitted) --> cl.CL_SUBMITTED
-                @fact cl.cl_event_status(:queued) --> cl.CL_QUEUED
-                @fact cl.cl_event_status(:complete) --> cl.CL_COMPLETE
+                @test cl.cl_event_status(:running) == cl.CL_RUNNING
+                @test cl.cl_event_status(:submitted) == cl.CL_SUBMITTED
+                @test cl.cl_event_status(:queued) == cl.CL_QUEUED
+                @test cl.cl_event_status(:complete) == cl.CL_COMPLETE
             end
         end
     end
 
-    context("OpenCL.Event callback") do
+    @testset "OpenCL.Event callback" begin
         for platform in cl.platforms()
             v = cl.opencl_version(platform)
             if v.major == 1 && v.minor < 1
@@ -88,12 +87,12 @@ facts("OpenCL.Event") do
                 mkr_evt = cl.enqueue_marker(queue)
                 cl.add_callback(mkr_evt, test_callback)
 
-                @fact usr_evt[:status] --> :submitted
-                @fact mkr_evt[:status] --> anyof(:queued, :submitted)
-                @fact callback_called --> false
+                @test usr_evt[:status] == :submitted
+                @test mkr_evt[:status] in (:queued, :submitted)
+                @test callback_called == false
 
                 cl.complete(usr_evt)
-                @fact usr_evt[:status] --> :complete
+                @test usr_evt[:status] == :complete
 
                 cl.wait(mkr_evt)
 
@@ -101,8 +100,8 @@ facts("OpenCL.Event") do
                 yield()
                 sleep(0.5)
 
-                @fact mkr_evt[:status] --> :complete
-                @fact callback_called --> true
+                @test mkr_evt[:status] == :complete
+                @test callback_called
             end
         end
     end

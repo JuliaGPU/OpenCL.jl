@@ -3,7 +3,7 @@ info(
                               Running Behavior Tests
       ======================================================================")
 
-facts("OpenCL Hello World Test") do
+@testset "OpenCL Hello World Test" begin
 
     hello_world_kernel = "
         #pragma OPENCL EXTENSION cl_khr_byte_addressable_store : enable
@@ -35,12 +35,12 @@ facts("OpenCL Hello World Test") do
         cl.call(queue, kern, str_len, nothing, out_buf)
         h = cl.read(queue, out_buf)
 
-        @fact cl.CLString(h) --> hello_world_str
+        @test cl.CLString(h) == hello_world_str
     end
 end
 
 
-facts("OpenCL Low Level Api Test") do
+@testset "OpenCL Low Level Api Test" begin
 
   test_source = "
     __kernel void sum(__global const float *a,
@@ -73,27 +73,26 @@ facts("OpenCL Low Level Api Test") do
             h_g[i] = cl.cl_float(rand())
         end
 
-        err_code = Array(cl.CL_int, 1)
+        err_code = Ref{cl.CL_int}()
 
         # create compute context (TODO: fails if function ptr's not passed...)
         ctx_id = cl.api.clCreateContext(C_NULL, 1, [device.id],
                                         cl.ctx_callback_ptr,
                                         cl.raise_context_error,
                                         err_code)
-        if err_code[1] != cl.CL_SUCCESS
-            #error("Failed to create compute context")
-            throw(cl.CLError(err_code[1]))
+        if err_code[] != cl.CL_SUCCESS
+            throw(cl.CLError(err_code[]))
         end
 
         q_id = cl.api.clCreateCommandQueue(ctx_id, device.id, 0, err_code)
-        if err_code[1] != cl.CL_SUCCESS
+        if err_code[] != cl.CL_SUCCESS
             error("Failed to create command queue")
         end
 
         # create program
         bytesource = String(test_source)
         prg_id = cl.api.clCreateProgramWithSource(ctx_id, 1, [bytesource], C_NULL, err_code)
-        if err_code[1] != cl.CL_SUCCESS
+        if err_code[] != cl.CL_SUCCESS
             error("Failed to create program")
         end
 
@@ -105,29 +104,29 @@ facts("OpenCL Low Level Api Test") do
 
         # create compute kernel
         k_id = cl.api.clCreateKernel(prg_id, "sum", err_code)
-        if err_code[1] != cl.CL_SUCCESS
+        if err_code[] != cl.CL_SUCCESS
             error("Failed to create compute kernel")
         end
 
         # create input array in device memory
         Aid = cl.api.clCreateBuffer(ctx_id, cl.CL_MEM_READ_ONLY | cl.CL_MEM_COPY_HOST_PTR,
                                     sizeof(cl.CL_float) * length, h_a, err_code)
-        if err_code[1] != cl.CL_SUCCESS
+        if err_code[] != cl.CL_SUCCESS
             error("Error creating buffer A")
         end
         Bid = cl.api.clCreateBuffer(ctx_id, cl.CL_MEM_READ_ONLY | cl.CL_MEM_COPY_HOST_PTR,
                                     sizeof(cl.CL_float) * length, h_b, err_code)
-        if err_code[1] != cl.CL_SUCCESS
+        if err_code[] != cl.CL_SUCCESS
             error("Error creating buffer B")
         end
         Eid = cl.api.clCreateBuffer(ctx_id, cl.CL_MEM_WRITE_ONLY | cl.CL_MEM_COPY_HOST_PTR,
                                     sizeof(cl.CL_float) * length, h_e, err_code)
-        if err_code[1] != cl.CL_SUCCESS
+        if err_code[] != cl.CL_SUCCESS
             error("Error creating buffer E")
         end
         Gid = cl.api.clCreateBuffer(ctx_id, cl.CL_MEM_WRITE_ONLY | cl.CL_MEM_COPY_HOST_PTR,
                                     sizeof(cl.CL_float) * length, h_g, err_code)
-        if err_code[1] != cl.CL_SUCCESS
+        if err_code[] != cl.CL_SUCCESS
             error("Error creating buffer G")
         end
 
@@ -135,17 +134,17 @@ facts("OpenCL Low Level Api Test") do
 
         Cid = cl.api.clCreateBuffer(ctx_id, cl.CL_MEM_READ_WRITE,
                                     sizeof(cl.CL_float) * length, C_NULL, err_code)
-        if err_code[1] != cl.CL_SUCCESS
+        if err_code[] != cl.CL_SUCCESS
             error("Error creating buffer C")
         end
         Did = cl.api.clCreateBuffer(ctx_id, cl.CL_MEM_READ_WRITE,
                                     sizeof(cl.CL_float) * length, C_NULL, err_code)
-        if err_code[1] != cl.CL_SUCCESS
+        if err_code[] != cl.CL_SUCCESS
             error("Error creating buffer D")
         end
         Fid = cl.api.clCreateBuffer(ctx_id, cl.CL_MEM_WRITE_ONLY,
                                     sizeof(cl.CL_float) * length, C_NULL, err_code)
-        if err_code[1] != cl.CL_SUCCESS
+        if err_code[] != cl.CL_SUCCESS
             error("Error creating buffer F")
         end
 
@@ -157,7 +156,7 @@ facts("OpenCL Low Level Api Test") do
             error("Error setting kernel 1 args")
         end
 
-        nglobal = Csize_t[length,]
+        nglobal = Ref{Csize_t}(length)
         err = cl.api.clEnqueueNDRangeKernel(q_id, k_id,  1, C_NULL,
                                             nglobal, C_NULL, 0, C_NULL, C_NULL)
         if err != cl.CL_SUCCESS
@@ -196,14 +195,10 @@ facts("OpenCL Low Level Api Test") do
         end
 
         # test results
-        ncorrect = 0
         for i in 1:length
             tmp = h_a[i] + h_b[i] + h_e[i] + h_g[i]
-            if isapprox(tmp, h_f[i])
-                ncorrect += 1
-            end
+            @test tmp ≈ h_f[i]
         end
-        @fact ncorrect --> length
     end
 end
 
@@ -243,7 +238,7 @@ let test_struct = "
     }
 "
 
-facts("OpenCL Struct Buffer Test") do
+@testset "OpenCL Struct Buffer Test" begin
     for device in cl.devices()
 
         if device[:platform][:name] == "Portable Computing Language"
@@ -274,7 +269,7 @@ facts("OpenCL Struct Buffer Test") do
         cl.call(q, part3, global_size, nothing, X_buf, Y_buf, R_buf, P_buf)
 
         r = cl.read(q, R_buf)
-        @fact all(x -> x == 13.5, r) --> true
+        @test all(x -> x == 13.5, r)
     end
 end
 end

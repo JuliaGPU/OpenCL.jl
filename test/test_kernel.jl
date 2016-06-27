@@ -1,4 +1,4 @@
-facts("OpenCL.Kernel") do
+@testset "OpenCL.Kernel" begin
 
     test_source = "
     __kernel void sum(__global const float *a,
@@ -15,7 +15,7 @@ facts("OpenCL.Kernel") do
 
     #TODO: tests for invalid kernel build error && logs...
 
-    context("OpenCL.Kernel constructor") do
+    @testset "OpenCL.Kernel constructor" begin
         for device in cl.devices()
             if device[:platform][:name] == "Portable Computing Language"
                 warn("Skipping OpenCL.Kernel constructor for " *
@@ -24,13 +24,13 @@ facts("OpenCL.Kernel") do
             end
             ctx = cl.Context(device)
             prg = cl.Program(ctx, source=test_source)
-            @fact_throws cl.Kernel(prg, "sum") "error"
+            @test_throws ArgumentError cl.Kernel(prg, "sum")
             cl.build!(prg)
-            @fact cl.Kernel(prg, "sum") --> not(nothing) "no error"
+            @test cl.Kernel(prg, "sum") != nothing
         end
     end
 
-    context("OpenCL.Kernel info") do
+    @testset "OpenCL.Kernel info" begin
         for device in cl.devices()
             if device[:platform][:name] == "Portable Computing Language"
                 warn("Skipping OpenCL.Kernel info for Portable Computing Language Platform")
@@ -40,15 +40,15 @@ facts("OpenCL.Kernel") do
             prg = cl.Program(ctx, source=test_source)
             cl.build!(prg)
             k = cl.Kernel(prg, "sum")
-            @fact k[:name] --> "sum"
-            @fact k[:num_args] --> 4
-            @fact k[:reference_count] > 0 --> true
-            @fact k[:program] --> prg
-            @fact typeof(k[:attributes]) --> String
+            @test k[:name] == "sum"
+            @test k[:num_args] == 4
+            @test k[:reference_count] > 0
+            @test k[:program] == prg
+            @test typeof(k[:attributes]) == String
         end
     end
 
-    context("OpenCL.Kernel mem/workgroup size") do
+    @testset "OpenCL.Kernel mem/workgroup size" begin
         for device in cl.devices()
             if device[:platform][:name] == "Portable Computing Language"
                 warn("Skipping OpenCL.Kernel mem/workgroup size for Portable Computing Language Platform")
@@ -63,17 +63,17 @@ facts("OpenCL.Kernel") do
                               (:local_mem_size, cl.CL_KERNEL_LOCAL_MEM_SIZE),
                               (:private_mem_size, cl.CL_KERNEL_PRIVATE_MEM_SIZE),
                               (:prefered_size_multiple, cl.CL_KERNEL_PREFERRED_WORK_GROUP_SIZE_MULTIPLE)]
-                @fact cl.work_group_info(k, sf, device) --> not(nothing) "no error"
-                @fact cl.work_group_info(k, clf, device) --> not(nothing) "no error"
+                @test cl.work_group_info(k, sf, device) != nothing
+                @test cl.work_group_info(k, clf, device) != nothing
                 if sf != :compile_size
-                    @fact cl.work_group_info(k, sf, device) --> cl.work_group_info(k, clf, device)
+                    @test cl.work_group_info(k, sf, device) == cl.work_group_info(k, clf, device)
                 end
             end
         end
     end
 
 
-    context("OpenCL.Kernel set_arg!/set_args!") do
+    @testset "OpenCL.Kernel set_arg!/set_args!" begin
          for device in cl.devices()
 
             if device[:platform][:name] == "Portable Computing Language"
@@ -97,20 +97,20 @@ facts("OpenCL.Kernel") do
             C = cl.Buffer(Float32, ctx, :w, count)
 
             # sizeof mem object for buffer in bytes
-            @fact sizeof(A) --> nbytes
-            @fact sizeof(B) --> nbytes
-            @fact sizeof(C) --> nbytes
+            @test sizeof(A) == nbytes
+            @test sizeof(B) == nbytes
+            @test sizeof(C) == nbytes
 
             # we use julia's index by one convention
-            @fact cl.set_arg!(k, 1, A)   --> not(nothing) "no error"
-            @fact cl.set_arg!(k, 2, B)   --> not(nothing) "no error"
-            @fact cl.set_arg!(k, 3, C)   --> not(nothing) "no error"
-            @fact cl.set_arg!(k, 4, UInt32(count)) --> not(nothing) "no error"
+            @test cl.set_arg!(k, 1, A) != nothing
+            @test cl.set_arg!(k, 2, B) != nothing
+            @test cl.set_arg!(k, 3, C) != nothing
+            @test cl.set_arg!(k, 4, UInt32(count)) != nothing
 
             cl.enqueue_kernel(queue, k, count) |> cl.wait
             r = cl.read(queue, C)
 
-            @fact all(x -> x == 2.0, r) --> true
+            @test all(x -> x == 2.0, r)
             cl.flush(queue)
 
             # test set_args with new kernel
@@ -130,11 +130,11 @@ facts("OpenCL.Kernel") do
 
             r = cl.read(queue, C)
 
-            @fact all(x -> x == 4.0, r) --> true
+            @test all(x -> x == 4.0, r)
         end
     end
 
-    context("OpenCL.Kernel enqueue_kernel") do
+    @testset "OpenCL.Kernel enqueue_kernel" begin
         for device in cl.devices()
             if device[:platform][:name] == "Portable Computing Language"
                 warn("Skipping OpenCL.Kernel mem/workgroup size for Portable Computing Language Platform")
@@ -156,33 +156,33 @@ facts("OpenCL.Kernel") do
             q = cl.CmdQueue(ctx)
 
             # dimensions must be the same size
-            @fact_throws cl.call(q, k, (1,), (1,1), d_buff) "error"
-            @fact_throws cl.call(q, k, (1,1), (1,), d_buff) "error"
+            @test_throws ArgumentError cl.call(q, k, (1,), (1,1), d_buff)
+            @test_throws ArgumentError cl.call(q, k, (1,1), (1,), d_buff)
 
             # dimensions are bounded
             max_work_dim = device[:max_work_item_dims]
             bad = tuple([1 for _ in 1:(max_work_dim + 1)])
-            @fact_throws cl.call(q, k, bad, d_buff) "error"
+            @test_throws MethodError cl.call(q, k, bad, d_buff)
 
             # devices have finite work sizes
-            @fact_throws cl.call(q, k, (typemax(Int),), d_buff) "error"
+            @test_throws MethodError cl.call(q, k, (typemax(Int),), d_buff)
 
             # blocking call to kernel finishes cmd queue
             cl.call(q, k, 1, 1, d_buff)
 
             r = cl.read(q, d_buff)
-            @fact r[1] --> 2
+            @test r[1] == 2
 
             # alternative kernel call syntax
             k[q, (1,), (1,)](d_buff)
             r = cl.read(q, d_buff)
-            @fact r[1] --> 3
+            @test r[1] == 3
 
             # enqueue task is an alias for calling
             # a kernel with a global/local size of 1
             evt = cl.enqueue_task(q, k)
             r = cl.read(q, d_buff)
-            @fact r[1] --> 4
+            @test r[1] == 4
         end
     end
 end

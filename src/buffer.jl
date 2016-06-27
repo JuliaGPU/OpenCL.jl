@@ -122,12 +122,12 @@ function Buffer{T}(::Type{T}, ctx::Context, flags::CL_mem_flags,
         nbytes = len * sizeof(T)
     end
 
-    err_code = Array(CL_int, 1)
+    err_code = Ref{CL_int}()
     mem_id = api.clCreateBuffer(ctx.id, flags, cl_uint(nbytes),
                                 hostbuf !== nothing ? hostbuf : C_NULL,
                                 err_code)
-    if err_code[1] != CL_SUCCESS
-        throw(CLError(err_code[1]))
+    if err_code[] != CL_SUCCESS
+        throw(CLError(err_code[]))
     end
 
     try

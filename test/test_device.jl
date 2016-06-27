@@ -1,6 +1,5 @@
-facts("OpenCL.Device") do
-
-    context("Device Type") do
+@testset "OpenCL.Device" begin
+    @testset "Device Type" begin
         for p in cl.platforms()
             for (t, k) in zip((cl.CL_DEVICE_TYPE_GPU, cl.CL_DEVICE_TYPE_CPU,
                                cl.CL_DEVICE_TYPE_ACCELERATOR, cl.CL_DEVICE_TYPE_ALL),
@@ -17,22 +16,22 @@ facts("OpenCL.Device") do
         end
     end
 
-    context("Device Equality") do
+    @testset "Device Equality" begin
         for platform in cl.platforms()
             devices = cl.devices(platform)
             if length(devices) > 1
                 test_dev = devices[1]
                 for dev in devices[2:end]
-                   @fact pointer(dev) != pointer(test_dev) --> true
-                   @fact hash(dev) != hash(test_dev) --> true
-                   @fact isequal(dev, test_dev) --> false
+                   @test pointer(dev) != pointer(test_dev)
+                   @test hash(dev) != hash(test_dev)
+                   @test isequal(dev, test_dev) == false
                end
            end
        end
 
     end
 
-    context("Device Info") do
+   @testset "Device Info" begin
         device_info_keys = Symbol[
                 :driver_version,
                 :version,
@@ -72,27 +71,26 @@ facts("OpenCL.Device") do
                 warn(msg)
                 continue
             end
-            @fact isa(p, cl.Platform) --> true
-            @fact_throws p[:zjdlkf] "error"
+            @test isa(p, cl.Platform)
+            @test_throws ArgumentError p[:zjdlkf]
             for d in cl.devices(p)
-                @fact isa(d, cl.Device) --> true
-                @fact_throws d[:zjdlkf] "error"
+                @test isa(d, cl.Device)
+                @test_throws ArgumentError d[:zjdlkf]
                 for k in device_info_keys
-                    @fact d[k] --> not(nothing) "no error"
-                    @fact d[k] --> cl.info(d, k)
+                    @test d[k] == cl.info(d, k)
                     if k == :extensions
-                        @fact isa(d[k], Array) --> true
+                        @test isa(d[k], Array)
                         if length(d[k]) > 0
-                            @fact isa(d[k], Array{String, 1}) --> true
+                            @test isa(d[k], Array{String, 1})
                         end
                     elseif k == :platform
-                        @fact d[k] --> p
+                        @test d[k] == p
                     elseif k == :max_work_item_sizes
-                        @fact length(d[k]) --> 3
+                        @test length(d[k]) == 3
                     elseif k == :max_image2d_shape
-                        @fact length(d[k]) --> 2
+                        @test length(d[k]) == 2
                     elseif k == :max_image3d_shape
-                        @fact length(d[k]) --> 3
+                        @test length(d[k]) == 3
                     end
                 end
             end

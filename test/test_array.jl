@@ -1,8 +1,8 @@
 import OpenCL.cl.CLArray
 
-facts("OpenCL.CLArray") do
+@testset "OpenCL.CLArray" begin
 
-    context("OpenCL.CLArray constructors") do
+    @testset "OpenCL.CLArray constructors" begin
         for device in cl.devices()
 
             ctx = cl.Context(device)
@@ -10,52 +10,49 @@ facts("OpenCL.CLArray") do
             hostarray = zeros(Float32, 128*64)
             A = CLArray(queue, hostarray)
 
-            @fact CLArray(queue, (:rw, :copy), hostarray) --> not(nothing) "no error"
+            @test CLArray(queue, (:rw, :copy), hostarray) != nothing
 
-            @fact CLArray(queue, hostarray,
-                          flags=(:rw, :copy)) --> not(nothing) "no error"
+            @test CLArray(queue, hostarray, flags=(:rw, :copy)) != nothing
 
-            @fact CLArray(queue, hostarray) --> not(nothing) "no error"
+            @test CLArray(queue, hostarray) != nothing
 
-            @fact CLArray(cl.Buffer(Float32, ctx, (:r, :copy), hostbuf=hostarray),
+            @test CLArray(cl.Buffer(Float32, ctx, (:r, :copy), hostbuf=hostarray),
                           queue,
-                          (128, 64)) --> not(nothing) "no error"
+                          (128, 64)) != nothing
 
-            @fact copy(A) --> A
+            @test copy(A) == A
         end
      end
 
-    context("OpenCL.CLArray fill") do
+    @testset "OpenCL.CLArray fill" begin
         for device in cl.devices()
             ctx = cl.Context(device)
             queue = cl.CmdQueue(ctx)
 
-            @fact cl.to_host(cl.fill(Float32, queue, Float32(0.5),
-                                            32, 64)) --> fill(Float32(0.5), 32, 64)
-            @fact cl.to_host(cl.zeros(Float32, queue, 64)) --> zeros(Float32, 64)
-            @fact cl.to_host(cl.ones(Float32, queue, 64)) --> ones(Float32, 64)
-
+            @test cl.to_host(cl.fill(Float32, queue, Float32(0.5),
+                                            32, 64)) == fill(Float32(0.5), 32, 64)
+            @test cl.to_host(cl.zeros(Float32, queue, 64)) == zeros(Float32, 64)
+            @test cl.to_host(cl.ones(Float32, queue, 64)) == ones(Float32, 64)
         end
      end
 
-    context("OpenCL.CLArray core functions") do
+    @testset "OpenCL.CLArray core functions" begin
         for device in cl.devices()
             ctx = cl.Context(device)
             queue = cl.CmdQueue(ctx)
             A = CLArray(queue, rand(Float32, 128, 64))
-            @fact size(A) --> (128, 64)
-            @fact ndims(A) --> 2
-            @fact length(A) --> 128*64
+            @test size(A) == (128, 64)
+            @test ndims(A) == 2
+            @test length(A) == 128*64
             # reshape
             B = reshape(A, 128*64)
-            @fact reshape(B, 128, 64) --> A
+            @test reshape(B, 128, 64) == A
             # transpose
             X = CLArray(queue, rand(Float32, 32, 32))
             B = cl.zeros(Float32, queue, 64, 128)
             ev = transpose!(B, A)
             cl.wait(ev)
-            @fact cl.to_host(A') --> cl.to_host(B)
+            @test cl.to_host(A') == cl.to_host(B)
         end
      end
-
 end
