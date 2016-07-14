@@ -75,9 +75,8 @@ function Context(devs::Vector{Device};
         device_ids[i] = d.id
     end
 
-    cond = Condition()
-    cb = Base.SingleAsyncWork(data -> notify(cond))
-    ctx_user_data = Ref(_CtxErr(cb.handle, 0, 0, 0))
+    cb = Base.AsyncCondition()
+    ctx_user_data = Ref(_CtxErr(Base.unsafe_convert(Ptr{Void}, cb), 0, 0, 0))
 
     err_code = Ref{CL_int}()
     ctx_id = api.clCreateContext(ctx_properties, n_devices, device_ids,
@@ -90,7 +89,7 @@ function Context(devs::Vector{Device};
 
     @async begin
         try
-            Base.wait(cond)
+            Base.wait(cb)
             err = ctx_user_data[]
             error_info = String(err.err_info)
             private_info = unsafe_string(err.priv_info)
