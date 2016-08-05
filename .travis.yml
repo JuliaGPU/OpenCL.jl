@@ -2,12 +2,10 @@ language: julia
 sudo: false
 
 os:
-  - linux
   - osx
 
 julia:
-  - release
-  - nightly
+  - 0.4
 
 notifications:
   email: false
@@ -31,27 +29,7 @@ script:
   - julia -e 'using OpenCL; @assert isdefined(:OpenCL); @assert typeof(OpenCL) === Module'
 
   - julia --color=yes --depwarn=error -e "Pkg.test(\"OpenCL\")"
-
-  - julia examples/demo.jl
-  - julia examples/performance.jl
-  - julia examples/hands_on_opencl/ex04/vadd_chain.jl
-  - julia examples/hands_on_opencl/ex05/vadd_abc.jl
-  - julia examples/hands_on_opencl/ex06/matmul.jl
-  - julia examples/hands_on_opencl/ex07/matmul.jl
-  - julia examples/hands_on_opencl/ex08/matmul.jl
-
-  - if [ $TRAVIS_OS_NAME = "linux" ]; then
-      julia examples/hands_on_opencl/ex09/pi_ocl.jl;
-    fi;
-  - if [ $TRAVIS_OS_NAME = "linux" ]; then
-      julia examples/hands_on_opencl/exA/pi_vocl.jl 1;
-    fi;
-  - if [ $TRAVIS_OS_NAME = "linux" ]; then
-      julia examples/hands_on_opencl/exA/pi_vocl.jl 4;
-    fi;
-  - if [ $TRAVIS_OS_NAME = "linux" ]; then
-      julia examples/hands_on_opencl/exA/pi_vocl.jl 8;
-    fi;
+  - julia --color=yes -e "using OpenCL; device, context, queue = OpenCL.create_compute_context(); a = rand(Float32, 125356789); abuf = OpenCL.Buffer(Float32, context, (:r, :copy), hostbuf=a); b = OpenCL.read(queue, abuf); @assert isapprox(a, b)"
 
 after_success:
   - julia -e 'Pkg.add("Coverage"); using Coverage; Coveralls.submit(Coveralls.process_folder())'; fi
