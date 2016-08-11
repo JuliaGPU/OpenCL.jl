@@ -57,7 +57,7 @@ function Buffer{T}(::Type{T}, ctx::Context, mem_flags::NTuple{2, Symbol}, len::I
         throw(ArgumentError("only one flag in {:r, :w, :rw} can be defined"))
     end
 
-    flags::CL_mem_flags
+    local flags::CL_mem_flags
     if f_rw && !(f_r || f_w)
         flags = CL_MEM_READ_WRITE
     elseif f_r && !(f_w || f_rw)
