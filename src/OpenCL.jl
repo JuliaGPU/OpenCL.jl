@@ -1,13 +1,22 @@
 module OpenCL
 
+export cl
+module cl
+
 abstract CLObject
 
 Base.hash(x::CLObject) = hash(pointer(x))
 Base.isequal{T <: CLObject}(x :: T, y :: T) = Base.hash(x) == Base.hash(y)
-Base.(:(==)){T <: CLObject}(x :: T, y :: T) = Base.hash(x) == Base.hash(y)
+Base.:(==){T <: CLObject}(x :: T, y :: T) = Base.hash(x) == Base.hash(y)
 
 # OpenCL Types
 include("types.jl")
+
+# The arrays contain a nullbyte that we pop first
+function CLString(v :: Array{CL_char})
+    pop!(v)
+    String(reinterpret(UInt8, v))
+end
 
 # OpenCL Constants
 include("constants.jl")
@@ -55,4 +64,5 @@ include("util.jl")
 include("array.jl")
 
 @deprecate release! finalize
+end # cl
 end # module

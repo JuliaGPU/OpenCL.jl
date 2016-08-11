@@ -1,11 +1,7 @@
 module TestOpenCL
-    using FactCheck
     using Base.Test
 
-    import OpenCL
-    const cl = OpenCL
-
-    FactCheck.onlystats(true)
+    using OpenCL
 
     function create_test_buffer()
         ctx = cl.create_some_context()
@@ -27,7 +23,5 @@ module TestOpenCL
     include("test_memory.jl")
     include("test_buffer.jl")
     include("test_array.jl")
-
-    FactCheck.exitstatus()
 
 end # module

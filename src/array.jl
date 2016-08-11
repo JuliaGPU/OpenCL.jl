@@ -71,7 +71,7 @@ Base.size(A::CLArray) = A.size
 Base.size(A::CLArray, dim::Integer) = A.size[dim]
 Base.ndims(A::CLArray) = length(size(A))
 Base.length(A::CLArray) = prod(size(A))
-Base.(:(==))(A:: CLArray, B:: CLArray) =
+Base.:(==)(A:: CLArray, B:: CLArray) =
     buffer(A) == buffer(B) && size(A) == size(B)
 Base.reshape(A::CLArray, dims...) = begin
     @assert prod(dims) == prod(size(A))

@@ -10,8 +10,7 @@
 #          Ported to Python by Tom Deakin, July 2013
 #          Ported to Julia by Jake Bolewski, Nov 2013
 
-import OpenCL
-const cl = OpenCL
+using OpenCL
 
 # get the directory of this file
 # (used for test runner)

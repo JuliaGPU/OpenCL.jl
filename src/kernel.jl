@@ -28,7 +28,7 @@ end
 
 Base.getindex(k::Kernel, kinfo::Symbol) = info(k, kinfo)
 
-function Kernel(p::Program, kernel_name::AbstractString)
+function Kernel(p::Program, kernel_name::String)
     for (dev, status) in info(p, :build_status)
         if status != CL_BUILD_SUCCESS
             msg = "OpenCL.Program has to be built before Kernel constructor invoked"
@@ -161,11 +161,11 @@ Base.getindex(k::Kernel, args...) = begin
     global_size = args[2]
     local_size  = length(args) == 3 ? args[3] : nothing
     # TODO: we cannot pass keywords in anon functions yet, return kernel call thunk
-    return (args...) -> call(queue, k, global_size, local_size, args...)
+    return (args...) -> queue(k, global_size, local_size, args...)
 end
 
 # blocking kernel call that finishes queue
-function call(q::CmdQueue, k::Kernel, global_work_size, local_work_size,
+function (q::CmdQueue)(k::Kernel, global_work_size, local_work_size,
                       args...; global_work_offset=nothing,
                       wait_on::Union{Void,Vector{Event}}=nothing)
     set_args!(k, args...)
@@ -262,27 +262,27 @@ function enqueue_task(q::CmdQueue, k::Kernel; wait_for=nothing)
 end
 
 let name(k::Kernel) = begin
-        size = Array(Csize_t, 1)
+        size = Ref{Csize_t}()
         @check api.clGetKernelInfo(k.id, CL_KERNEL_FUNCTION_NAME,
                                    0, C_NULL, size)
-        result = Array(Cchar, size[1])
+        result = Array(Cchar, size[])
         @check api.clGetKernelInfo(k.id, CL_KERNEL_FUNCTION_NAME,
-                                   size[1], result, size)
-        return bytestring(Base.unsafe_convert(Ptr{Cchar}, result))
+                                   size[], result, size)
+        return CLString(result)
     end
 
     num_args(k::Kernel) = begin
-        ret = Array(CL_uint, 1)
+        ret = Ref{CL_uint}()
         @check api.clGetKernelInfo(k.id, CL_KERNEL_NUM_ARGS,
                                    sizeof(CL_uint), ret, C_NULL)
-        return ret[1]
+        return ret[]
     end
 
     reference_count(k::Kernel) = begin
-        ret = Array(CL_uint, 1)
+        ret = Ref{CL_uint}()
         @check api.clGetKernelInfo(k.id, CL_KERNEL_REFERENCE_COUNT,
                                    sizeof(CL_uint), ret, C_NULL)
-        return ret[1]
+        return ret[]
     end
 
     program(k::Kernel) = begin
@@ -293,16 +293,16 @@ let name(k::Kernel) = begin
     end
 
     attributes(k::Kernel) = begin
-        size = Csize_t[0,]
+        size = Ref{Csize_t}()
         api.clGetKernelInfo(k.id, CL_KERNEL_ATTRIBUTES,
                             0, C_NULL, size)
-        if size[1] <= 1
+        if size[] <= 1
             return ""
         end
-        result = Array(Cchar, size[1])
+        result = Array(CL_char, size[])
         @check api.clGetKernelInfo(k.id, CL_KERNEL_ATTRIBUTES,
-                                   size[1], result, size)
-        return bytestring(Base.unsafe_convert(Ptr{Cchar}, result))
+                                   size[], result, size)
+        return CLString(result)
     end
 
     const info_map = Dict{Symbol, Function}(

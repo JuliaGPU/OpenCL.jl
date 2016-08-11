@@ -10,8 +10,7 @@
 #          Ported to Python by Tom Deakin, July 2013
 #          Ported to Julia by Jake Bolewski, Nov 2013
 
-import OpenCL
-const cl = OpenCL
+using OpenCL
 
 # tolerance used in floating point comparisons
 TOL = 1e-3

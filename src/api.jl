@@ -2,13 +2,13 @@ module api
 
 include("types.jl")
 
-paths = @osx? ["/System/Library/Frameworks/OpenCL.framework"] : ByteString[]
+const paths = is_apple() ? String["/System/Library/Frameworks/OpenCL.framework"] : String[]
 
 const libopencl = Libdl.find_library(["libOpenCL", "OpenCL"], paths)
 @assert libopencl != ""
 
 function _ocl_func(func, ret_type, arg_types)
-    local args_in = Symbol[symbol("arg$i::$T")
+    local args_in = Symbol[Symbol("arg$i::$T")
                            for (i, T) in enumerate(arg_types.args)]
     esc(quote
         function $func($(args_in...))

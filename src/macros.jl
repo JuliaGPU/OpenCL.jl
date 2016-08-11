@@ -55,7 +55,7 @@ macro return_nanny_event(evt, obj)
 end
 
 macro int_info(what, cl_obj_id, cl_obj_info, ret_type)
-    local clFunc = symbol(string("clGet$(what)Info"))
+    local clFunc = Symbol("clGet$(what)Info")
     quote
         local result = Array($(esc(ret_type)), 1)
         local err::CL_int
@@ -69,7 +69,7 @@ macro int_info(what, cl_obj_id, cl_obj_info, ret_type)
 end
 
 macro vec_info(what, arg1, arg2, res_vec)
-    local clFunc = symbol(string("api.clGet$(what)Info"))
+    local clFunc = Symbol("api.clGet$(what)Info")
     quote
         local size = Array(Csize_t, 1)
         @check clFunc($arg1, $arg2, 0, C_NULL, size)
@@ -80,13 +80,13 @@ macro vec_info(what, arg1, arg2, res_vec)
 end
 
 macro str_info(what, arg1, arg2)
-    local clFunc = symbol("api.clGet$(what)Info")
+    local clFunc = Symbol("api.clGet$(what)Info")
     quote
-        local size = Array(Csize_t, 1)
+        local size = Ref{Csize_t}()
         @check $(esc(clFunc))($(esc(arg1)), $(esc(arg2)), 0, C_NULL, size)
-        local result = Array(CL_char, size[1])
-        @check $(esc(clFunc))($(esc(arg1)), $(esc(arg2)), size[1], result, size)
-        bytestring(Base.unsafe_convert(Ptr{CL_char}, result))
+        local result = Array(CL_char, size[])
+        @check $(esc(clFunc))($(esc(arg1)), $(esc(arg2)), size[], result, size)
+        CLString(result)
     end
 end
 
@@ -96,7 +96,7 @@ function _version_test(qm, elem :: Symbol, ex :: Expr, version :: VersionNumber)
     @assert length(ex.args) == 2
 
     esc(quote
-        if OpenCL.check_version($elem, $version)
+        if cl.check_version($elem, $version)
             $(ex.args[1])
         else
             $(ex.args[2])

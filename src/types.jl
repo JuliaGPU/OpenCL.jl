@@ -21,7 +21,7 @@ typealias CL_uint   UInt32
 typealias CL_long   Int64
 typealias CL_ulong  UInt64
 
-typealias CL_half   UInt16
+typealias CL_half   Float16
 typealias CL_float  Float32
 typealias CL_double Float64
 
@@ -138,7 +138,6 @@ cl_device_mem_cache_type(x)    = cl_uint(x)
 cl_device_local_mem_type(x)    = cl_uint(x)
 cl_device_exec_capabilities(x) = cl_bitfield(x)
 cl_device_svm_capabilities(x)  = cl_bitfield(x)
-cl_command_queue_properties(x) = cl_bitfield(x)
 
 cl_context_properties(x)       = convert(CL_context_properties, x)
 cl_context_info(x)             = cl_uint(x)

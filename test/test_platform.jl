@@ -1,32 +1,31 @@
-facts("OpenCL.Platform") do
-
-    context("Platform Info") do
-        @fact length(cl.platforms()) --> cl.num_platforms()
+@testset "OpenCL.Platform" begin
+    @testset "Platform Info" begin
+        @test length(cl.platforms()) == cl.num_platforms()
         for p in cl.platforms()
-            @fact p != nothing --> true
-            @fact pointer(p) != C_NULL --> true
+            @test p != nothing
+            @test pointer(p) != C_NULL
             for k in [:profile, :version, :name, :vendor, :extensions]
-                @fact p[k] == cl.info(p, k) --> true
+                @test p[k] == cl.info(p, k)
             end
             v = cl.opencl_version(p)
-            @fact 1 <= v.major <= 2  --> true
-            @fact 0 <= v.minor <= 2  --> true
+            @test 1 <= v.major <= 2
+            @test 0 <= v.minor <= 2
          end
      end
 
-     context("Platform Equality") do
+     @testset "Platform Equality" begin
         platform       = cl.platforms()[1]
         platform_copy  = cl.platforms()[1]
 
-        @fact pointer(platform) --> pointer(platform_copy)
-        @fact hash(platform) --> hash(platform_copy)
-        @fact isequal(platform, platform) --> true
+        @test pointer(platform) == pointer(platform_copy)
+        @test hash(platform) == hash(platform_copy)
+        @test isequal(platform, platform)
 
         if length(cl.platforms()) > 1
             for p in cl.platforms()[2:end]
-                @fact pointer(platform) == pointer(p) --> false
-                @fact hash(platform) == hash(p) --> false
-                @fact isequal(platform, p) --> false
+                @test pointer(platform) == pointer(p)
+                @test hash(platform) == hash(p)
+                @test isequal(platform, p)
             end
         end
     end

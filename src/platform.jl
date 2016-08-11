@@ -12,30 +12,30 @@ function Base.show(io::IO, p::Platform)
     strip_extra_whitespace = r"\s+"
     platform_name = replace(p[:name], strip_extra_whitespace, " ")
     ptr_val = convert(UInt, Base.pointer(p))
-    ptr_address = "0x$(hex(ptr_val, WORD_SIZE>>2))"
+    ptr_address = "0x$(hex(ptr_val, Sys.WORD_SIZE>>2))"
     print(io, "OpenCL.Platform('$platform_name' @$ptr_address)")
 end
 
 function platforms()
-    nplatforms = Array(CL_uint, 1)
+    nplatforms = Ref{CL_uint}()
     @check api.clGetPlatformIDs(0, C_NULL, nplatforms)
-    cl_platform_ids = Array(CL_platform_id, nplatforms[1])
-    @check api.clGetPlatformIDs(nplatforms[1], cl_platform_ids, C_NULL)
+    cl_platform_ids = Array(CL_platform_id, nplatforms[])
+    @check api.clGetPlatformIDs(nplatforms[], cl_platform_ids, C_NULL)
     return [Platform(id) for id in cl_platform_ids]
 end
 
 function num_platforms()
-    nplatforms = Array(CL_uint, 1)
+    nplatforms = Ref{CL_uint}()
     @check api.clGetPlatformIDs(0, C_NULL, nplatforms)
-    return Int(nplatforms[1])
+    return Int(nplatforms[])
 end
 
 function info(p::Platform, pinfo::CL_platform_info)
-    size = Array(Csize_t, 1)
+    size = Ref{Csize_t}()
     @check api.clGetPlatformInfo(p.id, pinfo, 0, C_NULL, size)
-    result = Array(CL_char, size[1])
-    @check api.clGetPlatformInfo(p.id, pinfo, size[1], result, C_NULL)
-    return bytestring(Base.unsafe_convert(Ptr{CL_char}, result))
+    result = Array(CL_char, size[])
+    @check api.clGetPlatformInfo(p.id, pinfo, size[], result, C_NULL)
+    return CLString(result)
 end
 
 
@@ -67,17 +67,17 @@ end
 
 function devices(p::Platform, dtype::CL_device_type)
     try
-        ndevices = Array(CL_uint, 1)
+        ndevices = Ref{CL_uint}()
         @check api.clGetDeviceIDs(p.id, dtype, 0, C_NULL, ndevices)
-        if ndevices[1] == 0
-            return []
+        if ndevices[] == 0
+            return Device[]
         end
-        result = Array(CL_device_id, ndevices[1])
-        @check api.clGetDeviceIDs(p.id, dtype, ndevices[1], result, C_NULL)
-        return [Device(id) for id in result]
+        result = Array(CL_device_id, ndevices[])
+        @check api.clGetDeviceIDs(p.id, dtype, ndevices[], result, C_NULL)
+        return Device[Device(id) for id in result]
     catch err
         if err.desc == :CL_DEVICE_NOT_FOUND || err.code == -1
-            return []
+            return Device[]
         else
             throw(err)
         end

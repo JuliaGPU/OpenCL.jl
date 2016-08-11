@@ -1,14 +1,14 @@
-facts("OpenCL.Memory") do
-    context("OpenCL.CLMemObject context") do
+@testset "OpenCL.Memory" begin
+    @testset "OpenCL.CLMemObject context" begin
         _, buf, _, expected = create_test_buffer()
 
         ctx = cl.context(buf)
 
-        @fact ctx --> not(nothing)
-        @fact isequal(ctx, expected) --> true
+        @test ctx != nothing
+        @test isequal(ctx, expected) != nothing
     end
 
-    context("OpenCL.CLMemObject properties") do
+    @testset "OpenCL.CLMemObject properties" begin
         _, buf, _, _ = create_test_buffer()
 
         expectations = [
@@ -21,7 +21,7 @@ facts("OpenCL.Memory") do
 
         for expectation in expectations
             prop, value = expectation
-            @fact cl.info(buf, prop) --> value prop
+            @test cl.info(buf, prop) == value
         end
     end
 end

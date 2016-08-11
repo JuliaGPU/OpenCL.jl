@@ -35,7 +35,7 @@ Base.sizeof{T}(b::Buffer{T}) = Int(b.len * sizeof(T))
 
 Base.show{T}(io::IO, b::Buffer{T}) = begin
     ptr_val = convert(UInt, Base.pointer(b))
-    ptr_address = "0x$(hex(ptr_val, WORD_SIZE>>2))"
+    ptr_address = "0x$(hex(ptr_val, Sys.WORD_SIZE>>2))"
     print(io, "Buffer{$T}(@$ptr_address)")
 end
 
@@ -57,7 +57,7 @@ function Buffer{T}(::Type{T}, ctx::Context, mem_flags::NTuple{2, Symbol}, len::I
         throw(ArgumentError("only one flag in {:r, :w, :rw} can be defined"))
     end
 
-    flags::CL_mem_flags
+    local flags::CL_mem_flags
     if f_rw && !(f_r || f_w)
         flags = CL_MEM_READ_WRITE
     elseif f_r && !(f_w || f_rw)
@@ -122,12 +122,12 @@ function Buffer{T}(::Type{T}, ctx::Context, flags::CL_mem_flags,
         nbytes = len * sizeof(T)
     end
 
-    err_code = Array(CL_int, 1)
+    err_code = Ref{CL_int}()
     mem_id = api.clCreateBuffer(ctx.id, flags, cl_uint(nbytes),
                                 hostbuf !== nothing ? hostbuf : C_NULL,
                                 err_code)
-    if err_code[1] != CL_SUCCESS
-        throw(CLError(err_code[1]))
+    if err_code[] != CL_SUCCESS
+        throw(CLError(err_code[]))
     end
 
     try
@@ -294,7 +294,7 @@ function enqueue_map_mem{T}(q::CmdQueue,
     local mapped_arr::Array{T, N}
     try
         # julia owns pointer to mapped memory
-        mapped_arr = pointer_to_array(mapped, dims, false)
+        mapped_arr = unsafe_wrap(Array{T, N}, mapped, dims, false)
         # when array is gc'd, unmap buffer
         b.mapped  = true
         b.hostbuf = mapped

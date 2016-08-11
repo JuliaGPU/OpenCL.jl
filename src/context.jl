@@ -25,7 +25,7 @@ function Base.show(io::IO, ctx::Context)
     dev_strs = [replace(d[:name], r"\s+", " ") for d in devices(ctx)]
     devs_str = join(dev_strs, ",")
     ptr_val = convert(UInt, Base.pointer(ctx))
-    ptr_address = "0x$(hex(ptr_val, WORD_SIZE>>2))"
+    ptr_address = "0x$(hex(ptr_val, Sys.WORD_SIZE>>2))"
     print(io, "OpenCL.Context(@$ptr_address on $devs_str)")
 end
 
@@ -75,9 +75,8 @@ function Context(devs::Vector{Device};
         device_ids[i] = d.id
     end
 
-    cond = Condition()
-    cb = Base.SingleAsyncWork(data -> notify(cond))
-    ctx_user_data = Ref(_CtxErr(cb.handle, 0, 0, 0))
+    cb = Base.AsyncCondition()
+    ctx_user_data = Ref(_CtxErr(Base.unsafe_convert(Ptr{Void}, cb), 0, 0, 0))
 
     err_code = Ref{CL_int}()
     ctx_id = api.clCreateContext(ctx_properties, n_devices, device_ids,
@@ -90,10 +89,10 @@ function Context(devs::Vector{Device};
 
     @async begin
         try
-            Base.wait(cond)
+            Base.wait(cb)
             err = ctx_user_data[]
-            error_info = bytestring(err.err_info)
-            private_info = bytestring(convert(Ptr{Cchar}, err.priv_info))
+            error_info = String(err.err_info)
+            private_info = unsafe_string(err.priv_info)
             true_callback(error_info, private_info)
         catch
             rethrow()
@@ -164,7 +163,7 @@ function properties(ctx_id::CL_context)
            key == CL_WGL_HDC_KHR ||
            key == CL_CGL_SHAREGROUP_KHR
             push!(result, (key, value))
-        elseif @osx? (key == CL_CONTEXT_PROPERTY_USE_CGL_SHAREGROUP_APPLE) : false
+        elseif is_apple() ? (key == CL_CONTEXT_PROPERTY_USE_CGL_SHAREGROUP_APPLE) : false
             push!(result, (key, value))
         elseif key == 0
             if i != nprops
@@ -199,7 +198,7 @@ function _parse_properties(props)
             push!(cl_props, cl_context_properties(val))
         elseif prop == CL_WGL_HDC_KHR
             push!(cl_props, cl_context_properties(val))
-        elseif @osx? (prop == CL_CONTEXT_PROPERTY_USE_CGL_SHAREGROUP_APPLE) : false
+        elseif is_apple() ? (prop == CL_CONTEXT_PROPERTY_USE_CGL_SHAREGROUP_APPLE) : false
             push!(cl_props, cl_context_properties(val))
         elseif prop == CL_GL_CONTEXT_KHR ||
             prop == CL_EGL_DISPLAY_KHR ||

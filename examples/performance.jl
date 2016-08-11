@@ -1,5 +1,4 @@
-import OpenCL
-const cl = OpenCL
+using OpenCL
 
 const bench_kernel = "
 __kernel void sum(__global const float *a,

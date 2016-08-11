@@ -85,7 +85,7 @@ const _cl_error_codes = Dict{Int, Symbol}(
     -1093 => :CL_INVALID_EGL_OBJECT_KHR,
 )
 
-const _cl_err_desc = Dict{Integer, AbstractString}(
+const _cl_err_desc = Dict{Integer, String}(
     CL_INVALID_CONTEXT =>
     "Context is not a valid context.",
 
@@ -164,13 +164,13 @@ const _cl_err_desc = Dict{Integer, AbstractString}(
 )
 
 immutable CLMemoryError <: Exception
-    msg::AbstractString
+    msg::String
 end
 
 Base.show(io::IO, err::CLMemoryError) = Base.print(io, "OpenCL.MemObject: $(err.msg)")
 
 immutable OpenCLException <: Exception
-    msg::AbstractString
+    msg::String
 end
 
 Base.show(io::IO, err::OpenCLException) = Base.print(io, "OpenCL Error: $(err.msg)")

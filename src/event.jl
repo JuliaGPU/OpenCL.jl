@@ -47,7 +47,7 @@ Base.pointer(evt::CLEvent) = evt.id
 
 function Base.show(io::IO, evt::Event)
     ptr_val = convert(UInt, Base.pointer(evt))
-    ptr_address = "0x$(hex(ptr_val, WORD_SIZE>>2))"
+    ptr_address = "0x$(hex(ptr_val, Sys.WORD_SIZE>>2))"
     print(io, "OpenCL.Event(@$ptr_address)")
 end
 
@@ -84,7 +84,7 @@ Base.getindex(evt::CLEvent, evt_info::Symbol) = info(evt, evt_info)
 
     function Base.show(io::IO, evt::UserEvent)
         ptr_val = convert(UInt, Base.pointer(evt))
-        ptr_address = "0x$(hex(ptr_val, WORD_SIZE>>2))"
+        ptr_address = "0x$(hex(ptr_val, Sys.WORD_SIZE>>2))"
         print(io, "OpenCL.UserEvent(@$ptr_address)")
     end
 
@@ -118,18 +118,17 @@ function add_callback(evt::CLEvent, callback::Function)
 
     # The uv_callback is going to notify a task that,
     # then executes the real callback.
-    cond = Condition()
-    cb = Base.SingleAsyncWork(data -> notify(cond))
+    cb = Base.AsyncCondition()
 
     # Storing the results of our c_callback needs to be
     # isbits && isimmutable
-    r_ecb = Ref(_EventCB(cb.handle, 0, 0))
+    r_ecb = Ref(_EventCB(Base.unsafe_convert(Ptr{Void}, cb), 0, 0))
 
     @check api.clSetEventCallback(evt.id, CL_COMPLETE, event_notify_ptr, r_ecb)
 
     @async begin
        try
-         Base.wait(cond)
+         Base.wait(cb)
          ecb = r_ecb[]
          callback(ecb.evt_id, ecb.status)
        catch

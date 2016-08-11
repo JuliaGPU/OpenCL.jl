@@ -11,7 +11,7 @@ function Base.show(io::IO, d::Device)
     device_name = replace(d[:name], strip_extra_whitespace, " ")
     platform_name = replace(d[:platform][:name], strip_extra_whitespace, " ")
     ptr_val = convert(UInt, Base.pointer(d))
-    ptr_address = "0x$(hex(ptr_val, WORD_SIZE>>2))"
+    ptr_address = "0x$(hex(ptr_val, Sys.WORD_SIZE>>2))"
     print(io, "OpenCL.Device($device_name on $platform_name @$ptr_address)")
 end
 
@@ -20,73 +20,72 @@ Base.getindex(d::Device, dinfo::Symbol) = info(d, dinfo)
 macro int_info(func, cl_device_info, return_type)
     quote
         function $(esc(func))(d::Device)
-            result = Array($return_type, 1)
+            result = Ref{$return_type}()
             @check api.clGetDeviceInfo(d.id, $cl_device_info,
                                        sizeof($return_type), result, C_NULL)
-            return result[1]
+            return result[]
         end
     end
 end
 
 let profile(d::Device) = begin
-        size = Array(Csize_t, 1)
+        size = Ref{Csize_t}()
         @check api.clGetDeviceInfo(d.id, CL_DEVICE_PROFILE, 0, C_NULL, size)
-        result = Array(CL_char, size[1])
-        @check api.clGetDeviceInfo(d.id, CL_DEVICE_PROFILE, size[1], result, C_NULL)
-        bs = bytestring(Base.unsafe_convert(Ptr{CL_char}, result))
+        result = Array(CL_char, size[])
+        @check api.clGetDeviceInfo(d.id, CL_DEVICE_PROFILE, size[], result, C_NULL)
+        bs = CLString(result)
         return bs
     end
 
     version(d::Device) = begin
-        size = Array(Csize_t, 1)
+        size = Ref{Csize_t}()
         @check api.clGetDeviceInfo(d.id, CL_DEVICE_VERSION, 0, C_NULL, size)
-        result = Array(CL_char, size[1])
-        @check api.clGetDeviceInfo(d.id, CL_DEVICE_VERSION, size[1], result, C_NULL)
-        bs = bytestring(Base.unsafe_convert(Ptr{CL_char}, result))
+        result = Array(CL_char, size[])
+        @check api.clGetDeviceInfo(d.id, CL_DEVICE_VERSION, size[], result, C_NULL)
+        bs = CLString(result)
         return bs
     end
 
     driver_version(d::Device) = begin
-        size = Array(Csize_t, 1)
+        size = Ref{Csize_t}()
         @check api.clGetDeviceInfo(d.id, CL_DRIVER_VERSION, 0, C_NULL, size)
-        result = Array(CL_char, size[1])
-        @check api.clGetDeviceInfo(d.id, CL_DRIVER_VERSION, size[1], result, C_NULL)
-        bs = bytestring(Base.unsafe_convert(Ptr{CL_char}, result))
+        result = Array(CL_char, size[])
+        @check api.clGetDeviceInfo(d.id, CL_DRIVER_VERSION, size[], result, C_NULL)
+        bs = CLString(result)
         return string(replace(bs, r"\s+", " "))
     end
 
     extensions(d::Device) = begin
-        size = Array(Csize_t, 1)
+        size = Ref{Csize_t}()
         @check api.clGetDeviceInfo(d.id, CL_DEVICE_EXTENSIONS, 0, C_NULL, size)
-        result = Array(CL_char, size[1])
-        @check api.clGetDeviceInfo(d.id, CL_DEVICE_EXTENSIONS, size[1], result, C_NULL)
-        bs = bytestring(Base.unsafe_convert(Ptr{CL_char}, result))
-        return AbstractString[string(s) for s in split(bs)]
+        result = Array(CL_char, size[])
+        @check api.clGetDeviceInfo(d.id, CL_DEVICE_EXTENSIONS, size[], result, C_NULL)
+        bs = CLString(result)
+        return String[string(s) for s in split(bs)]
     end
 
     platform(d::Device) = begin
-        result = Array(CL_platform_id, 1)
+        result = Ref{CL_platform_id}()
         @check api.clGetDeviceInfo(d.id, CL_DEVICE_PLATFORM,
                                    sizeof(CL_platform_id), result, C_NULL)
-        return Platform(result[1])
+        return Platform(result[])
     end
 
     name(d::Device) = begin
-        size = Array(Csize_t, 1)
+        size = Ref{Csize_t}()
         @check api.clGetDeviceInfo(d.id, CL_DEVICE_NAME, 0, C_NULL, size)
-        result = Array(CL_char, size[1])
+        result = Array(CL_char, size[])
         @check api.clGetDeviceInfo(d.id, CL_DEVICE_NAME,
-                                   size[1] * sizeof(CL_char), result, C_NULL)
-        n = bytestring(Base.unsafe_convert(Ptr{Cchar}, result))
+                                   size[] * sizeof(CL_char), result, C_NULL)
+        n = CLString(result)
         return string(replace(n, r"\s+", " "))
     end
 
-    @int_info(device_type, CL_DEVICE_TYPE, CL_device_type)
     device_type(d::Device) = begin
-        result = Array(CL_device_type, 1)
+        result = Ref{CL_device_type}()
         @check api.clGetDeviceInfo(d.id, CL_DEVICE_TYPE,
                                    sizeof(CL_device_type), result, C_NULL)
-        result = result[1]
+        result = result[]
         if result == CL_DEVICE_TYPE_GPU
             return :gpu
         elseif result == CL_DEVICE_TYPE_CPU
@@ -101,10 +100,10 @@ let profile(d::Device) = begin
     end
 
     has_image_support(d::Device) = begin
-        has_support = CL_bool[CL_FALSE]
+        has_support = Ref{CL_bool}(CL_FALSE)
         @check api.clGetDeviceInfo(d.id, CL_DEVICE_IMAGE_SUPPORT,
                                    sizeof(CL_bool), has_support, C_NULL)
-        return has_support[1] == CL_TRUE
+        return has_support[] == CL_TRUE
     end
 
     @int_info(queue_properties, CL_DEVICE_QUEUE_PROPERTIES, CL_command_queue_properties)
@@ -116,10 +115,10 @@ let profile(d::Device) = begin
         (queue_properties(d) & CL_QUEUE_PROFILING_ENABLE) != 0
 
     has_native_kernel(d::Device) = begin
-        result = Array(CL_device_exec_capabilities, 1)
+        result = Ref{CL_device_exec_capabilities}()
         @check api.clGetDeviceInfo(d.id, CL_DEVICE_EXECUTION_CAPABILITIES,
                                    sizeof(CL_device_exec_capabilities), result, C_NULL)
-        return (result[1] & CL_EXEC_NATIVE_KERNEL) != 0
+        return (result[] & CL_EXEC_NATIVE_KERNEL) != 0
     end
 
     @int_info(vendor_id,             CL_DEVICE_VENDOR_ID,                CL_uint)
@@ -135,40 +134,40 @@ let profile(d::Device) = begin
     @int_info(local_mem_size,        CL_DEVICE_LOCAL_MEM_SIZE,           CL_ulong)
 
     has_local_mem(d::Device) = begin
-        result = Array(CL_device_local_mem_type, 1)
+        result = Ref{CL_device_local_mem_type}()
         @check api.clGetDeviceInfo(d.id, CL_DEVICE_LOCAL_MEM_TYPE,
                                    sizeof(CL_device_local_mem_type), result, C_NULL)
-        return result[1] == CL_LOCAL
+        return result[] == CL_LOCAL
     end
 
     host_unified_memory(d::Device) = begin
-        result = Array(CL_bool, 1)
+        result = Ref{CL_bool}(CL_FALSE)
         @check api.clGetDeviceInfo(d.id, CL_DEVICE_HOST_UNIFIED_MEMORY,
                                    sizeof(CL_bool), result, C_NULL)
-        return result[1] != 0
+        return result[] == CL_TRUE 
     end
 
     available(d::Device) = begin
-        result = Array(CL_bool, 1)
+        result = Ref{CL_bool}(CL_FALSE)
         @check api.clGetDeviceInfo(d.id, CL_DEVICE_AVAILABLE,
                                    sizeof(CL_bool), result, C_NULL)
-        return result[1] != 0
+        return result[] == CL_TRUE
     end
 
     compiler_available(d::Device) = begin
-        result = Array(CL_bool, 1)
+        result = Ref{CL_bool}(CL_FALSE)
         @check api.clGetDeviceInfo(d.id, CL_DEVICE_COMPILER_AVAILABLE,
                                    sizeof(CL_bool), result, C_NULL)
-        return result[1] != 0
+        return result[] == CL_TRUE
     end
 
     max_work_item_size(d::Device) = begin
-        dims = Array(CL_uint, 1)
+        dims = Ref{CL_uint}()
         @check api.clGetDeviceInfo(d.id, CL_DEVICE_MAX_WORK_ITEM_DIMENSIONS,
                                    sizeof(CL_uint), dims, C_NULL)
-        result = Array(Csize_t, dims[1])
+        result = Array(Csize_t, dims[])
         @check api.clGetDeviceInfo(d.id, CL_DEVICE_MAX_WORK_ITEM_SIZES,
-                                   sizeof(Csize_t) * dims[1], result, C_NULL)
+                                   sizeof(Csize_t) * dims[], result, C_NULL)
         return tuple([Int(r) for r in result]...)
     end
 
@@ -177,26 +176,26 @@ let profile(d::Device) = begin
     @int_info(profiling_timer_resolution, CL_DEVICE_PROFILING_TIMER_RESOLUTION, Csize_t)
 
     max_image2d_shape(d::Device) = begin
-        width  = Array(Csize_t, 1)
-        height = Array(Csize_t, 1)
+        width  = Ref{Csize_t}()
+        height = Ref{Csize_t}()
         @check api.clGetDeviceInfo(d.id, CL_DEVICE_IMAGE2D_MAX_WIDTH,
                                    sizeof(Csize_t), width,  C_NULL)
         @check api.clGetDeviceInfo(d.id, CL_DEVICE_IMAGE2D_MAX_HEIGHT,
                                    sizeof(Csize_t), height, C_NULL)
-        return (width[1], height[1])
+        return (width[], height[])
     end
 
     max_image3d_shape(d::Device) = begin
-        width  = Array(Csize_t, 1)
-        height = Array(Csize_t, 1)
-        depth =  Array(Csize_t, 1)
+        width  = Ref{Csize_t}()
+        height = Ref{Csize_t}()
+        depth =  Ref{Csize_t}()
         @check api.clGetDeviceInfo(d.id, CL_DEVICE_IMAGE3D_MAX_WIDTH,
                                    sizeof(Csize_t), width, C_NULL)
         @check api.clGetDeviceInfo(d.id, CL_DEVICE_IMAGE3D_MAX_HEIGHT,
                                    sizeof(Csize_t), height, C_NULL)
         @check api.clGetDeviceInfo(d.id, CL_DEVICE_IMAGE3D_MAX_DEPTH,
                                    sizeof(Csize_t), depth, C_NULL)
-        return (width[1], height[1], depth[1])
+        return (width[], height[], depth[])
     end
 
     const info_map = Dict{Symbol, Function}(

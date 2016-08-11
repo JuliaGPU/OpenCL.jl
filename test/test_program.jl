@@ -1,4 +1,4 @@
-facts("OpenCL.Program") do
+@testset "OpenCL.Program" begin
 
     test_source = "
     __kernel void sum(__global const float *a,
@@ -15,83 +15,82 @@ facts("OpenCL.Program") do
         cl.Program(ctx, source=test_source)
     end
 
-    context("OpenCL.Program source constructor") do
+    @testset "OpenCL.Program source constructor" begin
         for device in cl.devices()
             ctx = cl.Context(device)
             prg = cl.Program(ctx, source=test_source)
-            @fact cl.Program(ctx, source=test_source) --> not(nothing) "no error"
+            @test prg != nothing
         end
     end
-    context("OpenCL.Program info") do
+    @testset "OpenCL.Program info" begin
         for device in cl.devices()
             ctx = cl.Context(device)
             prg = cl.Program(ctx, source=test_source)
 
-            @fact prg[:context] --> ctx
+            @test prg[:context] == ctx
 
-            @fact typeof(prg[:devices]) --> Vector{cl.Device}
-            @fact length(prg[:devices]) > 0 --> true
-            @fact device in prg[:devices] --> true
+            @test typeof(prg[:devices]) == Vector{cl.Device}
+            @test length(prg[:devices]) > 0
+            @test device in prg[:devices]
 
-            @fact typeof(prg[:source]) --> ASCIIString
-            @fact prg[:source] --> test_source
+            @test typeof(prg[:source]) == String
+            @test prg[:source] == test_source
 
-            @fact prg[:reference_count] > 0 --> true
-            @fact strip(prg[:build_log][device]) --> ""
-
+            @test prg[:reference_count] > 0
+            @test isempty(strip(prg[:build_log][device]))
          end
     end
 
-    context("OpenCL.Program build") do
+    @testset "OpenCL.Program build" begin
         for device in cl.devices()
             ctx = cl.Context(device)
             prg = cl.Program(ctx, source=test_source)
-            @fact cl.build!(prg) --> not(nothing) "no error"
+            @test cl.build!(prg) != nothing
 
             # BUILD_SUCCESS undefined in POCL implementation..
             if device[:platform][:name] == "Portable Computing Language"
                 warn("Skipping OpenCL.Program build for Portable Computing Language Platform")
                 continue
             end
-            @fact prg[:build_status][device] --> cl.CL_BUILD_SUCCESS
+            @test prg[:build_status][device] == cl.CL_BUILD_SUCCESS
 
             # test build by methods chaining
-            @fact prg[:build_status][device] --> cl.CL_BUILD_SUCCESS
+            @test prg[:build_status][device] == cl.CL_BUILD_SUCCESS
             if device[:platform][:name] != "Intel(R) OpenCL"
                 # The intel CPU driver is very verbose on Linux and output
                 # compilation status even without any warnings
-                @fact strip(prg[:build_log][device])--> ""
+                @test isempty(strip(prg[:build_log][device]))
             end
         end
     end
 
-    context("OpenCL.Program source code") do
+    @testset "OpenCL.Program source code" begin
         for device in cl.devices()
            ctx = cl.Context(device)
            prg = cl.Program(ctx, source=test_source)
-           @fact prg[:source] --> test_source
+           @test prg[:source] == test_source
         end
     end
 
-    context("OpenCL.Program binaries") do
+    @testset "OpenCL.Program binaries" begin
         for device in cl.devices()
             ctx = cl.Context(device)
             prg = cl.Program(ctx, source=test_source) |> cl.build!
 
-            @fact device in collect(keys(prg[:binaries])) --> true
+            @test device in collect(keys(prg[:binaries]))
             binaries = prg[:binaries]
-            @fact device in collect(keys(binaries)) --> true
-            @fact binaries[device] --> not(nothing)
-            @fact length(binaries[device]) > 0 --> true
+            @test device in collect(keys(binaries))
+            @test binaries[device] != nothing
+            @test length(binaries[device]) > 0
             prg2 = cl.Program(ctx, binaries=binaries)
-            @fact prg2[:binaries] == binaries --> true
+            @test prg2[:binaries] == binaries
             try
                 prg2[:source]
                 error("should not happen")
             catch err
-                @fact isa(err, cl.CLError) --> true
-                @fact err.code --> -45
-                @fact err.desc --> :CL_INVALID_PROGRAM_EXECUTABLE
+                @test isa(err, cl.CLError)
+                @test err.code == -45
+                @test err.desc == :CL_INVALID_PROGRAM_EXECUTABLE
             end
         end
     end
