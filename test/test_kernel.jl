@@ -156,19 +156,19 @@
             q = cl.CmdQueue(ctx)
 
             # dimensions must be the same size
-            @test_throws ArgumentError cl.call(q, k, (1,), (1,1), d_buff)
-            @test_throws ArgumentError cl.call(q, k, (1,1), (1,), d_buff)
+            @test_throws ArgumentError q(k, (1,), (1,1), d_buff)
+            @test_throws ArgumentError q(k, (1,1), (1,), d_buff)
 
             # dimensions are bounded
             max_work_dim = device[:max_work_item_dims]
             bad = tuple([1 for _ in 1:(max_work_dim + 1)])
-            @test_throws MethodError cl.call(q, k, bad, d_buff)
+            @test_throws MethodError q(k, bad, d_buff)
 
             # devices have finite work sizes
-            @test_throws MethodError cl.call(q, k, (typemax(Int),), d_buff)
+            @test_throws MethodError q(k, (typemax(Int),), d_buff)
 
             # blocking call to kernel finishes cmd queue
-            cl.call(q, k, 1, 1, d_buff)
+            q(k, 1, 1, d_buff)
 
             r = cl.read(q, d_buff)
             @test r[1] == 2

@@ -32,7 +32,7 @@ info(
         prg   = cl.Program(ctx, source=hello_world_kernel) |> cl.build!
         kern  = cl.Kernel(prg, "hello")
 
-        cl.call(queue, kern, str_len, nothing, out_buf)
+        queue(kern, str_len, nothing, out_buf)
         h = cl.read(queue, out_buf)
 
         @test cl.CLString(h) == hello_world_str
@@ -266,7 +266,7 @@ let test_struct = "
         R_buf = cl.Buffer(Float32, ctx, :w, length(X))
 
         global_size = size(X)
-        cl.call(q, part3, global_size, nothing, X_buf, Y_buf, R_buf, P_buf)
+        q(part3, global_size, nothing, X_buf, Y_buf, R_buf, P_buf)
 
         r = cl.read(q, R_buf)
         @test all(x -> x == 13.5, r)
