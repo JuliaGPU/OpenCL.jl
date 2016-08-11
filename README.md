@@ -25,21 +25,29 @@ OpenCL.jl provides access to OpenCL API versions 1.0, 1.1, 1.2 and 2.0.
 
 OpenCL.jl has had contributions from [many developers](https://github.com/JuliaGPU/OpenCL.jl/graphs/contributors).
 
+## Currently supported Julia versions
+- Julia `v"0.4.x"` is supported on the `release-0.4` branch and the OpenCL.jl versions `v"0.4.x"`. Only bug-fixes will be applied.
+- Julia `v"0.5.x"` is supported on the `master` branch and the OpenCL.jl versions `v"0.5.x"`.
+- Julia `v"0.6.x"` is *experimentally* supported on the `master` branch and the OpenCL.jl versions `v"0.5.x"`.
+
+### Discontinued support
+- Julia `v"0.3.x"` was supported on OpenCL.jl versions `v"0.3.x"`. It should still be installable and work.
+
 ## Setup
 1. Install an OpenCL driver. If you use OSX, OpenCL is already available
 2. Checkout the packages from the Julia repl
 
-     ```julia
-     Pkg.add("OpenCL")
-     ```
+```julia
+  Pkg.add("OpenCL")
+```
 
 3. OpenCL will be installed in your ``.julia`` directory
 4. ``cd`` into your ``.julia`` directory to run the tests and try out the examples
 5. To update to the latest development version, from the Julia repl:
 
-      ```julia
-         Pkg.update()
-      ```
+```julia
+  Pkg.update()
+```
 
 ## IJulia Notebooks
   * [OpenCL Fractals]
@@ -53,8 +61,7 @@ OpenCL.jl has had contributions from [many developers](https://github.com/JuliaG
 ## Quick Example
 
 ```julia
-
-import OpenCL
+using OpenCL
 
 const sum_kernel = "
    __kernel void sum(__global const float *a,
@@ -77,7 +84,7 @@ c_buff = cl.Buffer(Float32, ctx, :w, length(a))
 p = cl.Program(ctx, source=sum_kernel) |> cl.build!
 k = cl.Kernel(p, "sum")
 
-cl.call(queue, k, size(a), nothing, a_buff, b_buff, c_buff)
+queue(k, size(a), nothing, a_buff, b_buff, c_buff)
 
 r = cl.read(queue, c_buff)
 
