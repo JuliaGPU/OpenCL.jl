@@ -91,7 +91,7 @@ function Context(devs::Vector{Device};
         try
             Base.wait(cb)
             err = ctx_user_data[]
-            error_info = String(err.err_info)
+            error_info = unsafe_string(err.err_info)
             private_info = unsafe_string(err.priv_info)
             true_callback(error_info, private_info)
         catch
