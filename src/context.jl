@@ -49,8 +49,8 @@ function ctx_notify_err(err_info::Ptr{Cchar}, priv_info::Ptr{Void},
 end
 
 
-const ctx_callback_ptr = cfunction(ctx_notify_err, Void,
-                                   (Ptr{Cchar}, Ptr{Void}, Csize_t, Ptr{Void}))
+ctx_callback_ptr() = cfunction(ctx_notify_err, Void,
+                              (Ptr{Cchar}, Ptr{Void}, Csize_t, Ptr{Void}))
 
 function raise_context_error(error_info, private_info)
     throw(OpenCLException("OpenCL.Context error: $error_info"))
@@ -81,7 +81,7 @@ function Context(devs::Vector{Device};
 
     err_code = Ref{CL_int}()
     ctx_id = api.clCreateContext(ctx_properties, n_devices, device_ids,
-                                 ctx_callback_ptr, ctx_user_data, err_code)
+                                 ctx_callback_ptr(), ctx_user_data, err_code)
     if err_code[] != CL_SUCCESS
         throw(CLError(err_code[1]))
     end
@@ -123,7 +123,7 @@ function Context(dev_type::CL_device_type;
     end
     err_code = Array(CL_int, 1)
     ctx_id = api.clCreateContextFromType(ctx_properties, dev_type,
-                                         ctx_callback_ptr, ctx_user_data, err_code)
+                                         ctx_callback_ptr(), ctx_user_data, err_code)
     if err_code[1] != CL_SUCCESS
         throw(CLError(err_code[1]))
     end
