@@ -77,8 +77,8 @@ end
 
         # create compute context (TODO: fails if function ptr's not passed...)
         ctx_id = cl.api.clCreateContext(C_NULL, 1, [device.id],
-                                        cl.ctx_callback_ptr,
-                                        cl.raise_context_error,
+                                        C_NULL,
+                                        C_NULL,
                                         err_code)
         if err_code[] != cl.CL_SUCCESS
             throw(cl.CLError(err_code[]))
