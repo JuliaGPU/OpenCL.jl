@@ -77,8 +77,8 @@ facts("OpenCL Low Level Api Test") do
 
         # create compute context (TODO: fails if function ptr's not passed...)
         ctx_id = cl.api.clCreateContext(C_NULL, 1, [device.id],
-                                        cl.ctx_callback_ptr,
-                                        cl.raise_context_error,
+                                        C_NULL,
+                                        C_NULL,
                                         err_code)
         if err_code[1] != cl.CL_SUCCESS
             #error("Failed to create compute context")
