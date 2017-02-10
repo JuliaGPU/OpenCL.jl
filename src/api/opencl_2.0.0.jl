@@ -30,12 +30,12 @@
 
 #=== Enqueued Commands APIs ===#
 @ocl_func(clEnqueueSVMFree, CL_int,
-               (CL_command_queue, CL_uint, Ptr{Ptr{Void}}, Ptr{Void}, Prt{Void},
+               (CL_command_queue, CL_uint, Ptr{Ptr{Void}}, Ptr{Void}, Ptr{Void},
                 CL_uint, Ptr{CL_event}, Ptr{CL_event}))
 
 @ocl_func(clEnqueueSVMMemcpy, CL_int,
                (CL_command_queue, CL_bool, Ptr{Void}, Ptr{Void}, Csize_t,
-                cl_uint, Ptr{CL_event}, Ptr{CL_event}))
+                CL_uint, Ptr{CL_event}, Ptr{CL_event}))
 
 @ocl_func(clEnqueueSVMMemFill, CL_int,
                (CL_command_queue, Ptr{Void}, Ptr{Void}, Csize_t, Csize_t,
@@ -43,10 +43,10 @@
 
 @ocl_func(clEnqueueSVMMap, CL_int,
                (CL_command_queue, CL_bool, CL_map_flags, Ptr{Void}, Csize_t,
-                Cl_uint, Ptr{CL_event}, Ptr{CL_event}))
+                CL_uint, Ptr{CL_event}, Ptr{CL_event}))
 
 @ocl_func(clEnqueueSVMUnmap, CL_int,
-              (CL_command_queue, Ptr{Void}, CL_uint, Ptr{Cl_event}, Ptr{CL_event}))
+              (CL_command_queue, Ptr{Void}, CL_uint, Ptr{CL_event}, Ptr{CL_event}))
 
 #=== deprecation ===#
 

@@ -207,4 +207,4 @@
               (CL_mem, Ptr{CL_GL_object_type}, Ptr{GL_uint}))
 
 @ocl_func(clGetGLTextureInfo, CL_int,
-              (CL_mem, CL_GL_texture_info, CSize_t, Ptr{Void}, Ptr{CSize_t}))
+              (CL_mem, CL_GL_texture_info, Csize_t, Ptr{Void}, Ptr{Csize_t}))

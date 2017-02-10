@@ -62,6 +62,7 @@ typealias CL_program_info               CL_uint
 typealias CL_program_build_info         CL_uint
 typealias CL_build_status               CL_int
 typealias CL_kernel_info                CL_uint
+typealias CL_kernel_arg_info            CL_uint
 typealias CL_kernel_work_group_info     CL_uint
 typealias CL_event_info                 CL_uint
 typealias CL_command_type               CL_uint
