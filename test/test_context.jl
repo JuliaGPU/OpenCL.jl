@@ -4,7 +4,7 @@
         for platform in cl.platforms()
             for device in cl.devices(platform)
                 ctx = cl.Context(device)
-                @test ctx != nothing 
+                @test ctx != nothing
                 finalize(ctx)
             end
         end

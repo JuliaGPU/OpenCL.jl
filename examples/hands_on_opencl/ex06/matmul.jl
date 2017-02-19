@@ -75,7 +75,7 @@ sizeC = Ndim * Mdim
 # Number of elements in the matrix
 h_A = fill(Float32(AVAL), sizeA)
 h_B = fill(Float32(BVAL), sizeB)
-h_C = Array(Float32, sizeC)
+h_C = Vector{Float32}(sizeC)
 
 # %20 improvment using @inbounds
 function seq_mat_mul_sdot{T}(Mdim::Int, Ndim::Int, Pdim::Int,

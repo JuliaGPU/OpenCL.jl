@@ -19,7 +19,7 @@ end
 function platforms()
     nplatforms = Ref{CL_uint}()
     @check api.clGetPlatformIDs(0, C_NULL, nplatforms)
-    cl_platform_ids = Array(CL_platform_id, nplatforms[])
+    cl_platform_ids = Vector{CL_platform_id}(nplatforms[])
     @check api.clGetPlatformIDs(nplatforms[], cl_platform_ids, C_NULL)
     return [Platform(id) for id in cl_platform_ids]
 end
@@ -33,7 +33,7 @@ end
 function info(p::Platform, pinfo::CL_platform_info)
     size = Ref{Csize_t}()
     @check api.clGetPlatformInfo(p.id, pinfo, 0, C_NULL, size)
-    result = Array(CL_char, size[])
+    result = Vector{CL_char}(size[])
     @check api.clGetPlatformInfo(p.id, pinfo, size[], result, C_NULL)
     return CLString(result)
 end
@@ -72,7 +72,7 @@ function devices(p::Platform, dtype::CL_device_type)
         if ndevices[] == 0
             return Device[]
         end
-        result = Array(CL_device_id, ndevices[])
+        result = Vector{CL_device_id}(ndevices[])
         @check api.clGetDeviceIDs(p.id, dtype, ndevices[], result, C_NULL)
         return Device[Device(id) for id in result]
     catch err

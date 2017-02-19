@@ -70,7 +70,7 @@ function Context(devs::Vector{Device};
     end
 
     n_devices = length(devs)
-    device_ids = Array(CL_device_id, n_devices)
+    device_ids = Vector{CL_device_id}(n_devices)
     for (i, d) in enumerate(devs)
         device_ids[i] = d.id
     end
@@ -82,7 +82,7 @@ function Context(devs::Vector{Device};
     ctx_id = api.clCreateContext(ctx_properties, n_devices, device_ids,
                                  ctx_callback_ptr(), ctx_user_data, err_code)
     if err_code[] != CL_SUCCESS
-        throw(CLError(err_code[1]))
+        throw(CLError(err_code[]))
     end
 
     true_callback = callback == nothing ? raise_context_error : callback :: Function
@@ -120,11 +120,11 @@ function Context(dev_type::CL_device_type;
     else
         ctx_user_data = raise_context_error
     end
-    err_code = Array(CL_int, 1)
+    err_code = Ref{CL_int}()
     ctx_id = api.clCreateContextFromType(ctx_properties, dev_type,
                                          ctx_callback_ptr(), ctx_user_data, err_code)
-    if err_code[1] != CL_SUCCESS
-        throw(CLError(err_code[1]))
+    if err_code[] != CL_SUCCESS
+        throw(CLError(err_code[]))
     end
     return Context(ctx_id)
 end
@@ -137,18 +137,18 @@ end
 
 
 function properties(ctx_id::CL_context)
-    nbytes = Csize_t[0]
+    nbytes = Ref{Csize_t}(0)
     @check api.clGetContextInfo(ctx_id, CL_CONTEXT_PROPERTIES, 0, C_NULL, nbytes)
 
     # Calculate length of storage array
-    # At nbytes[1] the size of the properties array in bytes is stored
-    # The length of the property array is then nbytes[1] / sizeof(CL_context_properties)
+    # At nbytes[] the size of the properties array in bytes is stored
+    # The length of the property array is then nbytes[] / sizeof(CL_context_properties)
     # Note: nprops should be odd since it requires a C_NULL terminated array
-    nprops = div(nbytes[1], sizeof(CL_context_properties))
+    nprops = div(nbytes[], sizeof(CL_context_properties))
 
-    props = Array(CL_context_properties, nprops)
+    props = Vector{CL_context_properties}(nprops)
     @check api.clGetContextInfo(ctx_id, CL_CONTEXT_PROPERTIES,
-                                nbytes[1], props, C_NULL)
+                                nbytes[], props, C_NULL)
     #properties array of [key,value..., C_NULL]
     result = Any[]
     for i in 1:2:nprops
@@ -214,10 +214,10 @@ function _parse_properties(props)
 end
 
 function num_devices(ctx::Context)
-    ndevices = Array(CL_uint, 1)
+    ndevices = Ref{CL_uint}()
     @check api.clGetContextInfo(ctx.id, CL_CONTEXT_NUM_DEVICES,
                                 sizeof(CL_uint), ndevices, C_NULL)
-    return ndevices[1]
+    return ndevices[]
 end
 
 function devices(ctx::Context)
@@ -225,7 +225,7 @@ function devices(ctx::Context)
     if n == 0
         return []
     end
-    dev_ids = Array(CL_device_id, n)
+    dev_ids = Vector{CL_device_id}(n)
     @check api.clGetContextInfo(ctx.id, CL_CONTEXT_DEVICES,
                                 n * sizeof(CL_device_id), dev_ids, C_NULL)
     return [Device(id) for id in dev_ids]

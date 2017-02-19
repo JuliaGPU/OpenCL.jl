@@ -57,16 +57,16 @@ end
 
     for device in cl.devices()
 
-        length = 1024
-        h_a = Array(cl.CL_float, length)
-        h_b = Array(cl.CL_float, length)
-        h_c = Array(cl.CL_float, length)
-        h_d = Array(cl.CL_float, length)
-        h_e = Array(cl.CL_float, length)
-        h_f = Array(cl.CL_float, length)
-        h_g = Array(cl.CL_float, length)
+        len = 1024
+        h_a = Vector{cl.CL_float}(len)
+        h_b = Vector{cl.CL_float}(len)
+        h_c = Vector{cl.CL_float}(len)
+        h_d = Vector{cl.CL_float}(len)
+        h_e = Vector{cl.CL_float}(len)
+        h_f = Vector{cl.CL_float}(len)
+        h_g = Vector{cl.CL_float}(len)
 
-        for i in 1:length
+        for i in 1:len
             h_a[i] = cl.cl_float(rand())
             h_b[i] = cl.cl_float(rand())
             h_e[i] = cl.cl_float(rand())
@@ -110,22 +110,22 @@ end
 
         # create input array in device memory
         Aid = cl.api.clCreateBuffer(ctx_id, cl.CL_MEM_READ_ONLY | cl.CL_MEM_COPY_HOST_PTR,
-                                    sizeof(cl.CL_float) * length, h_a, err_code)
+                                    sizeof(cl.CL_float) * len, h_a, err_code)
         if err_code[] != cl.CL_SUCCESS
             error("Error creating buffer A")
         end
         Bid = cl.api.clCreateBuffer(ctx_id, cl.CL_MEM_READ_ONLY | cl.CL_MEM_COPY_HOST_PTR,
-                                    sizeof(cl.CL_float) * length, h_b, err_code)
+                                    sizeof(cl.CL_float) * len, h_b, err_code)
         if err_code[] != cl.CL_SUCCESS
             error("Error creating buffer B")
         end
         Eid = cl.api.clCreateBuffer(ctx_id, cl.CL_MEM_WRITE_ONLY | cl.CL_MEM_COPY_HOST_PTR,
-                                    sizeof(cl.CL_float) * length, h_e, err_code)
+                                    sizeof(cl.CL_float) * len, h_e, err_code)
         if err_code[] != cl.CL_SUCCESS
             error("Error creating buffer E")
         end
         Gid = cl.api.clCreateBuffer(ctx_id, cl.CL_MEM_WRITE_ONLY | cl.CL_MEM_COPY_HOST_PTR,
-                                    sizeof(cl.CL_float) * length, h_g, err_code)
+                                    sizeof(cl.CL_float) * len, h_g, err_code)
         if err_code[] != cl.CL_SUCCESS
             error("Error creating buffer G")
         end
@@ -133,17 +133,17 @@ end
         # create output arrays in device memory
 
         Cid = cl.api.clCreateBuffer(ctx_id, cl.CL_MEM_READ_WRITE,
-                                    sizeof(cl.CL_float) * length, C_NULL, err_code)
+                                    sizeof(cl.CL_float) * len, C_NULL, err_code)
         if err_code[] != cl.CL_SUCCESS
             error("Error creating buffer C")
         end
         Did = cl.api.clCreateBuffer(ctx_id, cl.CL_MEM_READ_WRITE,
-                                    sizeof(cl.CL_float) * length, C_NULL, err_code)
+                                    sizeof(cl.CL_float) * len, C_NULL, err_code)
         if err_code[] != cl.CL_SUCCESS
             error("Error creating buffer D")
         end
         Fid = cl.api.clCreateBuffer(ctx_id, cl.CL_MEM_WRITE_ONLY,
-                                    sizeof(cl.CL_float) * length, C_NULL, err_code)
+                                    sizeof(cl.CL_float) * len, C_NULL, err_code)
         if err_code[] != cl.CL_SUCCESS
             error("Error creating buffer F")
         end
@@ -151,12 +151,12 @@ end
         err  = cl.api.clSetKernelArg(k_id, 0, sizeof(cl.CL_mem), [Aid])
         err |= cl.api.clSetKernelArg(k_id, 1, sizeof(cl.CL_mem), [Bid])
         err |= cl.api.clSetKernelArg(k_id, 2, sizeof(cl.CL_mem), [Cid])
-        err |= cl.api.clSetKernelArg(k_id, 3, sizeof(cl.CL_uint), cl.CL_uint[length])
+        err |= cl.api.clSetKernelArg(k_id, 3, sizeof(cl.CL_uint), cl.CL_uint[len])
         if err != cl.CL_SUCCESS
             error("Error setting kernel 1 args")
         end
 
-        nglobal = Ref{Csize_t}(length)
+        nglobal = Ref{Csize_t}(len)
         err = cl.api.clEnqueueNDRangeKernel(q_id, k_id,  1, C_NULL,
                                             nglobal, C_NULL, 0, C_NULL, C_NULL)
         if err != cl.CL_SUCCESS
@@ -189,13 +189,13 @@ end
 
         # read back the result from compute device...
         err = cl.api.clEnqueueReadBuffer(q_id, Fid, cl.CL_TRUE, 0,
-                                         sizeof(cl.CL_float) * length, h_f, 0, C_NULL, C_NULL)
+                                         sizeof(cl.CL_float) * len, h_f, 0, C_NULL, C_NULL)
         if err != cl.CL_SUCCESS
             error("Failed to read output array")
         end
 
         # test results
-        for i in 1:length
+        for i in 1:len
             tmp = h_a[i] + h_b[i] + h_e[i] + h_g[i]
             @test tmp ≈ h_f[i]
         end

@@ -52,10 +52,10 @@ program = cl.Program(ctx, source=kernelsource) |> cl.build!
 #create empty vectors for c, d, and f
 h_a = rand(Float32, LENGTH)
 h_b = rand(Float32, LENGTH)
-h_c = Array(Float32, LENGTH)
-h_d = Array(Float32, LENGTH)
+h_c = Vector{Float32}(LENGTH)
+h_d = Vector{Float32}(LENGTH)
 h_e = rand(Float32, LENGTH)
-h_f = Array(Float32, LENGTH)
+h_f = Vector{Float32}(LENGTH)
 h_g = rand(Float32, LENGTH)
 
 # create the input (a,b,e,g) arrays in device memory and copy data from the host
@@ -79,19 +79,19 @@ d_f = cl.Buffer(Float32, ctx, :w, LENGTH)
 # create the kernel
 vadd = cl.Kernel(program, "vadd")
 
-# execute the kernel over the entire range of 1d, input
-# cl.call is blocking, it accepts a queue, the kernel, global / local work sizes,
+# execute the kernel over the entire range of 1d input
+# calling `queue` is blocking, it accepts the kernel, global / local work sizes,
 # the the kernel's arguments.
 
 # here we call the kernel with work size set to the number of elements and a local
 # work size of nothing. This enables the opencl runtime to optimize the local size
 # for simple kernels
-cl.call(queue, vadd, size(h_a), nothing, d_a, d_b, d_c, UInt32(LENGTH))
+queue(vadd, size(h_a), nothing, d_a, d_b, d_c, UInt32(LENGTH))
 
-# an alternative syntax is to create an partial function to cl.call
+# an alternative syntax is to create an partial function to call
 # by julia's getindex syntax for Kernel types.
 # here the queue, global_size, and (optional) local_size are passed in which
-# returns a partial cl.call function with these parameters set.
+# returns a partial function with these parameters set.
 vadd[queue, size(h_e)](d_e, d_c, d_d, UInt32(LENGTH))
 vadd[queue, size(h_g)](d_g, d_d, d_f, UInt32(LENGTH))
 

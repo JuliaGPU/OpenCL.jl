@@ -1,6 +1,6 @@
 # OpenCL.Event
 
-abstract CLEvent <: CLObject
+@compat abstract type CLEvent <: CLObject end
 
 type Event <: CLEvent
     id :: CL_event
@@ -69,10 +69,10 @@ Base.getindex(evt::CLEvent, evt_info::Symbol) = info(evt, evt_info)
     end
 
     function UserEvent(ctx::Context; retain=false)
-        status = Array(CL_int, 1)
+        status = Ref{CL_int}()
         evt_id = api.clCreateUserEvent(ctx.id, status)
-        if status[1] != CL_SUCCESS
-            throw(CLError(status[1]))
+        if status[] != CL_SUCCESS
+            throw(CLError(status[]))
         end
         try
             return UserEvent(evt_id, retain)
@@ -159,29 +159,29 @@ end
                                            wait_for::Vector{CLEvent})
         n_wait_events = cl_uint(length(wait_for))
         wait_evt_ids = [evt.id for evt in wait_for]
-        ret_evt = Array(CL_event, 1)
+        ret_evt = Ref{CL_event}()
         @check api.clEnqueueMarkerWithWaitList(q.id, n_wait_events,
                                                isempty(wait_evt_ids)? C_NULL : wait_evt_ids,
                                                ret_evt)
-        @return_event ret_evt[1]
+        @return_event ret_evt[]
     end
 
     function enqueue_barrier_with_wait_list(q::CmdQueue,
                                             wait_for::Vector{CLEvent})
         n_wait_events = cl_uint(length(wait_for))
         wait_evt_ids = [evt.id for evt in wait_for]
-        ret_evt = Array(CL_event, 1)
+        ret_evt = Ref{CL_event}()
         @check api.clEnqueueBarrierWithWaitList(q.id, n_wait_events,
                                                 isempty(wait_evt_ids)? C_NULL : wait_evt_ids,
                                                 ret_evt)
-        @return_event ret_evt[1]
+        @return_event ret_evt[]
     end
 end
 
 function enqueue_marker(q::CmdQueue)
-    evt = Array(CL_event, 1)
+    evt = Ref{CL_event}()
     @check api.clEnqueueMarker(q.id, evt)
-    @return_event evt[1]
+    @return_event evt[]
 end
 @deprecate enqueue_marker enqueue_marker_with_wait_list
 
@@ -219,8 +219,8 @@ end
 macro profile_info(func, profile_info)
     quote
         function $(esc(func))(evt::CLEvent)
-            time = CL_long[0]
-            err_code = api.clGetEventProfilingInfo(evt.id, $profile_info,
+            time = Ref{CL_long}(0)
+            err_code = api.clGetEventProfilingInfo(evt.id, $(esc(profile_info)),
                                                    sizeof(CL_ulong), time, C_NULL)
             if err_code != CL_SUCCESS
                 if err_code == CL_PROFILING_INFO_NOT_AVAILABLE
@@ -234,45 +234,45 @@ macro profile_info(func, profile_info)
                 end
                 throw(CLError(err_code))
             end
-            return time[1]
+            return time[]
         end
     end
 end
 
 
 let command_queue(evt::CLEvent) = begin
-        cmd_q = Array(CL_command_queue, 1)
+        cmd_q = Ref{CL_command_queue}()
         @check api.clGetEventInfo(evt.id, CL_EVENT_COMMAND_QUEUE,
                                   sizeof(CL_command_queue), cmd_q, C_NULL)
-        return CmdQueue(cmd_q[1])
+        return CmdQueue(cmd_q[])
     end
 
     command_type(evt::CLEvent) = begin
-        cmd_t = Array(CL_int , 1)
+        cmd_t = Ref{CL_int}()
         @check api.clGetEventInfo(evt.id, CL_EVENT_COMMAND_TYPE,
                                   sizeof(CL_int), cmd_t, C_NULL)
-        return cmd_t[1]
+        return cmd_t[]
     end
 
     reference_count(evt::CLEvent) = begin
-        cnt = Array(CL_uint, 1)
+        cnt = Ref{CL_uint}()
         @check api.clGetEventInfo(evt.id, CL_EVENT_REFERENCE_COUNT,
                                   sizeof(CL_uint), cnt, C_NULL)
-        return cnt[1]
+        return cnt[]
     end
 
     context(evt::CLEvent) = begin
-        ctx = Array(CL_context, 1)
+        ctx = Ref{CL_context}()
         @check api.clGetEventInfo(evt.id, CL_EVENT_CONTEXT,
                                   sizeof(CL_context), CL_context, C_NULL)
-        Context(ctx[1])
+        Context(ctx[])
     end
 
     status(evt::CLEvent) = begin
-        st = Array(CL_int, 1)
+        st = Ref{CL_int}()
         @check api.clGetEventInfo(evt.id, CL_EVENT_COMMAND_EXECUTION_STATUS,
                                   sizeof(CL_int), st, C_NULL)
-        status = st[1]
+        status = st[]
         if status == CL_QUEUED
             return :queued
         elseif status == CL_SUBMITTED

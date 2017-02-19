@@ -24,8 +24,8 @@ macro ocl_func(func, ret_type, arg_types)
     _ocl_func(func, ret_type, arg_types)
 end
 
-typealias CL_callback  Ptr{Void}
-typealias CL_user_data Any
+const CL_callback  = Ptr{Void}
+const CL_user_data = Any
 
 include("api/opencl_1.0.0.jl")
 include("api/opencl_1.1.0.jl")

@@ -59,7 +59,7 @@ work_group_size = WGS
 #device = first(cl.devices(:cpu))
 device, ctx, queue = cl.create_compute_context()
 
-kernelsource = open(readall, joinpath(src_dir, "pi_vocl.cl"))
+kernelsource = readstring(joinpath(src_dir, "pi_vocl.cl"))
 program = cl.Program(ctx, source=kernelsource) |> cl.build!
 
 if vector_size == 1
@@ -97,7 +97,7 @@ nsteps = work_group_size * niters * nwork_groups
 step_size = 1.0 / nsteps
 
 # vector to hold partial sum
-h_psum = Array(Float32, nwork_groups)
+h_psum = Vector{Float32}(nwork_groups)
 
 println("$nwork_groups work groups of size $work_group_size.")
 println("$nsteps integration steps")
@@ -114,8 +114,8 @@ global_size = (nwork_groups * work_group_size,)
 local_size  = (work_group_size,)
 localmem    = cl.LocalMem(Float32, work_group_size)
 
-cl.call(queue, pi_kernel, global_size, local_size,
-        Int32(niters), Float32(step_size), localmem, d_partial_sums)
+queue(pi_kernel, global_size, local_size,
+      Int32(niters), Float32(step_size), localmem, d_partial_sums)
 
 cl.copy!(queue, h_psum, d_partial_sums)
 

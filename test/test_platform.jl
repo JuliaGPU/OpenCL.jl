@@ -10,10 +10,10 @@
             v = cl.opencl_version(p)
             @test 1 <= v.major <= 2
             @test 0 <= v.minor <= 2
-         end
-     end
+        end
+    end
 
-     @testset "Platform Equality" begin
+    @testset "Platform Equality" begin
         platform       = cl.platforms()[1]
         platform_copy  = cl.platforms()[1]
 
@@ -23,9 +23,9 @@
 
         if length(cl.platforms()) > 1
             for p in cl.platforms()[2:end]
-                @test pointer(platform) == pointer(p)
-                @test hash(platform) == hash(p)
-                @test isequal(platform, p)
+                @test pointer(platform) != pointer(p)
+                @test hash(platform) != hash(p)
+                @test !isequal(platform, p)
             end
         end
     end

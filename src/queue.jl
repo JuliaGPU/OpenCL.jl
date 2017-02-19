@@ -80,13 +80,13 @@ function CmdQueue(ctx::Context, dev::Device, props::NTuple{2,Symbol})
 end
 
 function CmdQueue(ctx::Context, dev::Device, props::CL_command_queue_properties)
-    err_code = Array(CL_int, 1)
+    err_code = Ref{CL_int}()
     queue_id = api.clCreateCommandQueue(ctx.id, dev.id, props, err_code)
-    if err_code[1] != CL_SUCCESS
+    if err_code[] != CL_SUCCESS
         if queue_id != C_NULL
             api.clReleaseCommandQueue(queue_id)
         end
-        throw(CLError(err_code[1]))
+        throw(CLError(err_code[]))
     end
     return CmdQueue(queue_id)
 end
@@ -103,32 +103,32 @@ end
 
 let
     context(q::CmdQueue) = begin
-        ctx_id = Array(CL_context, 1)
+        ctx_id = Ref{CL_context}()
         @check api.clGetCommandQueueInfo(q.id, CL_QUEUE_CONTEXT,
                                          sizeof(CL_context), ctx_id, C_NULL)
-        Context(ctx_id[1], retain=true)
+        Context(ctx_id[], retain=true)
     end
 
     device(q::CmdQueue) = begin
-        dev_id = Array(CL_device_id, 1)
+        dev_id = Ref{CL_device_id}()
         @check api.clGetCommandQueueInfo(q.id, CL_QUEUE_DEVICE,
                                          sizeof(CL_device_id), dev_id, C_NULL)
-        Device(dev_id[1])
+        Device(dev_id[])
     end
 
     reference_count(q::CmdQueue) = begin
-        ref_count = Array(CL_uint, 1)
+        ref_count = Ref{CL_uint}()
         @check api.clGetCommandQueueInfo(q.id, CL_QUEUE_REFERENCE_COUNT,
                                          sizeof(CL_uint), ref_count, C_NULL)
-        ref_count[1]
+        ref_count[]
     end
 
     properties(q::CmdQueue) = begin
-        props = Array(CL_command_queue_properties, 1)
+        props = Ref{CL_command_queue_properties}()
         @check api.clGetCommandQueueInfo(q.id, CL_QUEUE_PROPERTIES,
                                          sizeof(CL_command_queue_properties),
                                          props, C_NULL)
-        props[1]
+        props[]
     end
 
     const info_map = Dict{Symbol, Function}(

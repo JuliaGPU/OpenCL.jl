@@ -97,7 +97,7 @@ end
                  end
              end
 
-             test_array = Array(TestStruct, 100)
+             test_array = Vector{TestStruct}(100)
              @test cl.Buffer(TestStruct, ctx, :alloc, length(test_array)) != nothing
              @test cl.Buffer(TestStruct, ctx, :copy, hostbuf=test_array) != nothing
 
@@ -175,7 +175,7 @@ end
             test_array = fill(2f0, 1000)
             a_buf = cl.Buffer(Float32, ctx, length(test_array))
             b_buf = cl.Buffer(Float32, ctx, length(test_array))
-            c_arr = Array(Float32, length(test_array))
+            c_arr = Vector{Float32}(length(test_array))
             # host to device buffer
             cl.copy!(queue, a_buf, test_array)
             # device buffer to device buffer
