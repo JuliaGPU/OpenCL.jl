@@ -1,5 +1,7 @@
 module api
 
+using Compat
+
 include("types.jl")
 
 const paths = is_apple() ? String["/System/Library/Frameworks/OpenCL.framework"] : String[]
@@ -25,7 +27,16 @@ macro ocl_func(func, ret_type, arg_types)
 end
 
 const CL_callback  = Ptr{Void}
-const CL_user_data = Any
+
+@compat abstract type CL_user_data_tag end
+const CL_user_data = Ptr{CL_user_data_tag}
+
+Base.cconvert{T}(::Type{Ptr{CL_user_data_tag}}, obj::T) = Ref{T}(obj)
+Base.unsafe_convert{T}(::Type{Ptr{CL_user_data_tag}}, ref::Ref{T}) =
+    Ptr{CL_user_data_tag}(isbits(T) ? pointer_from_objref(ref) : pointer_from_objref(ref[]))
+
+Base.cconvert(::Type{Ptr{CL_user_data_tag}}, ptr::Ptr) = ptr
+Base.unsafe_convert(::Type{Ptr{CL_user_data_tag}}, ptr::Ptr) = Ptr{CL_user_data_tag}(ptr)
 
 include("api/opencl_1.0.0.jl")
 include("api/opencl_1.1.0.jl")
