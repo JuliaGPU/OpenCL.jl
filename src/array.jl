@@ -6,8 +6,8 @@ type CLArray{T,N} <: CLObject
     size::NTuple{N,Int}
 end
 
-typealias CLMatrix{T} CLArray{T,2}
-typealias CLVector{T} CLArray{T,1}
+@compat CLMatrix{T} = CLArray{T,2}
+@compat CLVector{T} = CLArray{T,1}
 
 ## constructors
 
@@ -86,7 +86,7 @@ Base.show{T,N}(io::IO, A::CLArray{T,N}) =
 ## to_host
 
 function to_host{T,N}(A::CLArray{T,N}; queue=A.queue)
-    hA = Array(T, size(A))
+    hA = Array{T}(size(A))
     copy!(queue, hA, buffer(A))
     return hA
 end

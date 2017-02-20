@@ -1,7 +1,7 @@
 macro check(clfunc)
     quote
         local err::CL_int
-        err = $clfunc
+        err = $(esc(clfunc))
         if err != CL_SUCCESS
             throw(CLError(err))
         end
@@ -12,9 +12,9 @@ end
 macro check_release(clfunc)
     quote
         local err::CL_int
-        err = $clfunc
+        err = $(esc(clfunc))
         if err != CL_SUCCESS
-            error("release! $clfunc failed with code $(err[1]))")
+            error("release! $($(string(clfunc))) failed with code $err.")
         end
     end
 end
@@ -34,10 +34,11 @@ end
 
 macro return_event(evt)
     quote
+        evt = $(esc(evt))
         try
-            return Event($(esc(evt)), retain=false)
+            return Event(evt, retain=false)
         catch err
-            @check api.clReleaseEvent($(esc(evt)))
+            @check api.clReleaseEvent(evt)
             throw(err)
         end
     end
@@ -45,63 +46,28 @@ end
 
 macro return_nanny_event(evt, obj)
     quote
+        evt = $(esc(evt))
         try
-            return NannyEvent($(esc(evt)), $(esc(obj)))
+            return NannyEvent(evt, $(esc(obj)))
         catch err
-            @check api.clReleaseEvent($(esc(evt)))
+            @check api.clReleaseEvent(evt)
             throw(err)
         end
     end
 end
 
-macro int_info(what, cl_obj_id, cl_obj_info, ret_type)
-    local clFunc = Symbol("clGet$(what)Info")
-    quote
-        local result = Array($(esc(ret_type)), 1)
-        local err::CL_int
-        err = $clFunc($(esc(cl_obj)), $(esc(cl_obj_info)),
-                      sizeof($(esc(ret_type))), result, C_NULL)
-        if err != CL_SUCCESS
-            throw(CLError(err))
-        end
-        result[1]
-    end
-end
-
-macro vec_info(what, arg1, arg2, res_vec)
-    local clFunc = Symbol("api.clGet$(what)Info")
-    quote
-        local size = Array(Csize_t, 1)
-        @check clFunc($arg1, $arg2, 0, C_NULL, size)
-        local n = size / sizeof(res_vec[1])
-        resize!(res_vec, n)
-        @check clFunc($arg1, $arg2, empty($res_vec) ? C_NULL : res_vec, size)
-    end
-end
-
-macro str_info(what, arg1, arg2)
-    local clFunc = Symbol("api.clGet$(what)Info")
-    quote
-        local size = Ref{Csize_t}()
-        @check $(esc(clFunc))($(esc(arg1)), $(esc(arg2)), 0, C_NULL, size)
-        local result = Array(CL_char, size[])
-        @check $(esc(clFunc))($(esc(arg1)), $(esc(arg2)), size[], result, size)
-        CLString(result)
-    end
-end
-
-function _version_test(qm, elem :: Symbol, ex :: Expr, version :: VersionNumber)
+function _version_test(qm, elem, ex::Expr, version::VersionNumber)
     @assert qm == :?
     @assert ex.head == :(:)
     @assert length(ex.args) == 2
 
-    esc(quote
-        if cl.check_version($elem, $version)
-            $(ex.args[1])
+    quote
+        if cl.check_version($(esc(elem)), $version)
+            $(esc(ex.args[1]))
         else
-            $(ex.args[2])
+            $(esc(ex.args[2]))
         end
-    end)
+    end
 end
 
 macro min_v11(qm, elem, ex)

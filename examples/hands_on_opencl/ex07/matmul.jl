@@ -56,7 +56,7 @@ sizeC = Ndim * Mdim
 # Number of elements in the matrix
 h_A = fill(Float32(AVAL), sizeA)
 h_B = fill(Float32(BVAL), sizeB)
-h_C = Array(Float32, sizeC)
+h_C = Vector{Float32}(sizeC)
 
 # %20 improvment using @inbounds
 function seq_mat_mul_sdot{T}(Mdim::Int, Ndim::Int, Pdim::Int,
@@ -101,7 +101,7 @@ d_c = cl.Buffer(Float32, ctx, :w, length(h_C))
 # OpenCL matrix multiplication ... Naive
 #--------------------------------------------------------------------------------
 
-kernel_source = open(readall, joinpath(src_dir, "C_elem.cl"))
+kernel_source = readstring(joinpath(src_dir, "C_elem.cl"))
 prg  = cl.Program(ctx, source=kernel_source) |> cl.build!
 mmul = cl.Kernel(prg, "mmul")
 
@@ -109,9 +109,9 @@ info("=== OpenCL, matrix mult, C(i, j) per work item, order $Ndim ====")
 
 for i in 1:COUNT
     fill!(h_C, 0.0)
-    evt = cl.call(queue, mmul, (Ndim, Mdim), nothing,
-                  Int32(Mdim), Int32(Ndim), Int32(Pdim),
-                  d_a, d_b, d_c)
+    evt = queue(mmul, (Ndim, Mdim), nothing,
+                Int32(Mdim), Int32(Ndim), Int32(Pdim),
+                d_a, d_b, d_c)
     # profiling events are measured in ns
     run_time = evt[:profile_duration] / 1e9
     cl.copy!(queue, h_C, d_c)
@@ -122,7 +122,7 @@ end
 # OpenCL matrix multiplication ... C row per work item
 #--------------------------------------------------------------------------------
 
-kernel_source = open(readall, joinpath(src_dir, "C_row.cl"))
+kernel_source = readstring(joinpath(src_dir, "C_row.cl"))
 prg  = cl.Program(ctx, source=kernel_source) |> cl.build!
 mmul = cl.Kernel(prg, "mmul")
 
@@ -143,7 +143,7 @@ end
 #--------------------------------------------------------------------------------
 # OpenCL matrix multiplication ... C row per work item, A row in pivate memory
 #--------------------------------------------------------------------------------
-kernel_source = open(readall, joinpath(src_dir, "C_row_priv.cl"))
+kernel_source = readstring(joinpath(src_dir, "C_row_priv.cl"))
 prg  = cl.Program(ctx, source=kernel_source) |> cl.build!
 mmul = cl.Kernel(prg, "mmul")
 wk_size = cl.info(first(cl.devices(ctx)), :max_work_group_size)
@@ -155,9 +155,9 @@ info("=== OpenCL, matrix mult, C row, A row in priv mem, order $Ndim ====")
 
 for i in 1:COUNT
     fill!(h_C, 0.0)
-    evt = cl.call(queue, mmul, (Ndim,), (ORDER,),
-                  Int32(Mdim), Int32(Ndim), Int32(Pdim),
-                  d_a, d_b, d_c)
+    evt = queue(mmul, (Ndim,), (ORDER,),
+                Int32(Mdim), Int32(Ndim), Int32(Pdim),
+                d_a, d_b, d_c)
     # profiling events are measured in ns
     run_time = evt[:profile_duration] / 1e9
     cl.copy!(queue, h_C, d_c)

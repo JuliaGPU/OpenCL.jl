@@ -35,10 +35,10 @@ function Kernel(p::Program, kernel_name::String)
             throw(ArgumentError(msg))
         end
     end
-    err_code = Array(CL_int, 1)
+    err_code = Ref{CL_int}()
     kernel_id = api.clCreateKernel(p.id, kernel_name, err_code)
-    if err_code[1] != CL_SUCCESS
-        throw(CLError(err_code[1]))
+    if err_code[] != CL_SUCCESS
+        throw(CLError(err_code[]))
     end
     return Kernel(kernel_id)
 end
@@ -109,21 +109,23 @@ end
 function work_group_info(k::Kernel, winfo::CL_kernel_work_group_info, d::Device)
     if (winfo == CL_KERNEL_LOCAL_MEM_SIZE ||
         winfo == CL_KERNEL_PRIVATE_MEM_SIZE)
-        result = CL_ulong[0]
+        result1 = Ref{CL_ulong}(0)
         @check api.clGetKernelWorkGroupInfo(k.id, d.id, winfo,
-                                            sizeof(CL_ulong), result, C_NULL)
-        return Int(result[1])
+                                            sizeof(CL_ulong), result1, C_NULL)
+        return Int(result1[])
     elseif winfo == CL_KERNEL_COMPILE_WORK_GROUP_SIZE
-        size = Csize_t[0]
+        size = Ref{Csize_t}(0)
         @check api.clGetKernelWorkGroupInfo(k.id, d.id, winfo, 0, C_NULL, size)
-        result = Array(Csize_t, size[1])
-        @check api.clGetKernelWorkGroupInfo(k.id, d.id, winfo, sizeof(result), result, C_NULL)
-        return map(Int, result)
+        @assert sizeof(Int) == sizeof(Csize_t)
+        sz = size[]
+        result2 = Vector{Int}(sz)
+        @check api.clGetKernelWorkGroupInfo(k.id, d.id, winfo, sz * sizeof(Int), result2, C_NULL)
+        return result2
     else
-        result = Csize_t[0]
+        result = Ref{Csize_t}(0)
         @check api.clGetKernelWorkGroupInfo(k.id, d.id, winfo,
                                             sizeof(CL_ulong), result, C_NULL)
-        return Int(result[1])
+        return Int(result[])
     end
 end
 
@@ -194,7 +196,7 @@ function enqueue_kernel(q::CmdQueue,
     if work_dim > max_work_dim
         throw(ArgumentError("global_work_size has max dim of $max_work_dim"))
     end
-    gsize = Array(Csize_t, work_dim)
+    gsize = Array{Csize_t}(work_dim)
     for (i, s) in enumerate(global_work_size)
         gsize[i] = s
     end
@@ -207,7 +209,7 @@ function enqueue_kernel(q::CmdQueue,
         if length(global_work_offset) != work_dim
             throw(ArgumentError("global_work_size and global_work_offset have differing dims"))
         end
-        goffset = Array(Csize_t, work_dim)
+        goffset = Array{Csize_t}(work_dim)
         for (i, o) in enumerate(global_work_offset)
             goffset[i] = o
         end
@@ -221,7 +223,7 @@ function enqueue_kernel(q::CmdQueue,
         if length(local_work_size) != work_dim
             throw(ArgumentError("global_work_size and local_work_size have differing dims"))
         end
-        lsize = Array(Csize_t, work_dim)
+        lsize = Array{Csize_t}(work_dim)
         for (i, s) in enumerate(local_work_size)
             lsize[i] = s
         end
@@ -235,10 +237,10 @@ function enqueue_kernel(q::CmdQueue,
         wait_event_ids = C_NULL
     end
 
-    ret_event = Array(CL_event, 1)
+    ret_event = Ref{CL_event}()
     @check api.clEnqueueNDRangeKernel(q.id, k.id, cl_uint(work_dim), goffset, gsize, lsize,
                                       n_events, wait_event_ids, ret_event)
-    return Event(ret_event[1], retain=false)
+    return Event(ret_event[], retain=false)
 end
 
 
@@ -256,16 +258,16 @@ function enqueue_task(q::CmdQueue, k::Kernel; wait_for=nothing)
             evt_ids = [evt.id for evt in wait_for]
         end
     end
-    ret_event = Array(CL_event, 1)
+    ret_event = Ref{CL_event}()
     @check api.clEnqueueTask(q.id, k.id, n_evts, evt_ids, ret_event)
-    return ret_event[1]
+    return ret_event[]
 end
 
 let name(k::Kernel) = begin
         size = Ref{Csize_t}()
         @check api.clGetKernelInfo(k.id, CL_KERNEL_FUNCTION_NAME,
                                    0, C_NULL, size)
-        result = Array(Cchar, size[])
+        result = Vector{Cchar}(size[])
         @check api.clGetKernelInfo(k.id, CL_KERNEL_FUNCTION_NAME,
                                    size[], result, size)
         return CLString(result)
@@ -286,10 +288,10 @@ let name(k::Kernel) = begin
     end
 
     program(k::Kernel) = begin
-        ret = Array(CL_program, 1)
+        ret = Ref{CL_program}()
         @check api.clGetKernelInfo(k.id, CL_KERNEL_PROGRAM,
                                    sizeof(CL_program), ret, C_NULL)
-        return Program(ret[1], retain=true)
+        return Program(ret[], retain=true)
     end
 
     attributes(k::Kernel) = begin
@@ -299,7 +301,7 @@ let name(k::Kernel) = begin
         if size[] <= 1
             return ""
         end
-        result = Array(CL_char, size[])
+        result = Vector{CL_char}(size[])
         @check api.clGetKernelInfo(k.id, CL_KERNEL_ATTRIBUTES,
                                    size[], result, size)
         return CLString(result)

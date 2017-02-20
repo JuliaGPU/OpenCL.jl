@@ -27,7 +27,7 @@ function cl_performance(ndatapts::Integer, nworkers::Integer)
 
     a = rand(Float32,  ndatapts)
     b = rand(Float32,  ndatapts)
-    c = Array(Float32, ndatapts)
+    c = Vector{Float32}(ndatapts)
 
     @printf("Size of test data: %i MB\n", sizeof(a) / 1024 / 1024)
 

@@ -48,21 +48,21 @@ function Program(ctx::Context; source=nothing, binaries=nothing)
 
     elseif binaries !== nothing
         ndevices = length(binaries)
-        device_ids = Array(CL_device_id, ndevices)
-        bin_lengths = Array(Csize_t, ndevices)
-        binary_status = Array(CL_int, ndevices)
-        binary_ptrs= Array(Ptr{UInt8}, ndevices)
+        device_ids = Vector{CL_device_id}(ndevices)
+        bin_lengths = Vector{Csize_t}(ndevices)
+        binary_status = Vector{CL_int}(ndevices)
+        binary_ptrs= Vector{Ptr{UInt8}}(ndevices)
         try
             for (i, (dev, bin)) in enumerate(binaries)
                 device_ids[i] = dev.id
                 bin_lengths[i] = length(bin)
                 binary_ptrs[i] = Base.unsafe_convert(Ptr{UInt8}, pointer(bin))
             end
-            err_code = Array(CL_int, 1)
+            err_code = Ref{CL_int}()
             program_id = api.clCreateProgramWithBinary(ctx.id, ndevices, device_ids, bin_lengths,
                                                        binary_ptrs, binary_status, err_code)
-            if err_code[1] != CL_SUCCESS
-                throw(CLError(err_code[1]))
+            if err_code[] != CL_SUCCESS
+                throw(CLError(err_code[]))
             end
             for status in binary_status
                 if status != CL_SUCCESS
@@ -102,7 +102,7 @@ let
 
     devices(p::Program) = begin
         ndevices = num_devices(p)
-        device_ids = Array(CL_device_id, ndevices)
+        device_ids = Vector{CL_device_id}(ndevices)
         @check api.clGetProgramInfo(p.id, CL_PROGRAM_DEVICES,
                                     sizeof(CL_device_id) * ndevices, device_ids, C_NULL)
         return [Device(device_ids[i]) for i in 1:ndevices]
@@ -110,12 +110,11 @@ let
 
     build_status(p::Program) = begin
         status_dict = Dict{Device, CL_build_status}()
-        status = Array(CL_build_status, 1)
-        err_code = Array(CL_int, 1)
+        status = Ref{CL_build_status}()
         for d in devices(p)
             @check api.clGetProgramBuildInfo(p.id, d.id, CL_PROGRAM_BUILD_STATUS,
                                              sizeof(CL_build_status), status, C_NULL)
-            status_dict[d] = status[1]
+            status_dict[d] = status[]
         end
         return status_dict
     end
@@ -130,7 +129,7 @@ let
                 logs[d] = ""
                 continue
             end
-            log_bytestring = Array(CL_char, log_len[])
+            log_bytestring = Vector{CL_char}(log_len[])
             @check api.clGetProgramBuildInfo(p.id, d.id, CL_PROGRAM_BUILD_LOG,
                                             log_len[], log_bytestring, C_NULL)
             logs[d] = CLString(log_bytestring)
@@ -147,14 +146,14 @@ let
         sizes = zeros(Csize_t, slen[])
         @check api.clGetProgramInfo(p.id, CL_PROGRAM_BINARY_SIZES,
                                     slen[], sizes, C_NULL)
-        bins = Array(Ptr{UInt8}, length(sizes))
+        bins = Vector{Ptr{UInt8}}(length(sizes))
         # keep a reference to the underlying binary arrays
         # as storing the pointer to the array hides the additional
         # reference from julia's garbage collector
         bin_arrays = Any[]
         for (i, s) in enumerate(sizes)
             if s > 0
-                bin = Array(UInt8, s)
+                bin = Vector{UInt8}(s)
                 bins[i] = pointer(bin)
                 push!(bin_arrays, bin)
             else
@@ -179,7 +178,7 @@ let
         src_len = Ref{Csize_t}()
         @check api.clGetProgramInfo(p.id, CL_PROGRAM_SOURCE, 0, C_NULL, src_len)
         src_len[] <= 1 && return nothing
-        src = Array(Cchar, src_len[])
+        src = Vector{Cchar}(src_len[])
         @check api.clGetProgramInfo(p.id, CL_PROGRAM_SOURCE, src_len[], src, C_NULL)
         return CLString(src)
     end
