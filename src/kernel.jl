@@ -114,12 +114,12 @@ function work_group_info(k::Kernel, winfo::CL_kernel_work_group_info, d::Device)
                                             sizeof(CL_ulong), result1, C_NULL)
         return Int(result1[])
     elseif winfo == CL_KERNEL_COMPILE_WORK_GROUP_SIZE
-        size = Ref{Csize_t}(0)
-        @check api.clGetKernelWorkGroupInfo(k.id, d.id, winfo, 0, C_NULL, size)
-        @assert sizeof(Int) == sizeof(Csize_t)
-        sz = size[]
-        result2 = Vector{Int}(sz)
-        @check api.clGetKernelWorkGroupInfo(k.id, d.id, winfo, sz * sizeof(Int), result2, C_NULL)
+        # Intel driver has a bug so we can't query the required size.
+        # As specified by [1] the return value in this case is size_t[3].
+        # [1] https://www.khronos.org/registry/OpenCL/sdk/1.2/docs/man/xhtml/clGetKernelWorkGroupInfo.html
+        @assert sizeof(Csize_t) == sizeof(Int)
+        result2 = Vector{Int}(3)
+        @check api.clGetKernelWorkGroupInfo(k.id, d.id, winfo, 3*sizeof(Int), result2, C_NULL)
         return result2
     else
         result = Ref{Csize_t}(0)
