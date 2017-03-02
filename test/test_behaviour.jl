@@ -35,11 +35,7 @@ info(
         queue(kern, str_len, nothing, out_buf)
         h = cl.read(queue, out_buf)
 
-        if device[:platform][:name] == "NVIDIA CUDA"
-            @test_broken cl.CLString(h) == hello_world_str
-        else
-            @test cl.CLString(h) == hello_world_str
-        end
+        @test cl.CLString(h) == hello_world_str
     end
 end
 
