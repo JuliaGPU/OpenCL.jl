@@ -77,16 +77,15 @@ function Program(ctx::Context; source=nothing, binaries=nothing)
 end
 
 #TODO: build callback...
-function build!(p::Program; options="", raise=true)
+function build!(p::Program; options = "", raise = true)
     opts = String(options)
     ndevices = 0
     device_ids = C_NULL
-    @check api.clBuildProgram(p.id, cl_uint(ndevices), device_ids, opts, C_NULL, C_NULL)
+    api.clBuildProgram(p.id, cl_uint(ndevices), device_ids, opts, C_NULL, C_NULL)
     if raise
-        for (dev, status) in info(p, :build_status)
-            if status == CL_BUILD_ERROR
-                #TODO: throw(CLBuildError(self.logs[dev], self.logs)
-                error("$p build error on device $dev")
+        for (dev, status) in cl.info(p, :build_status)
+            if status == cl.CL_BUILD_ERROR
+                error(cl.info(p, :build_log)[dev])
             end
         end
     end
