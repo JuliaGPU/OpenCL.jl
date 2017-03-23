@@ -1,9 +1,9 @@
 
-type CLArray{T,N} <: CLObject
+type CLArray{T, N} <: CLObject
     ctx::Context
     queue::CmdQueue
     buffer::Buffer{T}
-    size::NTuple{N,Int}
+    size::NTuple{N, Int}
 end
 
 @compat CLMatrix{T} = CLArray{T,2}
@@ -30,9 +30,13 @@ function CLArray{T,N}(queue::CmdQueue, hostarray::AbstractArray{T,N};
     CLArray(queue, (:rw, :copy), hostarray)
 end
 
-Base.copy(A::CLArray; ctx=A.ctx, queue=A.queue,
-          buffer=A.buffer, size=A.size) =
+function Base.copy(
+        A::CLArray; ctx=A.ctx, queue=A.queue,
+        buffer=A.buffer, size=A.size
+    )
     CLArray(ctx, queue, buffer, size)
+end
+
 function Base.deepcopy{T,N}(A::CLArray{T,N})
     new_buf = Buffer(T, A.ctx, prod(A.size))
     copy!(A.queue, new_buf, A.buffer)
@@ -67,6 +71,7 @@ buffer(A::CLArray) = A.buffer
 Base.pointer(A::CLArray) = A.buffer.id
 context(A::CLArray) = context(A.buffer)
 queue(A::CLArray) = A.queue
+Base.eltype{T, N}(A::CLArray{T, N}) = T
 Base.size(A::CLArray) = A.size
 Base.size(A::CLArray, dim::Integer) = A.size[dim]
 Base.ndims(A::CLArray) = length(size(A))
