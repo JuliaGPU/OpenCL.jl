@@ -79,7 +79,7 @@ function set_arg!(k::Kernel, idx::Integer, arg::CLMemObject)
 end
 
 function set_arg!(k::Kernel, idx::Integer, arg::LocalMem)
-    @assert idx > 0
+    @assert idx > 0 "Kernel idx must be bigger 0"
     @check api.clSetKernelArg(k.id, cl_uint(idx-1), arg.nbytes, C_NULL)
     return k
 end
