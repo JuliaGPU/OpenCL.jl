@@ -73,7 +73,7 @@ end
 
 function set_arg!(k::Kernel, idx::Integer, arg::CLMemObject)
     @assert idx > 0
-    arg_boxed = Ref(arg.id)
+    arg_boxed = Ref{typeof(arg.id)}(arg.id)
     @check api.clSetKernelArg(k.id, cl_uint(idx-1), sizeof(CL_mem), arg_boxed)
     return k
 end
@@ -90,7 +90,7 @@ function set_arg!{T}(k::Kernel, idx::Integer, arg::T)
     if !isbits(T) # TODO add more thorough mem layout checks and the clang stuff
         error("Only isbits types allowed. Found: $T")
     end
-    boxed_arg = Ref(arg)
+    boxed_arg = Ref{T}(arg)
     @check api.clSetKernelArg(k.id, cl_uint(idx - 1), sizeof(T), boxed_arg)
     return k
 end
