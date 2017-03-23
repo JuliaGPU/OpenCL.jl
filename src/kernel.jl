@@ -73,7 +73,8 @@ end
 
 function set_arg!(k::Kernel, idx::Integer, arg::CLMemObject)
     @assert idx > 0
-    @check api.clSetKernelArg(k.id, cl_uint(idx-1), sizeof(CL_mem), [arg.id])
+    arg_boxed = Ref(arg.id)
+    @check api.clSetKernelArg(k.id, cl_uint(idx-1), sizeof(CL_mem), arg_boxed)
     return k
 end
 
@@ -83,21 +84,15 @@ function set_arg!(k::Kernel, idx::Integer, arg::LocalMem)
     return k
 end
 
-#TODO: vector types...
 #TODO: type safe calling of set args for kernel (with clang)
-
-# set scalar/vector kernel args
-for cl_type in [:CL_char, :CL_uchar, :CL_short, :CL_ushort,
-                :CL_int,  :CL_uint,  :CL_long,  :CL_ulong,
-                :CL_half, :CL_float, :CL_double]
-    @eval begin
-        function set_arg!(k::Kernel, idx::Integer, arg::$cl_type)
-            @assert idx > 0
-            boxed_arg = $cl_type[arg,]
-            @check api.clSetKernelArg(k.id, cl_uint(idx-1), sizeof($cl_type), boxed_arg)
-            return k
-        end
+function set_arg!{T}(k::Kernel, idx::Integer, arg::T)
+    @assert idx > 0 "Kernel idx must be bigger 0"
+    if !isbits(T) # TODO add more thorough mem layout checks and the clang stuff
+        error("Only isbits types allowed. Found: $T")
     end
+    boxed_arg = Ref(arg)
+    @check api.clSetKernelArg(k.id, cl_uint(idx - 1), sizeof(T), boxed_arg)
+    return k
 end
 
 function set_args!(k::Kernel, args...)
