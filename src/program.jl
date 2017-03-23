@@ -76,17 +76,29 @@ function Program(ctx::Context; source=nothing, binaries=nothing)
     end
 end
 
+function print_with_linenumbers(text, pad = "", io = STDOUT)
+    for (i,line) in enumerate(split(text, "\n"))
+        println(io, @sprintf("%s%-4d: %s", pad, i, line))
+    end
+end
+
 #TODO: build callback...
 function build!(p::Program; options = "", raise = true)
     opts = String(options)
     ndevices = 0
     device_ids = C_NULL
-    api.clBuildProgram(p.id, cl_uint(ndevices), device_ids, opts, C_NULL, C_NULL)
-    if raise
-        for (dev, status) in cl.info(p, :build_status)
-            if status == cl.CL_BUILD_ERROR
-                error(cl.info(p, :build_log)[dev])
-            end
+    err = api.clBuildProgram(p.id, cl_uint(ndevices), device_ids, opts, C_NULL, C_NULL)
+    if err != CL_BUILD_PROGRAM_FAILURE
+       @check err
+    end
+    for (dev, status) in cl.info(p, :build_status)
+        if status == cl.CL_BUILD_ERROR
+            println(STDERR, "Couldn't compile kernel: ")
+            source = info(p, :source)
+            print_with_linenumbers(source, "    ", STDERR)
+            println(STDERR, "With following build error:")
+            println(STDERR, cl.info(p, :build_log)[dev])
+            raise && @check err # throw the build error when raise!
         end
     end
     return p
