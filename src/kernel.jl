@@ -91,7 +91,12 @@ function set_arg!{T}(k::Kernel, idx::Integer, arg::T)
         error("Only isbits types allowed. Found: $T")
     end
     boxed_arg = Ref{T}(arg)
-    @check api.clSetKernelArg(k.id, cl_uint(idx - 1), sizeof(T), boxed_arg)
+    sz = if T <: NTuple && length(arg) == 3
+        sizeof(eltype(arg)) * 4
+    else
+        sizeof(T)
+    end
+    @check api.clSetKernelArg(k.id, cl_uint(idx - 1), sz, boxed_arg)
     return k
 end
 
