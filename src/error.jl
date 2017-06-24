@@ -188,5 +188,5 @@ Base.show(io::IO, err::CLError) =
         Base.print(io, "CLError(code=$(err.code), $(err.desc))")
 
 function error_description(err::CLError)
-    get(_cl_error_descriptions, err.code, "no description for error $(err.code)")
+    get(_cl_err_desc, err.code, "no description for error $(err.code)")
 end
