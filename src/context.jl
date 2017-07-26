@@ -1,12 +1,10 @@
 # OpenCL.Context
 
+
 type Context <: CLObject
     id :: CL_context
-
-    function Context(ctx_id::CL_context; retain=false)
-        if retain
-            @check api.clRetainContext(ctx_id)
-        end
+    function Context(ctx_id::CL_context, unused::Void; retain = false)
+        retain && @check api.clRetainContext(ctx_id)
         ctx = new(ctx_id)
         finalizer(ctx, c -> begin
             retain || _deletecached!(c);
@@ -18,6 +16,16 @@ type Context <: CLObject
         return ctx
     end
 end
+# OpenCL gives you the same pointer when creating two context from the same
+# device while not freeing any of them. So we can get two different context with
+# the same pointer, which will not work in the way our finalizer works!
+const _context_cache = Dict{CL_context, Context}()
+function Context(ctx_id::CL_context; retain = false)
+    get!(_context_cache, ctx_id) do
+        Context(ctx_id, nothing; retain = retain)
+    end
+end
+
 
 Base.pointer(ctx::Context) = ctx.id
 
