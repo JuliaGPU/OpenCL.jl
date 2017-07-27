@@ -6,9 +6,9 @@ type Context <: CLObject
     function Context(ctx_id::CL_context, unused::Void; retain = false)
         retain && @check api.clRetainContext(ctx_id)
         ctx = new(ctx_id)
-        @show "created" ctx.id pointer_from_objref(ctx)
+        println("new: ", ctx.id, " ", pointer_from_objref(ctx))
         finalizer(ctx, c -> begin
-            @show "freeing" ctx.id pointer_from_objref(ctx)
+            println("freeing: ", ctx.id, " ", pointer_from_objref(ctx))
             retain || _deletecached!(c);
             if c.id != C_NULL
                 @check api.clReleaseContext(c.id)
