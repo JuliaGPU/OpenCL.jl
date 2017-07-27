@@ -6,12 +6,16 @@
                 ctx = cl.Context(device)
                 @test ctx != nothing
                 ctx2 = cl.Context(device)
-                # test that we have exactly the sam
-                # important for finalizers to work without double frees
-                @test ctx2 === ctx
-                finalize(ctx)
-                @test ctx.id == C_NULL
-                @test ctx2.id == C_NULL
+                # seems like OpenCL doesn't require contexts from the same device
+                # to return the same context pointer... But might also happen.
+                if ctx.id === ctx2.id
+                    # test that we have exactly the same context
+                    # important for finalizers to work without double frees
+                    @test ctx2 === ctx
+                    finalize(ctx)
+                    @test ctx.id == C_NULL
+                    @test ctx2.id == C_NULL
+                end
             end
         end
     end
