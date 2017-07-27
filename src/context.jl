@@ -3,12 +3,10 @@
 
 type Context <: CLObject
     id :: CL_context
-    function Context(ctx_id::CL_context, unused::Void; retain = false)
+    function Context(ctx_id::CL_context; retain = false)
         retain && @check api.clRetainContext(ctx_id)
         ctx = new(ctx_id)
-        println("new: ", ctx.id, " ", pointer_from_objref(ctx))
         finalizer(ctx, c -> begin
-            println("freeing: ", ctx.id, " ", pointer_from_objref(ctx))
             retain || _deletecached!(c);
             if c.id != C_NULL
                 @check api.clReleaseContext(c.id)
@@ -21,20 +19,20 @@ end
 # OpenCL gives you the same pointer when creating two context from the same
 # device while not freeing any of them. So we can get two different context with
 # the same pointer, which will not work in the way our finalizer works!
-const _context_cache = Dict{CL_context, WeakRef}()
-
-function Context(ctx_id::CL_context; retain = false)
-    if haskey(_context_cache, ctx_id)
-        wref = _context_cache[ctx_id]
-        if wref.value != nothing
-            return wref.value::Context
-        end
-        println("ctx_id is finalized but still got created from: ", ctx_id)
-    end
-    ctx = Context(ctx_id, nothing; retain = retain)
-    _context_cache[ctx_id] = WeakRef(ctx)
-    ctx
-end
+# const _context_cache = Dict{CL_context, WeakRef}()
+#
+# function Context(ctx_id::CL_context; retain = false)
+#     if haskey(_context_cache, ctx_id)
+#         wref = _context_cache[ctx_id]
+#         if wref.value != nothing
+#             return wref.value::Context
+#         end
+#         println("ctx_id is finalized but still got created from: ", ctx_id)
+#     end
+#     ctx = Context(ctx_id, nothing; retain = retain)
+#     _context_cache[ctx_id] = WeakRef(ctx)
+#     ctx
+# end
 
 
 Base.pointer(ctx::Context) = ctx.id
