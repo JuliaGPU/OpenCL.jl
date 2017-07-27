@@ -5,11 +5,8 @@
         for platform in cl.platforms()
             for device in cl.devices(platform)
                 ctx = cl.Context(device)
-                println("cmq test 1: ", ctx.id, " ", pointer_from_objref(ctx))
                 @test cl.CmdQueue(ctx) != nothing
-                println("cmq test 2: ", ctx.id, " ", pointer_from_objref(ctx))
                 @test cl.CmdQueue(ctx, device) != nothing
-                println("cmq test 3: ", ctx.id, " ", pointer_from_objref(ctx))
                 @test cl.CmdQueue(ctx, :profile) != nothing
                 try
                     cl.CmdQueue(ctx, device, :out_of_order)

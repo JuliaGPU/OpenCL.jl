@@ -29,6 +29,7 @@ function Context(ctx_id::CL_context; retain = false)
         if wref.value != nothing
             return wref.value::Context
         end
+        println("ctx_id is finalized but still got created from: ", ctx_id)
     end
     ctx = Context(ctx_id, nothing; retain = retain)
     _context_cache[ctx_id] = WeakRef(ctx)
