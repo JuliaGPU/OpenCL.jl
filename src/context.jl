@@ -20,6 +20,7 @@ end
 # device while not freeing any of them. So we can get two different context with
 # the same pointer, which will not work in the way our finalizer works!
 const _context_cache = Dict{CL_context, WeakRef}()
+
 function Context(ctx_id::CL_context; retain = false)
     if haskey(_context_cache, ctx_id)
         wref = _context_cache[ctx_id]

@@ -5,7 +5,13 @@
             for device in cl.devices(platform)
                 ctx = cl.Context(device)
                 @test ctx != nothing
+                ctx2 = cl.Context(device)
+                # test that we have exactly the sam
+                # important for finalizers to work without double frees
+                @test ctx2 === ctx
                 finalize(ctx)
+                @test ctx.id == C_NULL
+                @test ctx2.id == C_NULL
             end
         end
     end
@@ -78,4 +84,5 @@
             @test parsed_properties[2] == cl.cl_context_properties(platform.id)
         end
     end
+
 end
