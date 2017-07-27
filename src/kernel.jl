@@ -85,12 +85,12 @@ function set_arg!(k::Kernel, idx::Integer, arg::LocalMem)
 end
 
 
-is_cl_vector(x::T) where T = _is_cl_vector(T)
-is_cl_vector(x::Type{T}) where T = _is_cl_vector(T)
+is_cl_vector{T}(x::T) = _is_cl_vector(T)
+is_cl_vector{T}(x::Type{T}) = _is_cl_vector(T)
 _is_cl_vector(x) = false
-_is_cl_vector(x::Type{NTuple{N, T}}) where {N, T} = is_cl_number(T) && N in (2, 3, 4, 8, 16)
-is_cl_number(x::Type{T}) where T = _is_cl_number(T)
-is_cl_number(x::T) where T = _is_cl_number(T)
+_is_cl_vector{N, T}(x::Type{NTuple{N, T}}) = is_cl_number(T) && N in (2, 3, 4, 8, 16)
+is_cl_number{T}(x::Type{T}) = _is_cl_number(T)
+is_cl_number{T}(x::T) = _is_cl_number(T)
 _is_cl_number(x) = false
 function _is_cl_number(::Type{<: Union{
         Int64, Int32, Int16, Int8,
@@ -104,13 +104,13 @@ is_cl_inbuild{T}(x::T) = is_cl_vector(x) || is_cl_number(x)
 
 struct Pad{N}
     val::NTuple{N, Int8}
-    Pad{N}() where N = new{N}(ntuple(i-> Int8(0), Val{N}))
+    (::Type{Pad{N}}){N}() = new{N}(ntuple(i-> Int8(0), Val{N}))
 end
-Base.isempty(::Type{Pad{N}}) where N = (N == 0)
-Base.isempty(::Pad{N}) where N = N == 0
+Base.isempty{N}(::Type{Pad{N}}) = (N == 0)
+Base.isempty{N}(::Pad{N}) = N == 0
 
-inbuild_alignement(::Type{T}) where T = T <: NTuple && length(T.parameters) == 3 && sizeof(T) == 12 ? 16 : sizeof(T)
-inbuild_alignement(x::T) where T = inbuild_alignement(T)
+inbuild_alignement{T}(::Type{T}) = T <: NTuple && length(T.parameters) == 3 && sizeof(T) == 12 ? 16 : sizeof(T)
+inbuild_alignement{T}(x::T) = inbuild_alignement(T)
 
 function cl_alignement(x)
     is_cl_inbuild(x) ? inbuild_alignement(x) : cl_sizeof(x)

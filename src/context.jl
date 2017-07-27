@@ -19,11 +19,17 @@ end
 # OpenCL gives you the same pointer when creating two context from the same
 # device while not freeing any of them. So we can get two different context with
 # the same pointer, which will not work in the way our finalizer works!
-const _context_cache = Dict{CL_context, Context}()
+const _context_cache = Dict{CL_context, WeakRef}()
 function Context(ctx_id::CL_context; retain = false)
-    get!(_context_cache, ctx_id) do
-        Context(ctx_id, nothing; retain = retain)
+    if haskey(_context_cache, ctx_id)
+        wref = _context_cache[ctx_id]
+        if wref.value != nothing
+            return wref.value::Context
+        end
     end
+    ctx = Context(ctx_id, nothing; retain = retain)
+    _context_cache[ctx_id] = WeakRef(ctx)
+    ctx
 end
 
 
