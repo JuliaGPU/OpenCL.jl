@@ -1,22 +1,58 @@
 # OpenCL.Context
 
+const _ctx_id_seen = Dict{CL_context, Bool}()
+
+function has_been_seen(ctx_id::CL_context)
+    if haskey(_ctx_id_seen, ctx_id)
+        return _ctx_id_seen[ctx_id]
+    else
+        _ctx_id_seen[ctx_id] = true
+        return false
+    end
+end
+
 type Context <: CLObject
     id :: CL_context
-
-    function Context(ctx_id::CL_context; retain=false)
-        if retain
-            @check api.clRetainContext(ctx_id)
+    # If created from ctx_id already, we need to increase the reference count
+    # because then we give out multiple context references with multiple finalizers to the world
+    # TODO should we make it in a way, that you can't overwrite it?
+    function Context(ctx_id::CL_context; retain = has_been_seen(ctx_id))
+        retain && @check api.clRetainContext(ctx_id)
+        if !is_ctx_id_alive(ctx_id)
+            error("ctx_id not alive: ", ctx_id)
         end
         ctx = new(ctx_id)
         finalizer(ctx, c -> begin
             retain || _deletecached!(c);
             if c.id != C_NULL
-                @check api.clReleaseContext(c.id)
+                release_ctx_id(c.id)
                 c.id = C_NULL
             end
         end )
         return ctx
     end
+end
+
+number_of_references(ctx::Context) = number_of_references(ctx.id)
+function number_of_references(ctx_id::CL_context)
+    refcounts = Ref{CL_uint}()
+    @check api.clGetContextInfo(
+        ctx_id, CL_CONTEXT_REFERENCE_COUNT,
+        sizeof(CL_uint), refcounts, C_NULL
+    )
+    return refcounts[]
+end
+
+function is_ctx_id_alive(ctx_id::CL_context)
+    number_of_references(ctx_id) > 0
+end
+function release_ctx_id(ctx_id::CL_context)
+    if is_ctx_id_alive(ctx_id)
+        @check api.clReleaseContext(ctx_id)
+    else
+        error("Double free for context: ", ctx_id)
+    end
+    return
 end
 
 Base.pointer(ctx::Context) = ctx.id
@@ -80,7 +116,8 @@ function Context(devs::Vector{Device};
 
     err_code = Ref{CL_int}()
     ctx_id = api.clCreateContext(ctx_properties, n_devices, device_ids,
-                                 ctx_callback_ptr(), ctx_user_data, err_code)
+                                ctx_callback_ptr(), ctx_user_data, err_code)
+
     if err_code[] != CL_SUCCESS
         throw(CLError(err_code[]))
     end
@@ -219,6 +256,9 @@ function num_devices(ctx::Context)
                                 sizeof(CL_uint), ndevices, C_NULL)
     return ndevices[]
 end
+
+
+
 
 function devices(ctx::Context)
     n = num_devices(ctx)

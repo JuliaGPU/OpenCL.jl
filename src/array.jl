@@ -111,10 +111,14 @@ end
 """Transpose CLMatrix A, write result to a preallicated CLMatrix B"""
 function Base.transpose!(B::CLMatrix{Float32}, A::CLMatrix{Float32};
                          queue=A.queue)
+
     block_size = max_block_size(queue, size(A, 1), size(A, 2))
     ctx = context(A)
-    kernel = get_kernel(ctx, TRANSPOSE_PROGRAM_PATH, "transpose",
-                          block_size=block_size)
+    kernel = get_kernel(
+        ctx,
+        TRANSPOSE_PROGRAM_PATH, "transpose",
+        block_size=block_size
+    )
     h, w = size(A)
     lmem = LocalMem(Float32, block_size * (block_size + 1))
     set_args!(kernel, buffer(B), buffer(A), UInt32(h), UInt32(w), lmem)

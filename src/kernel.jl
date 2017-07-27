@@ -84,14 +84,148 @@ function set_arg!(k::Kernel, idx::Integer, arg::LocalMem)
     return k
 end
 
+
+is_cl_vector{T}(x::T) = _is_cl_vector(T)
+is_cl_vector{T}(x::Type{T}) = _is_cl_vector(T)
+_is_cl_vector(x) = false
+_is_cl_vector{N, T}(x::Type{NTuple{N, T}}) = is_cl_number(T) && N in (2, 3, 4, 8, 16)
+is_cl_number{T}(x::Type{T}) = _is_cl_number(T)
+is_cl_number{T}(x::T) = _is_cl_number(T)
+_is_cl_number(x) = false
+function _is_cl_number{T <: Union{
+        Int64, Int32, Int16, Int8,
+        UInt64, UInt32, UInt16, UInt8,
+        Float64, Float32, Float16
+    }}(::Type{T})
+    true
+end
+is_cl_inbuild{T}(x::T) = is_cl_vector(x) || is_cl_number(x)
+
+
+immutable Pad{N}
+    val::NTuple{N, Int8}
+    (::Type{Pad{N}}){N}() = new{N}(ntuple(i-> Int8(0), Val{N}))
+end
+Base.isempty{N}(::Type{Pad{N}}) = (N == 0)
+Base.isempty{N}(::Pad{N}) = N == 0
+
+inbuild_alignement{T}(::Type{T}) = T <: NTuple && length(T.parameters) == 3 && sizeof(T) == 12 ? 16 : sizeof(T)
+inbuild_alignement{T}(x::T) = inbuild_alignement(T)
+
+function cl_alignement(x)
+    is_cl_inbuild(x) ? inbuild_alignement(x) : cl_sizeof(x)
+end
+
+function advance_aligned(offset, alignment)
+    (offset == 0 || alignment == 0) && return 0
+    if offset % alignment != 0
+        npad = ((div(offset, alignment) + 1) * alignment) - offset
+        offset += npad
+    end
+    offset
+end
+
+
+
+Base.@pure function _cl_sizeof{T}(::Type{T}, offset = 0)
+    align, size = if is_cl_inbuild(T) || nfields(T) == 0
+        align, size = inbuild_alignement(T), sizeof(T)
+        if offset == 0
+            return align
+        end
+        align, size
+    else
+        nextoffset = offset
+        for field in fieldnames(T)
+            xT = fieldtype(T, field)
+            nextoffset = _cl_sizeof(xT, nextoffset)
+        end
+        size = nextoffset - offset
+        size, size
+    end
+    offset = advance_aligned(offset, align)
+    offset += size
+    offset
+end
+
+Base.@generated function cl_sizeof{T}(x::T)
+    size = _cl_sizeof(T, 0)
+    :($size)
+end
+Base.@generated function cl_sizeof{T}(x::Type{T})
+    size = _cl_sizeof(T, 0)
+    :($size)
+end
+
+@generated function aligned_convert(x)
+    offset = Ref(0); elements = []; fields = []
+    _aligned_convert!(x, offset, elements, fields, :x)
+    ret = if length(elements) == 1 # no conversion happened
+        return :(x, $(offset[]))
+    else
+        tupl = Expr(:tuple)
+        tupl.args = first.(elements)
+        expr = quote
+            $(fields...) # hoisted field loads
+            $tupl, $(offset[])
+        end
+        expr
+    end
+end
+
+@generated function aligned_convert{T}(x::Type{T})
+    offset = Ref(0); elements = []; fields = []
+    _aligned_convert!(T, offset, elements, fields, :x)
+    ret = if length(elements) == 1 # no conversion happened
+        return :(T, $(offset[]))
+    else
+        expr = quote
+            Tuple{$(last.(elements)...)}, $(offset[])
+        end
+        expr
+    end
+end
+
+function _aligned_convert!(x, offset = Ref(0), elements = [], fields = [], fieldname = gensym(:field))
+    alignment = cl_alignement(x)
+    if alignment != 0 && offset[] % alignment != 0
+        npad = ((div(offset[], alignment) + 1) * alignment) - offset[]
+        pad = Pad{npad}()
+        offset[] += npad
+        push!(elements, :(Pad{$npad}()) => Pad{npad})
+    end
+    if !is_cl_inbuild(x) && nfields(x) > 0
+        for field in fieldnames(x)
+            current_field = gensym(string(field))
+            push!(fields, :($current_field = getfield($fieldname, $(QuoteNode(field)))))
+            xelem = fieldtype(x, field)
+            _aligned_convert!(xelem, offset, elements, fields, current_field)
+        end
+    else
+        push!(elements, fieldname => x)
+        offset[] += sizeof(x)
+    end
+    return
+end
+
+
+
 #TODO: type safe calling of set args for kernel (with clang)
+# is 1024 a good number?
+const _arg_tmp_buffer = Vector{Int8}(1024)
 function set_arg!{T}(k::Kernel, idx::Integer, arg::T)
     @assert idx > 0 "Kernel idx must be bigger 0"
     if !isbits(T) # TODO add more thorough mem layout checks and the clang stuff
         error("Only isbits types allowed. Found: $T")
     end
-    boxed_arg = Ref{T}(arg)
-    @check api.clSetKernelArg(k.id, cl_uint(idx - 1), sizeof(T), boxed_arg)
+    aligned_arg, off = aligned_convert(arg)
+    if sizeof(aligned_arg) > 1024
+        error("Can't upload single types to opencl that are bigger than 1024 bytes")
+    end
+    T_aligned = typeof(aligned_arg)
+    # is this save?
+    unsafe_store!(Ptr{T_aligned}(pointer(_arg_tmp_buffer)), aligned_arg)
+    @check api.clSetKernelArg(k.id, cl_uint(idx - 1), cl_sizeof(T_aligned), _arg_tmp_buffer)
     return k
 end
 
