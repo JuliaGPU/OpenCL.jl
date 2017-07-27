@@ -1,3 +1,4 @@
+using OpenCL
 import OpenCL.cl.CLArray
 
 @testset "OpenCL.CLArray" begin
