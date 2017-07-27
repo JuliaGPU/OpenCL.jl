@@ -92,17 +92,17 @@ _is_cl_vector{N, T}(x::Type{NTuple{N, T}}) = is_cl_number(T) && N in (2, 3, 4, 8
 is_cl_number{T}(x::Type{T}) = _is_cl_number(T)
 is_cl_number{T}(x::T) = _is_cl_number(T)
 _is_cl_number(x) = false
-function _is_cl_number(::Type{<: Union{
+function _is_cl_number{T <: Union{
         Int64, Int32, Int16, Int8,
         UInt64, UInt32, UInt16, UInt8,
         Float64, Float32, Float16
-    }})
+    }}(::Type{T})
     true
 end
 is_cl_inbuild{T}(x::T) = is_cl_vector(x) || is_cl_number(x)
 
 
-struct Pad{N}
+immutable Pad{N}
     val::NTuple{N, Int8}
     (::Type{Pad{N}}){N}() = new{N}(ntuple(i-> Int8(0), Val{N}))
 end
