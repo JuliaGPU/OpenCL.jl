@@ -1,22 +1,75 @@
 # OpenCL.Context
 
+const _ctx_reference_count = Dict{CL_context, Int}()
+
+
+function create_jl_reference!(ctx_id::CL_context)
+    if haskey(_ctx_reference_count, ctx_id) # for the first jl reference, we already have a refcount of 1
+        @check api.clRetainContext(ctx_id) # increase internal refcount, if creating an additional reference
+    end
+    refcount = get!(_ctx_reference_count, ctx_id, 0)
+    _ctx_reference_count[ctx_id] = refcount + 1
+    return
+end
+function free_jl_reference!(ctx_id::CL_context)
+    if !haskey(_ctx_reference_count, ctx_id)
+        error("Freeing unknown context")
+    end
+    refcount = _ctx_reference_count[ctx_id]
+    if refcount == 0
+        error("Double free of context id: ", ctx_id)
+    elseif refcount == 1
+        delete!(_ctx_reference_count, ctx_id)
+        return
+    end
+    _ctx_reference_count[ctx_id] = refcount - 1
+    return
+end
+
 type Context <: CLObject
     id :: CL_context
-
-    function Context(ctx_id::CL_context; retain=false)
-        if retain
-            @check api.clRetainContext(ctx_id)
+    # If created from ctx_id already, we need to increase the reference count
+    # because then we give out multiple context references with multiple finalizers to the world
+    # TODO should we make it in a way, that you can't overwrite it?
+    function Context(ctx_id::CL_context; retain = false)
+        retain && @check api.clRetainContext(ctx_id)
+        if !is_ctx_id_alive(ctx_id)
+            error("ctx_id not alive: ", ctx_id)
         end
         ctx = new(ctx_id)
+        create_jl_reference!(ctx_id)
         finalizer(ctx, c -> begin
             retain || _deletecached!(c);
             if c.id != C_NULL
-                @check api.clReleaseContext(c.id)
+                release_ctx_id(c.id)
+                free_jl_reference!(c.id)
                 c.id = C_NULL
             end
         end )
         return ctx
     end
+end
+
+number_of_references(ctx::Context) = number_of_references(ctx.id)
+function number_of_references(ctx_id::CL_context)
+    refcounts = Ref{CL_uint}()
+    @check api.clGetContextInfo(
+        ctx_id, CL_CONTEXT_REFERENCE_COUNT,
+        sizeof(CL_uint), refcounts, C_NULL
+    )
+    return refcounts[]
+end
+
+function is_ctx_id_alive(ctx_id::CL_context)
+    number_of_references(ctx_id) > 0
+end
+function release_ctx_id(ctx_id::CL_context)
+    if is_ctx_id_alive(ctx_id)
+        @check api.clReleaseContext(ctx_id)
+    else
+        error("Double free for context: ", ctx_id)
+    end
+    return
 end
 
 Base.pointer(ctx::Context) = ctx.id

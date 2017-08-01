@@ -5,7 +5,22 @@
             for device in cl.devices(platform)
                 ctx = cl.Context(device)
                 @test ctx != nothing
+                ctx_id = ctx.id
+                ctx2 = cl.Context(ctx_id)
+                @test cl.is_ctx_id_alive(ctx_id)
+                @test ctx.id != C_NULL
+                @test ctx2.id != C_NULL
                 finalize(ctx)
+                @test ctx.id == C_NULL
+                @test ctx2.id != C_NULL
+                @test cl.is_ctx_id_alive(ctx_id)
+                finalize(ctx2)
+                @test ctx.id == C_NULL
+                @test ctx2.id == C_NULL
+                # jeez, this segfaults... WHY? I suspect a driver bug for refcount == 0?
+                # NVIDIA 381.22
+                #@test !cl.is_ctx_id_alive(ctx_id)
+
             end
         end
     end
@@ -78,4 +93,5 @@
             @test parsed_properties[2] == cl.cl_context_properties(platform.id)
         end
     end
+
 end
