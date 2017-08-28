@@ -2,8 +2,16 @@
 
 OpenCL bindings for Julia
 
-[![Build Status](https://travis-ci.org/JuliaGPU/OpenCL.jl.svg?branch=master)](https://travis-ci.org/JuliaGPU/OpenCL.jl?branch=master)
-[![Coverage Status](https://img.shields.io/coveralls/JuliaGPU/OpenCL.jl.png)](https://coveralls.io/r/JuliaGPU/OpenCL.jl?branch=master)
+**Build status**: [![][buildbot-julia05-img]][buildbot-julia05-url] [![][buildbot-julia06-img]][buildbot-julia06-url] [![][buildbot-travis-img]][buildbot-travis-url]
+
+**Code coverage**: [![](https://img.shields.io/coveralls/JuliaGPU/OpenCL.jl.png)](https://coveralls.io/r/JuliaGPU/OpenCL.jl?branch=master)
+
+[buildbot-julia05-img]: http://ci.maleadt.net/shields/build.php?builder=OpenCL-julia05-x86-64bit&name=julia%200.5
+[buildbot-julia05-url]: http://ci.maleadt.net/shields/url.php?builder=OpenCL-julia05-x86-64bit
+[buildbot-julia06-img]: http://ci.maleadt.net/shields/build.php?builder=OpenCL-julia06-x86-64bit&name=julia%200.6
+[buildbot-julia06-url]: http://ci.maleadt.net/shields/url.php?builder=OpenCL-julia06-x86-64bit
+[buildbot-travis-img]: https://travis-ci.org/JuliaGPU/OpenCL.jl.svg?branch=master
+[buildbot-travis-url]: https://travis-ci.org/JuliaGPU/OpenCL.jl?branch=master
 
 Julia interface for the OpenCL parallel computation API
 
