@@ -208,7 +208,7 @@ let
         return ret[]
     end
 
-    const info_map = Dict{Symbol, Function}(
+    info_map = Dict{Symbol, Function}(
         :reference_count => reference_count,
         :devices => devices,
         :context => context,

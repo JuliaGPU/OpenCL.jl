@@ -4,7 +4,7 @@ using Compat
 
 include("types.jl")
 
-const paths = is_apple() ? String["/System/Library/Frameworks/OpenCL.framework"] : String[]
+const paths = Compat.Sys.isapple() ? String["/System/Library/Frameworks/OpenCL.framework"] : String[]
 
 const libopencl = Libdl.find_library(["libOpenCL", "OpenCL"], paths)
 @assert libopencl != ""

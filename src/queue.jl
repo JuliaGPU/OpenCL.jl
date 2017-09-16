@@ -131,7 +131,7 @@ let
         props[]
     end
 
-    const info_map = Dict{Symbol, Function}(
+    info_map = Dict{Symbol, Function}(
         :context => context,
         :device => device,
         :reference_count => reference_count,
