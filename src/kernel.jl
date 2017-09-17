@@ -104,7 +104,7 @@ is_cl_inbuild{T}(x::T) = is_cl_vector(x) || is_cl_number(x)
 
 immutable Pad{N}
     val::NTuple{N, Int8}
-    (::Type{Pad{N}}){N}() = new{N}(ntuple(i-> Int8(0), Val{N}))
+    (::Type{Pad{N}}){N}() = new{N}(ntuple(i-> Int8(0), Val(N)))
 end
 Base.isempty{N}(::Type{Pad{N}}) = (N == 0)
 Base.isempty{N}(::Pad{N}) = N == 0
@@ -147,8 +147,8 @@ Sizeof that considers OpenCL alignement. See cl_alignement
 """
 function _cl_packed_sizeof{T}(::Type{T})
     tsz = sizeof(T)
-    tsz == 0 && nfields(T) == 0 && return 4 # 0 sized types can't be defined
-    size = if is_cl_inbuild(T) || nfields(T) == 0
+    tsz == 0 && fieldcount(T) == 0 && return 4 # 0 sized types can't be defined
+    size = if is_cl_inbuild(T) || fieldcount(T) == 0
         if is_cl_inbuild(T)
             # inbuild sizes are all power of two!
             return ispow2(tsz) ? tsz : nextpow2(tsz)
@@ -218,7 +218,7 @@ This conforms to the OpenCL 1.2 specs, section 6.11.1:
 end
 
 function _packed_convert!(x, elements = [], fields = [], fieldname = gensym(:field))
-    if !is_cl_inbuild(x) && nfields(x) > 0
+    if !is_cl_inbuild(x) && fieldcount(x) > 0
         for field in fieldnames(x)
             current_field = gensym(string(field))
             push!(fields, :($current_field = getfield($fieldname, $(QuoteNode(field)))))
@@ -455,7 +455,7 @@ let name(k::Kernel) = begin
         return CLString(result)
     end
 
-    const info_map = Dict{Symbol, Function}(
+    info_map = Dict{Symbol, Function}(
         :name => name,
         :num_args => num_args,
         :reference_count => reference_count,

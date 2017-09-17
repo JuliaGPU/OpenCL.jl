@@ -114,7 +114,7 @@ end
 
 function add_callback(evt::CLEvent, callback::Function)
     event_notify_ptr = cfunction(event_notify, Void,
-                                   (CL_event, CL_int, Ptr{Void}))
+                                 Tuple{CL_event, CL_int, Ptr{Void}})
 
     # The uv_callback is going to notify a task that,
     # then executes the real callback.
@@ -161,7 +161,7 @@ end
         wait_evt_ids = [evt.id for evt in wait_for]
         ret_evt = Ref{CL_event}()
         @check api.clEnqueueMarkerWithWaitList(q.id, n_wait_events,
-                                               isempty(wait_evt_ids)? C_NULL : wait_evt_ids,
+                                               isempty(wait_evt_ids) ? C_NULL : wait_evt_ids,
                                                ret_evt)
         @return_event ret_evt[]
     end
@@ -172,7 +172,7 @@ end
         wait_evt_ids = [evt.id for evt in wait_for]
         ret_evt = Ref{CL_event}()
         @check api.clEnqueueBarrierWithWaitList(q.id, n_wait_events,
-                                                isempty(wait_evt_ids)? C_NULL : wait_evt_ids,
+                                                isempty(wait_evt_ids) ? C_NULL : wait_evt_ids,
                                                 ret_evt)
         @return_event ret_evt[]
     end
@@ -295,7 +295,7 @@ let command_queue(evt::CLEvent) = begin
         return evt[:profile_end] - evt[:profile_start]
     end
 
-    const info_map = Dict{Symbol, Function}(
+    info_map = Dict{Symbol, Function}(
         :context => context,
         :command_queue => command_queue,
         :reference_count => reference_count,

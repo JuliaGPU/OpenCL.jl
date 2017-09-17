@@ -103,7 +103,7 @@ end
 
 
 ctx_callback_ptr() = cfunction(ctx_notify_err, Void,
-                              (Ptr{Cchar}, Ptr{Void}, Csize_t, Ptr{Void}))
+                               Tuple{Ptr{Cchar}, Ptr{Void}, Csize_t, Ptr{Void}})
 
 function raise_context_error(error_info, private_info)
     throw(OpenCLException("OpenCL.Context error: $error_info"))
@@ -216,7 +216,7 @@ function properties(ctx_id::CL_context)
            key == CL_WGL_HDC_KHR ||
            key == CL_CGL_SHAREGROUP_KHR
             push!(result, (key, value))
-        elseif is_apple() ? (key == CL_CONTEXT_PROPERTY_USE_CGL_SHAREGROUP_APPLE) : false
+        elseif Compat.Sys.isapple() ? (key == CL_CONTEXT_PROPERTY_USE_CGL_SHAREGROUP_APPLE) : false
             push!(result, (key, value))
         elseif key == 0
             if i != nprops
@@ -251,7 +251,7 @@ function _parse_properties(props)
             push!(cl_props, cl_context_properties(val))
         elseif prop == CL_WGL_HDC_KHR
             push!(cl_props, cl_context_properties(val))
-        elseif is_apple() ? (prop == CL_CONTEXT_PROPERTY_USE_CGL_SHAREGROUP_APPLE) : false
+        elseif Compat.Sys.isapple() ? (prop == CL_CONTEXT_PROPERTY_USE_CGL_SHAREGROUP_APPLE) : false
             push!(cl_props, cl_context_properties(val))
         elseif prop == CL_GL_CONTEXT_KHR ||
             prop == CL_EGL_DISPLAY_KHR ||

@@ -56,7 +56,8 @@ macro return_nanny_event(evt, obj)
     end
 end
 
-function _version_test(qm, elem, ex::Expr, version::VersionNumber)
+function _version_test(qm, elem, ex::Expr, version::VersionNumber, name)
+    Base.depwarn("`@$name? elem ex1 : ex2` is deprecated, use `$name(elem) ? ex1 : ex2` instead", Symbol("@", name))
     @assert qm == :?
     @assert ex.head == :(:)
     @assert length(ex.args) == 2
@@ -71,13 +72,13 @@ function _version_test(qm, elem, ex::Expr, version::VersionNumber)
 end
 
 macro min_v11(qm, elem, ex)
-    _version_test(qm, elem, ex, v"1.1")
+    _version_test(qm, elem, ex, v"1.1", :min_v11)
 end
 
 macro min_v12(qm, elem, ex)
-    _version_test(qm, elem, ex, v"1.2")
+    _version_test(qm, elem, ex, v"1.2", :min_v12)
 end
 
 macro min_v20(qm, elem, ex)
-    _version_test(qm, elem, ex, v"2.0")
+    _version_test(qm, elem, ex, v"2.0", :min_v20)
 end

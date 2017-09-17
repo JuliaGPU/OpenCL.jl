@@ -144,7 +144,7 @@ let profile(d::Device) = begin
         result = Ref{CL_bool}(CL_FALSE)
         @check api.clGetDeviceInfo(d.id, CL_DEVICE_HOST_UNIFIED_MEMORY,
                                    sizeof(CL_bool), result, C_NULL)
-        return result[] == CL_TRUE 
+        return result[] == CL_TRUE
     end
 
     available(d::Device) = begin
@@ -198,7 +198,7 @@ let profile(d::Device) = begin
         return (width[], height[], depth[])
     end
 
-    const info_map = Dict{Symbol, Function}(
+    info_map = Dict{Symbol, Function}(
         :driver_version => driver_version,
         :version => version,
         :profile => profile,

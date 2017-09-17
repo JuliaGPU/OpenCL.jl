@@ -59,7 +59,7 @@ work_group_size = WGS
 #device = first(cl.devices(:cpu))
 device, ctx, queue = cl.create_compute_context()
 
-kernelsource = readstring(joinpath(src_dir, "pi_vocl.cl"))
+kernelsource = read(joinpath(src_dir, "pi_vocl.cl"), String)
 program = cl.Program(ctx, source=kernelsource) |> cl.build!
 
 if vector_size == 1
