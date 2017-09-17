@@ -92,10 +92,10 @@ end
 function ctx_notify_err(err_info::Ptr{Cchar}, priv_info::Ptr{Void},
                         cb::Csize_t, payload::Ptr{Void})
     ptr = convert(Ptr{_CtxErr}, payload)
-    handle = unsafe_load(ptr, 1).handle
+    handle = unsafe_load(ptr).handle
 
     val = _CtxErr(handle, err_info, priv_info, cb)
-    unsafe_store!(ptr, val, 1)
+    unsafe_store!(ptr, val)
 
     ccall(:uv_async_send, Void, (Ptr{Void},), handle)
     nothing
@@ -145,8 +145,7 @@ function Context(devs::Vector{Device};
             Base.wait(cb)
             err = ctx_user_data[]
             error_info = unsafe_string(err.err_info)
-            private_info = unsafe_string(err.priv_info)
-            true_callback(error_info, private_info)
+            true_callback(error_info, "")
         catch
             rethrow()
         finally
