@@ -236,14 +236,19 @@ function _packed_convert!(x, elements = [], fields = [], fieldname = gensym(:fie
     return elements, fields, fieldname
 end
 
+
 function set_arg!{T}(k::Kernel, idx::Integer, arg::T)
     @assert idx > 0 "Kernel idx must be bigger 0"
-    if !isbits(T) # TODO add more thorough mem layout checks and the clang stuff
-        error("Only isbits types allowed. Found: $T")
+    if !Base.datatype_pointerfree(T)
+        error("Types should not contain pointers: $T")
     end
-    aligned_arg = packed_convert(arg)
-    T_aligned = typeof(aligned_arg)
-    ref = Ref{T_aligned}(aligned_arg)
+    packed = packed_convert(arg)
+    T_aligned = typeof(packed)
+    ref = if isbits(T_aligned)
+        Base.RefValue(packed)
+    else
+        packed
+    end
     @check api.clSetKernelArg(k.id, cl_uint(idx - 1), cl_packed_sizeof(T), ref)
     return k
 end
