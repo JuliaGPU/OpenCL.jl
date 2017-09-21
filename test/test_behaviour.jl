@@ -272,4 +272,56 @@ let test_struct = "
         @test all(x -> x == 13.5, r)
     end
 end
+
+end
+
+mutable struct MutableParams
+    A::Float32
+    B::Float32
+end
+
+
+let test_mutable_pointerfree = "
+    typedef struct Params
+    {
+        float A;
+        float B;
+    } Params;
+
+
+    __kernel void part3(
+        __global float *a,
+        Params test
+    ){
+        a[0] = test.A;
+        a[1] = test.B;
+    }
+"
+
+
+@testset "OpenCL Struct Buffer Test" begin
+    for device in cl.devices()
+
+        if device[:platform][:name] == "Portable Computing Language"
+            warn("Skipping OpenCL Struct Buffer Test for Portable Computing Language Platform")
+            continue
+        end
+
+        ctx = cl.Context(device)
+        q   = cl.CmdQueue(ctx)
+        p   = cl.Program(ctx, source=test_mutable_pointerfree) |> cl.build!
+
+        part3 = cl.Kernel(p, "part3")
+
+        P = MutableParams(0.5, 10.0)
+        P_buf = cl.Buffer(Float32, ctx, :w, 2)
+        q(part3, 1, nothing, P_buf, P)
+
+        r = cl.read(q, P_buf)
+
+        @test r[1] == 0.5
+        @test r[2] == 10.0
+    end
+end
+
 end

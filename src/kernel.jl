@@ -247,7 +247,7 @@ function set_arg!{T}(k::Kernel, idx::Integer, arg::T)
     ref = if isbits(T_aligned)
         Base.RefValue(packed)
     else
-        packed
+        pointer_from_objref(packed)
     end
     @check api.clSetKernelArg(k.id, cl_uint(idx - 1), cl_packed_sizeof(T), ref)
     return k
