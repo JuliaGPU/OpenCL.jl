@@ -244,11 +244,7 @@ function set_arg!{T}(k::Kernel, idx::Integer, arg::T)
     end
     packed = packed_convert(arg)
     T_aligned = typeof(packed)
-    ref = if isbits(T_aligned)
-        Base.RefValue(packed)
-    else
-        pointer_from_objref(packed)
-    end
+    ref = Base.RefValue(packed)
     @check api.clSetKernelArg(k.id, cl_uint(idx - 1), cl_packed_sizeof(T), ref)
     return k
 end

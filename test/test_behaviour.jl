@@ -275,7 +275,7 @@ end
 
 end
 
-mutable struct MutableParams
+type MutableParams
     A::Float32
     B::Float32
 end
