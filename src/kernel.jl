@@ -83,7 +83,7 @@ function set_arg!(k::Kernel, idx::Integer, arg::LocalMem)
     return k
 end
 
-function _contains_different_layout(::Type{T}) where T
+function _contains_different_layout{T}(::Type{T})
     sizeof(T) == 0 && return true
     nfields(T) == 0 && return false
     for fname in fieldnames(T)
@@ -92,7 +92,7 @@ function _contains_different_layout(::Type{T}) where T
     return false
 end
 
-function contains_different_layout(::Type{NTuple{3, T}}) where T <: Union{Float32, Float64, Int8, Int32, Int64, UInt8, UInt32, UInt64}
+function contains_different_layout{T <: Union{Float32, Float64, Int8, Int32, Int64, UInt8, UInt32, UInt64}}(::Type{NTuple{3, T}})
     true
 end
 
@@ -104,11 +104,11 @@ Empty types and NTuple{3, CLNumber} have different layouts and need to be replac
 (Where `CLNumber <: Union{Float32, Float64, Int8, Int32, Int64, UInt8, UInt32, UInt64}`)
 TODO: Float16 + Int16 should also be in CLNumbers
 """
-@generated function contains_different_layout(::Type{T}) where T
+@generated function contains_different_layout{T}(::Type{T})
     :($(_contains_different_layout(T)))
 end
 
-function struct2tuple(x::T) where T
+function struct2tuple{T}(x::T)
     ntuple(Val{nfields(T)}) do i
         getfield(x, i)
     end
@@ -120,7 +120,7 @@ end
 Replaces types with a layout different from OpenCL.
 See [contains_different_layout(T)](@ref) for information what types those are!
 """
-function replace_different_layout(x::T) where T
+function replace_different_layout{T}(x::T)
     !contains_different_layout(T) && return x
     if nfields(x) == 0
         replace_different_layout((), (x,))
@@ -131,8 +131,8 @@ function replace_different_layout(x::T) where T
     end
 end
 
-replace_different_layout(red::NTuple{N, Any}, rest::Tuple{}) where N = red
-function replace_different_layout(red::NTuple{N, Any}, rest) where N
+replace_different_layout{N}(red::NTuple{N, Any}, rest::Tuple{}) = red
+function replace_different_layout{N}(red::NTuple{N, Any}, rest)
     elem1 = first(rest)
     T = typeof(elem1)
     repl = if sizeof(T) == 0 && nfields(T) == 0
@@ -147,12 +147,12 @@ end
 
 # TODO UInt16/Float16?
 # Handle different sizes of OpenCL Vec3, which doesn't agree with julia
-function replace_different_layout(arg::NTuple{3, T}) where T <: Union{Float32, Float64, Int8, Int32, Int64, UInt8, UInt32, UInt64}
+function replace_different_layout{T <: Union{Float32, Float64, Int8, Int32, Int64, UInt8, UInt32, UInt64}}(arg::NTuple{3, T})
     pad = T(0)
     (arg..., pad)
 end
 
-function to_cl_ref(arg::T) where T
+function to_cl_ref{T}(arg::T)
     if !Base.datatype_pointerfree(T)
         error("Types should not contain pointers: $T")
     end
