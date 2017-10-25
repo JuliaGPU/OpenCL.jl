@@ -169,7 +169,28 @@ function set_arg!{T}(k::Kernel, idx::Integer, arg::T)
     ref, tsize = to_cl_ref(arg)
     err = api.clSetKernelArg(k.id, cl_uint(idx - 1), tsize, ref)
     if err == CL_INVALID_ARG_SIZE
-        error("Julia and OpenCL type don't match at kernel argument $idx: Found $T")
+        error("""
+            Julia and OpenCL type don't match at kernel argument $idx: Found $T. 
+            Please make sure to define OpenCL structs correctly!
+            You should be generally fine by using `__attribute__((packed))`, but sometimes the alignment of fields is different from Julia.
+            Consider the following example:
+                ```
+                //packed
+                // Tuple{NTuple{3, Float32}, Void, Float32}
+                struct __attribute__((packed)) Test{
+                    float3 f1;
+                    int f2; // empty type gets replaced with Int32 (no empty types allowed in OpenCL)
+                    // you might need to define the alignement of fields to match julia's layout
+                    float f3; // for the types used here the alignement matches though!
+                };
+                // this is a case where Julia and OpenCL packed alignment would differ, so we need to specify it explicitely
+                // Tuple{Int64, Int32}
+                struct __attribute__((packed)) Test2{
+                    long f1;
+                    int __attribute__((align (8))) f2; // opencl would align this to 4 in packed layout, while Julia uses 8!
+                };
+                ```
+        """)
     end
     @check err
     return k
