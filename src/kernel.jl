@@ -96,6 +96,14 @@ function contains_different_layout(::Type{NTuple{3, T}}) where T <: Union{Float3
     true
 end
 
+
+"""
+    contains_different_layout(T)
+    
+Empty types and NTuple{3, CLNumber} have different layouts and need to be replaced
+(Where `CLNumber <: Union{Float32, Float64, Int8, Int32, Int64, UInt8, UInt32, UInt64}`)
+TODO: Float16 + Int16 should also be in CLNumbers
+"""
 @generated function contains_different_layout(::Type{T}) where T
     :($(_contains_different_layout(T)))
 end
@@ -106,6 +114,12 @@ function struct2tuple(x::T) where T
     end
 end
 
+"""
+    replace_different_layout(x::T) where T
+
+Replaces types with a layout different from OpenCL.
+See [contains_different_layout(T)](@ref) for information what types those are!
+"""
 function replace_different_layout(x::T) where T
     !contains_different_layout(T) && return x
     if nfields(x) == 0
