@@ -51,7 +51,7 @@ function get_kernel(ctx::Context, program_file::String,
     if in(key, keys(CACHED_KERNELS))
         return CACHED_KERNELS[key]
     else
-        kernel = build_kernel(ctx, Base.read(program_file, String), kernel_name; vars...)
+        kernel = build_kernel(ctx, readstring(program_file), kernel_name; vars...)
         CACHED_KERNELS[key] = kernel
         return kernel
     end
