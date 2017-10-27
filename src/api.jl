@@ -1,10 +1,8 @@
 module api
 
-using Compat
-
 include("types.jl")
 
-const paths = Compat.Sys.isapple() ? String["/System/Library/Frameworks/OpenCL.framework"] : String[]
+const paths = is_apple() ? String["/System/Library/Frameworks/OpenCL.framework"] : String[]
 
 const libopencl = Libdl.find_library(["libOpenCL", "OpenCL"], paths)
 @assert libopencl != ""
@@ -28,7 +26,7 @@ end
 
 const CL_callback  = Ptr{Void}
 
-@compat abstract type CL_user_data_tag end
+abstract type CL_user_data_tag end
 const CL_user_data = Ptr{CL_user_data_tag}
 
 Base.cconvert{T}(::Type{Ptr{CL_user_data_tag}}, obj::T) = Ref{T}(obj)

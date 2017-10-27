@@ -6,8 +6,8 @@ type CLArray{T, N} <: CLObject
     size::NTuple{N, Int}
 end
 
-@compat CLMatrix{T} = CLArray{T,2}
-@compat CLVector{T} = CLArray{T,1}
+const CLMatrix{T} = CLArray{T,2}
+const CLVector{T} = CLArray{T,1}
 
 ## constructors
 

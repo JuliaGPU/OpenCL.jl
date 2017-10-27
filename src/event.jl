@@ -1,6 +1,6 @@
 # OpenCL.Event
 
-@compat abstract type CLEvent <: CLObject end
+abstract type CLEvent <: CLObject end
 
 type Event <: CLEvent
     id :: CL_event
