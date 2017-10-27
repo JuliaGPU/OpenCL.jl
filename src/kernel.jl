@@ -164,6 +164,19 @@ function to_cl_ref{T}(arg::T)
 end
 
 
+Base.@pure datatype_align(x::T) where {T} = datatype_align(T)
+Base.@pure function datatype_align(::Type{T}) where {T}
+    # typedef struct {
+    #     uint32_t nfields;
+    #     uint32_t alignment : 9;
+    #     uint32_t haspadding : 1;
+    #     uint32_t npointers : 20;
+    #     uint32_t fielddesc_type : 2;
+    # } jl_datatype_layout_t;
+    field = T.layout + sizeof(UInt32)
+    unsafe_load(convert(Ptr{UInt16}, field)) & convert(Int16, 2^9-1)
+end
+
 
 function set_arg!{T}(k::Kernel, idx::Integer, arg::T)
     @assert idx > 0 "Kernel idx must be bigger 0"
@@ -191,6 +204,7 @@ function set_arg!{T}(k::Kernel, idx::Integer, arg::T)
                     int __attribute__((aligned (8))) f2; // opencl would align this to 4 in packed layout, while Julia uses 8!
                 };
                 ```
+            You can use `c.datatype_align(T)` to figure out the alignment of a Julia type!
         """)
     end
     @check err
