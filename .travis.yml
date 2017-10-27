@@ -2,7 +2,7 @@ language: julia
 sudo: false
 
 os:
-  - linux
+  #- linux
   - osx
 
 julia:
@@ -15,23 +15,23 @@ matrix:
 notifications:
   email: false
 
-before_install:
-  - if [[ -a .git/shallow ]]; then git fetch --unshallow; fi
-  - if [ $TRAVIS_OS_NAME = "linux" ]; then
-      bash .travis/amd_sdk.sh;
-      tar -xjf AMD-SDK.tar.bz2;
-      AMDAPPSDK=${HOME}/AMDAPPSDK;
-      export OPENCL_VENDOR_PATH=${AMDAPPSDK}/etc/OpenCL/vendors;
-      mkdir -p ${OPENCL_VENDOR_PATH};
-      sh AMD-APP-SDK*.sh --tar -xf -C ${AMDAPPSDK};
-      echo libamdocl64.so > ${OPENCL_VENDOR_PATH}/amdocl64.icd;
-      export LD_LIBRARY_PATH=${AMDAPPSDK}/lib/x86_64:${LD_LIBRARY_PATH};
-      chmod +x ${AMDAPPSDK}/bin/x86_64/clinfo;
-      ${AMDAPPSDK}/bin/x86_64/clinfo;
-    fi;
+# before_install:
+#   - if [[ -a .git/shallow ]]; then git fetch --unshallow; fi
+#   - if [ $TRAVIS_OS_NAME = "linux" ]; then
+#       bash .travis/amd_sdk.sh;
+#       tar -xjf AMD-SDK.tar.bz2;
+#       AMDAPPSDK=${HOME}/AMDAPPSDK;
+#       export OPENCL_VENDOR_PATH=${AMDAPPSDK}/etc/OpenCL/vendors;
+#       mkdir -p ${OPENCL_VENDOR_PATH};
+#       sh AMD-APP-SDK*.sh --tar -xf -C ${AMDAPPSDK};
+#       echo libamdocl64.so > ${OPENCL_VENDOR_PATH}/amdocl64.icd;
+#       export LD_LIBRARY_PATH=${AMDAPPSDK}/lib/x86_64:${LD_LIBRARY_PATH};
+#       chmod +x ${AMDAPPSDK}/bin/x86_64/clinfo;
+#       ${AMDAPPSDK}/bin/x86_64/clinfo;
+#     fi;
 script:
   - julia -e 'Pkg.init(); Pkg.clone(pwd())'
-  - julia -e 'using OpenCL; @assert isdefined(:OpenCL); @assert typeof(OpenCL) === Module'
+  - julia -e 'using OpenCL'
 
   - julia --color=yes --depwarn=error -e "Pkg.test(\"OpenCL\")"
 
@@ -43,18 +43,18 @@ script:
   - julia examples/hands_on_opencl/ex07/matmul.jl
   - julia examples/hands_on_opencl/ex08/matmul.jl
 
-  - if [ $TRAVIS_OS_NAME = "linux" ]; then
-      julia examples/hands_on_opencl/ex09/pi_ocl.jl;
-    fi;
-  - if [ $TRAVIS_OS_NAME = "linux" ]; then
-      julia examples/hands_on_opencl/exA/pi_vocl.jl 1;
-    fi;
-  - if [ $TRAVIS_OS_NAME = "linux" ]; then
-      julia examples/hands_on_opencl/exA/pi_vocl.jl 4;
-    fi;
-  - if [ $TRAVIS_OS_NAME = "linux" ]; then
-      julia examples/hands_on_opencl/exA/pi_vocl.jl 8;
-    fi;
+  # - if [ $TRAVIS_OS_NAME = "linux" ]; then
+  #     julia examples/hands_on_opencl/ex09/pi_ocl.jl;
+  #   fi;
+  # - if [ $TRAVIS_OS_NAME = "linux" ]; then
+  #     julia examples/hands_on_opencl/exA/pi_vocl.jl 1;
+  #   fi;
+  # - if [ $TRAVIS_OS_NAME = "linux" ]; then
+  #     julia examples/hands_on_opencl/exA/pi_vocl.jl 4;
+  #   fi;
+  # - if [ $TRAVIS_OS_NAME = "linux" ]; then
+  #     julia examples/hands_on_opencl/exA/pi_vocl.jl 8;
+  #   fi;
 
 after_success:
   - julia -e 'Pkg.add("Coverage"); using Coverage; Coveralls.submit(Coveralls.process_folder())'; fi
