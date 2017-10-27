@@ -22,14 +22,11 @@ struct __attribute__((packed)) Test2{
     int __attribute__((aligned (8))) f2; // opencl would align this to 4 in packed layout, while Julia uses 8!
 };
 
-__kernel void structest(__global float *out, struct Test a, struct Test2 b){
-    out[0] = a.f1.x;
-    out[1] = a.f1.y;
-    out[2] = a.f1.z;
-    out[3] = a.f3;
-
-    out[4] = b.f1;
-    out[5] = b.f2;
+__kernel void structest(__global float *out){
+    struct Test a;
+    struct Test2 b;
+    out[0] = sizeof(a);
+    out[1] = sizeof(b);
 }
 "
 
@@ -39,6 +36,7 @@ for device in cl.devices()
              "Portable Computing Language Platform")
         continue
     end
+    println(device, ": ")
     ctx = cl.Context(device)
     prg = cl.Program(ctx, source = test_source)
     queue = cl.CmdQueue(ctx)
@@ -47,10 +45,9 @@ for device in cl.devices()
     out = cl.Buffer(Float32, ctx, :w, 6)
     astruct = CLTestStruct((1f0, 2f0, 3f0), nothing, 22f0)
     bstruct = (1, Int32(4))
-    structkernel[queue, (1,)](out, astruct, bstruct)
+    structkernel[queue, (1,)](out)
     r = cl.read(queue, out)
-    @assert r == [1f0, 2f0, 3f0, 22f0, 1f0, 4f0]
-    println("passed test for $device")
+    println(r[1:2])
 end
 
 @testset "aligned convert" begin
