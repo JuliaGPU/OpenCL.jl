@@ -1,8 +1,4 @@
-immutable CLTestStruct
-    f1::NTuple{3, Float32}
-    f2::Void
-    f3::Float32
-end
+
 
 @testset "OpenCL.Kernel" begin
 
