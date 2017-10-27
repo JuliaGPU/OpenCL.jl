@@ -164,6 +164,7 @@ function to_cl_ref{T}(arg::T)
 end
 
 
+
 function set_arg!{T}(k::Kernel, idx::Integer, arg::T)
     @assert idx > 0 "Kernel idx must be bigger 0"
     ref, tsize = to_cl_ref(arg)
@@ -187,7 +188,7 @@ function set_arg!{T}(k::Kernel, idx::Integer, arg::T)
                 // Tuple{Int64, Int32}
                 struct __attribute__((packed)) Test2{
                     long f1;
-                    int __attribute__((align (8))) f2; // opencl would align this to 4 in packed layout, while Julia uses 8!
+                    int __attribute__((aligned (8))) f2; // opencl would align this to 4 in packed layout, while Julia uses 8!
                 };
                 ```
         """)

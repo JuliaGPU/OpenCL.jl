@@ -203,7 +203,7 @@ end
     // this is a case where Julia and OpenCL packed alignment would differ, so we need to specify it explicitely
     struct __attribute__((packed)) Test2{
         long f1;
-        int __attribute__((align (8))) f2; // opencl would align this to 4 in packed layout, while Julia uses 8!
+        int __attribute__((aligned (8))) f2; // opencl would align this to 4 in packed layout, while Julia uses 8!
     };
 
     __kernel void structest(__global float *out, struct Test a, struct Test2 b){
