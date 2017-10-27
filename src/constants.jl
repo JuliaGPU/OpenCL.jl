@@ -517,6 +517,6 @@ const CL_GLX_DISPLAY_KHR                              = cl_uint(0x200A)
 const CL_WGL_HDC_KHR                                  = cl_uint(0x200B)
 const CL_CGL_SHAREGROUP_KHR                           = cl_uint(0x200C)
 
-@static if Compat.Sys.isapple()
+if is_apple()
 const CL_CONTEXT_PROPERTY_USE_CGL_SHAREGROUP_APPLE = cl_uint(0x10000000)
 end

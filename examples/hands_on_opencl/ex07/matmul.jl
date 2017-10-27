@@ -101,7 +101,7 @@ d_c = cl.Buffer(Float32, ctx, :w, length(h_C))
 # OpenCL matrix multiplication ... Naive
 #--------------------------------------------------------------------------------
 
-kernel_source = read(joinpath(src_dir, "C_elem.cl"), String)
+kernel_source = readstring(joinpath(src_dir, "C_elem.cl"))
 prg  = cl.Program(ctx, source=kernel_source) |> cl.build!
 mmul = cl.Kernel(prg, "mmul")
 
@@ -122,7 +122,7 @@ end
 # OpenCL matrix multiplication ... C row per work item
 #--------------------------------------------------------------------------------
 
-kernel_source = read(joinpath(src_dir, "C_row.cl"), String)
+kernel_source = readstring(joinpath(src_dir, "C_row.cl"))
 prg  = cl.Program(ctx, source=kernel_source) |> cl.build!
 mmul = cl.Kernel(prg, "mmul")
 
@@ -143,7 +143,7 @@ end
 #--------------------------------------------------------------------------------
 # OpenCL matrix multiplication ... C row per work item, A row in pivate memory
 #--------------------------------------------------------------------------------
-kernel_source = read(joinpath(src_dir, "C_row_priv.cl"), String)
+kernel_source = readstring(joinpath(src_dir, "C_row_priv.cl"))
 prg  = cl.Program(ctx, source=kernel_source) |> cl.build!
 mmul = cl.Kernel(prg, "mmul")
 wk_size = cl.info(first(cl.devices(ctx)), :max_work_group_size)

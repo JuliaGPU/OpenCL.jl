@@ -4,9 +4,7 @@ module OpenCL
 export cl
 module cl
 
-using Compat
-
-@compat abstract type CLObject end
+abstract type CLObject end
 
 Base.hash(x::CLObject) = hash(pointer(x))
 Base.isequal{T <: CLObject}(x :: T, y :: T) = Base.hash(x) == Base.hash(y)

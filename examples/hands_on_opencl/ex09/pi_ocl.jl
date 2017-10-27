@@ -31,7 +31,7 @@ const niters = ITERS
 # create context, queue and build program
 device, ctx, queue = cl.create_compute_context()
 
-kernelsource = read(joinpath(src_dir, "pi_ocl.cl"), String)
+kernelsource = readstring(joinpath(src_dir, "pi_ocl.cl"))
 program = cl.Program(ctx, source=kernelsource) |> cl.build!
 
 # pi is a julia keyword
