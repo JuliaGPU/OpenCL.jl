@@ -3,13 +3,6 @@ using Base.Test
 
 using OpenCL
 
-immutable CLTestStruct
-    f1::NTuple{3, Float32}
-    f2::Void
-    f3::Float32
-end
-
-
 
 test_source = "
 struct __attribute__((packed)) Test2{
@@ -28,7 +21,6 @@ for device in cl.devices()
              "Portable Computing Language Platform")
         continue
     end
-    println(device, ": ")
     ctx = cl.Context(device)
     prg = cl.Program(ctx, source = test_source)
     queue = cl.CmdQueue(ctx)
@@ -42,40 +34,6 @@ for device in cl.devices()
 end
 
 
-test_source = "
-//packed
-struct __attribute__((packed)) Test{
-    float3 f1;
-    int f2; // empty type gets replaced with Int32 (no empty types allowed in OpenCL)
-    // you might need to define the alignement of fields to match julia's layout
-    float f3; // for the types used here the alignement matches though!
-};
-
-__kernel void structest(__global float *out, struct Test a){
-    out[0] = a.f1.x;
-    out[1] = a.f1.y;
-    out[2] = a.f1.z;
-    out[3] = a.f3;
-}
-"
-
-for device in cl.devices()
-    if device[:platform][:name] == "Portable Computing Language"
-        warn("Skipping OpenCL.Kernel constructor for " *
-             "Portable Computing Language Platform")
-        continue
-    end
-    ctx = cl.Context(device)
-    prg = cl.Program(ctx, source = test_source)
-    queue = cl.CmdQueue(ctx)
-    cl.build!(prg)
-    structkernel = cl.Kernel(prg, "structest")
-    out = cl.Buffer(Float32, ctx, :w, 4)
-    astruct = CLTestStruct((1f0, 2f0, 3f0), nothing, 22f0)
-    structkernel[queue, (1,)](out, astruct)
-    r = cl.read(queue, out)
-    @test r == [1f0, 2f0, 3f0, 22f0]
-end
 
 @testset "aligned convert" begin
     x = ((10f0, 1f0, 2f0), (10f0, 1f0, 2f0), (10f0, 1f0, 2f0))
