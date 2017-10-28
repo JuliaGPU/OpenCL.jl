@@ -9,6 +9,39 @@ immutable CLTestStruct
     f3::Float32
 end
 
+
+
+test_source = "
+struct __attribute__((packed)) Test2{
+    long f1;
+    int __attribute__((aligned (8))) f2;
+};
+
+__kernel void structest(__global float *out, struct Test2 b){
+    out[0] = b.f1;
+    out[1] = b.f2;
+}
+"
+for device in cl.devices()
+    if device[:platform][:name] == "Portable Computing Language"
+        warn("Skipping OpenCL.Kernel constructor for " *
+             "Portable Computing Language Platform")
+        continue
+    end
+    println(device, ": ")
+    ctx = cl.Context(device)
+    prg = cl.Program(ctx, source = test_source)
+    queue = cl.CmdQueue(ctx)
+    cl.build!(prg)
+    structkernel = cl.Kernel(prg, "structest")
+    out = cl.Buffer(Float32, ctx, :w, 6)
+    bstruct = (1, Int32(4))
+    structkernel[queue, (1,)](out, bstruct)
+    r = cl.read(queue, out)
+    println(r[1:2])
+end
+
+
 test_source = "
 //packed
 struct __attribute__((packed)) Test{
