@@ -1,3 +1,9 @@
+immutable CLTestStruct
+    f1::NTuple{3, Float32}
+    f2::Void
+    f3::Float32
+end
+
 @testset "OpenCL.Kernel" begin
 
     test_source = "
@@ -184,5 +190,71 @@
             r = cl.read(q, d_buff)
             @test r[1] == 4
         end
+    end
+
+
+    test_source = "
+    struct __attribute__((packed)) Test2{
+        long f1;
+        int __attribute__((aligned (8))) f2;
+    };
+    __kernel void structest(__global float *out, struct Test2 b){
+        out[0] = b.f1;
+        out[1] = b.f2;
+    }
+    "
+    for device in cl.devices()
+        if device[:platform][:name] == "Portable Computing Language"
+            warn("Skipping OpenCL.Kernel constructor for " *
+                 "Portable Computing Language Platform")
+            continue
+        end
+        if is_apple()
+            continue
+        end
+        ctx = cl.Context(device)
+        prg = cl.Program(ctx, source = test_source)
+        queue = cl.CmdQueue(ctx)
+        cl.build!(prg)
+        structkernel = cl.Kernel(prg, "structest")
+        out = cl.Buffer(Float32, ctx, :w, 2)
+        bstruct = (1, Int32(4))
+        structkernel[queue, (1,)](out, bstruct)
+        r = cl.read(queue, out)
+        @test r  == [1f0, 4f0]
+    end
+
+    test_source = "
+    //packed
+    struct __attribute__((packed)) Test{
+        float3 f1;
+        int f2; // empty type gets replaced with Int32 (no empty types allowed in OpenCL)
+        // you might need to define the alignement of fields to match julia's layout
+        float f3; // for the types used here the alignement matches though!
+    };
+    __kernel void structest(__global float *out, struct Test a){
+        out[0] = a.f1.x;
+        out[1] = a.f1.y;
+        out[2] = a.f1.z;
+        out[3] = a.f3;
+    }
+    "
+
+    for device in cl.devices()
+        if device[:platform][:name] == "Portable Computing Language"
+            warn("Skipping OpenCL.Kernel constructor for " *
+                 "Portable Computing Language Platform")
+            continue
+        end
+        ctx = cl.Context(device)
+        prg = cl.Program(ctx, source = test_source)
+        queue = cl.CmdQueue(ctx)
+        cl.build!(prg)
+        structkernel = cl.Kernel(prg, "structest")
+        out = cl.Buffer(Float32, ctx, :w, 4)
+        astruct = CLTestStruct((1f0, 2f0, 3f0), nothing, 22f0)
+        structkernel[queue, (1,)](out, astruct)
+        r = cl.read(queue, out)
+        @test r == [1f0, 2f0, 3f0, 22f0]
     end
 end

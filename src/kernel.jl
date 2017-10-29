@@ -1,5 +1,4 @@
 # OpenCL.Kernel
-
 type Kernel <: CLObject
     id :: CL_kernel
 
@@ -47,7 +46,7 @@ immutable LocalMem{T}
     nbytes::Csize_t
 end
 
-LocalMem{T}(::Type{T}, len::Integer) = begin
+function LocalMem{T}(::Type{T}, len::Integer)
     @assert len > 0
     nbytes = sizeof(T) * len
     return LocalMem{T}(convert(Csize_t, nbytes))
@@ -84,168 +83,131 @@ function set_arg!(k::Kernel, idx::Integer, arg::LocalMem)
     return k
 end
 
+function _contains_different_layout{T}(::Type{T})
+    sizeof(T) == 0 && return true
+    nfields(T) == 0 && return false
+    for fname in fieldnames(T)
+        contains_different_layout(fieldtype(T, fname)) && return true
+    end
+    return false
+end
 
-is_cl_vector{T}(x::T) = _is_cl_vector(T)
-is_cl_vector{T}(x::Type{T}) = _is_cl_vector(T)
-_is_cl_vector(x) = false
-_is_cl_vector{N, T}(x::Type{NTuple{N, T}}) = is_cl_number(T) && N in (2, 3, 4, 8, 16)
-is_cl_number{T}(x::Type{T}) = _is_cl_number(T)
-is_cl_number{T}(x::T) = _is_cl_number(T)
-_is_cl_number(x) = false
-function _is_cl_number{T <: Union{
-        Int64, Int32, Int16, Int8,
-        UInt64, UInt32, UInt16, UInt8,
-        Float64, Float32, Float16
-    }}(::Type{T})
+function contains_different_layout{T <: Union{Float32, Float64, Int8, Int32, Int64, UInt8, UInt32, UInt64}}(::Type{NTuple{3, T}})
     true
 end
-is_cl_inbuild{T}(x::T) = is_cl_vector(x) || is_cl_number(x)
 
 
-immutable Pad{N}
-    val::NTuple{N, Int8}
-    (::Type{Pad{N}}){N}() = new{N}(ntuple(i-> Int8(0), Val{N}))
+"""
+    contains_different_layout(T)
+    
+Empty types and NTuple{3, CLNumber} have different layouts and need to be replaced
+(Where `CLNumber <: Union{Float32, Float64, Int8, Int32, Int64, UInt8, UInt32, UInt64}`)
+TODO: Float16 + Int16 should also be in CLNumbers
+"""
+@generated function contains_different_layout{T}(::Type{T})
+    :($(_contains_different_layout(T)))
 end
-Base.isempty{N}(::Type{Pad{N}}) = (N == 0)
-Base.isempty{N}(::Pad{N}) = N == 0
 
-
-"""
-OpenCL 1.2 Specs:
-6.1.5 Alignment of Types
-A data item declared to be a data type in memory is always aligned to the size of the data type in
-bytes. For example, a float4 variable will be aligned to a 16-byte boundary, a char2 variable will
-be aligned to a 2-byte boundary.
-For 3-component vector data types, the size of the data type is 4 * sizeof(component). This
-means that a 3-component vector data type will be aligned to a 4 * sizeof(component)
-boundary. The vload3 and vstore3 built-in functions can be used to read and write, respectively,
-3-component vector data types from an array of packed scalar data type.
-A built-in data type that is not a power of two bytes in size must be aligned to the next larger
-power of two. This rule applies to built-in types only, not structs or unions.
-The OpenCL compiler is responsible for aligning data items to the appropriate alignment as
-required by the data type. For arguments to a `__kernel` function declared to be a pointer to a
-data type, the OpenCL compiler can assume that the pointee is always appropriately aligned as
-required by the data type. The behavior of an unaligned load or store is undefined, except for the
-vloadn, vload_halfn, vstoren, and vstore_halfn functions defined in section 6.12.7. The vector
-load functions can read a vector from an address aligned to the element type of the vector. The
-vector store functions can write a vector to an address aligned to the element type of the vector.
-"""
-cl_alignement(x) = cl_packed_sizeof(x)
-
-function advance_aligned(offset, alignment)
-    (offset == 0 || alignment == 0) && return 0
-    if offset % alignment != 0
-        npad = ((div(offset, alignment) + 1) * alignment) - offset
-        offset += npad
+function struct2tuple{T}(x::T)
+    ntuple(Val{nfields(T)}) do i
+        getfield(x, i)
     end
-    offset
 end
 
+"""
+    replace_different_layout(x::T) where T
 
+Replaces types with a layout different from OpenCL.
+See [contains_different_layout(T)](@ref) for information what types those are!
 """
-Sizeof that considers OpenCL alignement. See cl_alignement
-"""
-function _cl_packed_sizeof{T}(::Type{T})
-    tsz = sizeof(T)
-    tsz == 0 && nfields(T) == 0 && return 4 # 0 sized types can't be defined
-    size = if is_cl_inbuild(T) || nfields(T) == 0
-        if is_cl_inbuild(T)
-            # inbuild sizes are all power of two!
-            return ispow2(tsz) ? tsz : nextpow2(tsz)
-        else
-            return tsz
-        end
+function replace_different_layout{T}(x::T)
+    !contains_different_layout(T) && return x
+    if nfields(x) == 0
+        replace_different_layout((), (x,))
+    elseif T <: Tuple
+        replace_different_layout((), x)
     else
-        size = 0
-        for field in fieldnames(T)
-            size += _cl_packed_sizeof(fieldtype(T, field))
-        end
-        return size
+        replace_different_layout((), struct2tuple(x))
     end
 end
 
-cl_packed_sizeof{T}(x::T) = cl_packed_sizeof(T)
-Base.@generated function cl_packed_sizeof{T}(x::Type{T})
-    :($(_cl_packed_sizeof(T)))
-end
-get_typ{T}(::Type{Type{T}}) = T
-"""
-Converts a Julia type to conform to a `__packed__` struct in OpenCL.
-If a type gets passed, it will return the converted type.
-This conforms to the OpenCL 1.2 specs, section 6.11.1:
-```
-    __packed__
-    This attribute, attached to struct or union type definition, specifies that each
-    member of the structure or union is placed to minimize the memory required. When
-    attached to an enum definition, it indicates that the smallest integral type should be used.
-    Specifying this attribute for struct and union types is equivalent to specifying
-    the packed attribute on each of the structure or union members.
-    In the following example struct my_packed_struct's members are
-    packed closely together, but the internal layout of its s member is not packed. To
-    do that, struct my_unpacked_struct would need to be packed, too.
-     struct my_unpacked_struct
-     {
-     char c;
-     int i;
-     };
-
-     struct __attribute__ ((packed)) my_packed_struct
-     {
-     char c;
-     int i;
-     struct my_unpacked_struct s;
-     };
-
-    You may only specify this attribute on the definition of a enum, struct or
-    union, not on a typedef which does not also define the enumerated type,
-    structure or union.
-```
-"""
-@generated function packed_convert{TX}(x::TX)
-    elements = []; fields = []
-    T = x <: Type ? get_typ(x) : x
-    _packed_convert!(T, elements, fields, :x)
-    TC = Tuple{last.(elements)...}
-    sizeof(TC) == sizeof(T) && return :(x) # no conversion happened
-    if x <: Type # if is not a datatype
-        :($TC)
+replace_different_layout{N}(red::NTuple{N, Any}, rest::Tuple{}) = red
+function replace_different_layout{N}(red::NTuple{N, Any}, rest)
+    elem1 = first(rest)
+    T = typeof(elem1)
+    repl = if sizeof(T) == 0 && nfields(T) == 0
+        Int32(0)
+    elseif contains_different_layout(T)
+        replace_different_layout(elem1)
     else
-        tupl = Expr(:tuple)
-        tupl.args = first.(elements)
-        # hoist field loads
-        :($(fields...); $tupl)
+        elem1
     end
+    replace_different_layout((red..., repl), Base.tail(rest))
 end
 
-function _packed_convert!(x, elements = [], fields = [], fieldname = gensym(:field))
-    if !is_cl_inbuild(x) && nfields(x) > 0
-        for field in fieldnames(x)
-            current_field = gensym(string(field))
-            push!(fields, :($current_field = getfield($fieldname, $(QuoteNode(field)))))
-            xelem = fieldtype(x, field)
-            _packed_convert!(xelem, elements, fields, current_field)
-        end
-    else
-        push!(elements, fieldname => x)
-        if cl_packed_sizeof(x) > sizeof(x) # if size doesn't match, we need pads
-            npad = cl_packed_sizeof(x) - sizeof(x)
-            @assert npad > 0 # this shouldn't happen and would be a bug in cl_packed_sizeof!
-            push!(elements, :(Pad{$npad}()) => Pad{npad})
-        end
+# TODO UInt16/Float16?
+# Handle different sizes of OpenCL Vec3, which doesn't agree with julia
+function replace_different_layout{T <: Union{Float32, Float64, Int8, Int32, Int64, UInt8, UInt32, UInt64}}(arg::NTuple{3, T})
+    pad = T(0)
+    (arg..., pad)
+end
+
+function to_cl_ref{T}(arg::T)
+    if !Base.datatype_pointerfree(T)
+        error("Types should not contain pointers: $T")
     end
-    return elements, fields, fieldname
+    if contains_different_layout(T)
+        x = replace_different_layout(arg)
+        return Base.RefValue(x), sizeof(x)
+    end
+    Base.RefValue(arg), sizeof(arg)
+end
+
+
+Base.@pure datatype_align(x::T) where {T} = datatype_align(T)
+Base.@pure function datatype_align(::Type{T}) where {T}
+    # typedef struct {
+    #     uint32_t nfields;
+    #     uint32_t alignment : 9;
+    #     uint32_t haspadding : 1;
+    #     uint32_t npointers : 20;
+    #     uint32_t fielddesc_type : 2;
+    # } jl_datatype_layout_t;
+    field = T.layout + sizeof(UInt32)
+    unsafe_load(convert(Ptr{UInt16}, field)) & convert(Int16, 2^9-1)
 end
 
 
 function set_arg!{T}(k::Kernel, idx::Integer, arg::T)
     @assert idx > 0 "Kernel idx must be bigger 0"
-    if !Base.datatype_pointerfree(T)
-        error("Types should not contain pointers: $T")
+    ref, tsize = to_cl_ref(arg)
+    err = api.clSetKernelArg(k.id, cl_uint(idx - 1), tsize, ref)
+    if err == CL_INVALID_ARG_SIZE
+        error("""
+            Julia and OpenCL type don't match at kernel argument $idx: Found $T. 
+            Please make sure to define OpenCL structs correctly!
+            You should be generally fine by using `__attribute__((packed))`, but sometimes the alignment of fields is different from Julia.
+            Consider the following example:
+                ```
+                //packed
+                // Tuple{NTuple{3, Float32}, Void, Float32}
+                struct __attribute__((packed)) Test{
+                    float3 f1;
+                    int f2; // empty type gets replaced with Int32 (no empty types allowed in OpenCL)
+                    // you might need to define the alignement of fields to match julia's layout
+                    float f3; // for the types used here the alignement matches though!
+                };
+                // this is a case where Julia and OpenCL packed alignment would differ, so we need to specify it explicitely
+                // Tuple{Int64, Int32}
+                struct __attribute__((packed)) Test2{
+                    long f1;
+                    int __attribute__((aligned (8))) f2; // opencl would align this to 4 in packed layout, while Julia uses 8!
+                };
+                ```
+            You can use `c.datatype_align(T)` to figure out the alignment of a Julia type!
+        """)
     end
-    packed = packed_convert(arg)
-    T_aligned = typeof(packed)
-    ref = Base.RefValue(packed)
-    @check api.clSetKernelArg(k.id, cl_uint(idx - 1), cl_packed_sizeof(T), ref)
+    @check err
     return k
 end
 
