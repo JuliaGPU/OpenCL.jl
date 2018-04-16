@@ -89,16 +89,23 @@ immutable _CtxErr
     cb :: Csize_t
 end
 
-function ctx_notify_err(err_info::Ptr{Cchar}, priv_info::Ptr{Void},
-                        cb::Csize_t, payload::Ptr{Void})
-    ptr = convert(Ptr{_CtxErr}, payload)
-    handle = unsafe_load(ptr).handle
+const io_lock = ReentrantLock()
+function log_error(message...)
+    @async begin
+        lock(STDERR)
+        lock(io_lock)
+        print(STDERR, string(message..., "\n"))
+        unlock(io_lock)
+        unlock(STDERR)
+    end
+end
 
-    val = _CtxErr(handle, err_info, priv_info, cb)
-    unsafe_store!(ptr, val)
-
-    ccall(:uv_async_send, Void, (Ptr{Void},), handle)
-    nothing
+function ctx_notify_err(
+        err_info::Ptr{Cchar}, priv_info::Ptr{Void},
+        cb::Csize_t, payload::Ptr{Void}
+    )
+    log_error("OpenCL Error: | ", unsafe_string(err_info), " |")
+    return
 end
 
 
@@ -128,31 +135,15 @@ function Context(devs::Vector{Device};
         device_ids[i] = d.id
     end
 
-    cb = Base.AsyncCondition()
-    ctx_user_data = Ref(_CtxErr(Base.unsafe_convert(Ptr{Void}, cb), 0, 0, 0))
-
     err_code = Ref{CL_int}()
-    ctx_id = api.clCreateContext(ctx_properties, n_devices, device_ids,
-                                 ctx_callback_ptr(), ctx_user_data, err_code)
+    ctx_id = api.clCreateContext(
+        ctx_properties, n_devices, device_ids,
+        ctx_callback_ptr(), C_NULL, err_code
+    )
     if err_code[] != CL_SUCCESS
         throw(CLError(err_code[]))
     end
-
     true_callback = callback == nothing ? raise_context_error : callback :: Function
-
-    @async begin
-        try
-            Base.wait(cb)
-            err = ctx_user_data[]
-            error_info = unsafe_string(err.err_info)
-            true_callback(error_info, "")
-        catch
-            rethrow()
-        finally
-            Base.close(cb)
-        end
-    end
-
     return Context(ctx_id)
 end
 
