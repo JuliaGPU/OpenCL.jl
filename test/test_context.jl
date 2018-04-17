@@ -1,5 +1,5 @@
 
-function test_callback(arg1, arg2, arg3)
+function context_test_callback(arg1, arg2, arg3)
     # We're not really testing it because, nvidia doesn't seem to care about this functionality:
     # https://devtalk.nvidia.com/default/topic/497433/context-callback-never-called/
     OpenCL.cl.log_error("Callback works")
@@ -8,12 +8,12 @@ end
 function create_context_error(ctx)
     empty_kernel = "
     __kernel void test() {
-        return;
+        int c = 1 + 1;
     };"
-    p = cl.Program(ctx, source = empty_kernel) |> cl.build!
-    k = cl.Kernel(p, "test")
-    q = cl.CmdQueue(ctx)
     try
+        p = cl.Program(ctx, source = empty_kernel) |> cl.build!
+        k = cl.Kernel(p, "test")
+        q = cl.CmdQueue(ctx)
         q(k, 1, 10000000)
     end
 end
@@ -42,7 +42,7 @@ end
                 # NVIDIA 381.22
                 #@test !cl.is_ctx_id_alive(ctx_id)
                 @testset "Context callback" begin
-                    ctx = cl.Context(device, callback = test_callback)
+                    ctx = cl.Context(device, callback = context_test_callback)
                     create_context_error(ctx)
                 end
             end
