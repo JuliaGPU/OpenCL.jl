@@ -102,9 +102,9 @@ end
 
 function ctx_notify_err(
         err_info::Ptr{Cchar}, priv_info::Ptr{Void},
-        cb::Csize_t, payload::Ptr{Void}
+        cb::Csize_t, func::Ptr{Void}
     )
-    log_error("OpenCL Error: | ", unsafe_string(err_info), " |")
+    ccall(func, Void, (Ptr{Cchar}, Ptr{Void}, Csize_t), err_info, priv_info, cb)
     return
 end
 
@@ -112,10 +112,10 @@ end
 ctx_callback_ptr() = cfunction(ctx_notify_err, Void,
                                Tuple{Ptr{Cchar}, Ptr{Void}, Csize_t, Ptr{Void}})
 
-function raise_context_error(error_info, private_info)
-    throw(OpenCLException("OpenCL.Context error: $error_info"))
+function raise_context_error(err_info, private_info, cb)
+    log_error("OpenCL Error: | ", unsafe_string(err_info), " |")
+    return
 end
-
 
 function Context(devs::Vector{Device};
                          properties=nothing,
@@ -136,20 +136,23 @@ function Context(devs::Vector{Device};
     end
 
     err_code = Ref{CL_int}()
+    payload = callback == nothing ? raise_context_error : callback
+    f_ptr = cfunction(payload, Void, Tuple{Ptr{Cchar}, Ptr{Void}, Csize_t})
     ctx_id = api.clCreateContext(
         ctx_properties, n_devices, device_ids,
-        ctx_callback_ptr(), C_NULL, err_code
+        ctx_callback_ptr(), f_ptr, err_code
     )
     if err_code[] != CL_SUCCESS
         throw(CLError(err_code[]))
     end
-    true_callback = callback == nothing ? raise_context_error : callback :: Function
     return Context(ctx_id)
 end
 
 
 Context(d::Device; properties=nothing, callback=nothing) =
         Context([d], properties=properties, callback=callback)
+
+
 
 function Context(dev_type::CL_device_type;
                  properties=nothing, callback=nothing)
