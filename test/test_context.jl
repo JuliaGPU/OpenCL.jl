@@ -1,3 +1,24 @@
+
+function context_test_callback(arg1, arg2, arg3)
+    # We're not really testing it because, nvidia doesn't seem to care about this functionality:
+    # https://devtalk.nvidia.com/default/topic/497433/context-callback-never-called/
+    OpenCL.cl.log_error("Callback works")
+    return
+end
+function create_context_error(ctx)
+    empty_kernel = "
+    __kernel void test() {
+        int c = 1 + 1;
+    };"
+    try
+        p = cl.Program(ctx, source = empty_kernel) |> cl.build!
+        k = cl.Kernel(p, "test")
+        q = cl.CmdQueue(ctx)
+        q(k, 1, 10000000)
+    end
+end
+
+
 @testset "OpenCL.Context" begin
     @testset "OpenCL.Context constructor" begin
         @test_throws MethodError (cl.Context([]))
@@ -20,7 +41,10 @@
                 # jeez, this segfaults... WHY? I suspect a driver bug for refcount == 0?
                 # NVIDIA 381.22
                 #@test !cl.is_ctx_id_alive(ctx_id)
-
+                @testset "Context callback" begin
+                    ctx = cl.Context(device, callback = context_test_callback)
+                    create_context_error(ctx)
+                end
             end
         end
     end
