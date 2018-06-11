@@ -1,0 +1,18 @@
+variables:
+  JULIA_PKGDIR: "$CI_PROJECT_DIR/.julia/"
+  package: 'OpenCL'
+
+.test_template: &test_definition
+
+  script:
+    - julia -e 'versioninfo()'
+    # actual testing
+    - julia -e "Pkg.init();
+                symlink(\"$CI_PROJECT_DIR\", Pkg.dir(\"$package\"));
+                Pkg.resolve();
+                Pkg.build(\"$package\");
+                Pkg.test(\"$package\")"
+  
+test:0.6:
+  image: juliagpu/julia:v0.6-opencl
+  <<: *test_definition
