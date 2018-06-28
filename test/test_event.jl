@@ -1,10 +1,9 @@
 @testset "OpenCL.Event" begin
     @testset "OpenCL.Event status" begin
         for platform in cl.platforms()
-            if contains(platform[:name], "Portable")
-                msg = "$(platform[:name]) does not implement User Events"
-                warn(msg)
-                continue
+            if is_old_pocl(platform)
+                warn("Old Portable Computing Language Platform" *
+                     "does not implement User Events")
             end
 
             for device in cl.devices(platform)

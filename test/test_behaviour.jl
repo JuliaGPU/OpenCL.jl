@@ -18,8 +18,8 @@ info(
     hello_world_str = "hello world"
 
     for device in cl.devices()
-        if device[:platform][:name] == "Portable Computing Language"
-            warn("Skipping OpenCL.Kernel mem/workgroup size for Portable Computing Language Platform")
+        if is_old_pocl(device[:platform])
+            warn("Skipping OpenCL Hello World Test for Portable Computing Language Platform")
             continue
         end
 
@@ -241,8 +241,8 @@ let test_struct = "
 @testset "OpenCL Struct Buffer Test" begin
     for device in cl.devices()
 
-        if device[:platform][:name] == "Portable Computing Language"
-            warn("Skipping OpenCL Struct Buffer Test for Portable Computing Language Platform")
+        if is_old_pocl(device[:platform])
+            warn("Skipping OpenCL Struct Buffer Test for old Portable Computing Language Platform")
             continue
         end
 
@@ -302,8 +302,8 @@ let test_mutable_pointerfree = "
 @testset "OpenCL Struct Buffer Test" begin
     for device in cl.devices()
 
-        if device[:platform][:name] == "Portable Computing Language"
-            warn("Skipping OpenCL Struct Buffer Test for Portable Computing Language Platform")
+        if is_old_pocl(device[:platform])
+            warn("Skipping OpenCL Struct Buffer Test for old Portable Computing Language Platform")
             continue
         end
 

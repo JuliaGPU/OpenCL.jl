@@ -118,9 +118,9 @@ end
 
      @testset "OpenCL.Buffer fill" begin
         for device in cl.devices()
-             if contains(device[:platform][:name], "Portable")
-                 # the pocl platform claims to implement v1.2 of the spec, but does not
-                 warn("Skipping test OpenCL.Buffer fill for POCL Platform")
+             if is_old_pocl(device[:platform])
+                 # the old pocl platform claims to implement v1.2 of the spec, but does not
+                 warn("Skipping test OpenCL.Buffer fill for old POCL Platform")
                  continue
              end
              ctx = cl.Context(device)

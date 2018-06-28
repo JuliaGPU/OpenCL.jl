@@ -1,7 +1,18 @@
 module TestOpenCL
-using Base.Test
+using Base.Test, VersionParsing
 
 using OpenCL
+
+function is_old_pocl(platform::cl.Platform)
+    res = false
+    if platform[:name] == "Portable Computing Language"
+        m = match(r"pocl \d+.\d+", platform[:version])
+        if !(m != nothing && vparse(m.match) >= v"1.2")
+            res = true
+        end
+    end
+    res
+end
 
 @testset "layout" begin
     x = ((10f0, 1f0, 2f0), (10f0, 1f0, 2f0), (10f0, 1f0, 2f0))

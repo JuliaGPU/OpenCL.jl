@@ -66,10 +66,9 @@
                 :max_image3d_shape,
             ]
         for p in cl.platforms()
-            if contains(p[:name], "Portable")
-                msg = "Skipping Device Info tests for Portable Computing Language Platform "
-                warn(msg)
-                continue
+            if is_old_pocl(p) 
+                warn("Skipping Device Info tests for " *
+                     "old Portable Computing Language Platform")
             end
             @test isa(p, cl.Platform)
             @test_throws ArgumentError p[:zjdlkf]
