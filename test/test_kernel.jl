@@ -1,6 +1,6 @@
-immutable CLTestStruct
+struct CLTestStruct
     f1::NTuple{3, Float32}
-    f2::Void
+    f2::Nothing
     f3::Float32
 end
 

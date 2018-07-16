@@ -1,6 +1,6 @@
 # OpenCL.CmdQueue
 
-type CmdQueue <: CLObject
+mutable struct CmdQueue <: CLObject
     id::CL_command_queue
 
     function CmdQueue(q_id::CL_command_queue; retain=false)

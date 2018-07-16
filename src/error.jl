@@ -163,19 +163,19 @@ const _cl_err_desc = Dict{Integer, String}(
            "event is not CL_COMPLETE or if event is a user event objec"),
 )
 
-immutable CLMemoryError <: Exception
+struct CLMemoryError <: Exception
     msg::String
 end
 
 Base.show(io::IO, err::CLMemoryError) = Base.print(io, "OpenCL.MemObject: $(err.msg)")
 
-immutable OpenCLException <: Exception
+struct OpenCLException <: Exception
     msg::String
 end
 
 Base.show(io::IO, err::OpenCLException) = Base.print(io, "OpenCL Error: $(err.msg)")
 
-immutable CLError <: Exception
+struct CLError <: Exception
     code::CL_int
     desc::Symbol
 

@@ -1,6 +1,6 @@
 # OpenCL.Program
 
-type Program <: CLObject
+mutable struct Program <: CLObject
     id::CL_program
     binary::Bool
 
@@ -76,7 +76,7 @@ function Program(ctx::Context; source=nothing, binaries=nothing)
     end
 end
 
-function print_with_linenumbers(text, pad = "", io = STDOUT)
+function print_with_linenumbers(text, pad = "", io = stdout)
     for (i,line) in enumerate(split(text, "\n"))
         println(io, @sprintf("%s%-4d: %s", pad, i, line))
     end
@@ -93,11 +93,11 @@ function build!(p::Program; options = "", raise = true)
     end
     for (dev, status) in cl.info(p, :build_status)
         if status == cl.CL_BUILD_ERROR
-            println(STDERR, "Couldn't compile kernel: ")
+            println(stderr, "Couldn't compile kernel: ")
             source = info(p, :source)
-            print_with_linenumbers(source, "    ", STDERR)
-            println(STDERR, "With following build error:")
-            println(STDERR, cl.info(p, :build_log)[dev])
+            print_with_linenumbers(source, "    ", stderr)
+            println(stderr, "With following build error:")
+            println(stderr, cl.info(p, :build_log)[dev])
             raise && @check err # throw the build error when raise!
         end
     end

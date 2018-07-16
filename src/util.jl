@@ -9,7 +9,7 @@ opencl_version(obj :: CLObject) = api.parse_version(obj[:version])
 opencl_version(c :: Context)  = opencl_version(first(devices(c)))
 opencl_version(q :: CmdQueue) = opencl_version(q[:device])
 
-const _versionDict = Dict{Ptr{Void}, VersionNumber}()
+const _versionDict = Dict{Ptr{Cvoid}, VersionNumber}()
 
 _deletecached!(obj :: CLObject) = delete!(_versionDict, pointer(obj))
 
@@ -51,7 +51,7 @@ function get_kernel(ctx::Context, program_file::String,
     if in(key, keys(CACHED_KERNELS))
         return CACHED_KERNELS[key]
     else
-        kernel = build_kernel(ctx, readstring(program_file), kernel_name; vars...)
+        kernel = build_kernel(ctx, read(program_file, String), kernel_name; vars...)
         CACHED_KERNELS[key] = kernel
         return kernel
     end

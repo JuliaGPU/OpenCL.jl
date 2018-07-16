@@ -23,7 +23,7 @@ WGS = -1
 NAME = ""
 
 if length(ARGS) < 1
-    info("Usage: julia pi_vocl.jl [num] (where num = 1, 4, or 8)")
+    @info("Usage: julia pi_vocl.jl [num] (where num = 1, 4, or 8)")
     exit(1)
 end
 vector_size = parse(Int, ARGS[1])
@@ -38,7 +38,7 @@ elseif vector_size == 8
         ITERS = 32768 # (262144/8)
         WGS = 64
 else
-    warn("Invalid vector size")
+    @warn("Invalid vector size")
     exit(1)
 end
 
@@ -59,7 +59,7 @@ work_group_size = WGS
 #device = first(cl.devices(:cpu))
 device, ctx, queue = cl.create_compute_context()
 
-kernelsource = readstring(joinpath(src_dir, "pi_vocl.cl"))
+kernelsource = read(joinpath(src_dir, "pi_vocl.cl"), String)
 program = cl.Program(ctx, source=kernelsource) |> cl.build!
 
 if vector_size == 1

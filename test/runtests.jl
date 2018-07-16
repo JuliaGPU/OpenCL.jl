@@ -1,5 +1,5 @@
 module TestOpenCL
-using Base.Test
+using Test
 
 using OpenCL
 

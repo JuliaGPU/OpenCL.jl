@@ -1,15 +1,15 @@
 #=== TypeAliases ===#
 
 # Opaque types
-const CL_platform_id        = Ptr{Void}
-const CL_device_id          = Ptr{Void}
-const CL_context            = Ptr{Void}
-const CL_command_queue      = Ptr{Void}
-const CL_mem                = Ptr{Void}
-const CL_program            = Ptr{Void}
-const CL_kernel             = Ptr{Void}
-const CL_event              = Ptr{Void}
-const CL_sampler            = Ptr{Void}
+const CL_platform_id        = Ptr{Cvoid}
+const CL_device_id          = Ptr{Cvoid}
+const CL_context            = Ptr{Cvoid}
+const CL_command_queue      = Ptr{Cvoid}
+const CL_mem                = Ptr{Cvoid}
+const CL_program            = Ptr{Cvoid}
+const CL_kernel             = Ptr{Cvoid}
+const CL_event              = Ptr{Cvoid}
+const CL_sampler            = Ptr{Cvoid}
 
 # Scalar types
 const CL_char   = Int8
@@ -85,16 +85,16 @@ const CL_GL_platform_info           = CL_uint
 const CL_gl_context_info            = CL_uint
 
 
-const GL_sync                       = Ptr{Void}
+const GL_sync                       = Ptr{Cvoid}
 
 #=== Image Types ===#
 
-immutable CL_image_format
+struct CL_image_format
     image_channel_order::CL_channel_order
     image_channel_data_type::CL_channel_type
 end
 
-immutable CL_image_desc
+struct CL_image_desc
     image_type::CL_mem_object_type
     image_width::Csize_t
     image_depth::Csize_t
@@ -106,7 +106,7 @@ immutable CL_image_desc
     buffer::CL_mem
 end
 
-immutable CL_buffer_region
+struct CL_buffer_region
     origin::Csize_t
     size::Csize_t
 end
@@ -168,4 +168,4 @@ cl_command_type(x)             = cl_uint(x)
 cl_profiling_info(x)           = cl_uint(x)
 cl_sampler_properties(x)       = cl_bitfield(x)
 cl_kernel_exec(x)              = cl_uint(x)
-cl_platform_id(x)              = Ptr{Void}(x)
+cl_platform_id(x)              = Ptr{Cvoid}(x)

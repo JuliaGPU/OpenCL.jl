@@ -1,5 +1,5 @@
 # OpenCL.Kernel
-type Kernel <: CLObject
+mutable struct Kernel <: CLObject
     id :: CL_kernel
 
     function Kernel(k::CL_kernel, retain=false)
@@ -42,28 +42,28 @@ function Kernel(p::Program, kernel_name::String)
     return Kernel(kernel_id)
 end
 
-immutable LocalMem{T}
+struct LocalMem{T}
     nbytes::Csize_t
 end
 
-function LocalMem{T}(::Type{T}, len::Integer)
+function LocalMem(::Type{T}, len::Integer) where T
     @assert len > 0
     nbytes = sizeof(T) * len
     return LocalMem{T}(convert(Csize_t, nbytes))
 end
 
 Base.ndims(l::LocalMem) = 1
-Base.eltype{T}(l::LocalMem{T}) = T
-Base.sizeof{T}(l::LocalMem{T}) = l.nbytes
-Base.length{T}(l::LocalMem{T}) = Int(l.nbytes ÷ sizeof(T))
+Base.eltype(l::LocalMem{T}) where {T} = T
+Base.sizeof(l::LocalMem{T}) where {T} = l.nbytes
+Base.length(l::LocalMem{T}) where {T} = Int(l.nbytes ÷ sizeof(T))
 
-function set_arg!(k::Kernel, idx::Integer, arg::Void)
+function set_arg!(k::Kernel, idx::Integer, arg::Nothing)
     @assert idx > 0
     @check api.clSetKernelArg(k.id, cl_uint(idx-1), sizeof(CL_mem), C_NULL)
     return k
 end
 
-function set_arg!(k::Kernel, idx::Integer, arg::Ptr{Void})
+function set_arg!(k::Kernel, idx::Integer, arg::Ptr{Cvoid})
     if arg != C_NULL
         throw(AttributeError("set_arg! for void pointer $arg is undefined"))
     end
@@ -83,7 +83,7 @@ function set_arg!(k::Kernel, idx::Integer, arg::LocalMem)
     return k
 end
 
-function _contains_different_layout{T}(::Type{T})
+function _contains_different_layout(::Type{T}) where T
     sizeof(T) == 0 && return true
     nfields(T) == 0 && return false
     for fname in fieldnames(T)
@@ -92,7 +92,7 @@ function _contains_different_layout{T}(::Type{T})
     return false
 end
 
-function contains_different_layout{T <: Union{Float32, Float64, Int8, Int32, Int64, UInt8, UInt32, UInt64}}(::Type{NTuple{3, T}})
+function contains_different_layout(::Type{NTuple{3, T}}) where T <: Union{Float32, Float64, Int8, Int32, Int64, UInt8, UInt32, UInt64}
     true
 end
 
@@ -104,11 +104,11 @@ Empty types and NTuple{3, CLNumber} have different layouts and need to be replac
 (Where `CLNumber <: Union{Float32, Float64, Int8, Int32, Int64, UInt8, UInt32, UInt64}`)
 TODO: Float16 + Int16 should also be in CLNumbers
 """
-@generated function contains_different_layout{T}(::Type{T})
+@generated function contains_different_layout(::Type{T}) where T
     :($(_contains_different_layout(T)))
 end
 
-function struct2tuple{T}(x::T)
+function struct2tuple(x::T) where T
     ntuple(Val{nfields(T)}) do i
         getfield(x, i)
     end
@@ -120,7 +120,7 @@ end
 Replaces types with a layout different from OpenCL.
 See [contains_different_layout(T)](@ref) for information what types those are!
 """
-function replace_different_layout{T}(x::T)
+function replace_different_layout(x::T) where T
     !contains_different_layout(T) && return x
     if nfields(x) == 0
         replace_different_layout((), (x,))
@@ -131,8 +131,8 @@ function replace_different_layout{T}(x::T)
     end
 end
 
-replace_different_layout{N}(red::NTuple{N, Any}, rest::Tuple{}) = red
-function replace_different_layout{N}(red::NTuple{N, Any}, rest)
+replace_different_layout(red::NTuple{N, Any}, rest::Tuple{}) where {N} = red
+function replace_different_layout(red::NTuple{N, Any}, rest) where N
     elem1 = first(rest)
     T = typeof(elem1)
     repl = if sizeof(T) == 0 && nfields(T) == 0
@@ -147,12 +147,12 @@ end
 
 # TODO UInt16/Float16?
 # Handle different sizes of OpenCL Vec3, which doesn't agree with julia
-function replace_different_layout{T <: Union{Float32, Float64, Int8, Int32, Int64, UInt8, UInt32, UInt64}}(arg::NTuple{3, T})
+function replace_different_layout(arg::NTuple{3, T}) where T <: Union{Float32, Float64, Int8, Int32, Int64, UInt8, UInt32, UInt64}
     pad = T(0)
     (arg..., pad)
 end
 
-function to_cl_ref{T}(arg::T)
+function to_cl_ref(arg::T) where T
     if !Base.datatype_pointerfree(T)
         error("Types should not contain pointers: $T")
     end
@@ -178,7 +178,7 @@ Base.@pure function datatype_align(::Type{T}) where {T}
 end
 
 
-function set_arg!{T}(k::Kernel, idx::Integer, arg::T)
+function set_arg!(k::Kernel, idx::Integer, arg::T) where T
     @assert idx > 0 "Kernel idx must be bigger 0"
     ref, tsize = to_cl_ref(arg)
     err = api.clSetKernelArg(k.id, cl_uint(idx - 1), tsize, ref)
@@ -229,7 +229,7 @@ function work_group_info(k::Kernel, winfo::CL_kernel_work_group_info, d::Device)
         # As specified by [1] the return value in this case is size_t[3].
         # [1] https://www.khronos.org/registry/OpenCL/sdk/1.2/docs/man/xhtml/clGetKernelWorkGroupInfo.html
         @assert sizeof(Csize_t) == sizeof(Int)
-        result2 = Vector{Int}(3)
+        result2 = Vector{Int}(undef, 3)
         @check api.clGetKernelWorkGroupInfo(k.id, d.id, winfo, 3*sizeof(Int), result2, C_NULL)
         return result2
     else
@@ -280,7 +280,7 @@ end
 # blocking kernel call that finishes queue
 function (q::CmdQueue)(k::Kernel, global_work_size, local_work_size,
                       args...; global_work_offset=nothing,
-                      wait_on::Union{Void,Vector{Event}}=nothing)
+                      wait_on::Union{Nothing,Vector{Event}}=nothing)
     set_args!(k, args...)
     evt = enqueue_kernel(q, k,
                          global_work_size,
@@ -300,7 +300,7 @@ function enqueue_kernel(q::CmdQueue,
                                 global_work_size,
                                 local_work_size;
                                 global_work_offset=nothing,
-                                wait_on::Union{Void,Vector{Event}}=nothing)
+                                wait_on::Union{Nothing,Vector{Event}}=nothing)
     device = q[:device]
     max_work_dim = device[:max_work_item_dims]
     work_dim     = length(global_work_size)
