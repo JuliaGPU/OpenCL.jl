@@ -1,5 +1,7 @@
 module api
 
+using Libdl
+
 include("types.jl")
 
 const paths = Sys.isapple() ? String["/System/Library/Frameworks/OpenCL.framework"] : String[]

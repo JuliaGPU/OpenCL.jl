@@ -4,17 +4,20 @@ module OpenCL
 export cl
 module cl
 
+using Printf
+using LinearAlgebra
+
 abstract type CLObject end
 
 Base.hash(x::CLObject) = hash(pointer(x))
-Base.isequal(x :: T, y :: T) where {T <: CLObject} = Base.hash(x) == Base.hash(y)
-Base.:(==)(x :: T, y :: T) where {T <: CLObject} = Base.hash(x) == Base.hash(y)
+Base.isequal(x::T, y::T) where {T <: CLObject} = Base.hash(x) == Base.hash(y)
+Base.:(==)(x::T, y::T) where {T <: CLObject} = Base.hash(x) == Base.hash(y)
 
 # OpenCL Types
 include("types.jl")
 
 # The arrays contain a nullbyte that we pop first
-function CLString(v :: Array{CL_char})
+function CLString(v::Array{CL_char})
     pop!(v)
     String(reinterpret(UInt8, v))
 end

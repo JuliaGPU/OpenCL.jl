@@ -319,7 +319,7 @@ end
     function enqueue_fill_buffer(q::CmdQueue, buf::Buffer{T},
                                          pattern::T, offset::Csize_t,
                                          nbytes::Csize_t,
-                                         wait_for::Union{Vector{Event},Void}) where T
+                                         wait_for::Union{Vector{Event},Cvoid}) where T
 
         if wait_for === nothing
             evt_ids = C_NULL
