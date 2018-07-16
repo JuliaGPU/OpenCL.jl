@@ -8,8 +8,8 @@ Base.pointer(d::Device) = d.id
 
 function Base.show(io::IO, d::Device)
     strip_extra_whitespace = r"\s+"
-    device_name = replace(d[:name], strip_extra_whitespace, " ")
-    platform_name = replace(d[:platform][:name], strip_extra_whitespace, " ")
+    device_name = replace(d[:name], strip_extra_whitespace => " ")
+    platform_name = replace(d[:platform][:name], strip_extra_whitespace => " ")
     ptr_val = convert(UInt, Base.pointer(d))
     ptr_address = "0x$(hex(ptr_val, Sys.WORD_SIZE>>2))"
     print(io, "OpenCL.Device($device_name on $platform_name @$ptr_address)")
@@ -52,7 +52,7 @@ let profile(d::Device) = begin
         result = Vector{CL_char}(size[])
         @check api.clGetDeviceInfo(d.id, CL_DRIVER_VERSION, size[], result, C_NULL)
         bs = CLString(result)
-        return string(replace(bs, r"\s+", " "))
+        return string(replace(bs, r"\s+" => " "))
     end
 
     extensions(d::Device) = begin
@@ -78,7 +78,7 @@ let profile(d::Device) = begin
         @check api.clGetDeviceInfo(d.id, CL_DEVICE_NAME,
                                    size[] * sizeof(CL_char), result, C_NULL)
         n = CLString(result)
-        return string(replace(n, r"\s+", " "))
+        return string(replace(n, r"\s+" => " "))
     end
 
     device_type(d::Device) = begin
@@ -165,7 +165,7 @@ let profile(d::Device) = begin
         dims = Ref{CL_uint}()
         @check api.clGetDeviceInfo(d.id, CL_DEVICE_MAX_WORK_ITEM_DIMENSIONS,
                                    sizeof(CL_uint), dims, C_NULL)
-        result = Vector{Csize_t}(dims[])
+        result = Vector{Csize_t}(undef, dims[])
         @check api.clGetDeviceInfo(d.id, CL_DEVICE_MAX_WORK_ITEM_SIZES,
                                    sizeof(Csize_t) * dims[], result, C_NULL)
         return tuple([Int(r) for r in result]...)

@@ -10,7 +10,7 @@ mutable struct Program <: CLObject
             @check api.clRetainProgram(program_id)
         end
         p = new(program_id, binary)
-        finalizer(p, _finalize)
+        finalizer(_finalize, p)
         return p
     end
 end
@@ -48,10 +48,10 @@ function Program(ctx::Context; source=nothing, binaries=nothing)
 
     elseif binaries !== nothing
         ndevices = length(binaries)
-        device_ids = Vector{CL_device_id}(ndevices)
-        bin_lengths = Vector{Csize_t}(ndevices)
-        binary_status = Vector{CL_int}(ndevices)
-        binary_ptrs= Vector{Ptr{UInt8}}(ndevices)
+        device_ids = Vector{CL_device_id}(undef, ndevices)
+        bin_lengths = Vector{Csize_t}(undef, ndevices)
+        binary_status = Vector{CL_int}(undef, ndevices)
+        binary_ptrs= Vector{Ptr{UInt8}}(undef, ndevices)
         try
             for (i, (dev, bin)) in enumerate(binaries)
                 device_ids[i] = dev.id
@@ -113,7 +113,7 @@ let
 
     devices(p::Program) = begin
         ndevices = num_devices(p)
-        device_ids = Vector{CL_device_id}(ndevices)
+        device_ids = Vector{CL_device_id}(undef, ndevices)
         @check api.clGetProgramInfo(p.id, CL_PROGRAM_DEVICES,
                                     sizeof(CL_device_id) * ndevices, device_ids, C_NULL)
         return [Device(device_ids[i]) for i in 1:ndevices]
@@ -157,14 +157,14 @@ let
         sizes = zeros(Csize_t, slen[])
         @check api.clGetProgramInfo(p.id, CL_PROGRAM_BINARY_SIZES,
                                     slen[], sizes, C_NULL)
-        bins = Vector{Ptr{UInt8}}(length(sizes))
+        bins = Vector{Ptr{UInt8}}(undef, length(sizes))
         # keep a reference to the underlying binary arrays
         # as storing the pointer to the array hides the additional
         # reference from julia's garbage collector
         bin_arrays = Any[]
         for (i, s) in enumerate(sizes)
             if s > 0
-                bin = Vector{UInt8}(s)
+                bin = Vector{UInt8}(undef, s)
                 bins[i] = pointer(bin)
                 push!(bin_arrays, bin)
             else

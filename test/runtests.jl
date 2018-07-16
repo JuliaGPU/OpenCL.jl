@@ -2,6 +2,7 @@ module TestOpenCL
 using Test
 
 using OpenCL
+using LinearAlgebra
 
 @testset "layout" begin
     x = ((10f0, 1f0, 2f0), (10f0, 1f0, 2f0), (10f0, 1f0, 2f0))
@@ -35,7 +36,7 @@ include("test_buffer.jl")
 include("test_array.jl")
 
 @testset "context jl reference counting" begin
-    gc()
+    GC.gc()
     @test isempty(cl._ctx_reference_count)
 end
 

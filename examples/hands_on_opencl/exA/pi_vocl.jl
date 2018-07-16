@@ -97,7 +97,7 @@ nsteps = work_group_size * niters * nwork_groups
 step_size = 1.0 / nsteps
 
 # vector to hold partial sum
-h_psum = Vector{Float32}(nwork_groups)
+h_psum = Vector{Float32}(undef, nwork_groups)
 
 println("$nwork_groups work groups of size $work_group_size.")
 println("$nsteps integration steps")

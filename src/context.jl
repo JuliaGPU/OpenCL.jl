@@ -38,14 +38,14 @@ mutable struct Context <: CLObject
         end
         ctx = new(ctx_id)
         create_jl_reference!(ctx_id)
-        finalizer(ctx, c -> begin
+        finalizer(c -> begin
             retain || _deletecached!(c);
             if c.id != C_NULL
                 release_ctx_id(c.id)
                 free_jl_reference!(c.id)
                 c.id = C_NULL
             end
-        end )
+        end, ctx)
         return ctx
     end
 end
@@ -75,7 +75,7 @@ end
 Base.pointer(ctx::Context) = ctx.id
 
 function Base.show(io::IO, ctx::Context)
-    dev_strs = [replace(d[:name], r"\s+", " ") for d in devices(ctx)]
+    dev_strs = [replace(d[:name], r"\s+" => " ") for d in devices(ctx)]
     devs_str = join(dev_strs, ",")
     ptr_val = convert(UInt, Base.pointer(ctx))
     ptr_address = "0x$(hex(ptr_val, Sys.WORD_SIZE>>2))"
@@ -130,7 +130,7 @@ function Context(devs::Vector{Device};
     end
 
     n_devices = length(devs)
-    device_ids = Vector{CL_device_id}(n_devices)
+    device_ids = Vector{CL_device_id}(undef, n_devices)
     for (i, d) in enumerate(devs)
         device_ids[i] = d.id
     end
@@ -192,7 +192,7 @@ function properties(ctx_id::CL_context)
     # Note: nprops should be odd since it requires a C_NULL terminated array
     nprops = div(nbytes[], sizeof(CL_context_properties))
 
-    props = Vector{CL_context_properties}(nprops)
+    props = Vector{CL_context_properties}(undef, nprops)
     @check api.clGetContextInfo(ctx_id, CL_CONTEXT_PROPERTIES,
                                 nbytes[], props, C_NULL)
     #properties array of [key,value..., C_NULL]
@@ -271,7 +271,7 @@ function devices(ctx::Context)
     if n == 0
         return []
     end
-    dev_ids = Vector{CL_device_id}(n)
+    dev_ids = Vector{CL_device_id}(undef, n)
     @check api.clGetContextInfo(ctx.id, CL_CONTEXT_DEVICES,
                                 n * sizeof(CL_device_id), dev_ids, C_NULL)
     return [Device(id) for id in dev_ids]

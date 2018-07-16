@@ -7,7 +7,7 @@ mutable struct Kernel <: CLObject
             @check api.clRetainKernel(k)
         end
         kernel = new(k)
-        finalizer(kernel, _finalize)
+        finalizer(_finalize, kernel)
         return kernel
     end
 end
@@ -99,7 +99,7 @@ end
 
 """
     contains_different_layout(T)
-    
+
 Empty types and NTuple{3, CLNumber} have different layouts and need to be replaced
 (Where `CLNumber <: Union{Float32, Float64, Int8, Int32, Int64, UInt8, UInt32, UInt64}`)
 TODO: Float16 + Int16 should also be in CLNumbers
@@ -109,9 +109,7 @@ TODO: Float16 + Int16 should also be in CLNumbers
 end
 
 function struct2tuple(x::T) where T
-    ntuple(Val{nfields(T)}) do i
-        getfield(x, i)
-    end
+    ntuple(i->getfield(x, i), Val{nfields(T)}())
 end
 
 """
@@ -184,7 +182,7 @@ function set_arg!(k::Kernel, idx::Integer, arg::T) where T
     err = api.clSetKernelArg(k.id, cl_uint(idx - 1), tsize, ref)
     if err == CL_INVALID_ARG_SIZE
         error("""
-            Julia and OpenCL type don't match at kernel argument $idx: Found $T. 
+            Julia and OpenCL type don't match at kernel argument $idx: Found $T.
             Please make sure to define OpenCL structs correctly!
             You should be generally fine by using `__attribute__((packed))`, but sometimes the alignment of fields is different from Julia.
             Consider the following example:
@@ -296,18 +294,18 @@ function enqueue_kernel(q::CmdQueue, k::Kernel, global_work_size)
 end
 
 function enqueue_kernel(q::CmdQueue,
-                                k::Kernel,
-                                global_work_size,
-                                local_work_size;
-                                global_work_offset=nothing,
-                                wait_on::Union{Nothing,Vector{Event}}=nothing)
+                        k::Kernel,
+                        global_work_size,
+                        local_work_size;
+                        global_work_offset=nothing,
+                        wait_on::Union{Nothing,Vector{Event}}=nothing)
     device = q[:device]
     max_work_dim = device[:max_work_item_dims]
     work_dim     = length(global_work_size)
     if work_dim > max_work_dim
         throw(ArgumentError("global_work_size has max dim of $max_work_dim"))
     end
-    gsize = Array{Csize_t}(work_dim)
+    gsize = Vector{Csize_t}(undef, work_dim)
     for (i, s) in enumerate(global_work_size)
         gsize[i] = s
     end
@@ -320,7 +318,7 @@ function enqueue_kernel(q::CmdQueue,
         if length(global_work_offset) != work_dim
             throw(ArgumentError("global_work_size and global_work_offset have differing dims"))
         end
-        goffset = Array{Csize_t}(work_dim)
+        goffset = Vector{Csize_t}(undef, work_dim)
         for (i, o) in enumerate(global_work_offset)
             goffset[i] = o
         end
@@ -334,7 +332,7 @@ function enqueue_kernel(q::CmdQueue,
         if length(local_work_size) != work_dim
             throw(ArgumentError("global_work_size and local_work_size have differing dims"))
         end
-        lsize = Array{Csize_t}(work_dim)
+        lsize = Vector{Csize_t}(undef, work_dim)
         for (i, s) in enumerate(local_work_size)
             lsize[i] = s
         end

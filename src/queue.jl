@@ -8,13 +8,13 @@ mutable struct CmdQueue <: CLObject
             @check api.clRetainCommandQueue(q_id)
         end
         q = new(q_id)
-        finalizer(q, x -> begin
+        finalizer(x -> begin
             retain || _deletecached!(q)
             if x.id != C_NULL
                 @check api.clReleaseCommandQueue(x.id)
                 x.id = C_NULL
             end
-        end )
+        end, q)
         return q
     end
 end

@@ -209,7 +209,7 @@ end
                  "Portable Computing Language Platform")
             continue
         end
-        if is_apple()
+        if Sys.isapple()
             continue
         end
         ctx = cl.Context(device)

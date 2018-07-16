@@ -91,7 +91,7 @@ Base.show(io::IO, A::CLArray{T,N}) where {T,N} =
 ## to_host
 
 function to_host(A::CLArray{T,N}; queue=A.queue) where {T,N}
-    hA = Array{T}(size(A))
+    hA = Array{T}(undef, size(A))
     copy!(queue, hA, buffer(A))
     return hA
 end
@@ -151,4 +151,15 @@ function LinearAlgebra.transpose(A::CLMatrix{Float64};
     ev = transpose!(B, A, queue=queue)
     wait(ev)
     return B
+end
+
+
+function LinearAlgebra.adjoint(A::CLMatrix{T};
+                               queue=A.queue) where T<:Union{Float32,Float64}
+    transpose(A, queue=queue)
+end
+
+function LinearAlgebra.adjoint!(B::CLMatrix{T}, A::CLMatrix{T};
+                                queue=A.queue) where T<:Union{Float32,Float64}
+    transpose!(B, A, queue=queue)
 end

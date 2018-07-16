@@ -10,7 +10,7 @@ mutable struct Event <: CLEvent
             @check api.clRetainEvent(evt_id)
         end
         evt = new(evt_id)
-        finalizer(evt, _finalize)
+        finalizer(_finalize, evt)
         return evt
     end
 end
@@ -25,11 +25,11 @@ mutable struct NannyEvent <: CLEvent
             @check api.clRetainEvent(evt_id)
         end
         nanny_evt = new(evt_id, obj)
-        finalizer(nanny_evt, x -> begin
+        finalizer(x -> begin
             x.id != C_NULL && wait(x)
             x.obj = nothing
             _finalize(x)
-        end)
+        end, nanny_evt)
         nanny_evt
     end
 end
@@ -63,7 +63,7 @@ Base.getindex(evt::CLEvent, evt_info::Symbol) = info(evt, evt_info)
                 @check api.clRetainEvent(evt_id)
             end
             evt = new(evt_id)
-            finalizer(evt, _finalize)
+            finalizer(_finalize, evt)
             return evt
         end
     end
