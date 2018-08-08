@@ -72,7 +72,7 @@ function seq_mat_mul_sdot(Mdim::Int, Ndim::Int, Pdim::Int,
     end
 end
 
-info("=== Julia, matix mult (dot prod), order $ORDER ===")
+@info("=== Julia, matix mult (dot prod), order $ORDER ===")
 
 # force compilation
 seq_mat_mul_sdot(Mdim, Ndim, Pdim, h_A, h_B, h_C)
@@ -105,7 +105,7 @@ kernel_source = read(joinpath(src_dir, "C_elem.cl"), String)
 prg  = cl.Program(ctx, source=kernel_source) |> cl.build!
 mmul = cl.Kernel(prg, "mmul")
 
-info("=== OpenCL, matrix mult, C(i, j) per work item, order $Ndim ====")
+@info("=== OpenCL, matrix mult, C(i, j) per work item, order $Ndim ====")
 
 for i in 1:COUNT
     fill!(h_C, 0.0)
@@ -126,7 +126,7 @@ kernel_source = read(joinpath(src_dir, "C_row.cl"), String)
 prg  = cl.Program(ctx, source=kernel_source) |> cl.build!
 mmul = cl.Kernel(prg, "mmul")
 
-info("=== OpenCL, matrix mult, C row per work item, order $Ndim ====")
+@info("=== OpenCL, matrix mult, C row per work item, order $Ndim ====")
 
 for i in 1:COUNT
     fill!(h_C, 0.0)
@@ -151,7 +151,7 @@ if Ndim * (ORDER ÷ 16) >= wk_size
     warn("Specified work_size is bigger than $wk_size")
 else
 
-info("=== OpenCL, matrix mult, C row, A row in priv mem, order $Ndim ====")
+@info("=== OpenCL, matrix mult, C row, A row in priv mem, order $Ndim ====")
 
 for i in 1:COUNT
     fill!(h_C, 0.0)

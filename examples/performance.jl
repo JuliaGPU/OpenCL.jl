@@ -98,7 +98,7 @@ function cl_performance(ndatapts::Integer, nworkers::Integer)
             @printf("Execution time of test: %.4f seconds\n", t)
 
             c_device = cl.read(queue, c_buf)
-            info("Result norm: $(norm(c - c_device))")
+            @info("Result norm: $(norm(c - c_device))")
         end
     end
 end

@@ -132,7 +132,7 @@ end
              v = cl.opencl_version(device)
              if v.major == 1 && v.minor < 2
                  platform_name = device[:platform][:name]
-                 info("Skipping OpenCL.Buffer fill for $platform_name: fill is a v1.2 command")
+                 @info("Skipping OpenCL.Buffer fill for $platform_name: fill is a v1.2 command")
                  continue
              end
              cl.fill!(queue, buf, 1f0)

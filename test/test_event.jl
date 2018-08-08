@@ -58,7 +58,7 @@
         for platform in cl.platforms()
             v = cl.opencl_version(platform)
             if v.major == 1 && v.minor < 1
-                info("Skipping OpenCL.Event callback for $(platform[:name]) version < 1.1")
+                @info("Skipping OpenCL.Event callback for $(platform[:name]) version < 1.1")
                 continue
             end
 
