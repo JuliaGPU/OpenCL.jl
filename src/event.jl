@@ -113,8 +113,8 @@ function event_notify(evt_id::CL_event, status::CL_int, payload::Ptr{Cvoid})
 end
 
 function add_callback(evt::CLEvent, callback::Function)
-    event_notify_ptr = cfunction(event_notify, Nothing,
-                                 Tuple{CL_event, CL_int, Ptr{Cvoid}})
+    event_notify_ptr = @cfunction(event_notify, Nothing,
+                                  (CL_event, CL_int, Ptr{Cvoid}))
 
     # The uv_callback is going to notify a task that,
     # then executes the real callback.

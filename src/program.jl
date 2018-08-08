@@ -140,7 +140,7 @@ let
                 logs[d] = ""
                 continue
             end
-            log_bytestring = Vector{CL_char}(log_len[])
+            log_bytestring = Vector{CL_char}(undef, log_len[])
             @check api.clGetProgramBuildInfo(p.id, d.id, CL_PROGRAM_BUILD_LOG,
                                             log_len[], log_bytestring, C_NULL)
             logs[d] = CLString(log_bytestring)
@@ -189,7 +189,7 @@ let
         src_len = Ref{Csize_t}()
         @check api.clGetProgramInfo(p.id, CL_PROGRAM_SOURCE, 0, C_NULL, src_len)
         src_len[] <= 1 && return nothing
-        src = Vector{Cchar}(src_len[])
+        src = Vector{Cchar}(undef, src_len[])
         @check api.clGetProgramInfo(p.id, CL_PROGRAM_SOURCE, src_len[], src, C_NULL)
         return CLString(src)
     end

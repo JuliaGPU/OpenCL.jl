@@ -109,8 +109,8 @@ function ctx_notify_err(
 end
 
 
-ctx_callback_ptr() = cfunction(ctx_notify_err, Nothing,
-                               Tuple{Ptr{Cchar}, Ptr{Cvoid}, Csize_t, Ptr{Cvoid}})
+ctx_callback_ptr() = @cfunction(ctx_notify_err, Nothing,
+                                (Ptr{Cchar}, Ptr{Cvoid}, Csize_t, Ptr{Cvoid}))
 
 function raise_context_error(err_info, private_info, cb)
     log_error("OpenCL Error: | ", unsafe_string(err_info), " |")

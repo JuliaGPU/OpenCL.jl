@@ -33,7 +33,7 @@ end
 function info(p::Platform, pinfo::CL_platform_info)
     size = Ref{Csize_t}()
     @check api.clGetPlatformInfo(p.id, pinfo, 0, C_NULL, size)
-    result = Vector{CL_char}(size[])
+    result = Vector{CL_char}(undef, size[])
     @check api.clGetPlatformInfo(p.id, pinfo, size[], result, C_NULL)
     return CLString(result)
 end

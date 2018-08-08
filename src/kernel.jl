@@ -376,7 +376,7 @@ let name(k::Kernel) = begin
         size = Ref{Csize_t}()
         @check api.clGetKernelInfo(k.id, CL_KERNEL_FUNCTION_NAME,
                                    0, C_NULL, size)
-        result = Vector{Cchar}(size[])
+        result = Vector{Cchar}(undef, size[])
         @check api.clGetKernelInfo(k.id, CL_KERNEL_FUNCTION_NAME,
                                    size[], result, size)
         return CLString(result)
@@ -410,7 +410,7 @@ let name(k::Kernel) = begin
         if size[] <= 1
             return ""
         end
-        result = Vector{CL_char}(size[])
+        result = Vector{CL_char}(undef, size[])
         @check api.clGetKernelInfo(k.id, CL_KERNEL_ATTRIBUTES,
                                    size[], result, size)
         return CLString(result)
