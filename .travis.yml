@@ -30,10 +30,10 @@ notifications:
 #       ${AMDAPPSDK}/bin/x86_64/clinfo;
 #     fi;
 script:
-  - julia -e 'Pkg.init(); Pkg.clone(pwd())'
+  - julia -e 'Pkg.clone(pwd()); Pkg.build("OpenCL")'
   - julia -e 'using OpenCL'
 
-  - julia --color=yes --depwarn=error -e "Pkg.test(\"OpenCL\")"
+  - julia --color=yes --depwarn=error -e 'Pkg.test("OpenCL", coverage=true)'
 
   - julia examples/demo.jl
   - julia examples/performance.jl
@@ -57,4 +57,4 @@ script:
   #   fi;
 
 after_success:
-  - julia -e 'Pkg.add("Coverage"); using Coverage; Coveralls.submit(Coveralls.process_folder())'; fi
+  - julia -e 'Pkg.add("Coverage"); using Coverage; Coveralls.submit(Coveralls.process_folder())'
