@@ -33,7 +33,8 @@ script:
   - julia -e 'Pkg.clone(pwd()); Pkg.build("OpenCL")'
   - julia -e 'using OpenCL'
 
-  - julia --color=yes --depwarn=error -e 'Pkg.test("OpenCL", coverage=true)'
+  - julia --color=yes -e 'Pkg.test("OpenCL", coverage=true)'
+  #- julia --color=yes --depwarn=error -e 'Pkg.test("OpenCL", coverage=true)'
 
   - julia examples/demo.jl
   - julia examples/performance.jl
