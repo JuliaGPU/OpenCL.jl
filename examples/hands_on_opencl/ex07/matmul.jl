@@ -148,7 +148,7 @@ prg  = cl.Program(ctx, source=kernel_source) |> cl.build!
 mmul = cl.Kernel(prg, "mmul")
 wk_size = cl.info(first(cl.devices(ctx)), :max_work_group_size)
 if Ndim * (ORDER ÷ 16) >= wk_size
-    warn("Specified work_size is bigger than $wk_size")
+    @warn("Specified work_size is bigger than $wk_size")
 else
 
 @info("=== OpenCL, matrix mult, C row, A row in priv mem, order $Ndim ====")

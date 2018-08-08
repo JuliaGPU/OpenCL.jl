@@ -1,4 +1,5 @@
 using OpenCL
+using Printf, LinearAlgebra
 
 const bench_kernel = "
 __kernel void sum(__global const float *a,
@@ -66,13 +67,13 @@ function cl_performance(ndatapts::Integer, nworkers::Integer)
 
             if device[:max_mem_alloc_size] < sizeof(Float32) * ndatapts
                 @warn("Requested buffer size exceeds device max alloc size!")
-                warn("Skipping device $(device[:name])...")
+                @warn("Skipping device $(device[:name])...")
                 continue
             end
 
             if device[:max_work_group_size] < nworkers
                 @warn("Number of workers exceeds the device's max work group size!")
-                warn("Skipping device $(device[:name])...")
+                @warn("Skipping device $(device[:name])...")
                 continue
             end
 
