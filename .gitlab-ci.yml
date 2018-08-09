@@ -7,7 +7,6 @@ variables:
 
 stages:
   - test
-  - postprocess
 
 
 ## testing
