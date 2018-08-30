@@ -7,8 +7,8 @@ using LinearAlgebra
 @testset "layout" begin
     x = ((10f0, 1f0, 2f0), (10f0, 1f0, 2f0), (10f0, 1f0, 2f0))
     clx = cl.replace_different_layout(x)
-
     @test clx == ((10f0, 1f0, 2f0, 0f0), (10f0, 1f0, 2f0, 0f0), (10f0, 1f0, 2f0, 0f0))
+
     x = (nothing, nothing, nothing)
     clx = cl.replace_different_layout(x)
     @test clx == (0,0,0)

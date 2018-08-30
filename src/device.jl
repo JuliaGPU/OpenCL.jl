@@ -234,7 +234,7 @@ let profile(d::Device) = begin
         :max_image3d_shape => max_image3d_shape
     )
 
-    function info(d::Device, s::Symbol)
+    global function info(d::Device, s::Symbol)
         try
             func = info_map[s]
             func(d)

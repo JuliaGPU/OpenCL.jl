@@ -47,7 +47,7 @@ let info_map = Dict{Symbol, CL_platform_info}(
         :extensions => CL_PLATFORM_EXTENSIONS
     )
 
-    function info(p::Platform, pinfo::Symbol)
+    global function info(p::Platform, pinfo::Symbol)
         try
             cl_info = info_map[pinfo]
             if pinfo == :extensions

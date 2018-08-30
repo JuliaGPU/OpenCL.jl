@@ -118,8 +118,8 @@ function raise_context_error(err_info, private_info, cb)
 end
 
 function Context(devs::Vector{Device};
-                         properties=nothing,
-                         callback::Union{Function, Nothing} = nothing)
+                 properties=nothing,
+                 callback::Union{Function, Nothing} = nothing)
     if isempty(devs)
         ArgumentError("No devices specified for context")
     end
@@ -137,7 +137,7 @@ function Context(devs::Vector{Device};
 
     err_code = Ref{CL_int}()
     payload = callback == nothing ? raise_context_error : callback
-    f_ptr = cfunction(payload, Nothing, Tuple{Ptr{Cchar}, Ptr{Cvoid}, Csize_t})
+    f_ptr = ccall(:jl_function_ptr, Ptr{Cvoid}, (Any, Any, Any), payload, Nothing, Tuple{Ptr{Cchar}, Ptr{Cvoid}, Csize_t})
     ctx_id = api.clCreateContext(
         ctx_properties, n_devices, device_ids,
         ctx_callback_ptr(), f_ptr, err_code

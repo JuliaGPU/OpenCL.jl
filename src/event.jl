@@ -261,7 +261,7 @@ let command_queue(evt::CLEvent) = begin
         return cnt[]
     end
 
-    context(evt::CLEvent) = begin
+    global context(evt::CLEvent) = begin
         ctx = Ref{CL_context}()
         @check api.clGetEventInfo(evt.id, CL_EVENT_CONTEXT,
                                   sizeof(CL_context), CL_context, C_NULL)
@@ -308,7 +308,7 @@ let command_queue(evt::CLEvent) = begin
         :profile_duration => profile_duration,
     )
 
-    function info(evt::CLEvent, evt_info::Symbol)
+    global function info(evt::CLEvent, evt_info::Symbol)
         try
             func = info_map[evt_info]
             func(evt)

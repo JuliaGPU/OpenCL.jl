@@ -26,7 +26,7 @@ macro ocl_func(func, ret_type, arg_types)
     _ocl_func(func, ret_type, arg_types)
 end
 
-const CL_callback  = Ptr{Cvoid}
+const CL_callback = Ptr{Cvoid}
 
 abstract type CL_user_data_tag end
 const CL_user_data = Ptr{CL_user_data_tag}

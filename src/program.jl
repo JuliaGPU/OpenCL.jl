@@ -105,13 +105,13 @@ function build!(p::Program; options = "", raise = true)
 end
 
 let
-    num_devices(p::Program) = begin
+    global num_devices(p::Program) = begin
         ret = Ref{CL_uint}()
         @check api.clGetProgramInfo(p.id, CL_PROGRAM_NUM_DEVICES, sizeof(ret), ret, C_NULL)
         return ret[]
     end
 
-    devices(p::Program) = begin
+    global devices(p::Program) = begin
         ndevices = num_devices(p)
         device_ids = Vector{CL_device_id}(undef, ndevices)
         @check api.clGetProgramInfo(p.id, CL_PROGRAM_DEVICES,
@@ -194,7 +194,7 @@ let
         return CLString(src)
     end
 
-    context(p::Program) = begin
+    global context(p::Program) = begin
         ret = Ref{CL_context}()
         @check api.clGetProgramInfo(p.id, CL_PROGRAM_CONTEXT,
                                     sizeof(CL_context), ret, C_NULL)
@@ -219,7 +219,7 @@ let
         :build_status => build_status,
     )
 
-    function info(p::Program, pinfo::Symbol)
+    global function info(p::Program, pinfo::Symbol)
         try
             func = info_map[pinfo]
             func(p)

@@ -123,7 +123,7 @@ let
         ref_count[]
     end
 
-    properties(q::CmdQueue) = begin
+    global properties(q::CmdQueue) = begin
         props = Ref{CL_command_queue_properties}()
         @check api.clGetCommandQueueInfo(q.id, CL_QUEUE_PROPERTIES,
                                          sizeof(CL_command_queue_properties),
@@ -138,7 +138,7 @@ let
         :properties => properties
     )
 
-    function info(q::CmdQueue, qinfo::Symbol)
+    global function info(q::CmdQueue, qinfo::Symbol)
         try
             func = info_map[qinfo]
             func(q)

@@ -100,7 +100,7 @@ let mem_type(m::CLMemObject) = begin
         :map_count => map_count
     )
 
-    function info(mem::CLMemObject, minfo::Symbol)
+    global function info(mem::CLMemObject, minfo::Symbol)
         try
             func = info_map[minfo]
             func(mem)

@@ -85,7 +85,7 @@ end
 
 function _contains_different_layout(::Type{T}) where T
     sizeof(T) == 0 && return true
-    nfields(T) == 0 && return false
+    fieldcount(T) == 0 && return false
     for fname in fieldnames(T)
         contains_different_layout(fieldtype(T, fname)) && return true
     end
@@ -109,7 +109,7 @@ TODO: Float16 + Int16 should also be in CLNumbers
 end
 
 function struct2tuple(x::T) where T
-    ntuple(i->getfield(x, i), Val{nfields(T)}())
+    ntuple(i->getfield(x, i), Val{fieldcount(T)}())
 end
 
 """
@@ -133,7 +133,7 @@ replace_different_layout(red::NTuple{N, Any}, rest::Tuple{}) where {N} = red
 function replace_different_layout(red::NTuple{N, Any}, rest) where N
     elem1 = first(rest)
     T = typeof(elem1)
-    repl = if sizeof(T) == 0 && nfields(T) == 0
+    repl = if sizeof(T) == 0 && fieldcount(T) == 0
         Int32(0)
     elseif contains_different_layout(T)
         replace_different_layout(elem1)
@@ -424,7 +424,7 @@ let name(k::Kernel) = begin
         :attributes => attributes
     )
 
-    function info(k::Kernel, kinfo::Symbol)
+    global function info(k::Kernel, kinfo::Symbol)
         try
             func = info_map[kinfo]
             func(k)
