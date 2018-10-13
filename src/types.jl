@@ -89,12 +89,12 @@ const GL_sync                       = Ptr{Void}
 
 #=== Image Types ===#
 
-immutable CL_image_format
+struct CL_image_format
     image_channel_order::CL_channel_order
     image_channel_data_type::CL_channel_type
 end
 
-immutable CL_image_desc
+struct CL_image_desc
     image_type::CL_mem_object_type
     image_width::Csize_t
     image_depth::Csize_t
@@ -106,7 +106,7 @@ immutable CL_image_desc
     buffer::CL_mem
 end
 
-immutable CL_buffer_region
+struct CL_buffer_region
     origin::Csize_t
     size::Csize_t
 end

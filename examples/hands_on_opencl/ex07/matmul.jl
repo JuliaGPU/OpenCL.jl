@@ -59,8 +59,8 @@ h_B = fill(Float32(BVAL), sizeB)
 h_C = Vector{Float32}(sizeC)
 
 # %20 improvment using @inbounds
-function seq_mat_mul_sdot{T}(Mdim::Int, Ndim::Int, Pdim::Int,
-                             A::Array{T}, B::Array{T}, C::Array{T})
+function seq_mat_mul_sdot(Mdim::Int, Ndim::Int, Pdim::Int,
+                          A::Array{T}, B::Array{T}, C::Array{T}) where T
     for i in 1:Ndim
         for j in 1:Mdim
             tmp = zero(Float32)

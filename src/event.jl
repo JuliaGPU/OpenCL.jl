@@ -2,7 +2,7 @@
 
 abstract type CLEvent <: CLObject end
 
-type Event <: CLEvent
+mutable struct Event <: CLEvent
     id :: CL_event
 
     function Event(evt_id::CL_event; retain=false)
@@ -16,7 +16,7 @@ type Event <: CLEvent
 end
 
 # wait for completion before running finalizer
-type NannyEvent <: CLEvent
+mutable struct NannyEvent <: CLEvent
     id::CL_event
     obj::Any
 
@@ -55,7 +55,7 @@ Base.getindex(evt::CLEvent, evt_info::Symbol) = info(evt, evt_info)
 
 @ocl_v1_1_only begin
 
-    type UserEvent <: CLEvent
+    mutable struct UserEvent <: CLEvent
         id :: CL_event
 
         function UserEvent(evt_id::CL_event, retain=false)
@@ -94,7 +94,7 @@ Base.getindex(evt::CLEvent, evt_info::Symbol) = info(evt, evt_info)
     end
 end
 
-immutable _EventCB
+struct _EventCB
     handle :: Ptr{Void}
     evt_id :: CL_event
     status :: CL_int
@@ -185,7 +185,7 @@ function enqueue_marker(q::CmdQueue)
 end
 @deprecate enqueue_marker enqueue_marker_with_wait_list
 
-function enqueue_wait_for_events{T<:CLEvent}(q::CmdQueue, wait_for::Vector{T})
+function enqueue_wait_for_events(q::CmdQueue, wait_for::Vector{T}) where T<:CLEvent
     n_wait_events = cl_uint(length(wait_for))
     wait_evt_ids = [evt.id for evt in wait_for]
     @check api.clEnqueueWaitForEvents(q.id, n_wait_events,

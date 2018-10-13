@@ -26,7 +26,7 @@ function free_jl_reference!(ctx_id::CL_context)
     return
 end
 
-type Context <: CLObject
+mutable struct Context <: CLObject
     id :: CL_context
     # If created from ctx_id already, we need to increase the reference count
     # because then we give out multiple context references with multiple finalizers to the world
@@ -82,7 +82,7 @@ function Base.show(io::IO, ctx::Context)
     print(io, "OpenCL.Context(@$ptr_address on $devs_str)")
 end
 
-immutable _CtxErr
+struct _CtxErr
     handle :: Ptr{Void}
     err_info :: Ptr{Cchar}
     priv_info :: Ptr{Void}
