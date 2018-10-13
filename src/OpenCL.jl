@@ -1,4 +1,3 @@
-__precompile__(true)
 module OpenCL
 
 export cl
@@ -7,8 +6,8 @@ module cl
 abstract type CLObject end
 
 Base.hash(x::CLObject) = hash(pointer(x))
-Base.isequal{T <: CLObject}(x :: T, y :: T) = Base.hash(x) == Base.hash(y)
-Base.:(==){T <: CLObject}(x :: T, y :: T) = Base.hash(x) == Base.hash(y)
+Base.isequal(x :: T, y :: T) where {T <: CLObject} = Base.hash(x) == Base.hash(y)
+Base.:(==)(x :: T, y :: T) where {T <: CLObject} = Base.hash(x) == Base.hash(y)
 
 # OpenCL Types
 include("types.jl")

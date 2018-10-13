@@ -94,13 +94,13 @@ Base.getindex(evt::CLEvent, evt_info::Symbol) = info(evt, evt_info)
     end
 end
 
-immutable _EventCB
-    handle :: Ptr{Void}
+struct _EventCB
+    handle :: Ptr{Nothing}
     evt_id :: CL_event
     status :: CL_int
 end
 
-function event_notify(evt_id::CL_event, status::CL_int, payload::Ptr{Void})
+function event_notify(evt_id::CL_event, status::CL_int, payload::Ptr{Nothing})
     ptr = convert(Ptr{_EventCB}, payload)
     handle = unsafe_load(ptr, 1).handle
 
@@ -108,13 +108,13 @@ function event_notify(evt_id::CL_event, status::CL_int, payload::Ptr{Void})
     unsafe_store!(ptr, val, 1)
 
     # Use uv_async_send to notify the main thread
-    ccall(:uv_async_send, Void, (Ptr{Void},), handle)
+    ccall(:uv_async_send, Nothing, (Ptr{Nothing},), handle)
     nothing
 end
 
 function add_callback(evt::CLEvent, callback::Function)
-    event_notify_ptr = cfunction(event_notify, Void,
-                                 Tuple{CL_event, CL_int, Ptr{Void}})
+    event_notify_ptr = cfunction(event_notify, Nothing,
+                                 Tuple{CL_event, CL_int, Ptr{Nothing}})
 
     # The uv_callback is going to notify a task that,
     # then executes the real callback.
@@ -122,7 +122,7 @@ function add_callback(evt::CLEvent, callback::Function)
 
     # Storing the results of our c_callback needs to be
     # isbits && isimmutable
-    r_ecb = Ref(_EventCB(Base.unsafe_convert(Ptr{Void}, cb), 0, 0))
+    r_ecb = Ref(_EventCB(Base.unsafe_convert(Ptr{Nothing}, cb), 0, 0))
 
     @check api.clSetEventCallback(evt.id, CL_COMPLETE, event_notify_ptr, r_ecb)
 

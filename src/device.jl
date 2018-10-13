@@ -1,6 +1,6 @@
 # OpenCL.Device
 
-immutable Device <: CLObject
+struct Device <: CLObject
     id :: CL_device_id
 end
 

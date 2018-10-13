@@ -1,5 +1,7 @@
 # OpenCL.Program
 
+using Printf
+
 type Program <: CLObject
     id::CL_program
     binary::Bool

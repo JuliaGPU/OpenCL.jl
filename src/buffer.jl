@@ -88,7 +88,7 @@ end
 
 # low level Buffer constructor with integer parameter flags
 function Buffer{T}(::Type{T}, ctx::Context, flags::CL_mem_flags,
-                           len::Integer=0; hostbuf::Union{Void,Array{T}}=nothing)
+                           len::Integer=0; hostbuf::Union{Nothing,Array{T}}=nothing)
 
     if (hostbuf !== nothing &&
         (flags & (CL_MEM_USE_HOST_PTR | CL_MEM_COPY_HOST_PTR)) == 0)
@@ -100,7 +100,7 @@ function Buffer{T}(::Type{T}, ctx::Context, flags::CL_mem_flags,
     end
 
     nbytes = 0
-    retain_buf::Union{Void,Array{T}} = nothing
+    retain_buf::Union{Nothing,Array{T}} = nothing
 
     if hostbuf !== nothing
         if (flags & CL_MEM_USE_HOST_PTR) != 0
@@ -143,7 +143,7 @@ function enqueue_read_buffer{T}(q::CmdQueue,
                                         buf::Buffer{T},
                                         hostbuf::Array{T},
                                         dev_offset::Csize_t,
-                                        wait_for::Union{Void,Vector{Event}},
+                                        wait_for::Union{Nothing,Vector{Event}},
                                         is_blocking::Bool)
     n_evts  = wait_for === nothing ? UInt(0) : length(wait_for)
     evt_ids = wait_for === nothing ? C_NULL  : [evt.id for evt in wait_for]
@@ -162,7 +162,7 @@ function enqueue_write_buffer{T}(q::CmdQueue,
                                          hostbuf::Array{T},
                                          byte_count::Csize_t,
                                          offset::Csize_t,
-                                         wait_for::Union{Void,Vector{Event}},
+                                         wait_for::Union{Nothing,Vector{Event}},
                                          is_blocking::Bool)
     n_evts  = wait_for === nothing ? UInt(0) : length(wait_for)
     evt_ids = wait_for === nothing ? C_NULL  : [evt.id for evt in wait_for]
@@ -182,7 +182,7 @@ function enqueue_copy_buffer{T}(q::CmdQueue,
                                         byte_count::Csize_t,
                                         src_offset::Csize_t,
                                         dst_offset::Csize_t,
-                                        wait_for::Union{Void,Vector{Event}})
+                                        wait_for::Union{Nothing,Vector{Event}})
     n_evts  = wait_for === nothing ? UInt(0) : length(wait_for)
     evt_ids = wait_for === nothing ? C_NULL  : [evt.id for evt in wait_for]
     ret_evt = Ref{CL_event}()
@@ -319,7 +319,7 @@ end
     function enqueue_fill_buffer{T}(q::CmdQueue, buf::Buffer{T},
                                             pattern::T, offset::Csize_t,
                                             nbytes::Csize_t,
-                                            wait_for::Union{Vector{Event},Void})
+                                            wait_for::Union{Vector{Event},Nothing})
 
         if wait_for === nothing
             evt_ids = C_NULL
