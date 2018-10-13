@@ -1,35 +1,15 @@
-before_script:
-  - julia -e 'using InteractiveUtils;
-              versioninfo()'
-
 variables:
-  JULIA_DEPOT_PATH: "$CI_PROJECT_DIR/.julia/"
+  CI_IMAGE_TAG: 'opencl'
 
 stages:
   - test
+  - postprocess
 
-## testing
-
-.test_template: &test_template
-  script:
-    - mkdir $JULIA_DEPOT_PATH # Pkg3.jl#325
-    - julia --project -e "using Pkg;
-                          Pkg.instantiate();
-                          Pkg.build();
-                          Pkg.test(\"OpenCL\"; coverage=true);"
-
-test:v0.7:
-  stage: test
-  image: juliagpu/julia:v0.7-opencl
-  <<: *test_template
-
-test:v1.0:
-  stage: test
-  image: juliagpu/julia:v1.0-opencl
-  <<: *test_template
+include:
+  - 'https://raw.githubusercontent.com/JuliaGPU/gitlab-ci/master/templates/v0/common.yml'
+  - 'https://raw.githubusercontent.com/JuliaGPU/gitlab-ci/master/templates/v0/test_v0.7.yml'
+  - 'https://raw.githubusercontent.com/JuliaGPU/gitlab-ci/master/templates/v0/test_v1.0.yml'
+  - 'https://raw.githubusercontent.com/JuliaGPU/gitlab-ci/master/templates/v0/test_dev.yml'
 
 test:dev:
-  stage: test
-  image: juliagpu/julia:dev-opencl
-  <<: *test_template
   allow_failure: true
