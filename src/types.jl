@@ -1,15 +1,15 @@
 #=== TypeAliases ===#
 
 # Opaque types
-const CL_platform_id        = Ptr{Void}
-const CL_device_id          = Ptr{Void}
-const CL_context            = Ptr{Void}
-const CL_command_queue      = Ptr{Void}
-const CL_mem                = Ptr{Void}
-const CL_program            = Ptr{Void}
-const CL_kernel             = Ptr{Void}
-const CL_event              = Ptr{Void}
-const CL_sampler            = Ptr{Void}
+const CL_platform_id        = Ptr{Nothing}
+const CL_device_id          = Ptr{Nothing}
+const CL_context            = Ptr{Nothing}
+const CL_command_queue      = Ptr{Nothing}
+const CL_mem                = Ptr{Nothing}
+const CL_program            = Ptr{Nothing}
+const CL_kernel             = Ptr{Nothing}
+const CL_event              = Ptr{Nothing}
+const CL_sampler            = Ptr{Nothing}
 
 # Scalar types
 const CL_char   = Int8
@@ -85,7 +85,7 @@ const CL_GL_platform_info           = CL_uint
 const CL_gl_context_info            = CL_uint
 
 
-const GL_sync                       = Ptr{Void}
+const GL_sync                       = Ptr{Nothing}
 
 #=== Image Types ===#
 
@@ -168,4 +168,4 @@ cl_command_type(x)             = cl_uint(x)
 cl_profiling_info(x)           = cl_uint(x)
 cl_sampler_properties(x)       = cl_bitfield(x)
 cl_kernel_exec(x)              = cl_uint(x)
-cl_platform_id(x)              = Ptr{Void}(x)
+cl_platform_id(x)              = Ptr{Nothing}(x)

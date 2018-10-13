@@ -100,7 +100,7 @@ function Buffer(::Type{T}, ctx::Context, flags::CL_mem_flags,
     end
 
     nbytes = 0
-    retain_buf::Union{Void,Array{T}} = nothing
+    retain_buf::Union{Nothing,Array{T}} = nothing
 
     if hostbuf !== nothing
         if (flags & CL_MEM_USE_HOST_PTR) != 0
