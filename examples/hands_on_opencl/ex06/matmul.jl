@@ -75,11 +75,11 @@ sizeC = Ndim * Mdim
 # Number of elements in the matrix
 h_A = fill(Float32(AVAL), sizeA)
 h_B = fill(Float32(BVAL), sizeB)
-h_C = Vector{Float32}(sizeC)
+h_C = Vector{Float32}(undef, sizeC)
 
 # %20 improvment using @inbounds
-function seq_mat_mul_sdot{T}(Mdim::Int, Ndim::Int, Pdim::Int,
-                             A::Array{T}, B::Array{T}, C::Array{T})
+function seq_mat_mul_sdot(Mdim::Int, Ndim::Int, Pdim::Int,
+                          A::Array{T}, B::Array{T}, C::Array{T}) where T
     for i in 1:Ndim
         for j in 1:Mdim
             tmp = zero(Float32)
@@ -91,7 +91,7 @@ function seq_mat_mul_sdot{T}(Mdim::Int, Ndim::Int, Pdim::Int,
     end
 end
 
-info("=== Julia, matix mult (dot prod), order $ORDER ===")
+@info("=== Julia, matix mult (dot prod), order $ORDER ===")
 
 # force compilation
 seq_mat_mul_sdot(Mdim, Ndim, Pdim, h_A, h_B, h_C)
@@ -119,7 +119,7 @@ d_c = cl.Buffer(Float32, ctx, :w, length(h_C))
 prg  = cl.Program(ctx, source=kernel_source) |> cl.build!
 mmul = cl.Kernel(prg, "mmul")
 
-info("=== OpenCL, matrix mult, C(i, j) per work item, order $Ndim ====")
+@info("=== OpenCL, matrix mult, C(i, j) per work item, order $Ndim ====")
 
 for i in 1:COUNT
     fill!(h_C, 0.0)

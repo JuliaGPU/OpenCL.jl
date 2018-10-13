@@ -97,7 +97,7 @@ queue(k, size(a), nothing, a_buff, b_buff, c_buff)
 r = cl.read(queue, c_buff)
 
 if isapprox(norm(r - (a+b)), zero(Float32))
-    info("Success!")
+    @info("Success!")
 else
     error("Norm should be 0.0f")
 end

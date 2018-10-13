@@ -52,10 +52,10 @@ program = cl.Program(ctx, source=kernelsource) |> cl.build!
 #create empty vectors for c, d, and f
 h_a = rand(Float32, LENGTH)
 h_b = rand(Float32, LENGTH)
-h_c = Vector{Float32}(LENGTH)
-h_d = Vector{Float32}(LENGTH)
+h_c = Vector{Float32}(undef, LENGTH)
+h_d = Vector{Float32}(undef, LENGTH)
 h_e = rand(Float32, LENGTH)
-h_f = Vector{Float32}(LENGTH)
+h_f = Vector{Float32}(undef, LENGTH)
 h_g = rand(Float32, LENGTH)
 
 # create the input (a,b,e,g) arrays in device memory and copy data from the host

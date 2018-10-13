@@ -1,6 +1,6 @@
 # OpenCL.CmdQueue
 
-type CmdQueue <: CLObject
+mutable struct CmdQueue <: CLObject
     id::CL_command_queue
 
     function CmdQueue(q_id::CL_command_queue; retain=false)
@@ -8,13 +8,13 @@ type CmdQueue <: CLObject
             @check api.clRetainCommandQueue(q_id)
         end
         q = new(q_id)
-        finalizer(q, x -> begin
+        finalizer(x -> begin
             retain || _deletecached!(q)
             if x.id != C_NULL
                 @check api.clReleaseCommandQueue(x.id)
                 x.id = C_NULL
             end
-        end )
+        end, q)
         return q
     end
 end
@@ -123,7 +123,7 @@ let
         ref_count[]
     end
 
-    properties(q::CmdQueue) = begin
+    global properties(q::CmdQueue) = begin
         props = Ref{CL_command_queue_properties}()
         @check api.clGetCommandQueueInfo(q.id, CL_QUEUE_PROPERTIES,
                                          sizeof(CL_command_queue_properties),
@@ -138,7 +138,7 @@ let
         :properties => properties
     )
 
-    function info(q::CmdQueue, qinfo::Symbol)
+    global function info(q::CmdQueue, qinfo::Symbol)
         try
             func = info_map[qinfo]
             func(q)

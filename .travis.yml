@@ -6,10 +6,12 @@ os:
   - osx
 
 julia:
-  - 0.6
+  - 0.7
+  - 1.0
   - nightly
 matrix:
  allow_failures:
+ - julia: 1.0
  - julia: nightly
 
 notifications:
@@ -30,10 +32,11 @@ notifications:
 #       ${AMDAPPSDK}/bin/x86_64/clinfo;
 #     fi;
 script:
-  - julia -e 'Pkg.init(); Pkg.clone(pwd())'
+  - julia -e 'Pkg.clone(pwd()); Pkg.build("OpenCL")'
   - julia -e 'using OpenCL'
 
-  - julia --color=yes --depwarn=error -e "Pkg.test(\"OpenCL\")"
+  - julia --color=yes -e 'Pkg.test("OpenCL", coverage=true)'
+  #- julia --color=yes --depwarn=error -e 'Pkg.test("OpenCL", coverage=true)'
 
   - julia examples/demo.jl
   - julia examples/performance.jl
@@ -57,4 +60,4 @@ script:
   #   fi;
 
 after_success:
-  - julia -e 'Pkg.add("Coverage"); using Coverage; Coveralls.submit(Coveralls.process_folder())'; fi
+  - julia -e 'Pkg.add("Coverage"); using Coverage; Coveralls.submit(Coveralls.process_folder())'

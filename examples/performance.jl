@@ -1,4 +1,5 @@
 using OpenCL
+using Printf, LinearAlgebra
 
 const bench_kernel = "
 __kernel void sum(__global const float *a,
@@ -27,7 +28,7 @@ function cl_performance(ndatapts::Integer, nworkers::Integer)
 
     a = rand(Float32,  ndatapts)
     b = rand(Float32,  ndatapts)
-    c = Vector{Float32}(ndatapts)
+    c = Vector{Float32}(undef, ndatapts)
 
     @printf("Size of test data: %i MB\n", sizeof(a) / 1024 / 1024)
 
@@ -44,7 +45,7 @@ function cl_performance(ndatapts::Integer, nworkers::Integer)
     for platform in cl.platforms()
 
         if platform[:name] == "Portable Computing Language"
-            warn("Portable Computing Language platform not yet supported")
+            @warn("Portable Computing Language platform not yet supported")
             continue
         end
 
@@ -65,14 +66,14 @@ function cl_performance(ndatapts::Integer, nworkers::Integer)
             @printf("Device max work item size: %s\n",  device[:max_work_item_size])
 
             if device[:max_mem_alloc_size] < sizeof(Float32) * ndatapts
-                warn("Requested buffer size exceeds device max alloc size!")
-                warn("Skipping device $(device[:name])...")
+                @warn("Requested buffer size exceeds device max alloc size!")
+                @warn("Skipping device $(device[:name])...")
                 continue
             end
 
             if device[:max_work_group_size] < nworkers
-                warn("Number of workers exceeds the device's max work group size!")
-                warn("Skipping device $(device[:name])...")
+                @warn("Number of workers exceeds the device's max work group size!")
+                @warn("Skipping device $(device[:name])...")
                 continue
             end
 
@@ -98,7 +99,7 @@ function cl_performance(ndatapts::Integer, nworkers::Integer)
             @printf("Execution time of test: %.4f seconds\n", t)
 
             c_device = cl.read(queue, c_buf)
-            info("Result norm: $(norm(c - c_device))")
+            @info("Result norm: $(norm(c - c_device))")
         end
     end
 end

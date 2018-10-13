@@ -15,6 +15,7 @@ function create_context_error(ctx)
         k = cl.Kernel(p, "test")
         q = cl.CmdQueue(ctx)
         q(k, 1, 10000000)
+    catch
     end
 end
 
@@ -61,8 +62,8 @@ end
             end
 
             if platform[:name] == "Portable Computing Language"
-                warn("Skipping OpenCL.Context platform properties for " *
-                     "Portable Computing Language Platform")
+                @warn("Skipping OpenCL.Context platform properties for " *
+                      "Portable Computing Language Platform")
                 continue
             end
 

@@ -31,8 +31,8 @@ sum_kernel[queue, size(a)](a_buff, b_buff, c_buff)
 r = cl.read(queue, c_buff)
 
 # check to see if our result is what we expect!
-if isapprox(norm(r - (a+b)), zero(Float32))
-    info("Success!")
+if r ≈ a+b
+    @info("Success!")
 else
-    error("Norm should be 0.0f")
+    error("Results do not match!")
 end

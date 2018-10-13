@@ -26,7 +26,7 @@ function free_jl_reference!(ctx_id::CL_context)
     return
 end
 
-type Context <: CLObject
+mutable struct Context <: CLObject
     id :: CL_context
     # If created from ctx_id already, we need to increase the reference count
     # because then we give out multiple context references with multiple finalizers to the world
@@ -38,14 +38,14 @@ type Context <: CLObject
         end
         ctx = new(ctx_id)
         create_jl_reference!(ctx_id)
-        finalizer(ctx, c -> begin
+        finalizer(c -> begin
             retain || _deletecached!(c);
             if c.id != C_NULL
                 release_ctx_id(c.id)
                 free_jl_reference!(c.id)
                 c.id = C_NULL
             end
-        end )
+        end, ctx)
         return ctx
     end
 end
@@ -75,17 +75,17 @@ end
 Base.pointer(ctx::Context) = ctx.id
 
 function Base.show(io::IO, ctx::Context)
-    dev_strs = [replace(d[:name], r"\s+", " ") for d in devices(ctx)]
+    dev_strs = [replace(d[:name], r"\s+" => " ") for d in devices(ctx)]
     devs_str = join(dev_strs, ",")
     ptr_val = convert(UInt, Base.pointer(ctx))
     ptr_address = "0x$(hex(ptr_val, Sys.WORD_SIZE>>2))"
     print(io, "OpenCL.Context(@$ptr_address on $devs_str)")
 end
 
-immutable _CtxErr
-    handle :: Ptr{Void}
+struct _CtxErr
+    handle :: Ptr{Cvoid}
     err_info :: Ptr{Cchar}
-    priv_info :: Ptr{Void}
+    priv_info :: Ptr{Cvoid}
     cb :: Csize_t
 end
 
@@ -101,16 +101,16 @@ function log_error(message...)
 end
 
 function ctx_notify_err(
-        err_info::Ptr{Cchar}, priv_info::Ptr{Void},
-        cb::Csize_t, func::Ptr{Void}
+        err_info::Ptr{Cchar}, priv_info::Ptr{Cvoid},
+        cb::Csize_t, func::Ptr{Cvoid}
     )
-    ccall(func, Void, (Ptr{Cchar}, Ptr{Void}, Csize_t), err_info, priv_info, cb)
+    ccall(func, Cvoid, (Ptr{Cchar}, Ptr{Cvoid}, Csize_t), err_info, priv_info, cb)
     return
 end
 
 
-ctx_callback_ptr() = cfunction(ctx_notify_err, Void,
-                               Tuple{Ptr{Cchar}, Ptr{Void}, Csize_t, Ptr{Void}})
+ctx_callback_ptr() = @cfunction(ctx_notify_err, Nothing,
+                                (Ptr{Cchar}, Ptr{Cvoid}, Csize_t, Ptr{Cvoid}))
 
 function raise_context_error(err_info, private_info, cb)
     log_error("OpenCL Error: | ", unsafe_string(err_info), " |")
@@ -118,8 +118,8 @@ function raise_context_error(err_info, private_info, cb)
 end
 
 function Context(devs::Vector{Device};
-                         properties=nothing,
-                         callback::Union{Function, Void} = nothing)
+                 properties=nothing,
+                 callback::Union{Function, Nothing} = nothing)
     if isempty(devs)
         ArgumentError("No devices specified for context")
     end
@@ -130,14 +130,14 @@ function Context(devs::Vector{Device};
     end
 
     n_devices = length(devs)
-    device_ids = Vector{CL_device_id}(n_devices)
+    device_ids = Vector{CL_device_id}(undef, n_devices)
     for (i, d) in enumerate(devs)
         device_ids[i] = d.id
     end
 
     err_code = Ref{CL_int}()
     payload = callback == nothing ? raise_context_error : callback
-    f_ptr = cfunction(payload, Void, Tuple{Ptr{Cchar}, Ptr{Void}, Csize_t})
+    f_ptr = ccall(:jl_function_ptr, Ptr{Cvoid}, (Any, Any, Any), payload, Nothing, Tuple{Ptr{Cchar}, Ptr{Cvoid}, Csize_t})
     ctx_id = api.clCreateContext(
         ctx_properties, n_devices, device_ids,
         ctx_callback_ptr(), f_ptr, err_code
@@ -192,7 +192,7 @@ function properties(ctx_id::CL_context)
     # Note: nprops should be odd since it requires a C_NULL terminated array
     nprops = div(nbytes[], sizeof(CL_context_properties))
 
-    props = Vector{CL_context_properties}(nprops)
+    props = Vector{CL_context_properties}(undef, nprops)
     @check api.clGetContextInfo(ctx_id, CL_CONTEXT_PROPERTIES,
                                 nbytes[], props, C_NULL)
     #properties array of [key,value..., C_NULL]
@@ -209,15 +209,15 @@ function properties(ctx_id::CL_context)
            key == CL_WGL_HDC_KHR ||
            key == CL_CGL_SHAREGROUP_KHR
             push!(result, (key, value))
-        elseif is_apple() ? (key == CL_CONTEXT_PROPERTY_USE_CGL_SHAREGROUP_APPLE) : false
+        elseif Sys.isapple() ? (key == CL_CONTEXT_PROPERTY_USE_CGL_SHAREGROUP_APPLE) : false
             push!(result, (key, value))
         elseif key == 0
             if i != nprops
-                warn("Encountered OpenCL.Context property key == 0 at position $i")
+                @warn("Encountered OpenCL.Context property key == 0 at position $i")
             end
             break
         else
-            warn("Unknown OpenCL.Context property key encountered $key")
+            @warn("Unknown OpenCL.Context property key encountered $key")
         end
     end
     return result
@@ -244,7 +244,7 @@ function _parse_properties(props)
             push!(cl_props, cl_context_properties(val))
         elseif prop == CL_WGL_HDC_KHR
             push!(cl_props, cl_context_properties(val))
-        elseif is_apple() ? (prop == CL_CONTEXT_PROPERTY_USE_CGL_SHAREGROUP_APPLE) : false
+        elseif Sys.isapple() ? (prop == CL_CONTEXT_PROPERTY_USE_CGL_SHAREGROUP_APPLE) : false
             push!(cl_props, cl_context_properties(val))
         elseif prop == CL_GL_CONTEXT_KHR ||
             prop == CL_EGL_DISPLAY_KHR ||
@@ -271,7 +271,7 @@ function devices(ctx::Context)
     if n == 0
         return []
     end
-    dev_ids = Vector{CL_device_id}(n)
+    dev_ids = Vector{CL_device_id}(undef, n)
     @check api.clGetContextInfo(ctx.id, CL_CONTEXT_DEVICES,
                                 n * sizeof(CL_device_id), dev_ids, C_NULL)
     return [Device(id) for id in dev_ids]

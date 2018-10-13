@@ -1,13 +1,14 @@
 module TestOpenCL
-using Base.Test
+using Test
 
 using OpenCL
+using LinearAlgebra
 
 @testset "layout" begin
     x = ((10f0, 1f0, 2f0), (10f0, 1f0, 2f0), (10f0, 1f0, 2f0))
     clx = cl.replace_different_layout(x)
-
     @test clx == ((10f0, 1f0, 2f0, 0f0), (10f0, 1f0, 2f0, 0f0), (10f0, 1f0, 2f0, 0f0))
+
     x = (nothing, nothing, nothing)
     clx = cl.replace_different_layout(x)
     @test clx == (0,0,0)
@@ -35,7 +36,7 @@ include("test_buffer.jl")
 include("test_array.jl")
 
 @testset "context jl reference counting" begin
-    gc()
+    GC.gc()
     @test isempty(cl._ctx_reference_count)
 end
 

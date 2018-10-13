@@ -1,7 +1,7 @@
 @testset "OpenCL.Event" begin
     @testset "OpenCL.Event status" begin
         for platform in cl.platforms()
-            if contains(platform[:name], "Portable")
+            if occursin("Portable", platform[:name])
                 msg = "$(platform[:name]) does not implement User Events"
                 warn(msg)
                 continue
@@ -21,8 +21,7 @@
 
     @testset "OpenCL.Event wait" begin
         for platform in cl.platforms()
-            if contains(platform[:name], "Portable") ||
-               contains(platform[:name], "Intel Gen OCL")
+            if occursin("Portable", platform[:name]) || occursin("Intel Gen OCL", platform[:name])
                 msg = "$(platform[:name]) does not implement User Events or shows other problems"
                 warn(msg)
                 continue
@@ -59,12 +58,11 @@
         for platform in cl.platforms()
             v = cl.opencl_version(platform)
             if v.major == 1 && v.minor < 1
-                info("Skipping OpenCL.Event callback for $(platform[:name]) version < 1.1")
+                @info("Skipping OpenCL.Event callback for $(platform[:name]) version < 1.1")
                 continue
             end
 
-            if contains(platform[:name], "Portable") ||
-               contains(platform[:name], "Intel Gen OCL")
+            if occursin("Portable", platform[:name]) || occursin("Intel Gen OCL", platform[:name])
                 msg = "$(platform[:name]) does not implement User Events or shows other problems."
                 warn(msg)
                 continue
