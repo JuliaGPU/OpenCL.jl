@@ -7,14 +7,14 @@
               (CL_context, CL_mem_flags, CL_uint, CL_uint, Ptr{CL_pipe_properties}, CL_int))
 
 @ocl_func(clGetPipeInfo, CL_int,
-              (CL_mem, CL_pipe_info, Csize_t, Ptr{Void}, Ptr{Csize_t}))
+              (CL_mem, CL_pipe_info, Csize_t, Ptr{Nothing}, Ptr{Csize_t}))
 
 #=== SVM Allocation API ===#
-@ocl_func(clSVMAlloc, Ptr{Void},
+@ocl_func(clSVMAlloc, Ptr{Nothing},
               (CL_context, CL_svm_mem_flags, Csize_t, CL_uint))
 
-@ocl_func(clSVMFree, Void,
-              (CL_context, Ptr{Void}))
+@ocl_func(clSVMFree, Nothing,
+              (CL_context, Ptr{Nothing}))
 
 #=== sampler apis ===#
 
@@ -23,30 +23,30 @@
 
 #=== kernel object apis ===#
 @ocl_func(clSetKernelArgSVMPointer, CL_int,
-              (CL_kernel, CL_uint, Ptr{Void}))
+              (CL_kernel, CL_uint, Ptr{Nothing}))
 
 @ocl_func(clSetKernelExecInfo, CL_int,
-              (CL_kernel, CL_kernel_exec_info, Csize_t, Ptr{Void}))
+              (CL_kernel, CL_kernel_exec_info, Csize_t, Ptr{Nothing}))
 
 #=== Enqueued Commands APIs ===#
 @ocl_func(clEnqueueSVMFree, CL_int,
-               (CL_command_queue, CL_uint, Ptr{Ptr{Void}}, Ptr{Void}, Ptr{Void},
+               (CL_command_queue, CL_uint, Ptr{Ptr{Nothing}}, Ptr{Nothing}, Ptr{Nothing},
                 CL_uint, Ptr{CL_event}, Ptr{CL_event}))
 
 @ocl_func(clEnqueueSVMMemcpy, CL_int,
-               (CL_command_queue, CL_bool, Ptr{Void}, Ptr{Void}, Csize_t,
+               (CL_command_queue, CL_bool, Ptr{Nothing}, Ptr{Nothing}, Csize_t,
                 CL_uint, Ptr{CL_event}, Ptr{CL_event}))
 
 @ocl_func(clEnqueueSVMMemFill, CL_int,
-               (CL_command_queue, Ptr{Void}, Ptr{Void}, Csize_t, Csize_t,
+               (CL_command_queue, Ptr{Nothing}, Ptr{Nothing}, Csize_t, Csize_t,
                 CL_uint, Ptr{CL_event}, Ptr{CL_event}))
 
 @ocl_func(clEnqueueSVMMap, CL_int,
-               (CL_command_queue, CL_bool, CL_map_flags, Ptr{Void}, Csize_t,
+               (CL_command_queue, CL_bool, CL_map_flags, Ptr{Nothing}, Csize_t,
                 CL_uint, Ptr{CL_event}, Ptr{CL_event}))
 
 @ocl_func(clEnqueueSVMUnmap, CL_int,
-              (CL_command_queue, Ptr{Void}, CL_uint, Ptr{CL_event}, Ptr{CL_event}))
+              (CL_command_queue, Ptr{Nothing}, CL_uint, Ptr{CL_event}, Ptr{CL_event}))
 
 #=== deprecation ===#
 

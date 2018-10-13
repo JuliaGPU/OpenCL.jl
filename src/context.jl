@@ -83,9 +83,9 @@ function Base.show(io::IO, ctx::Context)
 end
 
 struct _CtxErr
-    handle :: Ptr{Void}
+    handle :: Ptr{Nothing}
     err_info :: Ptr{Cchar}
-    priv_info :: Ptr{Void}
+    priv_info :: Ptr{Nothing}
     cb :: Csize_t
 end
 
@@ -101,16 +101,16 @@ function log_error(message...)
 end
 
 function ctx_notify_err(
-        err_info::Ptr{Cchar}, priv_info::Ptr{Void},
-        cb::Csize_t, func::Ptr{Void}
+        err_info::Ptr{Cchar}, priv_info::Ptr{Nothing},
+        cb::Csize_t, func::Ptr{Nothing}
     )
-    ccall(func, Void, (Ptr{Cchar}, Ptr{Void}, Csize_t), err_info, priv_info, cb)
+    ccall(func, Nothing, (Ptr{Cchar}, Ptr{Nothing}, Csize_t), err_info, priv_info, cb)
     return
 end
 
 
-ctx_callback_ptr() = cfunction(ctx_notify_err, Void,
-                               Tuple{Ptr{Cchar}, Ptr{Void}, Csize_t, Ptr{Void}})
+ctx_callback_ptr() = cfunction(ctx_notify_err, Nothing,
+                               Tuple{Ptr{Cchar}, Ptr{Nothing}, Csize_t, Ptr{Nothing}})
 
 function raise_context_error(err_info, private_info, cb)
     log_error("OpenCL Error: | ", unsafe_string(err_info), " |")
@@ -119,7 +119,7 @@ end
 
 function Context(devs::Vector{Device};
                          properties=nothing,
-                         callback::Union{Function, Void} = nothing)
+                         callback::Union{Function, Nothing} = nothing)
     if isempty(devs)
         ArgumentError("No devices specified for context")
     end
@@ -137,7 +137,7 @@ function Context(devs::Vector{Device};
 
     err_code = Ref{CL_int}()
     payload = callback == nothing ? raise_context_error : callback
-    f_ptr = cfunction(payload, Void, Tuple{Ptr{Cchar}, Ptr{Void}, Csize_t})
+    f_ptr = cfunction(payload, Nothing, Tuple{Ptr{Cchar}, Ptr{Nothing}, Csize_t})
     ctx_id = api.clCreateContext(
         ctx_properties, n_devices, device_ids,
         ctx_callback_ptr(), f_ptr, err_code
@@ -209,7 +209,7 @@ function properties(ctx_id::CL_context)
            key == CL_WGL_HDC_KHR ||
            key == CL_CGL_SHAREGROUP_KHR
             push!(result, (key, value))
-        elseif is_apple() ? (key == CL_CONTEXT_PROPERTY_USE_CGL_SHAREGROUP_APPLE) : false
+        elseif Sys.isapple() ? (key == CL_CONTEXT_PROPERTY_USE_CGL_SHAREGROUP_APPLE) : false
             push!(result, (key, value))
         elseif key == 0
             if i != nprops
@@ -244,7 +244,7 @@ function _parse_properties(props)
             push!(cl_props, cl_context_properties(val))
         elseif prop == CL_WGL_HDC_KHR
             push!(cl_props, cl_context_properties(val))
-        elseif is_apple() ? (prop == CL_CONTEXT_PROPERTY_USE_CGL_SHAREGROUP_APPLE) : false
+        elseif Sys.isapple() ? (prop == CL_CONTEXT_PROPERTY_USE_CGL_SHAREGROUP_APPLE) : false
             push!(cl_props, cl_context_properties(val))
         elseif prop == CL_GL_CONTEXT_KHR ||
             prop == CL_EGL_DISPLAY_KHR ||

@@ -57,13 +57,13 @@ Base.eltype(l::LocalMem{T}) where {T} = T
 Base.sizeof(l::LocalMem{T}) where {T} = l.nbytes
 Base.length(l::LocalMem{T}) where {T} = Int(l.nbytes ÷ sizeof(T))
 
-function set_arg!(k::Kernel, idx::Integer, arg::Void)
+function set_arg!(k::Kernel, idx::Integer, arg::Nothing)
     @assert idx > 0
     @check api.clSetKernelArg(k.id, cl_uint(idx-1), sizeof(CL_mem), C_NULL)
     return k
 end
 
-function set_arg!(k::Kernel, idx::Integer, arg::Ptr{Void})
+function set_arg!(k::Kernel, idx::Integer, arg::Ptr{Nothing})
     if arg != C_NULL
         throw(AttributeError("set_arg! for void pointer $arg is undefined"))
     end
@@ -99,7 +99,7 @@ end
 
 """
     contains_different_layout(T)
-    
+
 Empty types and NTuple{3, CLNumber} have different layouts and need to be replaced
 (Where `CLNumber <: Union{Float32, Float64, Int8, Int32, Int64, UInt8, UInt32, UInt64}`)
 TODO: Float16 + Int16 should also be in CLNumbers
@@ -184,13 +184,13 @@ function set_arg!(k::Kernel, idx::Integer, arg::T) where T
     err = api.clSetKernelArg(k.id, cl_uint(idx - 1), tsize, ref)
     if err == CL_INVALID_ARG_SIZE
         error("""
-            Julia and OpenCL type don't match at kernel argument $idx: Found $T. 
+            Julia and OpenCL type don't match at kernel argument $idx: Found $T.
             Please make sure to define OpenCL structs correctly!
             You should be generally fine by using `__attribute__((packed))`, but sometimes the alignment of fields is different from Julia.
             Consider the following example:
                 ```
                 //packed
-                // Tuple{NTuple{3, Float32}, Void, Float32}
+                // Tuple{NTuple{3, Float32}, Nothing, Float32}
                 struct __attribute__((packed)) Test{
                     float3 f1;
                     int f2; // empty type gets replaced with Int32 (no empty types allowed in OpenCL)
@@ -280,7 +280,7 @@ end
 # blocking kernel call that finishes queue
 function (q::CmdQueue)(k::Kernel, global_work_size, local_work_size,
                       args...; global_work_offset=nothing,
-                      wait_on::Union{Void,Vector{Event}}=nothing)
+                      wait_on::Union{Nothing,Vector{Event}}=nothing)
     set_args!(k, args...)
     evt = enqueue_kernel(q, k,
                          global_work_size,
@@ -300,7 +300,7 @@ function enqueue_kernel(q::CmdQueue,
                                 global_work_size,
                                 local_work_size;
                                 global_work_offset=nothing,
-                                wait_on::Union{Void,Vector{Event}}=nothing)
+                                wait_on::Union{Nothing,Vector{Event}}=nothing)
     device = q[:device]
     max_work_dim = device[:max_work_item_dims]
     work_dim     = length(global_work_size)
