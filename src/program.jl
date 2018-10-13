@@ -1,6 +1,6 @@
 # OpenCL.Program
 
-type Program <: CLObject
+mutable struct Program <: CLObject
     id::CL_program
     binary::Bool
 
