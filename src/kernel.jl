@@ -7,7 +7,7 @@ mutable struct Kernel <: CLObject
             @check api.clRetainKernel(k)
         end
         kernel = new(k)
-        finalizer(kernel, _finalize)
+        finalizer(_finalize, kernel)
         return kernel
     end
 end
@@ -109,7 +109,7 @@ TODO: Float16 + Int16 should also be in CLNumbers
 end
 
 function struct2tuple(x::T) where T
-    ntuple(Val{nfields(T)}) do i
+    ntuple(nfields(T)) do i
         getfield(x, i)
     end
 end
@@ -122,7 +122,9 @@ See [contains_different_layout(T)](@ref) for information what types those are!
 """
 function replace_different_layout(x::T) where T
     !contains_different_layout(T) && return x
-    if nfields(x) == 0
+    if sizeof(x) === 0
+        return Int32(0) # zero size not possible in opencl
+    elseif nfields(x) == 0
         replace_different_layout((), (x,))
     elseif T <: Tuple
         replace_different_layout((), x)
@@ -131,7 +133,7 @@ function replace_different_layout(x::T) where T
     end
 end
 
-replace_different_layout(red::NTuple{N, Any}, rest::Tuple{}) where {N} = red
+replace_different_layout(red::NTuple{N, Any}, rest::Tuple{}) where N = red
 function replace_different_layout(red::NTuple{N, Any}, rest) where N
     elem1 = first(rest)
     T = typeof(elem1)
@@ -307,7 +309,7 @@ function enqueue_kernel(q::CmdQueue,
     if work_dim > max_work_dim
         throw(ArgumentError("global_work_size has max dim of $max_work_dim"))
     end
-    gsize = Array{Csize_t}(work_dim)
+    gsize = Array{Csize_t}(undef, work_dim)
     for (i, s) in enumerate(global_work_size)
         gsize[i] = s
     end
@@ -320,7 +322,7 @@ function enqueue_kernel(q::CmdQueue,
         if length(global_work_offset) != work_dim
             throw(ArgumentError("global_work_size and global_work_offset have differing dims"))
         end
-        goffset = Array{Csize_t}(work_dim)
+        goffset = Array{Csize_t}(undef, work_dim)
         for (i, o) in enumerate(global_work_offset)
             goffset[i] = o
         end
@@ -334,7 +336,7 @@ function enqueue_kernel(q::CmdQueue,
         if length(local_work_size) != work_dim
             throw(ArgumentError("global_work_size and local_work_size have differing dims"))
         end
-        lsize = Array{Csize_t}(work_dim)
+        lsize = Array{Csize_t}(undef, work_dim)
         for (i, s) in enumerate(local_work_size)
             lsize[i] = s
         end
@@ -378,7 +380,7 @@ let name(k::Kernel) = begin
         size = Ref{Csize_t}()
         @check api.clGetKernelInfo(k.id, CL_KERNEL_FUNCTION_NAME,
                                    0, C_NULL, size)
-        result = Vector{Cchar}(size[])
+        result = Vector{Cchar}(undef, size[])
         @check api.clGetKernelInfo(k.id, CL_KERNEL_FUNCTION_NAME,
                                    size[], result, size)
         return CLString(result)
@@ -412,7 +414,7 @@ let name(k::Kernel) = begin
         if size[] <= 1
             return ""
         end
-        result = Vector{CL_char}(size[])
+        result = Vector{CL_char}(undef, size[])
         @check api.clGetKernelInfo(k.id, CL_KERNEL_ATTRIBUTES,
                                    size[], result, size)
         return CLString(result)

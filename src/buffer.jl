@@ -15,7 +15,7 @@ mutable struct Buffer{T} <: CLMemObject
         end
         nbytes = sizeof(T) * len
         buff = new{T}(true, mem_id, len, false, C_NULL)
-        finalizer(buff, mem_obj -> begin
+        finalizer(buff) do mem_obj
             if !mem_obj.valid
                 throw(CLMemoryError("Attempted to double free OpenCL.Buffer $mem_obj"))
             end
@@ -23,7 +23,7 @@ mutable struct Buffer{T} <: CLMemObject
             mem_obj.valid   = false
             mem_obj.mapped  = false
             mem_obj.hostbuf = C_NULL
-        end)
+        end
         return buff
     end
 end
@@ -35,7 +35,7 @@ Base.sizeof(b::Buffer{T}) where {T} = Int(b.len * sizeof(T))
 
 Base.show(io::IO, b::Buffer{T}) where {T} = begin
     ptr_val = convert(UInt, Base.pointer(b))
-    ptr_address = "0x$(hex(ptr_val, Sys.WORD_SIZE>>2))"
+    ptr_address = "0x$(string(ptr_val, base = 16, pad = Sys.WORD_SIZE>>2))"
     print(io, "Buffer{$T}(@$ptr_address)")
 end
 
@@ -298,11 +298,11 @@ function enqueue_map_mem(q::CmdQueue,
         # when array is gc'd, unmap buffer
         b.mapped  = true
         b.hostbuf = mapped
-        finalizer(mapped_arr, x -> begin
+        finalizer(mapped_arr) do x
             if b.mapped && b.hostbuf != C_NULL
                 unmap!(q, b, x)
             end
-        end)
+        end
     catch err
         api.clEnqueueUnmapMemObject(q.id, b.id, mapped,
                                     unsigned(0), C_NULL, C_NULL)

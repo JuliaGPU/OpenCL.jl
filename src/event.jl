@@ -10,7 +10,7 @@ mutable struct Event <: CLEvent
             @check api.clRetainEvent(evt_id)
         end
         evt = new(evt_id)
-        finalizer(evt, _finalize)
+        finalizer(_finalize, evt)
         return evt
     end
 end
@@ -25,11 +25,11 @@ mutable struct NannyEvent <: CLEvent
             @check api.clRetainEvent(evt_id)
         end
         nanny_evt = new(evt_id, obj)
-        finalizer(nanny_evt, x -> begin
+        finalizer(nanny_evt) do x
             x.id != C_NULL && wait(x)
             x.obj = nothing
             _finalize(x)
-        end)
+        end
         nanny_evt
     end
 end
@@ -47,7 +47,7 @@ Base.pointer(evt::CLEvent) = evt.id
 
 function Base.show(io::IO, evt::Event)
     ptr_val = convert(UInt, Base.pointer(evt))
-    ptr_address = "0x$(hex(ptr_val, Sys.WORD_SIZE>>2))"
+    ptr_address = "0x$(string(ptr_val, base = 16, pad = Sys.WORD_SIZE>>2))"
     print(io, "OpenCL.Event(@$ptr_address)")
 end
 
@@ -84,7 +84,7 @@ Base.getindex(evt::CLEvent, evt_info::Symbol) = info(evt, evt_info)
 
     function Base.show(io::IO, evt::UserEvent)
         ptr_val = convert(UInt, Base.pointer(evt))
-        ptr_address = "0x$(hex(ptr_val, Sys.WORD_SIZE>>2))"
+        ptr_address = "0x$(string(ptr_val, base = 16, pad = Sys.WORD_SIZE>>2))"
         print(io, "OpenCL.UserEvent(@$ptr_address)")
     end
 
@@ -113,8 +113,8 @@ function event_notify(evt_id::CL_event, status::CL_int, payload::Ptr{Nothing})
 end
 
 function add_callback(evt::CLEvent, callback::Function)
-    event_notify_ptr = cfunction(event_notify, Nothing,
-                                 Tuple{CL_event, CL_int, Ptr{Nothing}})
+    event_notify_ptr = @cfunction(event_notify, Nothing,
+                                 (CL_event, CL_int, Ptr{Nothing}))
 
     # The uv_callback is going to notify a task that,
     # then executes the real callback.

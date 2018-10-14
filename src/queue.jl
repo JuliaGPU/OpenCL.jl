@@ -8,13 +8,13 @@ mutable struct CmdQueue <: CLObject
             @check api.clRetainCommandQueue(q_id)
         end
         q = new(q_id)
-        finalizer(q, x -> begin
+        finalizer(q) do x
             retain || _deletecached!(q)
             if x.id != C_NULL
                 @check api.clReleaseCommandQueue(x.id)
                 x.id = C_NULL
             end
-        end )
+        end
         return q
     end
 end
@@ -23,7 +23,7 @@ Base.pointer(q::CmdQueue) = q.id
 
 function Base.show(io::IO, q::CmdQueue)
     ptr_val = convert(UInt, Base.pointer(q))
-    ptr_address = "0x$(hex(ptr_val, Sys.WORD_SIZE>>2))"
+    ptr_address = "0x$(string(ptr_val, base = 16, pad = Sys.WORD_SIZE>>2))"
     print(io, "OpenCL.CmdQueue(@$ptr_address)")
 end
 

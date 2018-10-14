@@ -92,7 +92,7 @@ Base.show(io::IO, A::CLArray{T,N}) where {T,N} =
 ## to_host
 
 function to_host(A::CLArray{T,N}; queue=A.queue) where {T,N}
-    hA = Array{T}(size(A))
+    hA = Array{T}(undef, size(A))
     copy!(queue, hA, buffer(A))
     return hA
 end

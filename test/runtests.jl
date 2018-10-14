@@ -1,5 +1,5 @@
 module TestOpenCL
-using Base.Test
+using Test
 
 using OpenCL
 
@@ -10,7 +10,7 @@ using OpenCL
     @test clx == ((10f0, 1f0, 2f0, 0f0), (10f0, 1f0, 2f0, 0f0), (10f0, 1f0, 2f0, 0f0))
     x = (nothing, nothing, nothing)
     clx = cl.replace_different_layout(x)
-    @test clx == (0,0,0)
+    @test clx == 0 # TODO should it be like this?
 end
 
 function create_test_buffer()

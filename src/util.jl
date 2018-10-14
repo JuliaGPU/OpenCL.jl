@@ -29,7 +29,7 @@ Example:
 """
 function format(s::String; vars...)
     for (k, v) in vars
-        s = replace(s, "%($k)", v)
+        s = replace(s, "%($k)" => v)
     end
     s
 end

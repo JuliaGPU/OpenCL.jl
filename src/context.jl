@@ -38,14 +38,14 @@ mutable struct Context <: CLObject
         end
         ctx = new(ctx_id)
         create_jl_reference!(ctx_id)
-        finalizer(ctx, c -> begin
+        finalizer(ctx) do c
             retain || _deletecached!(c);
             if c.id != C_NULL
                 release_ctx_id(c.id)
                 free_jl_reference!(c.id)
                 c.id = C_NULL
             end
-        end )
+        end
         return ctx
     end
 end
@@ -75,10 +75,10 @@ end
 Base.pointer(ctx::Context) = ctx.id
 
 function Base.show(io::IO, ctx::Context)
-    dev_strs = [replace(d[:name], r"\s+", " ") for d in devices(ctx)]
+    dev_strs = [replace(d[:name], r"\s+" => " ") for d in devices(ctx)]
     devs_str = join(dev_strs, ",")
     ptr_val = convert(UInt, Base.pointer(ctx))
-    ptr_address = "0x$(hex(ptr_val, Sys.WORD_SIZE>>2))"
+    ptr_address = "0x$(string(ptr_val, base = 16, pad = Sys.WORD_SIZE>>2))"
     print(io, "OpenCL.Context(@$ptr_address on $devs_str)")
 end
 
@@ -109,8 +109,8 @@ function ctx_notify_err(
 end
 
 
-ctx_callback_ptr() = cfunction(ctx_notify_err, Nothing,
-                               Tuple{Ptr{Cchar}, Ptr{Nothing}, Csize_t, Ptr{Nothing}})
+ctx_callback_ptr() = @cfunction(ctx_notify_err, Nothing,
+                               (Ptr{Cchar}, Ptr{Nothing}, Csize_t, Ptr{Nothing}))
 
 function raise_context_error(err_info, private_info, cb)
     log_error("OpenCL Error: | ", unsafe_string(err_info), " |")
@@ -130,14 +130,14 @@ function Context(devs::Vector{Device};
     end
 
     n_devices = length(devs)
-    device_ids = Vector{CL_device_id}(n_devices)
+    device_ids = Vector{CL_device_id}(undef, n_devices)
     for (i, d) in enumerate(devs)
         device_ids[i] = d.id
     end
 
     err_code = Ref{CL_int}()
     payload = callback == nothing ? raise_context_error : callback
-    f_ptr = cfunction(payload, Nothing, Tuple{Ptr{Cchar}, Ptr{Nothing}, Csize_t})
+    f_ptr = @cfunction($payload, Nothing, (Ptr{Cchar}, Ptr{Nothing}, Csize_t))
     ctx_id = api.clCreateContext(
         ctx_properties, n_devices, device_ids,
         ctx_callback_ptr(), f_ptr, err_code
@@ -154,8 +154,7 @@ Context(d::Device; properties=nothing, callback=nothing) =
 
 
 
-function Context(dev_type::CL_device_type;
-                 properties=nothing, callback=nothing)
+function Context(dev_type::CL_device_type; properties = nothing, callback = nothing)
     if properties !== nothing
         ctx_properties = _parse_properties(properties)
     else
@@ -167,8 +166,10 @@ function Context(dev_type::CL_device_type;
         ctx_user_data = raise_context_error
     end
     err_code = Ref{CL_int}()
-    ctx_id = api.clCreateContextFromType(ctx_properties, dev_type,
-                                         ctx_callback_ptr(), ctx_user_data, err_code)
+    ctx_id = api.clCreateContextFromType(
+        ctx_properties, dev_type,
+        ctx_callback_ptr(), ctx_user_data, err_code
+    )
     if err_code[] != CL_SUCCESS
         throw(CLError(err_code[]))
     end
