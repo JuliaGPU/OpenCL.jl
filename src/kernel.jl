@@ -92,15 +92,8 @@ function _contains_different_layout(::Type{T}) where T
     return false
 end
 
-<<<<<<< HEAD
 contains_different_layout(::Type{NTuple{3, T}}) where {T <: Union{Float32, Float64, Int8, Int32,
                                                                   Int64, UInt8, UInt32, UInt64}} = true
-=======
-function contains_different_layout(::Type{NTuple{3, T}}) where T <: Union{Float32, Float64, Int8, Int32, Int64, UInt8, UInt32, UInt64}
-    true
-end
-
->>>>>>> c535f37fc8b3763d4fddb872aaba084ca889398f
 
 """
     contains_different_layout(T)
@@ -114,13 +107,7 @@ TODO: Float16 + Int16 should also be in CLNumbers
 end
 
 function struct2tuple(x::T) where T
-<<<<<<< HEAD
     tuple([getfield(x, i) for i in fieldnames(T)]...)
-=======
-    ntuple(Val{nfields(T)}) do i
-        getfield(x, i)
-    end
->>>>>>> c535f37fc8b3763d4fddb872aaba084ca889398f
 end
 
 """
@@ -140,11 +127,8 @@ function replace_different_layout(x::T) where T
     end
 end
 
-<<<<<<< HEAD
-replace_different_layout(red::NTuple{N, Any}, rest::Tuple{}) where N = red
-=======
 replace_different_layout(red::NTuple{N, Any}, rest::Tuple{}) where {N} = red
->>>>>>> c535f37fc8b3763d4fddb872aaba084ca889398f
+
 function replace_different_layout(red::NTuple{N, Any}, rest) where N
     elem1 = first(rest)
     T = typeof(elem1)
@@ -160,11 +144,7 @@ end
 
 # TODO UInt16/Float16?
 # Handle different sizes of OpenCL Vec3, which doesn't agree with julia
-<<<<<<< HEAD
-function replace_different_layout(arg::NTuple{3, T}) where {T <: Union{Float32, Float64, Int8, Int32, Int64, UInt8, UInt32, UInt64}}
-=======
 function replace_different_layout(arg::NTuple{3, T}) where T <: Union{Float32, Float64, Int8, Int32, Int64, UInt8, UInt32, UInt64}
->>>>>>> c535f37fc8b3763d4fddb872aaba084ca889398f
     pad = T(0)
     (arg..., pad)
 end
