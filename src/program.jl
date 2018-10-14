@@ -1,6 +1,7 @@
 # OpenCL.Program
 
 using Printf
+
 mutable struct Program <: CLObject
     id::CL_program
     binary::Bool

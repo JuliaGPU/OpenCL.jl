@@ -293,7 +293,7 @@ function enqueue_map_mem(q::CmdQueue,
     local mapped_arr::Array{T, N}
     try
         # julia owns pointer to mapped memory
-        mapped_arr = unsafe_wrap(Array{T, N}, mapped, dims, false)
+        mapped_arr = unsafe_wrap(Array{T, N}, mapped, dims, own=false)
         # when array is gc'd, unmap buffer
         b.mapped  = true
         b.hostbuf = mapped
