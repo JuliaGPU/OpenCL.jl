@@ -202,7 +202,7 @@ end
     end
 end
 
-immutable Params
+struct Params
     A::Float32
     B::Float32
     #TODO: fixed size arrays?
@@ -275,7 +275,7 @@ end
 
 end
 
-type MutableParams
+mutable struct MutableParams
     A::Float32
     B::Float32
 end

@@ -1,6 +1,6 @@
 import Base: error
 
-function error{T}(Mdim::Int, Ndim::Int, Pdim::Int, C::Array{T})
+function error(Mdim::Int, Ndim::Int, Pdim::Int, C::Array{T}) where T
     cval  = Float32(Pdim * AVAL * BVAL)
     errsq = 0f0
     for i in 1:Ndim
@@ -12,7 +12,7 @@ function error{T}(Mdim::Int, Ndim::Int, Pdim::Int, C::Array{T})
     return errsq
 end
 
-function results{T}(Mdim::Int, Ndim::Int, Pdim::Int, C::Array{T}, run_time)
+function results(Mdim::Int, Ndim::Int, Pdim::Int, C::Array{T}, run_time) where T
     mflops = 2.0 * Mdim * Ndim * Pdim/(1000000.0* run_time)
     println("$run_time seconds at $mflops MFLOPS")
     errsq = error(Mdim, Ndim, Pdim, C)

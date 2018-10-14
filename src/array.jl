@@ -53,9 +53,9 @@ function Base.fill(::Type{T}, q::CmdQueue, x::T, dims...) where T
     return CLArray(buf, q, dims)
 end
 
-Base.zeros(::Type{T}, q::CmdQueue, dims...) where T = fill(T, q, T(0), dims...)
+Base.zeros(::Type{T}, q::CmdQueue, dims...) where {T} = fill(T, q, T(0), dims...)
 Base.zeros(q::CmdQueue, dims...) = fill(Float64, q, Float64(0), dims...)
-Base.ones(::Type{T}, q::CmdQueue, dims...) where T = fill(T, q, T(1), dims...)
+Base.ones(::Type{T}, q::CmdQueue, dims...) where {T} = fill(T, q, T(1), dims...)
 Base.ones(q::CmdQueue, dims...) = fill(Float64, q, Float64(1), dims...)
 
 

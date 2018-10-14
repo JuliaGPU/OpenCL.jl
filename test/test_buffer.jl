@@ -1,4 +1,4 @@
-immutable TestStruct
+struct TestStruct
     a::cl.CL_int
     b::cl.CL_float
 end
