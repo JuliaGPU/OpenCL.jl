@@ -66,7 +66,7 @@
                 :max_image3d_shape,
             ]
         for p in cl.platforms()
-            if contains(p[:name], "Portable")
+            if occursin("Portable", p[:name])
                 msg = "Skipping Device Info tests for Portable Computing Language Platform "
                 warn(msg)
                 continue

@@ -2,7 +2,7 @@
 
 abstract type CLEvent <: CLObject end
 
-type Event <: CLEvent
+mutable struct Event <: CLEvent
     id :: CL_event
 
     function Event(evt_id::CL_event; retain=false)
@@ -10,13 +10,13 @@ type Event <: CLEvent
             @check api.clRetainEvent(evt_id)
         end
         evt = new(evt_id)
-        finalizer(evt, _finalize)
+        finalizer(_finalize, evt)
         return evt
     end
 end
 
 # wait for completion before running finalizer
-type NannyEvent <: CLEvent
+mutable struct NannyEvent <: CLEvent
     id::CL_event
     obj::Any
 
@@ -25,11 +25,11 @@ type NannyEvent <: CLEvent
             @check api.clRetainEvent(evt_id)
         end
         nanny_evt = new(evt_id, obj)
-        finalizer(nanny_evt, x -> begin
+        finalizer(x -> begin
             x.id != C_NULL && wait(x)
             x.obj = nothing
             _finalize(x)
-        end)
+        end, nanny_evt)
         nanny_evt
     end
 end
@@ -47,7 +47,7 @@ Base.pointer(evt::CLEvent) = evt.id
 
 function Base.show(io::IO, evt::Event)
     ptr_val = convert(UInt, Base.pointer(evt))
-    ptr_address = "0x$(hex(ptr_val, Sys.WORD_SIZE>>2))"
+    ptr_address = "0x$(string(ptr_val, base=16))"
     print(io, "OpenCL.Event(@$ptr_address)")
 end
 
@@ -55,7 +55,7 @@ Base.getindex(evt::CLEvent, evt_info::Symbol) = info(evt, evt_info)
 
 @ocl_v1_1_only begin
 
-    type UserEvent <: CLEvent
+    mutable struct UserEvent <: CLEvent
         id :: CL_event
 
         function UserEvent(evt_id::CL_event, retain=false)
@@ -63,7 +63,7 @@ Base.getindex(evt::CLEvent, evt_info::Symbol) = info(evt, evt_info)
                 @check api.clRetainEvent(evt_id)
             end
             evt = new(evt_id)
-            finalizer(evt, _finalize)
+            finalizer(_finalize, evt)
             return evt
         end
     end
@@ -84,7 +84,7 @@ Base.getindex(evt::CLEvent, evt_info::Symbol) = info(evt, evt_info)
 
     function Base.show(io::IO, evt::UserEvent)
         ptr_val = convert(UInt, Base.pointer(evt))
-        ptr_address = "0x$(hex(ptr_val, Sys.WORD_SIZE>>2))"
+        ptr_address = "0x$(string(ptr_val, base=16))"
         print(io, "OpenCL.UserEvent(@$ptr_address)")
     end
 
@@ -94,13 +94,13 @@ Base.getindex(evt::CLEvent, evt_info::Symbol) = info(evt, evt_info)
     end
 end
 
-immutable _EventCB
-    handle :: Ptr{Void}
+struct _EventCB
+    handle :: Ptr{Nothing}
     evt_id :: CL_event
     status :: CL_int
 end
 
-function event_notify(evt_id::CL_event, status::CL_int, payload::Ptr{Void})
+function event_notify(evt_id::CL_event, status::CL_int, payload::Ptr{Nothing})
     ptr = convert(Ptr{_EventCB}, payload)
     handle = unsafe_load(ptr, 1).handle
 
@@ -108,13 +108,13 @@ function event_notify(evt_id::CL_event, status::CL_int, payload::Ptr{Void})
     unsafe_store!(ptr, val, 1)
 
     # Use uv_async_send to notify the main thread
-    ccall(:uv_async_send, Void, (Ptr{Void},), handle)
+    ccall(:uv_async_send, Nothing, (Ptr{Nothing},), handle)
     nothing
 end
 
 function add_callback(evt::CLEvent, callback::Function)
-    event_notify_ptr = cfunction(event_notify, Void,
-                                 Tuple{CL_event, CL_int, Ptr{Void}})
+    event_notify_ptr = @cfunction($event_notify, Nothing,
+                                  (CL_event, CL_int, Ptr{Nothing}))
 
     # The uv_callback is going to notify a task that,
     # then executes the real callback.
@@ -122,7 +122,7 @@ function add_callback(evt::CLEvent, callback::Function)
 
     # Storing the results of our c_callback needs to be
     # isbits && isimmutable
-    r_ecb = Ref(_EventCB(Base.unsafe_convert(Ptr{Void}, cb), 0, 0))
+    r_ecb = Ref(_EventCB(Base.unsafe_convert(Ptr{Nothing}, cb), 0, 0))
 
     @check api.clSetEventCallback(evt.id, CL_COMPLETE, event_notify_ptr, r_ecb)
 
@@ -185,7 +185,7 @@ function enqueue_marker(q::CmdQueue)
 end
 @deprecate enqueue_marker enqueue_marker_with_wait_list
 
-function enqueue_wait_for_events{T<:CLEvent}(q::CmdQueue, wait_for::Vector{T})
+function enqueue_wait_for_events(q::CmdQueue, wait_for::Vector{T}) where {T<:CLEvent}
     n_wait_events = cl_uint(length(wait_for))
     wait_evt_ids = [evt.id for evt in wait_for]
     @check api.clEnqueueWaitForEvents(q.id, n_wait_events,
@@ -239,8 +239,8 @@ macro profile_info(func, profile_info)
     end
 end
 
-
-let command_queue(evt::CLEvent) = begin
+function info(evt::CLEvent, evt_info::Symbol)
+    command_queue(evt::CLEvent) = begin
         cmd_q = Ref{CL_command_queue}()
         @check api.clGetEventInfo(evt.id, CL_EVENT_COMMAND_QUEUE,
                                   sizeof(CL_command_queue), cmd_q, C_NULL)
@@ -308,16 +308,14 @@ let command_queue(evt::CLEvent) = begin
         :profile_duration => profile_duration,
     )
 
-    function info(evt::CLEvent, evt_info::Symbol)
-        try
-            func = info_map[evt_info]
-            func(evt)
-        catch err
-            if isa(err, KeyError)
-                throw(ArgumentError("OpenCL.Event has no info for: $evt_info"))
-            else
-                throw(err)
-            end
+    try
+        func = info_map[evt_info]
+        func(evt)
+    catch err
+        if isa(err, KeyError)
+            throw(ArgumentError("OpenCL.Event has no info for: $evt_info"))
+        else
+            throw(err)
         end
     end
 end

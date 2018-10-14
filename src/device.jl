@@ -1,6 +1,6 @@
 # OpenCL.Device
 
-immutable Device <: CLObject
+struct Device <: CLObject
     id :: CL_device_id
 end
 
@@ -8,10 +8,10 @@ Base.pointer(d::Device) = d.id
 
 function Base.show(io::IO, d::Device)
     strip_extra_whitespace = r"\s+"
-    device_name = replace(d[:name], strip_extra_whitespace, " ")
-    platform_name = replace(d[:platform][:name], strip_extra_whitespace, " ")
+    device_name = replace(d[:name], strip_extra_whitespace=>" ")
+    platform_name = replace(d[:platform][:name], strip_extra_whitespace=>" ")
     ptr_val = convert(UInt, Base.pointer(d))
-    ptr_address = "0x$(hex(ptr_val, Sys.WORD_SIZE>>2))"
+    ptr_address = "0x$(string(ptr_val, base=16))"
     print(io, "OpenCL.Device($device_name on $platform_name @$ptr_address)")
 end
 
@@ -28,10 +28,12 @@ macro int_info(func, cl_device_info, return_type)
     end
 end
 
-let profile(d::Device) = begin
+function info(d::Device, s::Symbol)
+    
+    profile(d::Device) = begin
         size = Ref{Csize_t}()
         @check api.clGetDeviceInfo(d.id, CL_DEVICE_PROFILE, 0, C_NULL, size)
-        result = Vector{CL_char}(size[])
+        result = Vector{CL_char}(undef, size[])
         @check api.clGetDeviceInfo(d.id, CL_DEVICE_PROFILE, size[], result, C_NULL)
         bs = CLString(result)
         return bs
@@ -40,7 +42,7 @@ let profile(d::Device) = begin
     version(d::Device) = begin
         size = Ref{Csize_t}()
         @check api.clGetDeviceInfo(d.id, CL_DEVICE_VERSION, 0, C_NULL, size)
-        result = Vector{CL_char}(size[])
+        result = Vector{CL_char}(undef, size[])
         @check api.clGetDeviceInfo(d.id, CL_DEVICE_VERSION, size[], result, C_NULL)
         bs = CLString(result)
         return bs
@@ -49,16 +51,16 @@ let profile(d::Device) = begin
     driver_version(d::Device) = begin
         size = Ref{Csize_t}()
         @check api.clGetDeviceInfo(d.id, CL_DRIVER_VERSION, 0, C_NULL, size)
-        result = Vector{CL_char}(size[])
+        result = Vector{CL_char}(undef, size[])
         @check api.clGetDeviceInfo(d.id, CL_DRIVER_VERSION, size[], result, C_NULL)
         bs = CLString(result)
-        return string(replace(bs, r"\s+", " "))
+        return string(replace(bs, r"\s+"=>" "))
     end
 
     extensions(d::Device) = begin
         size = Ref{Csize_t}()
         @check api.clGetDeviceInfo(d.id, CL_DEVICE_EXTENSIONS, 0, C_NULL, size)
-        result = Vector{CL_char}(size[])
+        result = Vector{CL_char}(undef, size[])
         @check api.clGetDeviceInfo(d.id, CL_DEVICE_EXTENSIONS, size[], result, C_NULL)
         bs = CLString(result)
         return String[string(s) for s in split(bs)]
@@ -74,11 +76,11 @@ let profile(d::Device) = begin
     name(d::Device) = begin
         size = Ref{Csize_t}()
         @check api.clGetDeviceInfo(d.id, CL_DEVICE_NAME, 0, C_NULL, size)
-        result = Vector{CL_char}(size[])
+        result = Vector{CL_char}(undef, size[])
         @check api.clGetDeviceInfo(d.id, CL_DEVICE_NAME,
                                    size[] * sizeof(CL_char), result, C_NULL)
         n = CLString(result)
-        return string(replace(n, r"\s+", " "))
+        return string(replace(n, r"\s+"=>" "))
     end
 
     device_type(d::Device) = begin
@@ -165,7 +167,7 @@ let profile(d::Device) = begin
         dims = Ref{CL_uint}()
         @check api.clGetDeviceInfo(d.id, CL_DEVICE_MAX_WORK_ITEM_DIMENSIONS,
                                    sizeof(CL_uint), dims, C_NULL)
-        result = Vector{Csize_t}(dims[])
+        result = Vector{Csize_t}(undef, dims[])
         @check api.clGetDeviceInfo(d.id, CL_DEVICE_MAX_WORK_ITEM_SIZES,
                                    sizeof(Csize_t) * dims[], result, C_NULL)
         return tuple([Int(r) for r in result]...)
@@ -234,18 +236,16 @@ let profile(d::Device) = begin
         :max_image3d_shape => max_image3d_shape
     )
 
-    function info(d::Device, s::Symbol)
-        try
-            func = info_map[s]
-            func(d)
-        catch err
-            if isa(err, KeyError)
-                throw(ArgumentError("OpenCL.Device has no info for: $s"))
-            else
-                throw(err)
-            end
-        end
+try
+    func = info_map[s]
+    func(d)
+catch err
+    if isa(err, KeyError)
+        throw(ArgumentError("OpenCL.Device has no info for: $s"))
+    else
+        throw(err)
     end
+end
 end
 
 function cl_device_type(dtype::Symbol)

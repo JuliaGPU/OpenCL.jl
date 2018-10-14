@@ -1,6 +1,6 @@
 # OpenCL.CmdQueue
 
-type CmdQueue <: CLObject
+mutable struct CmdQueue <: CLObject
     id::CL_command_queue
 
     function CmdQueue(q_id::CL_command_queue; retain=false)
@@ -8,13 +8,13 @@ type CmdQueue <: CLObject
             @check api.clRetainCommandQueue(q_id)
         end
         q = new(q_id)
-        finalizer(q, x -> begin
+        finalizer(x -> begin
             retain || _deletecached!(q)
             if x.id != C_NULL
                 @check api.clReleaseCommandQueue(x.id)
                 x.id = C_NULL
             end
-        end )
+        end, q)
         return q
     end
 end
@@ -23,7 +23,7 @@ Base.pointer(q::CmdQueue) = q.id
 
 function Base.show(io::IO, q::CmdQueue)
     ptr_val = convert(UInt, Base.pointer(q))
-    ptr_address = "0x$(hex(ptr_val, Sys.WORD_SIZE>>2))"
+    ptr_address = "0x$(string(ptr_val, base=16))"
     print(io, "OpenCL.CmdQueue(@$ptr_address)")
 end
 
@@ -101,7 +101,7 @@ function finish(q::CmdQueue)
     return q
 end
 
-let
+function info(q::CmdQueue, qinfo::Symbol)
     context(q::CmdQueue) = begin
         ctx_id = Ref{CL_context}()
         @check api.clGetCommandQueueInfo(q.id, CL_QUEUE_CONTEXT,
@@ -138,16 +138,14 @@ let
         :properties => properties
     )
 
-    function info(q::CmdQueue, qinfo::Symbol)
-        try
-            func = info_map[qinfo]
-            func(q)
-        catch err
-            if isa(err, KeyError)
-                throw(ArgumentError("OpenCL.CmdQueue has no info for: $qinfo"))
-            else
-                throw(err)
-            end
+    try
+        func = info_map[qinfo]
+        func(q)
+    catch err
+        if isa(err, KeyError)
+            throw(ArgumentError("OpenCL.CmdQueue has no info for: $qinfo"))
+        else
+            throw(err)
         end
     end
 end

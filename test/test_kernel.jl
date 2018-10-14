@@ -1,6 +1,6 @@
-immutable CLTestStruct
+struct CLTestStruct
     f1::NTuple{3, Float32}
-    f2::Void
+    f2::Nothing
     f3::Float32
 end
 
@@ -50,6 +50,7 @@ end
             @test k[:num_args] == 4
             @test k[:reference_count] > 0
             @test k[:program] == prg
+            println(typeof(k[:attributes]))
             @test typeof(k[:attributes]) == String
         end
     end
@@ -209,9 +210,7 @@ end
                  "Portable Computing Language Platform")
             continue
         end
-        if is_apple()
-            continue
-        end
+        Sys.isapple() && continue
         ctx = cl.Context(device)
         prg = cl.Program(ctx, source = test_source)
         queue = cl.CmdQueue(ctx)
