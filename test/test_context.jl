@@ -5,6 +5,7 @@ function context_test_callback(arg1, arg2, arg3)
     OpenCL.cl.log_error("Callback works")
     return
 end
+
 function create_context_error(ctx)
     empty_kernel = "
     __kernel void test() {

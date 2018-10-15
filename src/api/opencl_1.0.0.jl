@@ -15,10 +15,10 @@
 #=== context apis ===#
 #TODO: pass user data as Any type
 @ocl_func(clCreateContext, CL_context,
-              (Ptr{CL_context_properties}, CL_uint, Ptr{CL_device_id}, CL_callback, CL_user_data, Ptr{CL_int}))
+              (Ptr{CL_context_properties}, CL_uint, Ptr{CL_device_id}, CL_callback, CL_callback, Ptr{CL_int}))
 
 @ocl_func(clCreateContextFromType, CL_context,
-              (Ptr{CL_context_properties}, CL_device_type, CL_callback, CL_user_data, Ptr{CL_int}))
+              (Ptr{CL_context_properties}, CL_device_type, CL_callback, CL_callback, Ptr{CL_int}))
 
 @ocl_func(clRetainContext, CL_int, (CL_context,))
 

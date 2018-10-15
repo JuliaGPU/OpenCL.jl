@@ -140,11 +140,11 @@ end
 
 # enqueue a read from buffer to hoast array from buffer, return an event
 function enqueue_read_buffer(q::CmdQueue,
-                                     buf::Buffer{T},
-                                     hostbuf::Array{T},
-                                     dev_offset::Csize_t,
-                                     wait_for::Union{Nothing,Vector{Event}},
-                                     is_blocking::Bool) where T
+                             buf::Buffer{T},
+                             hostbuf::Array{T},
+                             dev_offset::Csize_t,
+                             wait_for::Union{Nothing,Vector{Event}},
+                             is_blocking::Bool) where T
     n_evts  = wait_for === nothing ? UInt(0) : length(wait_for)
     evt_ids = wait_for === nothing ? C_NULL  : [evt.id for evt in wait_for]
     ret_evt = Ref{CL_event}()
@@ -158,12 +158,12 @@ end
 
 # enqueue a write from host array to buffer, return an event
 function enqueue_write_buffer(q::CmdQueue,
-                                      buf::Buffer{T},
-                                      hostbuf::Array{T},
-                                      byte_count::Csize_t,
-                                      offset::Csize_t,
-                                      wait_for::Union{Nothing,Vector{Event}},
-                                      is_blocking::Bool) where T
+                              buf::Buffer{T},
+                              hostbuf::Array{T},
+                              byte_count::Csize_t,
+                              offset::Csize_t,
+                              wait_for::Union{Nothing,Vector{Event}},
+                              is_blocking::Bool) where T
     n_evts  = wait_for === nothing ? UInt(0) : length(wait_for)
     evt_ids = wait_for === nothing ? C_NULL  : [evt.id for evt in wait_for]
     ret_evt = Ref{CL_event}()
@@ -177,12 +177,12 @@ end
 
 # enqueue a copy from one buffer to another, return an event
 function enqueue_copy_buffer(q::CmdQueue,
-                                     src::Buffer{T},
-                                     dst::Buffer{T},
-                                     byte_count::Csize_t,
-                                     src_offset::Csize_t,
-                                     dst_offset::Csize_t,
-                                     wait_for::Union{Nothing,Vector{Event}}) where T
+                             src::Buffer{T},
+                             dst::Buffer{T},
+                             byte_count::Csize_t,
+                             src_offset::Csize_t,
+                             dst_offset::Csize_t,
+                             wait_for::Union{Nothing,Vector{Event}}) where T
     n_evts  = wait_for === nothing ? UInt(0) : length(wait_for)
     evt_ids = wait_for === nothing ? C_NULL  : [evt.id for evt in wait_for]
     ret_evt = Ref{CL_event}()
@@ -294,7 +294,7 @@ function enqueue_map_mem(q::CmdQueue,
     local mapped_arr::Array{T, N}
     try
         # julia owns pointer to mapped memory
-        mapped_arr = unsafe_wrap(Array{T, N}, mapped, dims, false)
+        mapped_arr = unsafe_wrap(Array{T, N}, mapped, dims, own=false)
         # when array is gc'd, unmap buffer
         b.mapped  = true
         b.hostbuf = mapped
@@ -317,10 +317,9 @@ end
 
     # low level enqueue fill operation, return event
     function enqueue_fill_buffer(q::CmdQueue, buf::Buffer{T},
-                                         pattern::T, offset::Csize_t,
-                                         nbytes::Csize_t,
-                                         wait_for::Union{Vector{Event},Nothing}) where T
-
+                                 pattern::T, offset::Csize_t,
+                                 nbytes::Csize_t,
+                                 wait_for::Union{Vector{Event},Nothing}) where T
         if wait_for === nothing
             evt_ids = C_NULL
             n_evts = cl_uint(0)
@@ -420,7 +419,7 @@ end
 
 # blocking read of the contents of a buffer into a new array
 function read(q::CmdQueue, buf::Buffer{T}) where T
-    hostbuf = Vector{T}(length(buf))
+    hostbuf = Vector{T}(undef, length(buf))
     enqueue_read_buffer(q, buf, hostbuf, unsigned(0), nothing, true)
     return hostbuf
 end

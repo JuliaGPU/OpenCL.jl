@@ -2,7 +2,6 @@
 
 const _ctx_reference_count = Dict{CL_context, Int}()
 
-
 function create_jl_reference!(ctx_id::CL_context)
     if haskey(_ctx_reference_count, ctx_id) # for the first jl reference, we already have a refcount of 1
         @check api.clRetainContext(ctx_id) # increase internal refcount, if creating an additional reference
@@ -110,7 +109,7 @@ end
 
 
 ctx_callback_ptr() = @cfunction(ctx_notify_err, Nothing,
-                               (Ptr{Cchar}, Ptr{Nothing}, Csize_t, Ptr{Nothing}))
+                                (Ptr{Cchar}, Ptr{Nothing}, Csize_t, Ptr{Nothing}))
 
 function raise_context_error(err_info, private_info, cb)
     log_error("OpenCL Error: | ", unsafe_string(err_info), " |")
@@ -118,8 +117,8 @@ function raise_context_error(err_info, private_info, cb)
 end
 
 function Context(devs::Vector{Device};
-                         properties=nothing,
-                         callback::Union{Function, Nothing} = nothing)
+                 properties=nothing,
+                 callback::Union{Function, Nothing} = nothing)
     if isempty(devs)
         ArgumentError("No devices specified for context")
     end
@@ -136,12 +135,11 @@ function Context(devs::Vector{Device};
     end
 
     err_code = Ref{CL_int}()
-    payload = callback == nothing ? raise_context_error : callback
+    payload = callback === nothing ? raise_context_error : callback
     f_ptr = @cfunction($payload, Nothing, (Ptr{Cchar}, Ptr{Nothing}, Csize_t))
     ctx_id = api.clCreateContext(
         ctx_properties, n_devices, device_ids,
-        ctx_callback_ptr(), f_ptr, err_code
-    )
+        ctx_callback_ptr(), f_ptr, err_code)
     if err_code[] != CL_SUCCESS
         throw(CLError(err_code[]))
     end
@@ -150,9 +148,7 @@ end
 
 
 Context(d::Device; properties=nothing, callback=nothing) =
-        Context([d], properties=properties, callback=callback)
-
-
+    Context([d], properties=properties, callback=callback)
 
 function Context(dev_type::CL_device_type; properties = nothing, callback = nothing)
     if properties !== nothing
@@ -161,15 +157,14 @@ function Context(dev_type::CL_device_type; properties = nothing, callback = noth
         ctx_properties = C_NULL
     end
     if callback !== nothing
-        ctx_user_data = callback
+        ctx_user_data_cb = callback
     else
-        ctx_user_data = raise_context_error
+        ctx_user_data_cb = raise_context_error
     end
     err_code = Ref{CL_int}()
-    ctx_id = api.clCreateContextFromType(
-        ctx_properties, dev_type,
-        ctx_callback_ptr(), ctx_user_data, err_code
-    )
+    ctx_user_data = @cfunction($ctx_user_data_cb, Nothing, (Ptr{Cchar}, Ptr{Nothing}, Csize_t))
+    ctx_id = api.clCreateContextFromType(ctx_properties, dev_type,
+                                         ctx_callback_ptr(), ctx_user_data, err_code)
     if err_code[] != CL_SUCCESS
         throw(CLError(err_code[]))
     end
@@ -193,7 +188,7 @@ function properties(ctx_id::CL_context)
     # Note: nprops should be odd since it requires a C_NULL terminated array
     nprops = div(nbytes[], sizeof(CL_context_properties))
 
-    props = Vector{CL_context_properties}(nprops)
+    props = Vector{CL_context_properties}(undef, nprops)
     @check api.clGetContextInfo(ctx_id, CL_CONTEXT_PROPERTIES,
                                 nbytes[], props, C_NULL)
     #properties array of [key,value..., C_NULL]
@@ -272,7 +267,7 @@ function devices(ctx::Context)
     if n == 0
         return []
     end
-    dev_ids = Vector{CL_device_id}(n)
+    dev_ids = Vector{CL_device_id}(undef, n)
     @check api.clGetContextInfo(ctx.id, CL_CONTEXT_DEVICES,
                                 n * sizeof(CL_device_id), dev_ids, C_NULL)
     return [Device(id) for id in dev_ids]

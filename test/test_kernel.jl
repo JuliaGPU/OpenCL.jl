@@ -78,7 +78,6 @@ end
         end
     end
 
-
     @testset "OpenCL.Kernel set_arg!/set_args!" begin
          for device in cl.devices()
 
@@ -209,9 +208,7 @@ end
                  "Portable Computing Language Platform")
             continue
         end
-        if is_apple()
-            continue
-        end
+        Sys.isapple() && continue
         ctx = cl.Context(device)
         prg = cl.Program(ctx, source = test_source)
         queue = cl.CmdQueue(ctx)

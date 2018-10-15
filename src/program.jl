@@ -106,7 +106,7 @@ function build!(p::Program; options = "", raise = true)
     return p
 end
 
-let
+function info(p::Program, pinfo::Symbol)
     num_devices(p::Program) = begin
         ret = Ref{CL_uint}()
         @check api.clGetProgramInfo(p.id, CL_PROGRAM_NUM_DEVICES, sizeof(ret), ret, C_NULL)
@@ -221,16 +221,14 @@ let
         :build_status => build_status,
     )
 
-    function info(p::Program, pinfo::Symbol)
-        try
-            func = info_map[pinfo]
-            func(p)
-        catch err
-            if isa(err, KeyError)
-                throw(ArgumentError("OpenCL.Program has no info for $pinfo"))
-            else
-                throw(err)
-            end
+    try
+        func = info_map[pinfo]
+        func(p)
+    catch err
+        if isa(err, KeyError)
+            throw(ArgumentError("OpenCL.Program has no info for $pinfo"))
+        else
+            throw(err)
         end
     end
 end

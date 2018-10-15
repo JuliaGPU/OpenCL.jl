@@ -101,7 +101,7 @@ function finish(q::CmdQueue)
     return q
 end
 
-let
+function info(q::CmdQueue, qinfo::Symbol)
     context(q::CmdQueue) = begin
         ctx_id = Ref{CL_context}()
         @check api.clGetCommandQueueInfo(q.id, CL_QUEUE_CONTEXT,
@@ -138,16 +138,14 @@ let
         :properties => properties
     )
 
-    function info(q::CmdQueue, qinfo::Symbol)
-        try
-            func = info_map[qinfo]
-            func(q)
-        catch err
-            if isa(err, KeyError)
-                throw(ArgumentError("OpenCL.CmdQueue has no info for: $qinfo"))
-            else
-                throw(err)
-            end
+    try
+        func = info_map[qinfo]
+        func(q)
+    catch err
+        if isa(err, KeyError)
+            throw(ArgumentError("OpenCL.CmdQueue has no info for: $qinfo"))
+        else
+            throw(err)
         end
     end
 end

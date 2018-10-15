@@ -1,8 +1,9 @@
+#=
 info(
 "======================================================================
                               Running Behavior Tests
       ======================================================================")
-
+=#
 @testset "OpenCL Hello World Test" begin
 
     hello_world_kernel = "
@@ -58,13 +59,13 @@ end
     for device in cl.devices()
 
         len = 1024
-        h_a = Vector{cl.CL_float}(len)
-        h_b = Vector{cl.CL_float}(len)
-        h_c = Vector{cl.CL_float}(len)
-        h_d = Vector{cl.CL_float}(len)
-        h_e = Vector{cl.CL_float}(len)
-        h_f = Vector{cl.CL_float}(len)
-        h_g = Vector{cl.CL_float}(len)
+        h_a = Vector{cl.CL_float}(undef, len)
+        h_b = Vector{cl.CL_float}(undef, len)
+        h_c = Vector{cl.CL_float}(undef, len)
+        h_d = Vector{cl.CL_float}(undef, len)
+        h_e = Vector{cl.CL_float}(undef, len)
+        h_f = Vector{cl.CL_float}(undef, len)
+        h_g = Vector{cl.CL_float}(undef, len)
 
         for i in 1:len
             h_a[i] = cl.cl_float(rand())

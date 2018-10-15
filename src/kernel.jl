@@ -92,10 +92,8 @@ function _contains_different_layout(::Type{T}) where T
     return false
 end
 
-function contains_different_layout(::Type{NTuple{3, T}}) where T <: Union{Float32, Float64, Int8, Int32, Int64, UInt8, UInt32, UInt64}
-    true
-end
-
+contains_different_layout(::Type{NTuple{3, T}}) where {T <: Union{Float32, Float64, Int8, Int32,
+                                                                  Int64, UInt8, UInt32, UInt64}} = true
 
 """
     contains_different_layout(T)
@@ -109,7 +107,7 @@ TODO: Float16 + Int16 should also be in CLNumbers
 end
 
 function struct2tuple(x::T) where T
-    ntuple(nfields(T)) do i
+    ntuple(nfields(x)) do i
         getfield(x, i)
     end
 end
@@ -137,7 +135,7 @@ replace_different_layout(red::NTuple{N, Any}, rest::Tuple{}) where N = red
 function replace_different_layout(red::NTuple{N, Any}, rest) where N
     elem1 = first(rest)
     T = typeof(elem1)
-    repl = if sizeof(T) == 0 && nfields(T) == 0
+    repl = if sizeof(T) == 0 && nfields(elem1) == 0
         Int32(0)
     elseif contains_different_layout(T)
         replace_different_layout(elem1)
@@ -231,7 +229,7 @@ function work_group_info(k::Kernel, winfo::CL_kernel_work_group_info, d::Device)
         # As specified by [1] the return value in this case is size_t[3].
         # [1] https://www.khronos.org/registry/OpenCL/sdk/1.2/docs/man/xhtml/clGetKernelWorkGroupInfo.html
         @assert sizeof(Csize_t) == sizeof(Int)
-        result2 = Vector{Int}(3)
+        result2 = Vector{Int}(undef, 3)
         @check api.clGetKernelWorkGroupInfo(k.id, d.id, winfo, 3*sizeof(Int), result2, C_NULL)
         return result2
     else
@@ -298,18 +296,18 @@ function enqueue_kernel(q::CmdQueue, k::Kernel, global_work_size)
 end
 
 function enqueue_kernel(q::CmdQueue,
-                                k::Kernel,
-                                global_work_size,
-                                local_work_size;
-                                global_work_offset=nothing,
-                                wait_on::Union{Nothing,Vector{Event}}=nothing)
+                        k::Kernel,
+                        global_work_size,
+                        local_work_size;
+                        global_work_offset=nothing,
+                        wait_on::Union{Nothing,Vector{Event}}=nothing)
     device = q[:device]
     max_work_dim = device[:max_work_item_dims]
     work_dim     = length(global_work_size)
     if work_dim > max_work_dim
         throw(ArgumentError("global_work_size has max dim of $max_work_dim"))
     end
-    gsize = Array{Csize_t}(undef, work_dim)
+    gsize = Vector{Csize_t}(undef, work_dim)
     for (i, s) in enumerate(global_work_size)
         gsize[i] = s
     end
@@ -322,7 +320,7 @@ function enqueue_kernel(q::CmdQueue,
         if length(global_work_offset) != work_dim
             throw(ArgumentError("global_work_size and global_work_offset have differing dims"))
         end
-        goffset = Array{Csize_t}(undef, work_dim)
+        goffset = Vector{Csize_t}(undef, work_dim)
         for (i, o) in enumerate(global_work_offset)
             goffset[i] = o
         end
@@ -336,7 +334,7 @@ function enqueue_kernel(q::CmdQueue,
         if length(local_work_size) != work_dim
             throw(ArgumentError("global_work_size and local_work_size have differing dims"))
         end
-        lsize = Array{Csize_t}(undef, work_dim)
+        lsize = Vector{Csize_t}(undef, work_dim)
         for (i, s) in enumerate(local_work_size)
             lsize[i] = s
         end
@@ -376,7 +374,8 @@ function enqueue_task(q::CmdQueue, k::Kernel; wait_for=nothing)
     return ret_event[]
 end
 
-let name(k::Kernel) = begin
+function info(k::Kernel, kinfo::Symbol)
+    name(k::Kernel) = begin
         size = Ref{Csize_t}()
         @check api.clGetKernelInfo(k.id, CL_KERNEL_FUNCTION_NAME,
                                    0, C_NULL, size)
@@ -428,17 +427,12 @@ let name(k::Kernel) = begin
         :attributes => attributes
     )
 
-    function info(k::Kernel, kinfo::Symbol)
-        try
-            func = info_map[kinfo]
-            func(k)
-        catch err
-            if isa(err, KeyError)
-                error("OpenCL.Kernel has no info for: $kinfo")
-            else
-                throw(err)
-            end
-        end
+    try
+        func = info_map[kinfo]
+        func(k)
+    catch err
+        isa(err, KeyError) && error("OpenCL.Kernel has no info for: $kinfo")
+        throw(err)
     end
 end
 

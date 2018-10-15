@@ -6,6 +6,28 @@ end
 
 Base.pointer(p::Platform) = p.id
 
+function info(p::Platform, pinfo::Symbol)
+    info_map = Dict{Symbol, CL_platform_info}(
+        :profile => CL_PLATFORM_PROFILE,
+        :version => CL_PLATFORM_VERSION,
+        :name    => CL_PLATFORM_NAME,
+        :vendor  => CL_PLATFORM_VENDOR,
+        :extensions => CL_PLATFORM_EXTENSIONS
+    )
+    try
+        cl_info = info_map[pinfo]
+        inf = info(p, cl_info)
+        pinfo == :extensions && return split(inf)
+        return inf
+    catch err
+        if isa(err, KeyError)
+            throw(ArgumentError("OpenCL.Platform has no info for: $pinfo"))
+        else
+            throw(err)
+        end
+    end
+end
+
 Base.getindex(p::Platform, pinfo::Symbol) = info(p, pinfo)
 
 function Base.show(io::IO, p::Platform)
