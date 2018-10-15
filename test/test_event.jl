@@ -3,7 +3,7 @@
         for platform in cl.platforms()
             if occursin("Portable", platform[:name])
                 msg = "$(platform[:name]) does not implement User Events"
-                warn(msg)
+                @warn(msg)
                 continue
             end
 
@@ -24,7 +24,7 @@
             if occursin("Portable", platform[:name]) ||
                 occursin("Intel Gen OCL", platform[:name])
                 msg = "$(platform[:name]) does not implement User Events or shows other problems"
-                warn(msg)
+                @warn(msg)
                 continue
             end
 
@@ -66,7 +66,7 @@
             if occursin("Portable", platform[:name]) ||
                occursin("Intel Gen OCL", platform[:name])
                 msg = "$(platform[:name]) does not implement User Events or shows other problems."
-                warn(msg)
+                @warn(msg)
                 continue
             end
 

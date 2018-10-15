@@ -63,7 +63,7 @@ end
             end
 
             if platform[:name] == "Portable Computing Language"
-                warn("Skipping OpenCL.Context platform properties for " *
+                @warn("Skipping OpenCL.Context platform properties for " *
                      "Portable Computing Language Platform")
                 continue
             end

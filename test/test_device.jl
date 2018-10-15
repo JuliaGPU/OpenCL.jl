@@ -68,7 +68,7 @@
         for p in cl.platforms()
             if occursin("Portable", p[:name])
                 msg = "Skipping Device Info tests for Portable Computing Language Platform "
-                warn(msg)
+                @warn(msg)
                 continue
             end
             @test isa(p, cl.Platform)

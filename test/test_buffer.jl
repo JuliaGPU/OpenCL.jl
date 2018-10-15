@@ -122,7 +122,7 @@ end
         for device in cl.devices()
              if occursin("Portable", device[:platform][:name])
                  # the pocl platform claims to implement v1.2 of the spec, but does not
-                 warn("Skipping test OpenCL.Buffer fill for POCL Platform")
+                 @warn("Skipping test OpenCL.Buffer fill for POCL Platform")
                  continue
              end
              ctx = cl.Context(device)

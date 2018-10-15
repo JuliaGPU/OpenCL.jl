@@ -92,7 +92,7 @@ function Buffer(::Type{T}, ctx::Context, flags::CL_mem_flags,
 
     if (hostbuf !== nothing &&
         (flags & (CL_MEM_USE_HOST_PTR | CL_MEM_COPY_HOST_PTR)) == 0)
-        warn("'hostbuf' was passed, but no memory flags to make use of it")
+        @warn("'hostbuf' was passed, but no memory flags to make use of it")
     end
 
     if flags == (CL_MEM_USE_HOST_PTR | CL_MEM_ALLOC_HOST_PTR)

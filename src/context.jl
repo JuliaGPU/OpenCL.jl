@@ -209,11 +209,11 @@ function properties(ctx_id::CL_context)
             push!(result, (key, value))
         elseif key == 0
             if i != nprops
-                warn("Encountered OpenCL.Context property key == 0 at position $i")
+                @warn("Encountered OpenCL.Context property key == 0 at position $i")
             end
             break
         else
-            warn("Unknown OpenCL.Context property key encountered $key")
+            @warn("Unknown OpenCL.Context property key encountered $key")
         end
     end
     return result

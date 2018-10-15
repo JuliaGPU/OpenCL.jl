@@ -38,7 +38,7 @@ elseif vector_size == 8
         ITERS = 32768 # (262144/8)
         WGS = 64
 else
-    warn("Invalid vector size")
+    @warn("Invalid vector size")
     exit(1)
 end
 
