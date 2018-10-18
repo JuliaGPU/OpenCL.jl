@@ -5,6 +5,7 @@ function context_test_callback(arg1, arg2, arg3)
     OpenCL.cl.log_error("Callback works")
     return
 end
+
 function create_context_error(ctx)
     empty_kernel = "
     __kernel void test() {
@@ -62,7 +63,7 @@ end
             end
 
             if platform[:name] == "Portable Computing Language"
-                warn("Skipping OpenCL.Context platform properties for " *
+                @warn("Skipping OpenCL.Context platform properties for " *
                      "Portable Computing Language Platform")
                 continue
             end

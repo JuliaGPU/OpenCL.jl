@@ -15,7 +15,7 @@ mutable struct Buffer{T} <: CLMemObject
         end
         nbytes = sizeof(T) * len
         buff = new{T}(true, mem_id, len, false, C_NULL)
-        finalizer(buff, mem_obj -> begin
+        finalizer(buff) do mem_obj
             if !mem_obj.valid
                 throw(CLMemoryError("Attempted to double free OpenCL.Buffer $mem_obj"))
             end
@@ -23,7 +23,7 @@ mutable struct Buffer{T} <: CLMemObject
             mem_obj.valid   = false
             mem_obj.mapped  = false
             mem_obj.hostbuf = C_NULL
-        end)
+        end
         return buff
     end
 end
@@ -35,7 +35,7 @@ Base.sizeof(b::Buffer{T}) where {T} = Int(b.len * sizeof(T))
 
 Base.show(io::IO, b::Buffer{T}) where {T} = begin
     ptr_val = convert(UInt, Base.pointer(b))
-    ptr_address = "0x$(hex(ptr_val, Sys.WORD_SIZE>>2))"
+    ptr_address = "0x$(string(ptr_val, base = 16, pad = Sys.WORD_SIZE>>2))"
     print(io, "Buffer{$T}(@$ptr_address)")
 end
 
@@ -88,11 +88,11 @@ end
 
 # low level Buffer constructor with integer parameter flags
 function Buffer(::Type{T}, ctx::Context, flags::CL_mem_flags,
-                        len::Integer=0; hostbuf::Union{Void,Array{T}}=nothing) where T
+                        len::Integer=0; hostbuf::Union{Nothing,Array{T}}=nothing) where T
 
     if (hostbuf !== nothing &&
         (flags & (CL_MEM_USE_HOST_PTR | CL_MEM_COPY_HOST_PTR)) == 0)
-        warn("'hostbuf' was passed, but no memory flags to make use of it")
+        @warn("'hostbuf' was passed, but no memory flags to make use of it")
     end
 
     if flags == (CL_MEM_USE_HOST_PTR | CL_MEM_ALLOC_HOST_PTR)
@@ -100,7 +100,7 @@ function Buffer(::Type{T}, ctx::Context, flags::CL_mem_flags,
     end
 
     nbytes = 0
-    retain_buf::Union{Void,Array{T}} = nothing
+    retain_buf::Union{Nothing,Array{T}} = nothing
 
     if hostbuf !== nothing
         if (flags & CL_MEM_USE_HOST_PTR) != 0
@@ -140,11 +140,11 @@ end
 
 # enqueue a read from buffer to hoast array from buffer, return an event
 function enqueue_read_buffer(q::CmdQueue,
-                                     buf::Buffer{T},
-                                     hostbuf::Array{T},
-                                     dev_offset::Csize_t,
-                                     wait_for::Union{Void,Vector{Event}},
-                                     is_blocking::Bool) where T
+                             buf::Buffer{T},
+                             hostbuf::Array{T},
+                             dev_offset::Csize_t,
+                             wait_for::Union{Nothing,Vector{Event}},
+                             is_blocking::Bool) where T
     n_evts  = wait_for === nothing ? UInt(0) : length(wait_for)
     evt_ids = wait_for === nothing ? C_NULL  : [evt.id for evt in wait_for]
     ret_evt = Ref{CL_event}()
@@ -158,12 +158,12 @@ end
 
 # enqueue a write from host array to buffer, return an event
 function enqueue_write_buffer(q::CmdQueue,
-                                      buf::Buffer{T},
-                                      hostbuf::Array{T},
-                                      byte_count::Csize_t,
-                                      offset::Csize_t,
-                                      wait_for::Union{Void,Vector{Event}},
-                                      is_blocking::Bool) where T
+                              buf::Buffer{T},
+                              hostbuf::Array{T},
+                              byte_count::Csize_t,
+                              offset::Csize_t,
+                              wait_for::Union{Nothing,Vector{Event}},
+                              is_blocking::Bool) where T
     n_evts  = wait_for === nothing ? UInt(0) : length(wait_for)
     evt_ids = wait_for === nothing ? C_NULL  : [evt.id for evt in wait_for]
     ret_evt = Ref{CL_event}()
@@ -177,12 +177,12 @@ end
 
 # enqueue a copy from one buffer to another, return an event
 function enqueue_copy_buffer(q::CmdQueue,
-                                     src::Buffer{T},
-                                     dst::Buffer{T},
-                                     byte_count::Csize_t,
-                                     src_offset::Csize_t,
-                                     dst_offset::Csize_t,
-                                     wait_for::Union{Void,Vector{Event}}) where T
+                             src::Buffer{T},
+                             dst::Buffer{T},
+                             byte_count::Csize_t,
+                             src_offset::Csize_t,
+                             dst_offset::Csize_t,
+                             wait_for::Union{Nothing,Vector{Event}}) where T
     n_evts  = wait_for === nothing ? UInt(0) : length(wait_for)
     evt_ids = wait_for === nothing ? C_NULL  : [evt.id for evt in wait_for]
     ret_evt = Ref{CL_event}()
@@ -294,15 +294,15 @@ function enqueue_map_mem(q::CmdQueue,
     local mapped_arr::Array{T, N}
     try
         # julia owns pointer to mapped memory
-        mapped_arr = unsafe_wrap(Array{T, N}, mapped, dims, false)
+        mapped_arr = unsafe_wrap(Array{T, N}, mapped, dims, own=false)
         # when array is gc'd, unmap buffer
         b.mapped  = true
         b.hostbuf = mapped
-        finalizer(mapped_arr, x -> begin
+        finalizer(mapped_arr) do x
             if b.mapped && b.hostbuf != C_NULL
                 unmap!(q, b, x)
             end
-        end)
+        end
     catch err
         api.clEnqueueUnmapMemObject(q.id, b.id, mapped,
                                     unsigned(0), C_NULL, C_NULL)
@@ -317,10 +317,9 @@ end
 
     # low level enqueue fill operation, return event
     function enqueue_fill_buffer(q::CmdQueue, buf::Buffer{T},
-                                         pattern::T, offset::Csize_t,
-                                         nbytes::Csize_t,
-                                         wait_for::Union{Vector{Event},Void}) where T
-
+                                 pattern::T, offset::Csize_t,
+                                 nbytes::Csize_t,
+                                 wait_for::Union{Vector{Event},Nothing}) where T
         if wait_for === nothing
             evt_ids = C_NULL
             n_evts = cl_uint(0)
@@ -420,7 +419,7 @@ end
 
 # blocking read of the contents of a buffer into a new array
 function read(q::CmdQueue, buf::Buffer{T}) where T
-    hostbuf = Vector{T}(length(buf))
+    hostbuf = Vector{T}(undef, length(buf))
     enqueue_read_buffer(q, buf, hostbuf, unsigned(0), nothing, true)
     return hostbuf
 end

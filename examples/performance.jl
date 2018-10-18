@@ -44,7 +44,7 @@ function cl_performance(ndatapts::Integer, nworkers::Integer)
     for platform in cl.platforms()
 
         if platform[:name] == "Portable Computing Language"
-            warn("Portable Computing Language platform not yet supported")
+            @warn("Portable Computing Language platform not yet supported")
             continue
         end
 
@@ -65,14 +65,14 @@ function cl_performance(ndatapts::Integer, nworkers::Integer)
             @printf("Device max work item size: %s\n",  device[:max_work_item_size])
 
             if device[:max_mem_alloc_size] < sizeof(Float32) * ndatapts
-                warn("Requested buffer size exceeds device max alloc size!")
-                warn("Skipping device $(device[:name])...")
+                @warn("Requested buffer size exceeds device max alloc size!")
+                @warn("Skipping device $(device[:name])...")
                 continue
             end
 
             if device[:max_work_group_size] < nworkers
-                warn("Number of workers exceeds the device's max work group size!")
-                warn("Skipping device $(device[:name])...")
+                @warn("Number of workers exceeds the device's max work group size!")
+                @warn("Skipping device $(device[:name])...")
                 continue
             end
 

@@ -1,3 +1,5 @@
+using Base.GC
+
 struct TestStruct
     a::cl.CL_int
     b::cl.CL_float
@@ -97,7 +99,7 @@ end
                  end
              end
 
-             test_array = Vector{TestStruct}(100)
+             test_array = Vector{TestStruct}(undef, 100)
              @test cl.Buffer(TestStruct, ctx, :alloc, length(test_array)) != nothing
              @test cl.Buffer(TestStruct, ctx, :copy, hostbuf=test_array) != nothing
 
@@ -118,9 +120,9 @@ end
 
      @testset "OpenCL.Buffer fill" begin
         for device in cl.devices()
-             if contains(device[:platform][:name], "Portable")
+             if occursin("Portable", device[:platform][:name])
                  # the pocl platform claims to implement v1.2 of the spec, but does not
-                 warn("Skipping test OpenCL.Buffer fill for POCL Platform")
+                 @warn("Skipping test OpenCL.Buffer fill for POCL Platform")
                  continue
              end
              ctx = cl.Context(device)
@@ -132,7 +134,7 @@ end
              v = cl.opencl_version(device)
              if v.major == 1 && v.minor < 2
                  platform_name = device[:platform][:name]
-                 info("Skipping OpenCL.Buffer fill for $platform_name: fill is a v1.2 command")
+                 @info("Skipping OpenCL.Buffer fill for $platform_name: fill is a v1.2 command")
                  continue
              end
              cl.fill!(queue, buf, 1f0)
@@ -175,7 +177,7 @@ end
             test_array = fill(2f0, 1000)
             a_buf = cl.Buffer(Float32, ctx, length(test_array))
             b_buf = cl.Buffer(Float32, ctx, length(test_array))
-            c_arr = Vector{Float32}(length(test_array))
+            c_arr = Vector{Float32}(undef, length(test_array))
             # host to device buffer
             cl.copy!(queue, a_buf, test_array)
             # device buffer to device buffer
@@ -209,7 +211,7 @@ end
                 @test_throws ArgumentError cl.unmap!(queue, b, a)
 
                 # gc here quickly force any memory errors
-                Base.gc()
+                Base.GC.gc()
             end
             @test cl.ismapped(b) == false
             a, evt = cl.enqueue_map_mem(queue, b, :rw, 0, (10,10))

@@ -49,7 +49,7 @@
 
             # BUILD_SUCCESS undefined in POCL implementation..
             if device[:platform][:name] == "Portable Computing Language"
-                warn("Skipping OpenCL.Program build for Portable Computing Language Platform")
+                @warn("Skipping OpenCL.Program build for Portable Computing Language Platform")
                 continue
             end
             @test prg[:build_status][device] == cl.CL_BUILD_SUCCESS
