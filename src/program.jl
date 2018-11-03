@@ -95,11 +95,11 @@ function build!(p::Program; options = "", raise = true)
     end
     for (dev, status) in cl.info(p, :build_status)
         if status == cl.CL_BUILD_ERROR
-            println(STDERR, "Couldn't compile kernel: ")
+            println(stderr, "Couldn't compile kernel: ")
             source = info(p, :source)
-            print_with_linenumbers(source, "    ", STDERR)
-            println(STDERR, "With following build error:")
-            println(STDERR, cl.info(p, :build_log)[dev])
+            print_with_linenumbers(source, "    ", stderr)
+            println(stderr, "With following build error:")
+            println(stderr, cl.info(p, :build_log)[dev])
             raise && @check err # throw the build error when raise!
         end
     end

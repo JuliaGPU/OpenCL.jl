@@ -91,11 +91,11 @@ end
 const io_lock = ReentrantLock()
 function log_error(message...)
     @async begin
-        lock(STDERR)
+        lock(stderr)
         lock(io_lock)
-        print(STDERR, string(message..., "\n"))
+        print(stderr, string(message..., "\n"))
         unlock(io_lock)
-        unlock(STDERR)
+        unlock(stderr)
     end
 end
 

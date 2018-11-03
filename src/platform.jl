@@ -60,33 +60,6 @@ function info(p::Platform, pinfo::CL_platform_info)
     return CLString(result)
 end
 
-
-let info_map = Dict{Symbol, CL_platform_info}(
-        :profile => CL_PLATFORM_PROFILE,
-        :version => CL_PLATFORM_VERSION,
-        :name    => CL_PLATFORM_NAME,
-        :vendor  => CL_PLATFORM_VENDOR,
-        :extensions => CL_PLATFORM_EXTENSIONS
-    )
-    global info
-    function info(p::Platform, pinfo::Symbol)
-        try
-            cl_info = info_map[pinfo]
-            if pinfo == :extensions
-                split(info(p, cl_info))
-            else
-                info(p, cl_info)
-            end
-        catch err
-            if isa(err, KeyError)
-                throw(ArgumentError("OpenCL.Platform has no info for: $pinfo"))
-            else
-                throw(err)
-            end
-        end
-    end
-end
-
 function devices(p::Platform, dtype::CL_device_type)
     try
         ndevices = Ref{CL_uint}()
