@@ -406,11 +406,13 @@ function info(k::Kernel, kinfo::Symbol)
         return Program(ret[], retain=true)
     end
 
+    # Only supported for version 1.2 and above
     attributes(k::Kernel) = begin
         size = Ref{Csize_t}()
-        api.clGetKernelInfo(k.id, CL_KERNEL_ATTRIBUTES,
-                            0, C_NULL, size)
-        if size[] <= 1
+        rcode = api.clGetKernelInfo(k.id, CL_KERNEL_ATTRIBUTES,
+                                    0, C_NULL, size)
+        # Version 1.1 mostly MESA drivers will pass through the below condition
+        if rcode == CL_INVALID_VALUE || size[] <= 1
             return ""
         end
         result = Vector{CL_char}(undef, size[])
