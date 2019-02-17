@@ -1,15 +1,68 @@
-variables:
-  CI_IMAGE_TAG: 'opencl'
-
 stages:
-  - test
-  - postprocess
+    - test
+    - post
 
 include:
-  - 'https://raw.githubusercontent.com/JuliaGPU/gitlab-ci/master/templates/v0/common.yml'
-  - 'https://raw.githubusercontent.com/JuliaGPU/gitlab-ci/master/templates/v0/test_v0.7.yml'
-  - 'https://raw.githubusercontent.com/JuliaGPU/gitlab-ci/master/templates/v0/test_v1.0.yml'
-  - 'https://raw.githubusercontent.com/JuliaGPU/gitlab-ci/master/templates/v0/test_dev.yml'
+    - 'https://raw.githubusercontent.com/JuliaGPU/gitlab-ci/master/templates/v2/common.yml'
+    - 'https://raw.githubusercontent.com/JuliaGPU/gitlab-ci/master/templates/v2/test_v1.0.yml'
+    - 'https://raw.githubusercontent.com/JuliaGPU/gitlab-ci/master/templates/v2/test_v1.1.yml'
+    - 'https://raw.githubusercontent.com/JuliaGPU/gitlab-ci/master/templates/v2/test_dev.yml'
 
+# turn off job if variable CI_IMAGE_TAG is not defined
+# todo upstream
+test:v1.0:
+    only:
+        variables:
+            - $CI_IMAGE_TAG
+test:v1.1:
+    only:
+        variables:
+            - $CI_IMAGE_TAG
 test:dev:
-  allow_failure: true
+    only:
+        variables:
+            - $CI_IMAGE_TAG
+
+nvidia:test:dev:
+    extends: test:dev
+    variables:
+        CI_IMAGE_TAG: 'opencl'
+    tags:
+        - cuda
+    allow_failure: true
+
+amd:test:dev:
+    extends: test:dev
+    variables:
+        CI_IMAGE_TAG: 'rocm'
+    tags:
+        - rocm
+    allow_failure: true
+
+nvidia:test:v1.0:
+    extends: test:v1.0
+    variables:
+        CI_IMAGE_TAG: 'opencl'
+    tags:
+        - cuda
+
+amd:test:v1.0:
+    extends: test:v1.0
+    variables:
+        CI_IMAGE_TAG: 'rocm'
+    tags:
+        - rocm
+
+nvidia:test:v1.1:
+    extends: test:v1.1
+    variables:
+        CI_IMAGE_TAG: 'opencl'
+    tags:
+        - cuda
+
+amd:test:v1.1:
+    extends: test:v1.1
+    variables:
+        CI_IMAGE_TAG: 'rocm'
+    tags:
+        - rocm
