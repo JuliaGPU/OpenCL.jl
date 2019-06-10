@@ -1,4 +1,4 @@
-using OpenCL
+using OpenCL, Printf, LinearAlgebra
 
 const bench_kernel = "
 __kernel void sum(__global const float *a,
@@ -27,7 +27,7 @@ function cl_performance(ndatapts::Integer, nworkers::Integer)
 
     a = rand(Float32,  ndatapts)
     b = rand(Float32,  ndatapts)
-    c = Vector{Float32}(ndatapts)
+    c = Vector{Float32}(undef, ndatapts)
 
     @printf("Size of test data: %i MB\n", sizeof(a) / 1024 / 1024)
 
@@ -98,7 +98,7 @@ function cl_performance(ndatapts::Integer, nworkers::Integer)
             @printf("Execution time of test: %.4f seconds\n", t)
 
             c_device = cl.read(queue, c_buf)
-            info("Result norm: $(norm(c - c_device))")
+            @info("Result norm: $(norm(c - c_device))")
         end
     end
 end

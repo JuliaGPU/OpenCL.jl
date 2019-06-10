@@ -52,10 +52,10 @@ program = cl.Program(ctx, source=kernelsource) |> cl.build!
 #create empty vectors for c, d, and f
 h_a = rand(Float32, LENGTH)
 h_b = rand(Float32, LENGTH)
-h_c = Vector{Float32}(LENGTH)
-h_d = Vector{Float32}(LENGTH)
+h_c = Vector{Float32}(undef, LENGTH)
+h_d = Vector{Float32}(undef, LENGTH)
 h_e = rand(Float32, LENGTH)
-h_f = Vector{Float32}(LENGTH)
+h_f = Vector{Float32}(undef, LENGTH)
 h_g = rand(Float32, LENGTH)
 
 # create the input (a,b,e,g) arrays in device memory and copy data from the host
@@ -105,7 +105,7 @@ for i in 1:LENGTH
     tmp = h_a[i] + h_b[i] + h_e[i] + h_g[i]
     tmp -= h_f[i]
     if tmp^2 < TOL^2
-        correct += 1
+        global correct += 1
     else
         println("tmp $tmp h_a $(h_a[i]) h_b $(h_b[i]) ",
                 "h_e $(h_e[i]) h_g $(h_g[i]) h_f $(h_f[i])")
