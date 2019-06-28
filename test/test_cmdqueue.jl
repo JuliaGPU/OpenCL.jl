@@ -13,7 +13,7 @@
                     cl.CmdQueue(ctx, device, (:profile, :out_of_order))
                 catch err
                     if !has_warned
-                        warn("Platform $(device[:platform][:name]) does not seem to " *
+                        @warn("Platform $(device[:platform][:name]) does not seem to " *
                              "suport out of order queues: \n$err")
                         has_warned = true
                     end

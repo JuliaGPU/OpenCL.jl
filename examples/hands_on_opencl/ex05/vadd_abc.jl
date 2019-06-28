@@ -76,7 +76,7 @@ for i in 1:LENGTH
     # compute the deviation of expected and output result
     tmp -= h_r[i]
     if tmp^2 < TOL^2
-        correct += 1
+        global correct += 1
     else
         println("tmp $tmp h_a $(h_a[i]) h_b $(h_b[i]) h_c $(h_c[i]) h_r $(h_r[i])")
     end

@@ -5,6 +5,7 @@ function context_test_callback(arg1, arg2, arg3)
     OpenCL.cl.log_error("Callback works")
     return
 end
+
 function create_context_error(ctx)
     empty_kernel = "
     __kernel void test() {
@@ -15,6 +16,7 @@ function create_context_error(ctx)
         k = cl.Kernel(p, "test")
         q = cl.CmdQueue(ctx)
         q(k, 1, 10000000)
+    catch
     end
 end
 
@@ -61,8 +63,7 @@ end
             end
 
             if is_old_pocl(platform)
-                warn("Skipping OpenCL.Context platform properties for " *
-                     "old Portable Computing Language Platform")
+                @warn("Skipping OpenCL.Context platform properties for old Portable Computing Language Platform")
             end
 
             properties = [(cl.CL_CONTEXT_PLATFORM, platform)]

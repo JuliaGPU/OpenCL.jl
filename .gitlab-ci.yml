@@ -1,18 +1,56 @@
-variables:
-  JULIA_PKGDIR: "$CI_PROJECT_DIR/.julia/"
-  package: 'OpenCL'
+stages:
+    - test
+    - post
 
-.test_template: &test_definition
+include:
+    - 'https://raw.githubusercontent.com/JuliaGPU/gitlab-ci/3fbe3d2dd7288b4c91e8b7b2fbbd98b9bdeeb92a/templates/v3/common.yml'
 
-  script:
-    - julia -e 'versioninfo()'
-    # actual testing
-    - julia -e "Pkg.init();
-                symlink(\"$CI_PROJECT_DIR\", Pkg.dir(\"$package\"));
-                Pkg.resolve();
-                Pkg.build(\"$package\");
-                Pkg.test(\"$package\")"
-  
-test:0.6:
-  image: juliagpu/julia:v0.6-opencl
-  <<: *test_definition
+nvidia:test:dev:
+    extends: .test
+    variables:
+        CI_IMAGE_TAG: 'opencl'
+        CI_VERSION_TAG: 'dev'
+    tags:
+        - cuda
+    allow_failure: true
+
+amd:test:dev:
+    extends: .test
+    variables:
+        CI_IMAGE_TAG: 'rocm'
+        CI_VERSION_TAG: 'dev'
+    tags:
+        - rocm
+    allow_failure: true
+
+nvidia:test:v1.0:
+    extends: .test
+    variables:
+        CI_IMAGE_TAG: 'opencl'
+        CI_VERSION_TAG: 'v1.0'
+    tags:
+        - cuda
+
+amd:test:v1.0:
+    extends: .test
+    variables:
+        CI_IMAGE_TAG: 'rocm'
+        CI_VERSION_TAG: 'v1.0'
+    tags:
+        - rocm
+
+nvidia:test:v1.1:
+    extends: .test
+    variables:
+        CI_IMAGE_TAG: 'opencl'
+        CI_VERSION_TAG: 'v1.1'
+    tags:
+        - cuda
+
+amd:test:v1.1:
+    extends: .test
+    variables:
+        CI_IMAGE_TAG: 'rocm'
+        CI_VERSION_TAG: 'v1.1'
+    tags:
+        - rocm

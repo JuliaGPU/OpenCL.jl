@@ -1,8 +1,9 @@
+#=
 info(
 "======================================================================
                               Running Behavior Tests
       ======================================================================")
-
+=#
 @testset "OpenCL Hello World Test" begin
 
     hello_world_kernel = "
@@ -19,7 +20,7 @@ info(
 
     for device in cl.devices()
         if is_old_pocl(device[:platform])
-            warn("Skipping OpenCL Hello World Test for Portable Computing Language Platform")
+            @warn("Skipping OpenCL Hello World Test for Portable Computing Language Platform")
             continue
         end
 
@@ -58,13 +59,13 @@ end
     for device in cl.devices()
 
         len = 1024
-        h_a = Vector{cl.CL_float}(len)
-        h_b = Vector{cl.CL_float}(len)
-        h_c = Vector{cl.CL_float}(len)
-        h_d = Vector{cl.CL_float}(len)
-        h_e = Vector{cl.CL_float}(len)
-        h_f = Vector{cl.CL_float}(len)
-        h_g = Vector{cl.CL_float}(len)
+        h_a = Vector{cl.CL_float}(undef, len)
+        h_b = Vector{cl.CL_float}(undef, len)
+        h_c = Vector{cl.CL_float}(undef, len)
+        h_d = Vector{cl.CL_float}(undef, len)
+        h_e = Vector{cl.CL_float}(undef, len)
+        h_f = Vector{cl.CL_float}(undef, len)
+        h_g = Vector{cl.CL_float}(undef, len)
 
         for i in 1:len
             h_a[i] = cl.cl_float(rand())
@@ -202,7 +203,7 @@ end
     end
 end
 
-immutable Params
+struct Params
     A::Float32
     B::Float32
     #TODO: fixed size arrays?
@@ -242,7 +243,7 @@ let test_struct = "
     for device in cl.devices()
 
         if is_old_pocl(device[:platform])
-            warn("Skipping OpenCL Struct Buffer Test for old Portable Computing Language Platform")
+            @warn("Skipping OpenCL Struct Buffer Test for old Portable Computing Language Platform")
             continue
         end
 
@@ -275,7 +276,7 @@ end
 
 end
 
-type MutableParams
+mutable struct MutableParams
     A::Float32
     B::Float32
 end
@@ -303,7 +304,7 @@ let test_mutable_pointerfree = "
     for device in cl.devices()
 
         if is_old_pocl(device[:platform])
-            warn("Skipping OpenCL Struct Buffer Test for old Portable Computing Language Platform")
+            @warn("Skipping OpenCL Struct Buffer Test for old Portable Computing Language Platform")
             continue
         end
 

@@ -2,8 +2,7 @@
     @testset "OpenCL.Event status" begin
         for platform in cl.platforms()
             if is_old_pocl(platform)
-                warn("Old Portable Computing Language Platform" *
-                     "does not implement User Events")
+                @warn("Old Portable Computing Language Platform does not implement User Events")
             end
 
             for device in cl.devices(platform)
@@ -20,10 +19,10 @@
 
     @testset "OpenCL.Event wait" begin
         for platform in cl.platforms()
-            if contains(platform[:name], "Portable") ||
-               contains(platform[:name], "Intel Gen OCL")
+            if occursin("Portable", platform[:name]) ||
+                occursin("Intel Gen OCL", platform[:name])
                 msg = "$(platform[:name]) does not implement User Events or shows other problems"
-                warn(msg)
+                @warn(msg)
                 continue
             end
 
@@ -62,19 +61,18 @@
                 continue
             end
 
-            if contains(platform[:name], "Portable") ||
-               contains(platform[:name], "Intel Gen OCL")
+            if occursin("Portable", platform[:name]) ||
+               occursin("Intel Gen OCL", platform[:name])
                 msg = "$(platform[:name]) does not implement User Events or shows other problems."
-                warn(msg)
+                @warn(msg)
                 continue
             end
 
             for device in cl.devices(platform)
-                callback_called = false
+                global callback_called = Ref(false)
 
                 function test_callback(evt, status)
-                    callback_called = true
-                    println("Test Callback")
+                    callback_called[] = true
                 end
 
                 ctx = cl.Context(device)
@@ -88,7 +86,7 @@
 
                 @test usr_evt[:status] == :submitted
                 @test mkr_evt[:status] in (:queued, :submitted)
-                @test callback_called == false
+                @test !callback_called[]
 
                 cl.complete(usr_evt)
                 @test usr_evt[:status] == :complete
@@ -100,7 +98,7 @@
                 sleep(0.5)
 
                 @test mkr_evt[:status] == :complete
-                @test callback_called
+                @test callback_called[]
             end
         end
     end

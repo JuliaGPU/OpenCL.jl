@@ -36,8 +36,9 @@ context(mem::CLMemObject) = begin
     return Context(param[], retain=true)
 end
 
+function info(mem::CLMemObject, minfo::Symbol)
 
-let mem_type(m::CLMemObject) = begin
+    mem_type(m::CLMemObject) = begin
         result = Ref{CL_mem_object_type}()
         @check api.clGetMemObjectInfo(m.id, CL_MEM_TYPE,
                         sizeof(CL_mem_object_type), result, C_NULL)
@@ -100,16 +101,14 @@ let mem_type(m::CLMemObject) = begin
         :map_count => map_count
     )
 
-    function info(mem::CLMemObject, minfo::Symbol)
-        try
-            func = info_map[minfo]
-            func(mem)
-        catch err
-            if isa(err, KeyError)
-                throw(ArgumentError("OpenCL.MemObject has no info for: $minfo"))
-            else
-                throw(err)
-            end
+    try
+        func = info_map[minfo]
+        func(mem)
+    catch err
+        if isa(err, KeyError)
+            throw(ArgumentError("OpenCL.MemObject has no info for: $minfo"))
+        else
+            throw(err)
         end
     end
 end

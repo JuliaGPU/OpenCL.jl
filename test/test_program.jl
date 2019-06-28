@@ -38,7 +38,7 @@
 
             @test prg[:reference_count] > 0
             if device[:platform][:name] == "Portable Computing Language"
-                warn("Skipping OpenCL.Program info test for " *
+                @warn("Skipping OpenCL.Program info test for " *
                      "Portable Computing Language")
             else
                 @test isempty(strip(prg[:build_log][device]))
@@ -54,7 +54,7 @@
 
             # BUILD_SUCCESS undefined in POCL implementation..
             if is_old_pocl(device[:platform])
-                warn("Skipping OpenCL.Program build for old Portable Computing Language Platform")
+                @warn("Skipping OpenCL.Program build for old Portable Computing Language Platform")
                 continue
             end
             @test prg[:build_status][device] == cl.CL_BUILD_SUCCESS
@@ -89,7 +89,7 @@
             @test length(binaries[device]) > 0
             prg2 = cl.Program(ctx, binaries=binaries)
             if device[:platform][:name] == "Portable Computing Language"
-                warn("Skipping OpenCL.Program binaries test for " *
+                @warn("Skipping OpenCL.Program binaries test for " *
                      "Portable Computing Language")
             else
                 @test prg2[:binaries] == binaries

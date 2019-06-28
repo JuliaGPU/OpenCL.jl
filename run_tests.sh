@@ -1,1 +1,1 @@
-julia --color -L src/OpenCL.jl test/runtests.jl
+julia --color=auto -L src/OpenCL.jl test/runtests.jl

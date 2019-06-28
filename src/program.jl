@@ -1,6 +1,8 @@
 # OpenCL.Program
 
-type Program <: CLObject
+using Printf
+
+mutable struct Program <: CLObject
     id::CL_program
     binary::Bool
 
@@ -10,7 +12,7 @@ type Program <: CLObject
             @check api.clRetainProgram(program_id)
         end
         p = new(program_id, binary)
-        finalizer(p, _finalize)
+        finalizer(_finalize, p)
         return p
     end
 end
@@ -24,7 +26,7 @@ end
 
 Base.show(io::IO, p::Program) = begin
     ptr_val = convert(UInt, Base.pointer(p))
-    ptr_address = "0x$(hex(ptr_val, Sys.WORD_SIZE>>2))"
+    ptr_address = "0x$(string(ptr_val, base = 16, pad = Sys.WORD_SIZE>>2))"
     print(io, "OpenCL.Program(@$ptr_address)")
 end
 
@@ -48,10 +50,10 @@ function Program(ctx::Context; source=nothing, binaries=nothing)
 
     elseif binaries !== nothing
         ndevices = length(binaries)
-        device_ids = Vector{CL_device_id}(ndevices)
-        bin_lengths = Vector{Csize_t}(ndevices)
-        binary_status = Vector{CL_int}(ndevices)
-        binary_ptrs= Vector{Ptr{UInt8}}(ndevices)
+        device_ids = Vector{CL_device_id}(undef, ndevices)
+        bin_lengths = Vector{Csize_t}(undef, ndevices)
+        binary_status = Vector{CL_int}(undef, ndevices)
+        binary_ptrs= Vector{Ptr{UInt8}}(undef, ndevices)
         try
             for (i, (dev, bin)) in enumerate(binaries)
                 device_ids[i] = dev.id
@@ -93,18 +95,18 @@ function build!(p::Program; options = "", raise = true)
     end
     for (dev, status) in cl.info(p, :build_status)
         if status == cl.CL_BUILD_ERROR
-            println(STDERR, "Couldn't compile kernel: ")
+            println(stderr, "Couldn't compile kernel: ")
             source = info(p, :source)
-            print_with_linenumbers(source, "    ", STDERR)
-            println(STDERR, "With following build error:")
-            println(STDERR, cl.info(p, :build_log)[dev])
+            print_with_linenumbers(source, "    ", stderr)
+            println(stderr, "With following build error:")
+            println(stderr, cl.info(p, :build_log)[dev])
             raise && @check err # throw the build error when raise!
         end
     end
     return p
 end
 
-let
+function info(p::Program, pinfo::Symbol)
     num_devices(p::Program) = begin
         ret = Ref{CL_uint}()
         @check api.clGetProgramInfo(p.id, CL_PROGRAM_NUM_DEVICES, sizeof(ret), ret, C_NULL)
@@ -113,7 +115,7 @@ let
 
     devices(p::Program) = begin
         ndevices = num_devices(p)
-        device_ids = Vector{CL_device_id}(ndevices)
+        device_ids = Vector{CL_device_id}(undef, ndevices)
         @check api.clGetProgramInfo(p.id, CL_PROGRAM_DEVICES,
                                     sizeof(CL_device_id) * ndevices, device_ids, C_NULL)
         return [Device(device_ids[i]) for i in 1:ndevices]
@@ -140,7 +142,7 @@ let
                 logs[d] = ""
                 continue
             end
-            log_bytestring = Vector{CL_char}(log_len[])
+            log_bytestring = Vector{CL_char}(undef, log_len[])
             @check api.clGetProgramBuildInfo(p.id, d.id, CL_PROGRAM_BUILD_LOG,
                                             log_len[], log_bytestring, C_NULL)
             logs[d] = CLString(log_bytestring)
@@ -157,14 +159,14 @@ let
         sizes = zeros(Csize_t, slen[])
         @check api.clGetProgramInfo(p.id, CL_PROGRAM_BINARY_SIZES,
                                     slen[], sizes, C_NULL)
-        bins = Vector{Ptr{UInt8}}(length(sizes))
+        bins = Vector{Ptr{UInt8}}(undef, length(sizes))
         # keep a reference to the underlying binary arrays
         # as storing the pointer to the array hides the additional
         # reference from julia's garbage collector
         bin_arrays = Any[]
         for (i, s) in enumerate(sizes)
             if s > 0
-                bin = Vector{UInt8}(s)
+                bin = Vector{UInt8}(undef, s)
                 bins[i] = pointer(bin)
                 push!(bin_arrays, bin)
             else
@@ -189,7 +191,7 @@ let
         src_len = Ref{Csize_t}()
         @check api.clGetProgramInfo(p.id, CL_PROGRAM_SOURCE, 0, C_NULL, src_len)
         src_len[] <= 1 && return nothing
-        src = Vector{Cchar}(src_len[])
+        src = Vector{Cchar}(undef, src_len[])
         @check api.clGetProgramInfo(p.id, CL_PROGRAM_SOURCE, src_len[], src, C_NULL)
         return CLString(src)
     end
@@ -219,16 +221,14 @@ let
         :build_status => build_status,
     )
 
-    function info(p::Program, pinfo::Symbol)
-        try
-            func = info_map[pinfo]
-            func(p)
-        catch err
-            if isa(err, KeyError)
-                throw(ArgumentError("OpenCL.Program has no info for $pinfo"))
-            else
-                throw(err)
-            end
+    try
+        func = info_map[pinfo]
+        func(p)
+    catch err
+        if isa(err, KeyError)
+            throw(ArgumentError("OpenCL.Program has no info for $pinfo"))
+        else
+            throw(err)
         end
     end
 end

@@ -31,7 +31,7 @@ const niters = ITERS
 # create context, queue and build program
 device, ctx, queue = cl.create_compute_context()
 
-kernelsource = readstring(joinpath(src_dir, "pi_ocl.cl"))
+kernelsource = read(joinpath(src_dir, "pi_ocl.cl"), String)
 program = cl.Program(ctx, source=kernelsource) |> cl.build!
 
 # pi is a julia keyword
@@ -55,7 +55,7 @@ nsteps = work_group_size * niters * nwork_groups
 step_size = 1.0 / nsteps
 
 # vector to hold partial sum
-h_psum = Vector{Float32}(nwork_groups)
+h_psum = Vector{Float32}(undef, nwork_groups)
 
 println("$nwork_groups work groups of size $work_group_size.")
 println("$nsteps integration steps")
