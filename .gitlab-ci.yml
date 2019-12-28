@@ -11,7 +11,7 @@ nvidia:test:dev:
         CI_IMAGE_TAG: 'opencl'
         CI_VERSION_TAG: 'dev'
     tags:
-        - cuda
+        - nvidia
     allow_failure: true
 
 amd:test:dev:
@@ -29,7 +29,7 @@ nvidia:test:v1.0:
         CI_IMAGE_TAG: 'opencl'
         CI_VERSION_TAG: 'v1.0'
     tags:
-        - cuda
+        - nvidia
 
 amd:test:v1.0:
     extends: .test
@@ -45,7 +45,7 @@ nvidia:test:v1.1:
         CI_IMAGE_TAG: 'opencl'
         CI_VERSION_TAG: 'v1.1'
     tags:
-        - cuda
+        - nvidia
 
 amd:test:v1.1:
     extends: .test
