@@ -1,5 +1,6 @@
 name = "OpenCL"
 uuid = "08131aa3-fb12-5dee-8b74-c09406e224a2"
+version = "0.8.1"
 
 [deps]
 Libdl = "8f399da3-3557-5675-b5ff-fb832c97cbdb"
