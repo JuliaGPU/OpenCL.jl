@@ -68,7 +68,7 @@ end # cl
 
 function __init__()
     if cl.api.libopencl == ""
-        @warn "Could not locate an OpenCL library, this package will not work!"
+        @warn "Could not locate an OpenCL library\nOpenCL API calls will be unavailable"
     end
 end
 
