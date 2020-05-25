@@ -65,4 +65,11 @@ include("array.jl")
 
 @deprecate release! finalize
 end # cl
+
+function __init__()
+    if cl.api.libopencl == ""
+        @warn "Could not locate an OpenCL library\nOpenCL API calls will be unavailable"
+    end
+end
+
 end # module

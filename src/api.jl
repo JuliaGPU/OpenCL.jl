@@ -7,7 +7,6 @@ const paths = Sys.isapple() ? String["/System/Library/Frameworks/OpenCL.framewor
 import Libdl
 
 const libopencl = Libdl.find_library(["libOpenCL", "OpenCL"], paths)
-@assert libopencl != ""
 
 function _ocl_func(func, ret_type, arg_types)
     local args_in = Symbol[Symbol("arg$i")
