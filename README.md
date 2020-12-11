@@ -103,3 +103,61 @@ else
     @error "Norm should be 0.0f"
 end
 ```
+
+## Translation
+
+
+Here's a rough translation between the OpenCL API in C to this Julia version. Optional arguments are indicated by `[name?]` (see `clCreateBuffer`, for example). For a quick reference to the C version, see [the Khronos quick reference card](https://www.khronos.org/files/opencl-1-2-quick-reference-card.pdf).
+
+
+### Platform and Devices
+
+
+| C                   | Julia                                                       | Notes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+|---------------------|-------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `clGetPlatformIDs`  | `cl.platforms()`                                            |                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| `clGetPlatformInfo` | `cl.info(platform, :symbol)`                                | Platform info: `:profile`, `:version`, `:name`, `:vendor`, `:extensions`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| `clGetDeviceIDs`    | `cl.devices()`, `cl.devices(platform)`, `cl.devices(:type)` | Device types: `:all`, `:cpu`, `:gpu`, `:accelerator`, `:custom`, `:default`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| `clGetDeviceInfo`   | `cl.info(device, :symbol)`                                  | Device info: `:driver_version`, `:version`, `:profile`, `:extensions`, `:platform`, `:name`, `:device_type`, `:has_image_support`, `:queue_properties`, `:has_queue_out_of_order_exec`, `:has_queue_profiling`, `:has_native_kernel`, `:vendor_id`, `:max_compute_units`, `:max_work_item_size`, `:max_clock_frequency`, `:address_bits`, `:max_read_image_args`, `:max_write_image_args`, `:global_mem_size`, `:max_mem_alloc_size`, `:max_const_buffer_size`, `:local_mem_size`, `:has_local_mem`, `:host_unified_memory`, `:available`, `:compiler_available`, `:max_work_group_size`, `:max_work_item_dims`, `:max_parameter_size`, `:profiling_timer_resolution`,  `:max_image2d_shape`, `:max_image3d_shape` |
+| `clCreateContext`   | `cl.context(queue)`, `cl.context(CLMemObject), `cl.context(CLArray)` | |
+| `clReleaeContext`   | `cl.release!` | |
+
+
+### Buffers
+
+
+| C                      | Julia                                                                                                       | Notes                                                      |
+|------------------------|-------------------------------------------------------------------------------------------------------------|------------------------------------------------------------|
+| `clCreateBuffer`       | `cl.Buffer(type, context, [length?]; [hostbuf?])`, `cl.Buffer(type, context, flags, [length?]; [hostbuf?])` | Memory flags: `:rw`, `:r`, `:w`, `:use`, `:alloc`, `:copy` |
+| `clEnqueueCopyBuffer`  | `cl.copy!(queue, destination, source)`                                                                      |                                                            |
+| `clEnqueueFillBuffer`  | `cl.enqueue_fill_buffer(queue, buffer, pattern, offset, nbytesm wait_for)`                                  |                                                            |
+| `clEnqueueReadBuffer`  | `cl.enqueue_read_buffer(queue, buffer, hostbuf, dev_offset, wait_for, is_blocking)`                         |                                                            |
+| `clEnqueueWriteBuffer` | `cl.enqueue_write_buffer(queue, buffer, hostbuf, byte_count, offset, wait_for, is_blocking)`                |                                                            |
+
+
+### Program Objects
+
+
+| C                             | Julia                        | Notes                                                                                                                           |
+|-------------------------------|------------------------------|---------------------------------------------------------------------------------------------------------------------------------|
+| `clCreateProgramWithSource`   | `cl.Program(ctx; source)`    |                                                                                                                                 |
+| `clCreateProgramWithBinaries` | `cl.Program(ctx; binaries)`  |                                                                                                                                 |
+| `clReleaseProgram`            | `cl.release!`                |                                                                                                                                 |
+| `clBuildProgram`              | `cl.build!(progrm, options)` |                                                                                                                                 |
+| `clGetProgramInfo`            | `cl.info(program, :symbol)`  | Program info: `:reference_count`, `:devices`, `:context`, `:num_devices`, `:source`, `:binaries`, `:build_log`, `:build_status` |
+
+
+### Kernel and Event Objects
+
+
+| C | Julia | Notes |
+| --- | --- | ----- |
+| `clCreateKernel` | `cl.Kernel(program, "kernel_name")` | |
+| `clGetKernelInfo` | `cl.info(kernel, :symbol)` | Kernel info: `:name`, `:num_args`, `:reference_count`, `:program`, `:attributes` |
+| `clEnqueueNDRangeKernel` | `cl.enqueue_kernel(queue, kernel, global_work_size)`, `cl.enqueue_kernel(queue, kernel, global_work_size, local_work_size; global_work_offset, wait_on)` | |
+| `clSetKernelArg` | `cl.set_arg!(kernel, idx, arg)` | `idx` starts at 1 |
+| `clCreateUserEvent` | `cl.UserEvent(ctx; retain)`  | | 
+| `clGetEventInfo`    | `cl.info(event, :symbol)`    | Event info: `:context`, `:command_queue`, `:reference_count`, `:command_type`, `:status`, `:profile_start`, `:profile_end`, `:profile_queued`, `:profile_submit`, `:profile_duration`
+| `clWaitForEvents`   | `cl.wait(event)`, `cl.wait(events)` |
+| `clEnqueueMarkerWithWaitList` | `cl.enqueue_marker_with_wait_list(queue, wait_for)` | |
+| `clEnqueueBarrierWithWaitList` | `cl.enqueue_barrier_with_wait_list(queue, wait_for)` | |
