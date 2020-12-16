@@ -6,6 +6,41 @@ end
 
 Base.pointer(p::Platform) = p.id
 
+"""
+    profile(platform)
+
+The profile of the platform (`CL_PLATFORM_PROFILE`). Either `"FULL_PROFILE"` or `"EMBEDDED_PROFILE"`.
+"""
+profile(p::Platform) = info(p, CL_PLATFORM_PROFILE)
+
+"""
+    version(platform)
+
+The OpenCL version string for the platform (`CL_PLATFORM_VERSION`).
+"""
+version(p::Platform) = info(p, CL_PLATFORM_VERSION)
+
+"""
+    name(platform)
+
+The platform name string (`CL_PLATFORM_NAME`).
+"""
+name(p::Platform) = info(p, CL_PLATFORM_NAME)
+
+"""
+    vendor(platform)
+
+The platform vendor string (`CL_PLATFORM_VENDOR`).
+"""
+vendor(p::Platform)  = info(p, CL_PALTFORM_VENDOR)
+
+"""
+    extensions(platform)
+
+The extensions supported by the platform (`CL_PLATFORM_EXTENSIONS`), as a list of `String`.
+"""
+extensions(p::Platform) = info(p, CL_PLATFORM_EXTENSIONS) |> split
+
 function info(p::Platform, pinfo::Symbol)
     info_map = Dict{Symbol, CL_platform_info}(
         :profile => CL_PLATFORM_PROFILE,

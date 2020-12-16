@@ -240,6 +240,63 @@ function work_group_info(k::Kernel, winfo::CL_kernel_work_group_info, d::Device)
     end
 end
 
+
+"""
+    work_group_size(kernel, device)::Int
+
+Returns the largest work group size that can be used with the specific combination of kernel and device (`CL_KERNEL_WORK_GROUP_SIZE`). This value may vary between devices and kernels, but is always less than the maximum for the device (`max_work_group_size(device)`).
+"""
+function work_group_size(kernel::Kernel, device::Device)
+    result = Ref{Csize_t}(0)
+    @check api.clGetKernelWorkGroupInfo(kernel.id, device.id, CL_KERNEL_WORK_GROUP_SIZE, sizeof(CL_ulong), result, C_NULL)
+    Int(result[])
+end
+
+"""
+    work_group_compile_size(kernel, device)::Tuple{Int, Int, Int}
+
+If specified, returns the work group size required in the kernel source (`CL_KERNEL_COMPILE_WORK_GROUP_SIZE`). Otherwise, returns all zeros.
+"""
+function work_group_compile_size(kernel::Kernel, device::Device)
+    @assert sizeof(Csize_t) == sizeof(Int)
+    result = Vector{Int}(undef, 3)
+    @check api.clGetKernelWorkGroupInfo(kernel.id, device.id, CL_KERNEL_COMPILE_WORK_GROUP_SIZE, 3*sizeof(Int), result, C_NULL)
+    tuple(result...)
+end
+
+"""
+    kernel_local_mem_size(kernel, device)::UInt
+
+Returns the amount of local memory (in bytes) used by the kernel on the device (`CL_KERNEL_LOCAL_MEM_SIZE`).
+"""
+function kernel_local_mem_size(kernel::Kernel, device::Device)
+    result = Ref{CL_ulong}(0)
+    @check api.clGetKernelWorkGroupInfo(kernel.id, device.id, CL_KERNEL_LOCAL_MEM_SIZE, sizeof(CL_ulong), result, C_NULL)
+    return UInt(result[])
+end
+
+"""
+    kernel_private_mem_size(kernel, device)::UInt
+
+Returns the amount of private memory (in bytes) used by the kernel on the device (`CL_KERNEL_LOCAL_MEM_SIZE`).
+"""
+function kernel_private_mem_size(kernel::Kernel, device::Device)
+    result = Ref{CL_ulong}(0)
+    @check api.clGetKernelWorkGroupInfo(kernel.id, device.id, CL_KERNEL_PRIVATE_MEM_SIZE, sizeof(CL_ulong), result, C_NULL)
+    return UInt(result[])
+end
+
+"""
+    kernel_preferred_work_group_size_multiple(kernel, device)::Int
+
+Returns the multiple of the work group size preferred by the device (`CL_KERNEL_PREFERRED_WORK_GROUP_SIZE_MULTIPLE`). This is a performance hint.
+"""
+function kernel_preferred_work_group_size_multiple(kernel::Kernel, device::Device)
+    result = Ref{Csize_t}(0)
+    @check api.clGetKernelWorkGroupInfo(kernel.id, device.id, CL_KERNEL_PREFERRED_WORK_GROUP_SIZE_MULTIPLE, sizeof(CL_ulong), result, C_NULL)
+    return Int(result[])
+end
+
 function work_group_info(k::Kernel, winfo::Symbol, d::Device)
     if winfo == :size
         work_group_info(k, CL_KERNEL_WORK_GROUP_SIZE, d)
@@ -374,53 +431,87 @@ function enqueue_task(q::CmdQueue, k::Kernel; wait_for=nothing)
     return ret_event[]
 end
 
+
+"""
+    name(kernel)::String
+
+Gets the function name of the kernel (`CL_KERNEL_FUNCTION_NAME`).
+"""
+name(k::Kernel) = begin
+    size = Ref{Csize_t}()
+    @check api.clGetKernelInfo(k.id, CL_KERNEL_FUNCTION_NAME,
+                                0, C_NULL, size)
+    result = Vector{Cchar}(undef, size[])
+    @check api.clGetKernelInfo(k.id, CL_KERNEL_FUNCTION_NAME,
+                                size[], result, size)
+    return CLString(result)
+end
+
+"""
+    num_args(kernel)::UInt32
+
+Gets the number of arguments to the kernel (`CL_KERNEL_NUM_ARGS`).
+"""
+num_args(k::Kernel) = begin
+    ret = Ref{CL_uint}()
+    @check api.clGetKernelInfo(k.id, CL_KERNEL_NUM_ARGS,
+                                sizeof(CL_uint), ret, C_NULL)
+    return ret[]
+end
+
+"""
+    reference_count(kernel)::UInt32
+
+Gets the number of references to the kernel (`CL_KERNEL_REFERENCE_COUNT`).
+
+!!! warning "Warning"
+    Note the documentation from Khronos:
+
+    > The reference count returned should be considered immediately stale. It is unsuitable for general use in applications. This feature is provided for identifying memory leaks.
+"""
+reference_count(k::Kernel) = begin
+    ret = Ref{CL_uint}()
+    @check api.clGetKernelInfo(k.id, CL_KERNEL_REFERENCE_COUNT,
+                                sizeof(CL_uint), ret, C_NULL)
+    return ret[]
+end
+
+"""
+    program(kernel)::Program
+
+Gets the program object associated with the kernel (`CL_KERNEL_PROGRAM`).
+"""
+program(k::Kernel) = begin
+    ret = Ref{CL_program}()
+    @check api.clGetKernelInfo(k.id, CL_KERNEL_PROGRAM,
+                                sizeof(CL_program), ret, C_NULL)
+    return Program(ret[], retain=true)
+end
+
+# Only supported for version 1.2 and above
+"""
+    attributes(kernel)::String
+
+Gets the attributes associated with the kernel (`CL_KERNEL_ATTRIBUTES`).
+
+!!! compat "Version 1.2"
+    This function is only available on OpenCL 1.2 or higher.
+"""
+attributes(k::Kernel) = begin
+    size = Ref{Csize_t}()
+    rcode = api.clGetKernelInfo(k.id, CL_KERNEL_ATTRIBUTES,
+                                0, C_NULL, size)
+    # Version 1.1 mostly MESA drivers will pass through the below condition
+    if rcode == CL_INVALID_VALUE || size[] <= 1
+        return ""
+    end
+    result = Vector{CL_char}(undef, size[])
+    @check api.clGetKernelInfo(k.id, CL_KERNEL_ATTRIBUTES,
+                                size[], result, size)
+    return CLString(result)
+end
+
 function info(k::Kernel, kinfo::Symbol)
-    name(k::Kernel) = begin
-        size = Ref{Csize_t}()
-        @check api.clGetKernelInfo(k.id, CL_KERNEL_FUNCTION_NAME,
-                                   0, C_NULL, size)
-        result = Vector{Cchar}(undef, size[])
-        @check api.clGetKernelInfo(k.id, CL_KERNEL_FUNCTION_NAME,
-                                   size[], result, size)
-        return CLString(result)
-    end
-
-    num_args(k::Kernel) = begin
-        ret = Ref{CL_uint}()
-        @check api.clGetKernelInfo(k.id, CL_KERNEL_NUM_ARGS,
-                                   sizeof(CL_uint), ret, C_NULL)
-        return ret[]
-    end
-
-    reference_count(k::Kernel) = begin
-        ret = Ref{CL_uint}()
-        @check api.clGetKernelInfo(k.id, CL_KERNEL_REFERENCE_COUNT,
-                                   sizeof(CL_uint), ret, C_NULL)
-        return ret[]
-    end
-
-    program(k::Kernel) = begin
-        ret = Ref{CL_program}()
-        @check api.clGetKernelInfo(k.id, CL_KERNEL_PROGRAM,
-                                   sizeof(CL_program), ret, C_NULL)
-        return Program(ret[], retain=true)
-    end
-
-    # Only supported for version 1.2 and above
-    attributes(k::Kernel) = begin
-        size = Ref{Csize_t}()
-        rcode = api.clGetKernelInfo(k.id, CL_KERNEL_ATTRIBUTES,
-                                    0, C_NULL, size)
-        # Version 1.1 mostly MESA drivers will pass through the below condition
-        if rcode == CL_INVALID_VALUE || size[] <= 1
-            return ""
-        end
-        result = Vector{CL_char}(undef, size[])
-        @check api.clGetKernelInfo(k.id, CL_KERNEL_ATTRIBUTES,
-                                   size[], result, size)
-        return CLString(result)
-    end
-
     info_map = Dict{Symbol, Function}(
         :name => name,
         :num_args => num_args,
