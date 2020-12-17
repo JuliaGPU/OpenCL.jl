@@ -7,37 +7,37 @@ end
 Base.pointer(p::Platform) = p.id
 
 """
-    profile(platform)
+    profile(platform)::String
 
 The profile of the platform (`CL_PLATFORM_PROFILE`). Either `"FULL_PROFILE"` or `"EMBEDDED_PROFILE"`.
 """
 profile(p::Platform) = info(p, CL_PLATFORM_PROFILE)
 
 """
-    version(platform)
+    version(platform)::String
 
 The OpenCL version string for the platform (`CL_PLATFORM_VERSION`).
 """
 version(p::Platform) = info(p, CL_PLATFORM_VERSION)
 
 """
-    name(platform)
+    name(platform)::String
 
 The platform name string (`CL_PLATFORM_NAME`).
 """
 name(p::Platform) = info(p, CL_PLATFORM_NAME)
 
 """
-    vendor(platform)
+    vendor(platform)::String
 
 The platform vendor string (`CL_PLATFORM_VENDOR`).
 """
-vendor(p::Platform)  = info(p, CL_PALTFORM_VENDOR)
+vendor(p::Platform)  = info(p, CL_PLATFORM_VENDOR)
 
 """
-    extensions(platform)
+    extensions(platform)::Vector{String}
 
-The extensions supported by the platform (`CL_PLATFORM_EXTENSIONS`), as a list of `String`.
+The extensions supported by the platform (`CL_PLATFORM_EXTENSIONS`).
 """
 extensions(p::Platform) = info(p, CL_PLATFORM_EXTENSIONS) |> split
 
