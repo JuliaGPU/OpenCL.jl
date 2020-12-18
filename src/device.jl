@@ -315,7 +315,10 @@ end
 """
     max_work_item_size(device)::Union{Tuple{Int}, Tuple{Int, Int}, Tuple{Int, Int, Int}}
 
-Maximum number of dimensions that can be used to specify work item IDs (`CL_DEVICE_MAX_WORK_ITEM_SIZES`). Is three by default.
+Maximum size, in each dimension, of work item IDs (`CL_DEVICE_MAX_WORK_ITEM_SIZES`).
+
+!!! note "Note"
+    This is _not_ the largest size of work items that can be launched. The product of the size in each dimension must not be greater than `cl.max_work_group_size(device)`. This is just the upper bound in each dimension.
 """
 max_work_item_size(d::Device) = begin
     dims = Ref{CL_uint}()
@@ -330,7 +333,7 @@ end
 """
     max_work_group_size(device)::UInt
 
-The largest number of work-items that the device can run in a single work-group (`CL_DEVICE_MAX_WORK_GROUP_SIZE`).
+The largest number of work items that the device can run in a single work group (`CL_DEVICE_MAX_WORK_GROUP_SIZE`).
 """
 @int_info(max_work_group_size, CL_DEVICE_MAX_WORK_GROUP_SIZE, Csize_t)
 
