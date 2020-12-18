@@ -241,62 +241,124 @@ macro profile_info(func, profile_info)
     end
 end
 
+"""
+    command_queue(event)::CmdQueue
+
+Returns the command queue associated with the event (`CL_EVENT_COMMAND_QUEUE`).
+"""
+command_queue(evt::CLEvent) = begin
+    cmd_q = Ref{CL_command_queue}()
+    @check api.clGetEventInfo(evt.id, CL_EVENT_COMMAND_QUEUE,
+                                sizeof(CL_command_queue), cmd_q, C_NULL)
+    return CmdQueue(cmd_q[])
+end
+
+"""
+    command_type(event)::Int32
+
+Returns the command type associated with the event (`CL_EVENT_COMMAND_TYPE`). The possible values are:
+
+- `CL_COMMAND_NDRANGE_KERNEL`
+- `CL_COMMAND_TASK`
+- `CL_COMMAND_NATIVE_KERNEL`
+- `CL_COMMAND_READ_BUFFER`
+- `CL_COMMAND_WRITE_BUFFER`
+- `CL_COMMAND_COPY_BUFFER`
+- `CL_COMMAND_READ_IMAGE`
+- `CL_COMMAND_WRITE_IMAGE`
+- `CL_COMMAND_COPY_IMAGE`           
+- `CL_COMMAND_COPY_IMAGE_TO_BUFFER` 
+- `CL_COMMAND_COPY_BUFFER_TO_IMAGE` 
+- `CL_COMMAND_MAP_BUFFER`           
+- `CL_COMMAND_MAP_IMAGE`            
+- `CL_COMMAND_UNMAP_MEM_OBJECT`     
+- `CL_COMMAND_MARKER`               
+- `CL_COMMAND_ACQUIRE_GL_OBJECTS`   
+- `CL_COMMAND_RELEASE_GL_OBJECTS`   
+- `CL_COMMAND_READ_BUFFER_RECT` (OpenCL 1.1)
+- `CL_COMMAND_WRITE_BUFFER_RECT` (OpenCL 1.1)
+- `CL_COMMAND_COPY_BUFFER_RECT` (OpenCL 1.1)
+- `CL_COMMAND_USER` (OpenCL 1.2)
+- `CL_COMMAND_BARRIER` (OpenCL 1.2)          
+- `CL_COMMAND_MIGRATE_MEM_OBJECTS` (OpenCL 1.2)
+- `CL_COMMAND_FILL_BUFFER` (OpenCL 1.2)
+- `CL_COMMAND_FILL_IMAGE` (OpenCL 1.2)
+- `CL_COMMAND_SVM_FREE` (OpenCL 2.0)
+- `CL_COMMAND_SVM_MEMCPY` (OpenCL 2.0)
+- `CL_COMMAND_SVM_MEMFILL` (OpenCL 2.0)
+- `CL_COMMAND_SVM_MAP` (OpenCL 2.0)
+- `CL_COMMAND_SVM_UNMAP` (OpenCL 2.0)
+- `CL_COMMAND_SVM_MIGRATE_MEM` (OpenCL 3.0)
+"""
+command_type(evt::CLEvent) = begin
+    cmd_t = Ref{CL_int}()
+    @check api.clGetEventInfo(evt.id, CL_EVENT_COMMAND_TYPE,
+                                sizeof(CL_int), cmd_t, C_NULL)
+    return cmd_t[]
+end
+
+"""
+    reference_count(event)::UInt32
+
+Returns the number of references to the event (`CL_EVENT_REFERENCE_COUNT`).
+
+!!! warning "Warning"
+    Note the documentation from Khronos:
+
+    > The reference count returned should be considered immediately stale. It is unsuitable for general use in applications. This feature is provided for identifying memory leaks.
+"""
+reference_count(evt::CLEvent) = begin
+    cnt = Ref{CL_uint}()
+    @check api.clGetEventInfo(evt.id, CL_EVENT_REFERENCE_COUNT,
+                                sizeof(CL_uint), cnt, C_NULL)
+    return cnt[]
+end
+
+"""
+    context(event)::Context
+
+Gets the context associated with the event (`CL_EVENT_CONTEXT`).
+"""
+context(evt::CLEvent) = begin
+    ctx = Ref{CL_context}()
+    @check api.clGetEventInfo(evt.id, CL_EVENT_CONTEXT,
+                                sizeof(CL_context), CL_context, C_NULL)
+    Context(ctx[])
+end
+
+"""
+    status(event)::Symbol
+
+Gets the status of the event (`CL_EVENT_COMMAND_EXECUTION_STATUS`). Will be one of `:queued`, `:submitted`, `:running`, `:complete`.
+"""
+status(evt::CLEvent) = begin
+    st = Ref{CL_int}()
+    @check api.clGetEventInfo(evt.id, CL_EVENT_COMMAND_EXECUTION_STATUS,
+                                sizeof(CL_int), st, C_NULL)
+    status = st[]
+    if status == CL_QUEUED
+        return :queued
+    elseif status == CL_SUBMITTED
+        return :submitted
+    elseif status == CL_RUNNING
+        return :running
+    elseif status == CL_COMPLETE
+        return :complete
+    else
+        throw(ArgumentError("Unknown status value: $status"))
+    end
+end
+
+@profile_info(profile_start,  CL_PROFILING_COMMAND_START)
+@profile_info(profile_end,    CL_PROFILING_COMMAND_END)
+@profile_info(profile_queued, CL_PROFILING_COMMAND_QUEUED)
+@profile_info(profile_submit, CL_PROFILING_COMMAND_SUBMIT)
+
+profile_duration(evt::Event) = begin
+    return evt[:profile_end] - evt[:profile_start]
+end
+
 function info(evt::CLEvent, evt_info::Symbol)
-    command_queue(evt::CLEvent) = begin
-        cmd_q = Ref{CL_command_queue}()
-        @check api.clGetEventInfo(evt.id, CL_EVENT_COMMAND_QUEUE,
-                                  sizeof(CL_command_queue), cmd_q, C_NULL)
-        return CmdQueue(cmd_q[])
-    end
-
-    command_type(evt::CLEvent) = begin
-        cmd_t = Ref{CL_int}()
-        @check api.clGetEventInfo(evt.id, CL_EVENT_COMMAND_TYPE,
-                                  sizeof(CL_int), cmd_t, C_NULL)
-        return cmd_t[]
-    end
-
-    reference_count(evt::CLEvent) = begin
-        cnt = Ref{CL_uint}()
-        @check api.clGetEventInfo(evt.id, CL_EVENT_REFERENCE_COUNT,
-                                  sizeof(CL_uint), cnt, C_NULL)
-        return cnt[]
-    end
-
-    context(evt::CLEvent) = begin
-        ctx = Ref{CL_context}()
-        @check api.clGetEventInfo(evt.id, CL_EVENT_CONTEXT,
-                                  sizeof(CL_context), CL_context, C_NULL)
-        Context(ctx[])
-    end
-
-    status(evt::CLEvent) = begin
-        st = Ref{CL_int}()
-        @check api.clGetEventInfo(evt.id, CL_EVENT_COMMAND_EXECUTION_STATUS,
-                                  sizeof(CL_int), st, C_NULL)
-        status = st[]
-        if status == CL_QUEUED
-            return :queued
-        elseif status == CL_SUBMITTED
-            return :submitted
-        elseif status == CL_RUNNING
-            return :running
-        elseif status == CL_COMPLETE
-            return :complete
-        else
-            throw(ArgumentError("Unknown status value: $status"))
-        end
-    end
-
-    @profile_info(profile_start,  CL_PROFILING_COMMAND_START)
-    @profile_info(profile_end,    CL_PROFILING_COMMAND_END)
-    @profile_info(profile_queued, CL_PROFILING_COMMAND_QUEUED)
-    @profile_info(profile_submit, CL_PROFILING_COMMAND_SUBMIT)
-
-    profile_duration(evt::Event) = begin
-        return evt[:profile_end] - evt[:profile_start]
-    end
-
     info_map = Dict{Symbol, Function}(
         :context => context,
         :command_queue => command_queue,
