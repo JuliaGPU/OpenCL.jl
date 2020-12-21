@@ -1,56 +1,116 @@
-stages:
-    - test
-    - post
-
 include:
-    - 'https://raw.githubusercontent.com/JuliaGPU/gitlab-ci/3fbe3d2dd7288b4c91e8b7b2fbbd98b9bdeeb92a/templates/v3/common.yml'
+    - 'https://raw.githubusercontent.com/JuliaGPU/gitlab-ci/master/templates/v6.yml'
 
-nvidia:test:dev:
-    extends: .test
-    variables:
-        CI_IMAGE_TAG: 'opencl'
-        CI_VERSION_TAG: 'dev'
-    tags:
-        - nvidia
-    allow_failure: true
-
-amd:test:dev:
-    extends: .test
-    variables:
-        CI_IMAGE_TAG: 'rocm'
-        CI_VERSION_TAG: 'dev'
-    tags:
-        - rocm
-    allow_failure: true
+# CUDA
 
 nvidia:test:v1.0:
-    extends: .test
-    variables:
-        CI_IMAGE_TAG: 'opencl'
-        CI_VERSION_TAG: 'v1.0'
+    image: nvidia/opencl:devel-ubuntu16.04
+    extends:
+        - .test
+        - .julia:1.0
     tags:
         - nvidia
-
-amd:test:v1.0:
-    extends: .test
-    variables:
-        CI_IMAGE_TAG: 'rocm'
-        CI_VERSION_TAG: 'v1.0'
-    tags:
-        - rocm
 
 nvidia:test:v1.1:
-    extends: .test
-    variables:
-        CI_IMAGE_TAG: 'opencl'
-        CI_VERSION_TAG: 'v1.1'
+    image: nvidia/opencl:devel-ubuntu16.04
+    extends:
+        - .test
+        - .julia:1.1
     tags:
         - nvidia
 
-amd:test:v1.1:
-    extends: .test
+nvidia:test:v1.2:
+    image: nvidia/opencl:devel-ubuntu16.04
+    extends:
+        - .test
+        - .julia:1.2
+    tags:
+        - nvidia
+
+nvidia:test:v1.3:
+    image: nvidia/opencl:devel-ubuntu16.04
+    extends:
+        - .test
+        - .julia:1.3
+    tags:
+        - nvidia
+
+nvidia:test:v1.4:
+    image: nvidia/opencl:devel-ubuntu16.04
+    extends:
+        - .test
+        - .julia:1.4
+    tags:
+        - nvidia
+
+nvidia:test:nightly:
+    image: nvidia/opencl:devel-ubuntu16.04
+    extends:
+        - .test
+        - .julia:nightly
+    tags:
+        - nvidia
+    allow_failure: true
+
+# ROCm
+
+amd:test:v1.0:
+    image: rocm/dev-ubuntu-18.04
+    extends:
+        - .test
+        - .julia:1.0
     variables:
-        CI_IMAGE_TAG: 'rocm'
-        CI_VERSION_TAG: 'v1.1'
+        CI_APT_INSTALL: 'rocm-opencl'
     tags:
         - rocm
+
+amd:test:v1.1:
+    image: rocm/dev-ubuntu-18.04
+    extends:
+        - .test
+        - .julia:1.1
+    variables:
+        CI_APT_INSTALL: 'rocm-opencl'
+    tags:
+        - rocm
+
+amd:test:v1.2:
+    image: rocm/dev-ubuntu-18.04
+    extends:
+        - .test
+        - .julia:1.2
+    variables:
+        CI_APT_INSTALL: 'rocm-opencl'
+    tags:
+        - rocm
+
+amd:test:v1.3:
+    image: rocm/dev-ubuntu-18.04
+    extends:
+        - .test
+        - .julia:1.3
+    variables:
+        CI_APT_INSTALL: 'rocm-opencl'
+    tags:
+        - rocm
+
+amd:test:v1.4:
+    image: rocm/dev-ubuntu-18.04
+    extends:
+        - .test
+        - .julia:1.4
+    variables:
+        CI_APT_INSTALL: 'rocm-opencl'
+    tags:
+        - rocm
+
+amd:test:nightly:
+    image: rocm/dev-ubuntu-18.04
+    extends:
+        - .test
+        - .julia:nightly
+    variables:
+        CI_APT_INSTALL: 'rocm-opencl'
+    tags:
+        - rocm
+    allow_failure: true
