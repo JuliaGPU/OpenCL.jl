@@ -62,10 +62,8 @@ end
                                          :CL_DEVICE_NOT_FOUND)
             end
 
-            if platform[:name] == "Portable Computing Language"
-                @warn("Skipping OpenCL.Context platform properties for " *
-                     "Portable Computing Language Platform")
-                continue
+            if is_old_pocl(platform)
+                @warn("Skipping OpenCL.Context platform properties for old Portable Computing Language Platform")
             end
 
             properties = [(cl.CL_CONTEXT_PLATFORM, platform)]

@@ -23,9 +23,8 @@ end
 
     @testset "OpenCL.Kernel constructor" begin
         for device in cl.devices()
-            if device[:platform][:name] == "Portable Computing Language"
-                @warn("Skipping OpenCL.Kernel constructor for " *
-                     "Portable Computing Language Platform")
+            if is_old_pocl(device[:platform])
+                @warn("Skipping OpenCL.Kernel constructor for old Portable Computing Language Platform")
                 continue
             end
             ctx = cl.Context(device)
@@ -38,8 +37,8 @@ end
 
     @testset "OpenCL.Kernel info" begin
         for device in cl.devices()
-            if device[:platform][:name] == "Portable Computing Language"
-                @warn("Skipping OpenCL.Kernel info for Portable Computing Language Platform")
+            if is_old_pocl(device[:platform])
+                @warn("Skipping OpenCL.Kernel info for old Portable Computing Language Platform")
                 continue
             end
             ctx = cl.Context(device)
@@ -56,8 +55,8 @@ end
 
     @testset "OpenCL.Kernel mem/workgroup size" begin
         for device in cl.devices()
-            if device[:platform][:name] == "Portable Computing Language"
-                @warn("Skipping OpenCL.Kernel mem/workgroup size for Portable Computing Language Platform")
+            if is_old_pocl(device[:platform])
+                @warn("Skipping OpenCL.Kernel mem/workgroup size for old Portable Computing Language Platform")
                 continue
             end
             ctx = cl.Context(device)
@@ -81,8 +80,8 @@ end
     @testset "OpenCL.Kernel set_arg!/set_args!" begin
          for device in cl.devices()
 
-            if device[:platform][:name] == "Portable Computing Language"
-                @warn("Skipping OpenCL.Kernel mem/workgroup size for Portable Computing Language Platform")
+            if is_old_pocl(device[:platform])
+                @warn("Skipping OpenCL.Kernel set_arg!/set_args! for old Portable Computing Language Platform")
                 continue
             end
 
@@ -141,8 +140,8 @@ end
 
     @testset "OpenCL.Kernel enqueue_kernel" begin
         for device in cl.devices()
-            if device[:platform][:name] == "Portable Computing Language"
-                @warn("Skipping OpenCL.Kernel mem/workgroup size for Portable Computing Language Platform")
+            if is_old_pocl(device[:platform])
+                @warn("Skipping OpenCL.Kernel enqueue_kernel for old Portable Computing Language Platform")
                 continue
             end
 
@@ -238,9 +237,8 @@ end
     "
 
     for device in cl.devices()
-        if device[:platform][:name] == "Portable Computing Language"
-            @warn("Skipping OpenCL.Kernel constructor for " *
-                 "Portable Computing Language Platform")
+        if is_old_pocl(device[:platform])
+            @warn("Skipping OpenCL.Kernel constructor for old Portable Computing Language Platform")
             continue
         end
         ctx = cl.Context(device)
