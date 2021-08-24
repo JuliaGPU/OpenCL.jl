@@ -1,10 +1,6 @@
 # OpenCL.jl
 
-OpenCL bindings for Julia
-
-**Build status**: [![][buildbot-julia05-img]][buildbot-julia05-url] [![][buildbot-julia06-img]][buildbot-julia06-url] [![][buildbot-travis-img]][buildbot-travis-url]
-
-**Code coverage**: [![](https://img.shields.io/coveralls/JuliaGPU/OpenCL.jl.png)](https://coveralls.io/r/JuliaGPU/OpenCL.jl?branch=master)
+[![][buildbot-julia05-img]][buildbot-julia05-url] [![][buildbot-julia06-img]][buildbot-julia06-url] [![][buildbot-travis-img]][buildbot-travis-url] [![](https://img.shields.io/coveralls/JuliaGPU/OpenCL.jl.png)](https://coveralls.io/r/JuliaGPU/OpenCL.jl?branch=master)
 
 [buildbot-julia05-img]: http://ci.maleadt.net/shields/build.php?builder=OpenCL-julia05-x86-64bit&name=julia%200.5
 [buildbot-julia05-url]: http://ci.maleadt.net/shields/url.php?builder=OpenCL-julia05-x86-64bit
@@ -13,60 +9,24 @@ OpenCL bindings for Julia
 [buildbot-travis-img]: https://travis-ci.org/JuliaGPU/OpenCL.jl.svg?branch=master
 [buildbot-travis-url]: https://travis-ci.org/JuliaGPU/OpenCL.jl?branch=master
 
-Julia interface for the OpenCL parallel computation API
+*Julia interface for the OpenCL parallel computation API*
 
-This package aims to be a complete solution for OpenCL programming in Julia, similar in scope to [PyOpenCL] for Python.
-It provides a high level api for OpenCL to make programing GPU's and multicore CPU's much less onerous.
+This package aims to be a complete solution for OpenCL programming in Julia, similar in scope to [PyOpenCL] for Python. It provides a high level API for OpenCL to make programing hardware accelerators, such as GPUs, FPGAs, and DSPs, as well as multicore CPUs much less onerous.
 
 OpenCL.jl provides access to OpenCL API versions 1.0, 1.1, 1.2 and 2.0.
 
-#### This package is based off the work of others:
-  * [PyOpenCL] by Andreas Klockner
-  * [oclpb]    by Sean Ross
-  * [Boost.Compute] by Kyle Lutz
-  * [rust-opencl]
-
-[PyOpenCL]: http://mathema.tician.de/software/pyopencl/
-[oclpb]: https://github.com/srossross/oclpb
-[Boost.Compute]:https://github.com/kylelutz/compute
-[rust-opencl]: https://github.com/luqmana/rust-opencl
-
-OpenCL.jl has had contributions from [many developers](https://github.com/JuliaGPU/OpenCL.jl/graphs/contributors).
-
-## Currently supported Julia versions
-- Julia `v"0.4.x"` is supported on the `release-0.4` branch and the OpenCL.jl versions `v"0.4.x"`. Only bug-fixes will be applied.
-- Julia `v"0.5.x"` is supported on the `master` branch and the OpenCL.jl versions `v"0.5.x"`.
-- Julia `v"0.6.x"` is *experimentally* supported on the `master` branch and the OpenCL.jl versions `v"0.5.x"`.
-
-### Discontinued support
-- Julia `v"0.3.x"` was supported on OpenCL.jl versions `v"0.3.x"`. It should still be installable and work.
-
-## Setup
-1. Install an OpenCL driver. If you use OSX, OpenCL is already available
-2. Checkout the packages from the Julia repl
+## Installation
+1. Install an OpenCL driver. (If you're on macOS, OpenCL should already be available.)
+2. Add OpenCL to your Julia environment:
 
 ```julia
-  Pkg.add("OpenCL")
+using Pkg
+Pkg.add("OpenCL")
 ```
 
-3. OpenCL will be installed in your ``.julia`` directory
-4. ``cd`` into your ``.julia`` directory to run the tests and try out the examples
-5. To update to the latest development version, from the Julia repl:
+## Basic example: vector add
 
-```julia
-  Pkg.update()
-```
-
-## IJulia Notebooks
-  * [OpenCL Fractals]
-  * [GPU Buffer Transpose]
-  * [Low Level API]
-
-[OpenCL Fractals]:http://nbviewer.ipython.org/7517923
-[GPU Buffer Transpose]:http://nbviewer.ipython.org/7517952
-[Low Level API]:http://nbviewer.ipython.org/7452048
-
-## Quick Example
+**Note:** We use `cl.create_compute_context()` here which only considers GPUs and CPUs.
 
 ```julia
 using LinearAlgebra
@@ -104,7 +64,37 @@ else
 end
 ```
 
-## Translation
+## More examples
+You may want to check out the `examples` folder. Either `git clone` the repository to your local machine or navigate to the OpenCL.jl install directory via
+```julia
+using OpenCL
+cd(joinpath(dirname(pathof(OpenCL)), ".."))
+```
+
+Otherwise, feel free to take a look at the Jupyter notebooks below
+  * [OpenCL Fractals]
+  * [GPU Buffer Transpose]
+  * [Low Level API]
+
+[OpenCL Fractals]:http://nbviewer.ipython.org/7517923
+[GPU Buffer Transpose]:http://nbviewer.ipython.org/7517952
+[Low Level API]:http://nbviewer.ipython.org/7452048
+
+## Credit
+
+This package is heavily influenced by the work of others:
+
+  * [PyOpenCL] by Andreas Klockner
+  * [oclpb]    by Sean Ross
+  * [Boost.Compute] by Kyle Lutz
+  * [rust-opencl]
+
+[PyOpenCL]: http://mathema.tician.de/software/pyopencl/
+[oclpb]: https://github.com/srossross/oclpb
+[Boost.Compute]:https://github.com/kylelutz/compute
+[rust-opencl]: https://github.com/luqmana/rust-opencl
+
+## Documentation: API
 
 
 Here's a rough translation between the OpenCL API in C to this Julia version. Optional arguments are indicated by `[name?]` (see `clCreateBuffer`, for example). For a quick reference to the C version, see [the Khronos quick reference card](https://www.khronos.org/files/opencl-1-2-quick-reference-card.pdf).
