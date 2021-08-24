@@ -13,7 +13,7 @@
 
 This package aims to be a complete solution for OpenCL programming in Julia, similar in scope to [PyOpenCL] for Python. It provides a high level API for OpenCL to make programing hardware accelerators, such as GPUs, FPGAs, and DSPs, as well as multicore CPUs much less onerous.
 
-OpenCL.jl provides access to OpenCL API versions 1.0, 1.1, 1.2 and 2.0.
+OpenCL.jl provides access to [OpenCL API](https://www.khronos.org/registry/OpenCL/) versions 1.0, 1.1, 1.2 and 2.0.
 
 ## Installation
 1. Install an OpenCL driver. (If you're on macOS, OpenCL should already be available.)
