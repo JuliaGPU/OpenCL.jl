@@ -16,7 +16,7 @@ This package aims to be a complete solution for OpenCL programming in Julia, sim
 OpenCL.jl provides access to [OpenCL API](https://www.khronos.org/registry/OpenCL/) versions 1.0, 1.1, 1.2 and 2.0.
 
 ## Installation
-1. Install an OpenCL driver. (If you're on macOS, OpenCL should already be available.)
+1. Install an OpenCL driver. (If you're on macOS, OpenCL is either already available or unsupported.)
 2. Add OpenCL to your Julia environment:
 
 ```julia
