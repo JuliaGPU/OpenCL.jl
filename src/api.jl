@@ -1,5 +1,7 @@
 module api
 
+import VersionParsing
+
 include("types.jl")
 
 const paths = Sys.isapple() ? String["/System/Library/Frameworks/OpenCL.framework"] : String[]
@@ -41,13 +43,6 @@ include("api/opencl_1.1.0.jl")
 include("api/opencl_1.2.0.jl")
 include("api/opencl_2.0.0.jl")
 
-function parse_version(version_string)
-    mg = match(r"^OpenCL ([0-9]+)\.([0-9]+) .*$", version_string)
-    if mg === nothing
-        error("Non conforming version string: $(ver)")
-    end
-    return VersionNumber(parse(Int, mg.captures[1]),
-                                 parse(Int, mg.captures[2]))
-end
+parse_version(version_string) = VersionParsing.vparse(version_string)
 
 end
