@@ -2,11 +2,9 @@ module api
 
 include("types.jl")
 
-const paths = Sys.isapple() ? String["/System/Library/Frameworks/OpenCL.framework"] : String[]
+import OpenCL_jll
 
-import Libdl
-
-const libopencl = Libdl.find_library(["libOpenCL", "OpenCL"], paths)
+const libopencl = OpenCL_jll.libopencl
 
 function _ocl_func(func, ret_type, arg_types)
     local args_in = Symbol[Symbol("arg$i")
