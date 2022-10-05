@@ -1,5 +1,5 @@
-#env:
-#  SECRET_CODECOV_TOKEN: "..."
+env:
+  SECRET_CODECOV_TOKEN: "..."
 
 steps:
   - label: "Julia v1"
@@ -7,8 +7,8 @@ steps:
       - JuliaCI/julia#v1:
           version: "1"
       - JuliaCI/julia-test#v1: ~
-#      - JuliaCI/julia-coverage#v1:
-#          codecov: true
+      - JuliaCI/julia-coverage#v1:
+          codecov: true
     agents:
       queue: "juliagpu"
       cuda: "*"
