@@ -1,6 +1,5 @@
 # OpenCL.jl
 
-![][lilfecycle-img]
 [![][buildbot-julia05-img]][buildbot-julia05-url]
 [![][buildbot-julia06-img]][buildbot-julia06-url]
 [![][buildbot-travis-img]][buildbot-travis-url]
@@ -12,7 +11,6 @@
 [buildbot-julia06-url]: http://ci.maleadt.net/shields/url.php?builder=OpenCL-julia06-x86-64bit
 [buildbot-travis-img]: https://travis-ci.org/JuliaGPU/OpenCL.jl.svg?branch=master
 [buildbot-travis-url]: https://travis-ci.org/JuliaGPU/OpenCL.jl?branch=master
-[lilfecycle-img]: https://img.shields.io/badge/lifecycle-maintenance-blue.svg
 
 *Julia interface for the OpenCL parallel computation API*
 
