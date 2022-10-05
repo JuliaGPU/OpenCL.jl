@@ -11,6 +11,7 @@ steps:
           codecov: true
     agents:
       queue: "juliagpu"
-      cuda: "*"
+      intel: "*"
     if: build.message !~ /\[skip tests\]/
+    command: "apt-get -y install intel-opencl-icd"
     timeout_in_minutes: 60
