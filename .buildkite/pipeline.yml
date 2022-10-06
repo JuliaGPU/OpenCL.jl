@@ -2,7 +2,7 @@ env:
   SECRET_CODECOV_TOKEN: "..."
 
 steps:
-  - label: "Julia 1.6"
+  - label: "Julia 1.6 - Intel"
     plugins:
       - JuliaCI/julia#v1:
           version: "1.6"
