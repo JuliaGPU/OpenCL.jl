@@ -2,20 +2,6 @@ env:
   SECRET_CODECOV_TOKEN: "..."
 
 steps:
-  - label: "Julia 1.6 - Intel"
-    plugins:
-      - JuliaCI/julia#v1:
-          version: "1.6"
-      - JuliaCI/julia-test#v1: ~
-      - JuliaCI/julia-coverage#v1:
-          codecov: true
-    agents:
-      queue: "juliagpu"
-      intel: "*"
-    if: build.message !~ /\[skip tests\]/
-    command: "apt-get -y install intel-opencl-icd"
-    timeout_in_minutes: 60
-
   - label: "Julia 1.6 - CUDA"
     plugins:
       - JuliaCI/julia#v1:
