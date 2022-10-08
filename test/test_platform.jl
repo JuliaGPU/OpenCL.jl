@@ -2,14 +2,16 @@
     @testset "Platform Info" begin
         @test length(cl.platforms()) == cl.num_platforms()
         for p in cl.platforms()
-            @test p != nothing
-            @test pointer(p) != C_NULL
-            for k in [:profile, :version, :name, :vendor, :extensions]
-                @test p[k] == cl.info(p, k)
+            @testset "Platform $(p[:profile])" begin
+                @test p != nothing
+                @test pointer(p) != C_NULL
+                for k in [:profile, :version, :name, :vendor, :extensions]
+                    @test p[k] == cl.info(p, k)
+                end
+                v = cl.opencl_version(p)
+                @test 1 <= v.major <= 3
+                @test 0 <= v.minor <= 2
             end
-            v = cl.opencl_version(p)
-            @test 1 <= v.major <= 2
-            @test 0 <= v.minor <= 2
         end
     end
 
