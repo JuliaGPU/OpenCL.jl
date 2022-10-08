@@ -2,7 +2,7 @@
 
 [![][buildkite-img]][buildkite-url]
 
-[buildkite-img]: https://badge.buildkite.com/sample.svg?status=unknown
+[buildkite-img]: https://badge.buildkite.com/6b2a46bff67692115dea3ad5a275d2f80777a5a99ffe42adb0.svg
 [buildkite-url]: https://buildkite.com/julialang/opencl-dot-jl
 
 *Julia interface for the OpenCL parallel computation API*
