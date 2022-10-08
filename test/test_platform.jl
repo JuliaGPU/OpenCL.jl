@@ -8,10 +8,9 @@
                 for k in [:profile, :version, :name, :vendor, :extensions]
                     @test p[k] == cl.info(p, k)
                 end
-                # ignore version tests until OpenCL 3 support is available
-                #v = cl.opencl_version(p)
-                #@test 1 <= v.major <= 2
-                #@test 0 <= v.minor <= 2
+                v = cl.opencl_version(p)
+                @test 1 <= v.major <= 3
+                @test 0 <= v.minor <= 2
             end
         end
     end
