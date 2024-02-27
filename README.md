@@ -1,3 +1,7 @@
+### >> THIS PACKAGE NEEDS A MAINTAINER << ###
+
+Please reach out to @juliohm if you would like to be the new maintainer.
+
 # OpenCL.jl
 
 [![][buildkite-img]][buildkite-url]
