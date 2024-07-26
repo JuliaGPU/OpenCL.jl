@@ -1,8 +1,8 @@
 using Base.GC
 
 struct TestStruct
-    a::cl.Cint
-    b::cl.CL_float
+    a::Cint
+    b::Cfloat
 end
 
 @testset "OpenCL.Buffer" begin
@@ -12,56 +12,68 @@ end
             ctx = cl.Context(device)
             testarray = zeros(Float32, 1000)
 
-            @test cl.Buffer(Float32, ctx, cl.CL_MEM_ALLOC_HOST_PTR | cl.CL_MEM_READ_ONLY,
-                                         length(testarray)) != nothing
+            @test cl.Buffer(Float32, ctx, length(testarray),
+                            cl.CL_MEM_ALLOC_HOST_PTR | cl.CL_MEM_READ_ONLY) != nothing
 
-            @test cl.Buffer(Float32, ctx, cl.CL_MEM_ALLOC_HOST_PTR | cl.CL_MEM_WRITE_ONLY,
-                                         length(testarray)) != nothing
+            @test cl.Buffer(Float32, ctx, length(testarray),
+                            cl.CL_MEM_ALLOC_HOST_PTR | cl.CL_MEM_WRITE_ONLY) != nothing
 
-            @test cl.Buffer(Float32, ctx, cl.CL_MEM_ALLOC_HOST_PTR | cl.CL_MEM_READ_WRITE,
-                                         length(testarray)) != nothing
+            @test cl.Buffer(Float32, ctx, length(testarray),
+                            cl.CL_MEM_ALLOC_HOST_PTR | cl.CL_MEM_READ_WRITE) != nothing
 
-            buf = cl.Buffer(Float32, ctx, cl.CL_MEM_ALLOC_HOST_PTR | cl.CL_MEM_READ_WRITE, length(testarray))
+            buf = cl.Buffer(Float32, ctx, length(testarray),
+                            cl.CL_MEM_ALLOC_HOST_PTR | cl.CL_MEM_READ_WRITE)
             @test length(buf) == length(testarray)
 
-            @test cl.Buffer(Float32, ctx, cl.CL_MEM_COPY_HOST_PTR | cl.CL_MEM_READ_ONLY,
-                                         hostbuf=testarray) != nothing
+            @test cl.Buffer(Float32, ctx, length(testarray),
+                            cl.CL_MEM_COPY_HOST_PTR | cl.CL_MEM_READ_ONLY;
+                            hostbuf=testarray) != nothing
 
-            @test cl.Buffer(Float32, ctx, cl.CL_MEM_COPY_HOST_PTR | cl.CL_MEM_WRITE_ONLY,
-                                         hostbuf=testarray) != nothing
+            @test cl.Buffer(Float32, ctx, length(testarray),
+                            cl.CL_MEM_COPY_HOST_PTR | cl.CL_MEM_WRITE_ONLY;
+                            hostbuf=testarray) != nothing
 
-            @test cl.Buffer(Float32, ctx, cl.CL_MEM_COPY_HOST_PTR | cl.CL_MEM_READ_WRITE,
-                                         hostbuf=testarray) != nothing
+            @test cl.Buffer(Float32, ctx, length(testarray),
+                            cl.CL_MEM_COPY_HOST_PTR | cl.CL_MEM_READ_WRITE;
+                            hostbuf=testarray) != nothing
 
-            buf = cl.Buffer(Float32, ctx, cl.CL_MEM_COPY_HOST_PTR | cl.CL_MEM_READ_WRITE, hostbuf=testarray)
+            buf = cl.Buffer(Float32, ctx, length(testarray),
+                            cl.CL_MEM_COPY_HOST_PTR | cl.CL_MEM_READ_WRITE;
+                            hostbuf=testarray)
             @test length(buf) == length(testarray)
 
-            @test cl.Buffer(Float32, ctx, cl.CL_MEM_USE_HOST_PTR | cl.CL_MEM_READ_ONLY,
-                                         hostbuf=testarray) != nothing
+            @test cl.Buffer(Float32, ctx, length(testarray),
+                            cl.CL_MEM_USE_HOST_PTR | cl.CL_MEM_READ_ONLY;
+                            hostbuf=testarray) != nothing
 
-            @test cl.Buffer(Float32, ctx, cl.CL_MEM_USE_HOST_PTR | cl.CL_MEM_WRITE_ONLY,
-                                         hostbuf=testarray) != nothing
+            @test cl.Buffer(Float32, ctx, length(testarray),
+                            cl.CL_MEM_USE_HOST_PTR | cl.CL_MEM_WRITE_ONLY;
+                            hostbuf=testarray) != nothing
 
-            @test cl.Buffer(Float32, ctx, cl.CL_MEM_USE_HOST_PTR | cl.CL_MEM_READ_WRITE,
-                                         hostbuf=testarray) != nothing
+            @test cl.Buffer(Float32, ctx, length(testarray),
+                            cl.CL_MEM_USE_HOST_PTR | cl.CL_MEM_READ_WRITE;
+                            hostbuf=testarray) != nothing
 
-            buf = cl.Buffer(Float32, ctx, cl.CL_MEM_USE_HOST_PTR | cl.CL_MEM_READ_WRITE, hostbuf=testarray)
+            buf = cl.Buffer(Float32, ctx, length(testarray),
+                            cl.CL_MEM_USE_HOST_PTR | cl.CL_MEM_READ_WRITE;
+                            hostbuf=testarray)
             @test length(buf) == length(testarray)
 
             # invalid buffer size should throw error
-            @test_throws cl.CLError cl.Buffer(Float32, ctx, cl.CL_MEM_ALLOC_HOST_PTR, +0)
-            @test_throws InexactError cl.Buffer(Float32, ctx, cl.CL_MEM_ALLOC_HOST_PTR, -1)
+            @test_throws cl.CLError cl.Buffer(Float32, ctx, +0, cl.CL_MEM_ALLOC_HOST_PTR)
+            @test_throws InexactError cl.Buffer(Float32, ctx, -1, cl.CL_MEM_ALLOC_HOST_PTR)
 
             # invalid flag combinations should throw error
-            @test_throws cl.CLError cl.Buffer(Float32, ctx, cl.CL_MEM_USE_HOST_PTR | cl.CL_MEM_ALLOC_HOST_PTR,
-                                             hostbuf=testarray)
+            @test_throws cl.CLError cl.Buffer(Float32, ctx, length(testarray),
+                                              cl.CL_MEM_USE_HOST_PTR | cl.CL_MEM_ALLOC_HOST_PTR;
+                                              hostbuf=testarray)
 
             # invalid host pointer should throw error
-            @test_throws TypeError cl.Buffer(Float32, ctx, cl.CL_MEM_COPY_HOST_PTR,
-                                         hostbuf=C_NULL)
+            @test_throws TypeError cl.Buffer(Float32, ctx, 1, cl.CL_MEM_COPY_HOST_PTR;
+                                             hostbuf=C_NULL)
 
-            @test_throws TypeError cl.Buffer(Float32, ctx, cl.CL_MEM_USE_HOST_PTR,
-                                         hostbuf=C_NULL)
+            @test_throws TypeError cl.Buffer(Float32, ctx, 1, cl.CL_MEM_USE_HOST_PTR,
+                                             hostbuf=C_NULL)
         end
      end
 
@@ -75,24 +87,26 @@ end
                                    cl.Cuchar,
                                    cl.Cshort,
                                    cl.Cushort,
-                                   cl.Cint,
+                                   Cint,
                                    cl.Cuint,
                                    cl.Clong,
                                    cl.Culong,
-                                   cl.CL_half,
-                                   cl.CL_float,
-                                   cl.CL_double,
+                                   Float16,
+                                   Cfloat,
+                                   Cdouble,
                                    #TODO: bool, vector_types, struct_types...
                                    ]
                          testarray = zeros(mtype, 100)
                          if mf2 == :copy || mf2 == :use
-                             @test cl.Buffer(mtype, ctx, (mf1, mf2), hostbuf=testarray) != nothing
-                             buf = cl.Buffer(mtype, ctx, (mf1, mf2), hostbuf=testarray)
+                             @test cl.Buffer(mtype, ctx, length(testarray), (mf1, mf2);
+                                             hostbuf=testarray) != nothing
+                             buf = cl.Buffer(mtype, ctx, length(testarray), (mf1, mf2);
+                                             hostbuf=testarray)
                              @test length(buf) == length(testarray)
                          elseif mf2 == :alloc
-                             @test cl.Buffer(mtype, ctx, (mf1, mf2),
-                                                          length(testarray)) != nothing
-                             buf = cl.Buffer(mtype, ctx, (mf1, mf2), length(testarray))
+                             @test cl.Buffer(mtype, ctx, length(testarray),
+                                             (mf1, mf2)) != nothing
+                             buf = cl.Buffer(mtype, ctx, length(testarray), (mf1, mf2))
                              @test length(buf) == length(testarray)
                          end
                      end
@@ -100,20 +114,22 @@ end
              end
 
              test_array = Vector{TestStruct}(undef, 100)
-             @test cl.Buffer(TestStruct, ctx, :alloc, length(test_array)) != nothing
-             @test cl.Buffer(TestStruct, ctx, :copy, hostbuf=test_array) != nothing
+             @test cl.Buffer(TestStruct, ctx, length(test_array), :alloc) != nothing
+             @test cl.Buffer(TestStruct, ctx, length(test_array), :copy;
+                             hostbuf=test_array) != nothing
 
              # invalid buffer size should throw error
-             @test_throws cl.CLError cl.Buffer(Float32, ctx, :alloc, +0)
-             @test_throws InexactError cl.Buffer(Float32, ctx, :alloc, -1)
+             @test_throws cl.CLError cl.Buffer(Float32, ctx, +0, :alloc)
+             @test_throws InexactError cl.Buffer(Float32, ctx, -1, :alloc)
 
              # invalid flag combinations should throw error
-             @test_throws ArgumentError cl.Buffer(Float32, ctx, (:use, :alloc), hostbuf=test_array)
+             @test_throws ArgumentError cl.Buffer(Float32, ctx, length(test_array),
+                                                  (:use, :alloc), hostbuf=test_array)
 
              # invalid host pointer should throw error
-             @test_throws TypeError cl.Buffer(Float32, ctx, :copy, hostbuf=C_NULL)
+             @test_throws TypeError cl.Buffer(Float32, ctx, 1, :copy, hostbuf=C_NULL)
 
-             @test_throws TypeError cl.Buffer(Float32, ctx, :use, hostbuf=C_NULL)
+             @test_throws TypeError cl.Buffer(Float32, ctx, 1, :use, hostbuf=C_NULL)
 
          end
      end
@@ -128,7 +144,7 @@ end
              ctx = cl.Context(device)
              queue = cl.CmdQueue(ctx)
              testarray = zeros(Float32, 1000)
-             buf = cl.Buffer(Float32, ctx, (:rw, :copy), hostbuf=testarray)
+             buf = cl.Buffer(Float32, ctx, length(testarray), (:rw, :copy), hostbuf=testarray)
              @test length(buf) == length(testarray)
 
              v = cl.opencl_version(device)
@@ -150,7 +166,7 @@ end
             ctx = cl.Context(device)
             queue = cl.CmdQueue(ctx)
             testarray = zeros(Float32, 1000)
-            buf = cl.Buffer(Float32, ctx, (:rw, :copy), hostbuf=testarray)
+            buf = cl.Buffer(Float32, ctx, length(testarray), (:rw, :copy); hostbuf=testarray)
             @test length(buf) == length(testarray)
             cl.write!(queue, buf, ones(Float32, length(testarray)))
             readback = cl.read(queue, buf)
@@ -164,7 +180,7 @@ end
             ctx = cl.Context(device)
             queue = cl.CmdQueue(ctx)
             testarray = zeros(Float32, 1000)
-            buf = cl.Buffer(Float32, ctx, (:rw, :copy), hostbuf=testarray)
+            buf = cl.Buffer(Float32, ctx, length(testarray), (:rw, :copy); hostbuf=testarray)
 
             @test sizeof(cl.empty_like(ctx, buf)) == sizeof(testarray)
         end
@@ -192,7 +208,7 @@ end
         for device in cl.devices()
             ctx = cl.Context(device)
             queue = cl.CmdQueue(ctx)
-            b = cl.Buffer(Float32, ctx, :rw, 100)
+            b = cl.Buffer(Float32, ctx, 100, :rw)
             for f in (:r, :w, :rw)
                 a, evt = cl.enqueue_map_mem(queue, b, f, 0, (10,10))
                 cl.wait(evt)

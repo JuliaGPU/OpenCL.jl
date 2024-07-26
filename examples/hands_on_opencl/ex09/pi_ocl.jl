@@ -60,7 +60,7 @@ h_psum = Vector{Float32}(undef, nwork_groups)
 println("$nwork_groups work groups of size $work_group_size.")
 println("$nsteps integration steps")
 
-d_partial_sums = cl.Buffer(Float32, ctx, :w, length(h_psum))
+d_partial_sums = cl.Buffer(Float32, ctx, length(h_psum), :w)
 
 # start timer
 rtime = time()

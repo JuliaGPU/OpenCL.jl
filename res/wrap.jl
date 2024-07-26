@@ -98,8 +98,12 @@ end
 using OpenCL_Headers_jll
 
 function main()
-    wrap("opencl", OpenCL_Headers_jll.cl_h;
-         include_dirs=[joinpath(OpenCL_Headers_jll.artifact_dir, "include")],
+    headers = ["cl.h", "cl_gl.h"]
+    include_dir = joinpath(OpenCL_Headers_jll.artifact_dir, "include")
+    paths = map(headers) do header
+        joinpath(include_dir, "CL", header)
+    end
+    wrap("opencl", paths...; include_dirs=[include_dir],
          defines=["CL_TARGET_OPENCL_VERSION" => "300"],)
 end
 

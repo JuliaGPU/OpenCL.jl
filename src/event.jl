@@ -3,11 +3,11 @@
 abstract type CLEvent <: CLObject end
 
 mutable struct Event <: CLEvent
-    id :: api.cl_event
+    id::cl_event
 
-    function Event(evt_id::api.cl_event; retain=false)
+    function Event(evt_id; retain=false)
         if retain
-            api.clRetainEvent(evt_id)
+            clRetainEvent(evt_id)
         end
         evt = new(evt_id)
         finalizer(_finalize, evt)
@@ -17,12 +17,12 @@ end
 
 # wait for completion before running finalizer
 mutable struct NannyEvent <: CLEvent
-    id::api.cl_event
+    id::cl_event
     obj::Any
 
-    function NannyEvent(evt_id::api.cl_event, obj::Any; retain=false)
+    function NannyEvent(evt_id, obj; retain=false)
         if retain
-            api.clRetainEvent(evt_id)
+            clRetainEvent(evt_id)
         end
         nanny_evt = new(evt_id, obj)
         finalizer(nanny_evt) do x
@@ -36,12 +36,12 @@ end
 
 function _finalize(evt::CLEvent)
     if evt.id != C_NULL
-        api.clReleaseEvent(evt.id)
+        clReleaseEvent(evt.id)
         evt.id = C_NULL
     end
 end
 
-NannyEvent(evt::Event, obj::Any; retain=false) = NannyEvent(evt.id, obj, retain=retain)
+NannyEvent(evt::Event, obj; retain=false) = NannyEvent(evt.id, obj, retain=retain)
 
 Base.pointer(evt::CLEvent) = evt.id
 
@@ -56,11 +56,11 @@ Base.getindex(evt::CLEvent, evt_info::Symbol) = info(evt, evt_info)
 @ocl_v1_1_only begin
 
     mutable struct UserEvent <: CLEvent
-        id :: api.cl_event
+        id::cl_event
 
-        function UserEvent(evt_id::api.cl_event, retain=false)
+        function UserEvent(evt_id::cl_event, retain=false)
             if retain
-                api.clRetainEvent(evt_id)
+                clRetainEvent(evt_id)
             end
             evt = new(evt_id)
             finalizer(_finalize, evt)
@@ -70,14 +70,14 @@ Base.getindex(evt::CLEvent, evt_info::Symbol) = info(evt, evt_info)
 
     function UserEvent(ctx::Context; retain=false)
         status = Ref{Cint}()
-        evt_id = api.clCreateUserEvent(ctx.id, status)
+        evt_id = clCreateUserEvent(ctx.id, status)
         if status[] != CL_SUCCESS
             throw(CLError(status[]))
         end
         try
             return UserEvent(evt_id, retain)
         catch err
-            api.clReleaseEvent(evt_id)
+            clReleaseEvent(evt_id)
             throw(err)
         end
     end
@@ -89,18 +89,18 @@ Base.getindex(evt::CLEvent, evt_info::Symbol) = info(evt, evt_info)
     end
 
     function complete(evt::UserEvent)
-        api.clSetUserEventStatus(evt.id, CL_COMPLETE)
+        clSetUserEventStatus(evt.id, CL_COMPLETE)
         return evt
     end
 end
 
 struct _EventCB
-    handle :: Ptr{Nothing}
-    evt_id :: api.cl_event
-    status :: Cint
+    handle::Ptr{Nothing}
+    evt_id::cl_event
+    status::Cint
 end
 
-function event_notify(evt_id::api.cl_event, status::Cint, payload::Ptr{Nothing})
+function event_notify(evt_id::cl_event, status::Cint, payload::Ptr{Nothing})
     ptr = convert(Ptr{_EventCB}, payload)
     handle = unsafe_load(ptr).handle
 
@@ -114,7 +114,7 @@ end
 
 function add_callback(evt::CLEvent, callback::Function)
     event_notify_ptr = @cfunction(event_notify, Nothing,
-                                  (api.cl_event, Cint, Ptr{Cvoid}))
+                                  (cl_event, Cint, Ptr{Cvoid}))
 
     # The uv_callback is going to notify a task that,
     # then executes the real callback.
@@ -125,7 +125,7 @@ function add_callback(evt::CLEvent, callback::Function)
         # isbits && isimmutable
         r_ecb = Ref(_EventCB(Base.unsafe_convert(Ptr{Cvoid}, cb), 0, 0))
 
-        api.clSetEventCallback(evt.id, CL_COMPLETE, event_notify_ptr, r_ecb)
+        clSetEventCallback(evt.id, CL_COMPLETE, event_notify_ptr, r_ecb)
 
         @async begin
            try
@@ -143,7 +143,7 @@ end
 
 function wait(evt::CLEvent)
     evt_id = [evt.id]
-    api.clWaitForEvents(cl_uint(1), pointer(evt_id))
+    clWaitForEvents(cl_uint(1), pointer(evt_id))
     return evt
 end
 
@@ -151,7 +151,7 @@ function wait(evts::Vector{CLEvent})
     evt_ids = [evt.id for evt in evts]
     if !isempty(evt_ids)
         nevents = cl_uint(length(evt_ids))
-        api.clWaitForEvents(nevents, pointer(evt_ids))
+        clWaitForEvents(nevents, pointer(evt_ids))
     end
     return evts
 end
@@ -161,8 +161,8 @@ end
                                            wait_for::Vector{CLEvent})
         n_wait_events = cl_uint(length(wait_for))
         wait_evt_ids = [evt.id for evt in wait_for]
-        ret_evt = Ref{api.cl_event}()
-        api.clEnqueueMarkerWithWaitList(q.id, n_wait_events,
+        ret_evt = Ref{cl_event}()
+        clEnqueueMarkerWithWaitList(q.id, n_wait_events,
                                                isempty(wait_evt_ids) ? C_NULL : wait_evt_ids,
                                                ret_evt)
         @return_event ret_evt[]
@@ -172,8 +172,8 @@ end
                                             wait_for::Vector{CLEvent})
         n_wait_events = cl_uint(length(wait_for))
         wait_evt_ids = [evt.id for evt in wait_for]
-        ret_evt = Ref{api.cl_event}()
-        api.clEnqueueBarrierWithWaitList(q.id, n_wait_events,
+        ret_evt = Ref{cl_event}()
+        clEnqueueBarrierWithWaitList(q.id, n_wait_events,
                                                 isempty(wait_evt_ids) ? C_NULL : wait_evt_ids,
                                                 ret_evt)
         @return_event ret_evt[]
@@ -181,8 +181,8 @@ end
 end
 
 function enqueue_marker(q::CmdQueue)
-    evt = Ref{api.cl_event}()
-    api.clEnqueueMarker(q.id, evt)
+    evt = Ref{cl_event}()
+    clEnqueueMarker(q.id, evt)
     @return_event evt[]
 end
 @deprecate enqueue_marker enqueue_marker_with_wait_list
@@ -190,7 +190,7 @@ end
 function enqueue_wait_for_events(q::CmdQueue, wait_for::Vector{T}) where {T<:CLEvent}
     n_wait_events = cl_uint(length(wait_for))
     wait_evt_ids = [evt.id for evt in wait_for]
-    api.clEnqueueWaitForEvents(q.id, n_wait_events,
+    clEnqueueWaitForEvents(q.id, n_wait_events,
                                       isempty(wait_evt_ids) ? C_NULL : pointer(wait_evt_ids))
 end
 
@@ -199,7 +199,7 @@ function enqueue_wait_for_events(q::CmdQueue, wait_for::CLEvent)
 end
 
 function enqueue_barrier(q::CmdQueue)
-    api.clEnqueueBarrier(q.id)
+    clEnqueueBarrier(q.id)
     return q
 end
 @deprecate enqueue_barrier enqueue_barrier_with_wait_list
@@ -222,7 +222,7 @@ macro profile_info(func, profile_info)
     quote
         function $(esc(func))(evt::CLEvent)
             time = Ref{Clong}(0)
-            err_code = api.unchecked_clGetEventProfilingInfo(evt.id, $(esc(profile_info)),
+            err_code = unchecked_clGetEventProfilingInfo(evt.id, $(esc(profile_info)),
                                                              sizeof(Culong), time, C_NULL)
             if err_code == CL_PROFILING_INFO_NOT_AVAILABLE
                 if evt[:status] != :complete
@@ -243,36 +243,36 @@ end
 
 function info(evt::CLEvent, evt_info::Symbol)
     command_queue(evt::CLEvent) = begin
-        cmd_q = Ref{api.cl_command_queue}()
-        api.clGetEventInfo(evt.id, CL_EVENT_COMMAND_QUEUE,
-                                  sizeof(api.cl_command_queue), cmd_q, C_NULL)
+        cmd_q = Ref{cl_command_queue}()
+        clGetEventInfo(evt.id, CL_EVENT_COMMAND_QUEUE,
+                                  sizeof(cl_command_queue), cmd_q, C_NULL)
         return CmdQueue(cmd_q[])
     end
 
     command_type(evt::CLEvent) = begin
         cmd_t = Ref{Cint}()
-        api.clGetEventInfo(evt.id, CL_EVENT_COMMAND_TYPE,
+        clGetEventInfo(evt.id, CL_EVENT_COMMAND_TYPE,
                                   sizeof(Cint), cmd_t, C_NULL)
         return cmd_t[]
     end
 
     reference_count(evt::CLEvent) = begin
         cnt = Ref{Cuint}()
-        api.clGetEventInfo(evt.id, CL_EVENT_REFERENCE_COUNT,
+        clGetEventInfo(evt.id, CL_EVENT_REFERENCE_COUNT,
                                   sizeof(Cuint), cnt, C_NULL)
         return cnt[]
     end
 
     context(evt::CLEvent) = begin
-        ctx = Ref{api.cl_context}()
-        api.clGetEventInfo(evt.id, CL_EVENT_CONTEXT,
-                                  sizeof(api.cl_context), api.cl_context, C_NULL)
+        ctx = Ref{cl_context}()
+        clGetEventInfo(evt.id, CL_EVENT_CONTEXT,
+                                  sizeof(cl_context), cl_context, C_NULL)
         Context(ctx[])
     end
 
     status(evt::CLEvent) = begin
         st = Ref{Cint}()
-        api.clGetEventInfo(evt.id, CL_EVENT_COMMAND_EXECUTION_STATUS,
+        clGetEventInfo(evt.id, CL_EVENT_COMMAND_EXECUTION_STATUS,
                                   sizeof(Cint), st, C_NULL)
         status = st[]
         if status == CL_QUEUED

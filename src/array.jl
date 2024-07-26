@@ -21,7 +21,7 @@ function CLArray(queue::CmdQueue,
                  flags::Tuple{Vararg{Symbol}},
                  hostarray::AbstractArray{T,N}) where {T, N}
     ctx = context(queue)
-    buf = Buffer(T, ctx, flags, hostbuf=hostarray)
+    buf = Buffer(T, ctx, length(hostarray), flags, hostbuf=hostarray)
     sz = size(hostarray)
     CLArray(ctx, queue, buf, sz)
 end
@@ -48,7 +48,7 @@ function Base.fill(::Type{T}, q::CmdQueue, x::T, dims...) where T
         buf = Buffer(T, ctx, prod(dims))
         fill!(q, buf, x)
     else
-        buf = Buffer(T, ctx, (:rw, :copy), prod(dims), hostbuf=fill(x, dims))
+        buf = Buffer(T, ctx, prod(dims), (:rw, :copy), hostbuf=fill(x, dims))
     end
     return CLArray(buf, q, dims)
 end

@@ -1,16 +1,16 @@
 # OpenCL.Context
 
-const _ctx_reference_count = Dict{api.cl_context, Int}()
+const _ctx_reference_count = Dict{cl_context, Int}()
 
-function create_jl_reference!(ctx_id::api.cl_context)
+function create_jl_reference!(ctx_id::cl_context)
     if haskey(_ctx_reference_count, ctx_id) # for the first jl reference, we already have a refcount of 1
-        api.clRetainContext(ctx_id) # increase internal refcount, if creating an additional reference
+        clRetainContext(ctx_id) # increase internal refcount, if creating an additional reference
     end
     refcount = get!(_ctx_reference_count, ctx_id, 0)
     _ctx_reference_count[ctx_id] = refcount + 1
     return
 end
-function free_jl_reference!(ctx_id::api.cl_context)
+function free_jl_reference!(ctx_id::cl_context)
     if !haskey(_ctx_reference_count, ctx_id)
         error("Freeing unknown context")
     end
@@ -26,12 +26,12 @@ function free_jl_reference!(ctx_id::api.cl_context)
 end
 
 mutable struct Context <: CLObject
-    id :: api.cl_context
+    id::cl_context
     # If created from ctx_id already, we need to increase the reference count
     # because then we give out multiple context references with multiple finalizers to the world
     # TODO should we make it in a way, that you can't overwrite it?
-    function Context(ctx_id::api.cl_context; retain = false)
-        retain && api.clRetainContext(ctx_id)
+    function Context(ctx_id::cl_context; retain = false)
+        retain && clRetainContext(ctx_id)
         if !is_ctx_id_alive(ctx_id)
             error("ctx_id not alive: ", ctx_id)
         end
@@ -50,21 +50,21 @@ mutable struct Context <: CLObject
 end
 
 number_of_references(ctx::Context) = number_of_references(ctx.id)
-function number_of_references(ctx_id::api.cl_context)
+function number_of_references(ctx_id::cl_context)
     refcounts = Ref{Cuint}()
-    api.clGetContextInfo(
+    clGetContextInfo(
         ctx_id, CL_CONTEXT_REFERENCE_COUNT,
         sizeof(Cuint), refcounts, C_NULL
     )
     return refcounts[]
 end
 
-function is_ctx_id_alive(ctx_id::api.cl_context)
+function is_ctx_id_alive(ctx_id::cl_context)
     number_of_references(ctx_id) > 0
 end
-function release_ctx_id(ctx_id::api.cl_context)
+function release_ctx_id(ctx_id::cl_context)
     if is_ctx_id_alive(ctx_id)
-        api.clReleaseContext(ctx_id)
+        clReleaseContext(ctx_id)
     else
         error("Double free for context: ", ctx_id)
     end
@@ -82,10 +82,10 @@ function Base.show(io::IO, ctx::Context)
 end
 
 struct _CtxErr
-    handle :: Ptr{Nothing}
-    err_info :: Ptr{Cchar}
-    priv_info :: Ptr{Nothing}
-    cb :: Csize_t
+    handle::Ptr{Nothing}
+    err_info::Ptr{Cchar}
+    priv_info::Ptr{Nothing}
+    cb::Csize_t
 end
 
 const io_lock = ReentrantLock()
@@ -129,7 +129,7 @@ function Context(devs::Vector{Device};
     end
 
     n_devices = length(devs)
-    device_ids = Vector{api.cl_device_id}(undef, n_devices)
+    device_ids = Vector{cl_device_id}(undef, n_devices)
     for (i, d) in enumerate(devs)
         device_ids[i] = d.id
     end
@@ -137,7 +137,7 @@ function Context(devs::Vector{Device};
     err_code = Ref{Cint}()
     payload = callback === nothing ? raise_context_error : callback
     f_ptr = @cfunction($payload, Nothing, (Ptr{Cchar}, Ptr{Nothing}, Csize_t))
-    ctx_id = api.clCreateContext(
+    ctx_id = clCreateContext(
         ctx_properties, n_devices, device_ids,
         ctx_callback_ptr(), f_ptr, err_code)
     if err_code[] != CL_SUCCESS
@@ -150,7 +150,7 @@ end
 Context(d::Device; properties=nothing, callback=nothing) =
     Context([d], properties=properties, callback=callback)
 
-function Context(dev_type::api.cl_device_type; properties = nothing, callback = nothing)
+function Context(dev_type; properties = nothing, callback = nothing)
     if properties !== nothing
         ctx_properties = _parse_properties(properties)
     else
@@ -163,7 +163,7 @@ function Context(dev_type::api.cl_device_type; properties = nothing, callback = 
     end
     err_code = Ref{Cint}()
     ctx_user_data = @cfunction($ctx_user_data_cb, Nothing, (Ptr{Cchar}, Ptr{Nothing}, Csize_t))
-    ctx_id = api.clCreateContextFromType(ctx_properties, dev_type,
+    ctx_id = clCreateContextFromType(ctx_properties, dev_type,
                                          ctx_callback_ptr(), ctx_user_data, err_code)
     if err_code[] != CL_SUCCESS
         throw(CLError(err_code[]))
@@ -173,23 +173,23 @@ end
 
 function Context(dev_type::Symbol;
                  properties=nothing, callback=nothing)
-    Context(api.cl_device_type(dev_type),
+    Context(cl_device_type(dev_type),
             properties=properties, callback=callback)
 end
 
 
-function properties(ctx_id::api.cl_context)
+function properties(ctx_id::cl_context)
     nbytes = Ref{Csize_t}(0)
-    api.clGetContextInfo(ctx_id, CL_CONTEXT_PROPERTIES, 0, C_NULL, nbytes)
+    clGetContextInfo(ctx_id, CL_CONTEXT_PROPERTIES, 0, C_NULL, nbytes)
 
     # Calculate length of storage array
     # At nbytes[] the size of the properties array in bytes is stored
-    # The length of the property array is then nbytes[] / sizeof(api.cl_context_properties)
+    # The length of the property array is then nbytes[] / sizeof(cl_context_properties)
     # Note: nprops should be odd since it requires a C_NULL terminated array
-    nprops = div(nbytes[], sizeof(api.cl_context_properties))
+    nprops = div(nbytes[], sizeof(cl_context_properties))
 
-    props = Vector{api.cl_context_properties}(undef, nprops)
-    api.clGetContextInfo(ctx_id, CL_CONTEXT_PROPERTIES,
+    props = Vector{cl_context_properties}(undef, nprops)
+    clGetContextInfo(ctx_id, CL_CONTEXT_PROPERTIES,
                          nbytes[], props, C_NULL)
     #properties array of [key,value..., C_NULL]
     result = Any[]
@@ -198,7 +198,7 @@ function properties(ctx_id::api.cl_context)
         value = i < nprops ? props[i+1] : nothing
 
         if key == CL_CONTEXT_PLATFORM
-            push!(result, (key, Platform(api.cl_platform_id(value))))
+            push!(result, (key, Platform(cl_platform_id(value))))
         elseif key == CL_GL_CONTEXT_KHR ||
            key == CL_EGL_DISPLAY_KHR ||
            key == CL_GLX_DISPLAY_KHR ||
@@ -228,36 +228,36 @@ function _parse_properties(props)
     if isempty(props)
         return C_NULL
     end
-    cl_props = api.cl_context_properties[]
+    cl_props = cl_context_properties[]
     for prop_tuple in props
         if length(prop_tuple) != 2
             throw(ArgumentError("Context property tuples must be of type (key, value)"))
         end
         prop, val = prop_tuple
-        push!(cl_props, api.cl_context_properties(prop))
+        push!(cl_props, cl_context_properties(prop))
         if prop == CL_CONTEXT_PLATFORM
             isa(val, Platform) && (val = val.id)
-            push!(cl_props, api.cl_context_properties(val))
+            push!(cl_props, cl_context_properties(val))
         elseif prop == CL_WGL_HDC_KHR
-            push!(cl_props, api.cl_context_properties(val))
+            push!(cl_props, cl_context_properties(val))
         elseif Sys.isapple() ? (prop == CL_CONTEXT_PROPERTY_USE_CGL_SHAREGROUP_APPLE) : false
-            push!(cl_props, api.cl_context_properties(val))
+            push!(cl_props, cl_context_properties(val))
         elseif prop == CL_GL_CONTEXT_KHR ||
             prop == CL_EGL_DISPLAY_KHR ||
             prop == CL_GLX_DISPLAY_KHR ||
             prop == CL_CGL_SHAREGROUP_KHR
-            push!(cl_props, api.cl_context_properties(val))
+            push!(cl_props, cl_context_properties(val))
         else
             throw(OpenCLException("Invalid OpenCL Context property"))
         end
     end
-    push!(cl_props, api.cl_context_properties(C_NULL))
+    push!(cl_props, cl_context_properties(C_NULL))
     return cl_props
 end
 
 function num_devices(ctx::Context)
     ndevices = Ref{Cuint}()
-    api.clGetContextInfo(ctx.id, CL_CONTEXT_NUM_DEVICES,
+    clGetContextInfo(ctx.id, CL_CONTEXT_NUM_DEVICES,
                                 sizeof(Cuint), ndevices, C_NULL)
     return ndevices[]
 end
@@ -267,9 +267,9 @@ function devices(ctx::Context)
     if n == 0
         return []
     end
-    dev_ids = Vector{api.cl_device_id}(undef, n)
-    api.clGetContextInfo(ctx.id, CL_CONTEXT_DEVICES,
-                                n * sizeof(api.cl_device_id), dev_ids, C_NULL)
+    dev_ids = Vector{cl_device_id}(undef, n)
+    clGetContextInfo(ctx.id, CL_CONTEXT_DEVICES,
+                                n * sizeof(cl_device_id), dev_ids, C_NULL)
     return [Device(id) for id in dev_ids]
 end
 

@@ -2,16 +2,16 @@
 
 mutable struct Buffer{T} <: CLMemObject
     valid::Bool
-    id::api.cl_mem
+    id::cl_mem
     len::Int
     mapped::Bool
     hostbuf::Ptr{T}
 
-    function Buffer{T}(mem_id::api.cl_mem, retain::Bool, len::Integer) where T #hostbuf
+    function Buffer{T}(mem_id::cl_mem, retain::Bool, len::Integer) where T #hostbuf
         @assert len > 0
         @assert mem_id != C_NULL
         if retain
-            api.clRetainMemObject(mem_id)
+            clRetainMemObject(mem_id)
         end
         nbytes = sizeof(T) * len
         buff = new{T}(true, mem_id, len, false, C_NULL)
@@ -39,16 +39,19 @@ Base.show(io::IO, b::Buffer{T}) where {T} = begin
     print(io, "Buffer{$T}(@$ptr_address)")
 end
 
-# high level  Buffer constructors with symbol flags
-function Buffer(::Type{T}, ctx::Context, len::Integer=0; hostbuf=nothing) where T
-    Buffer(T, ctx, (:rw, :null), len, hostbuf=hostbuf)
+# XXX: conflict between integer flags and length.
+#      design is messy. probably best move all flags into a kwarg?
+
+# high level Buffer constructors with symbol flags
+function Buffer(::Type{T}, ctx::Context, len::Integer; hostbuf=nothing) where T
+    Buffer(T, ctx, len, (:rw, :null), hostbuf=hostbuf)
 end
 
-function Buffer(::Type{T}, ctx::Context, mem_flag::Symbol, len::Integer=0; hostbuf=nothing) where T
-    Buffer(T, ctx, (mem_flag, :null), len, hostbuf=hostbuf)
+function Buffer(::Type{T}, ctx::Context, len::Integer, mem_flag::Symbol; hostbuf=nothing) where T
+    Buffer(T, ctx, len, (mem_flag, :null), hostbuf=hostbuf)
 end
 
-function Buffer(::Type{T}, ctx::Context, mem_flags::NTuple{2, Symbol}, len::Integer=0; hostbuf=nothing) where T
+function Buffer(::Type{T}, ctx::Context, len::Integer, mem_flags::NTuple{2, Symbol}; hostbuf=nothing) where T
     f_r  = :r  in mem_flags
     f_w  = :w  in mem_flags
     f_rw = :rw in mem_flags
@@ -57,7 +60,7 @@ function Buffer(::Type{T}, ctx::Context, mem_flags::NTuple{2, Symbol}, len::Inte
         throw(ArgumentError("only one flag in {:r, :w, :rw} can be defined"))
     end
 
-    local flags::api.cl_mem_flags
+    local flags::cl_mem_flags
     if f_rw && !(f_r || f_w)
         flags = CL_MEM_READ_WRITE
     elseif f_r && !(f_w || f_rw)
@@ -83,12 +86,12 @@ function Buffer(::Type{T}, ctx::Context, mem_flags::NTuple{2, Symbol}, len::Inte
     elseif f_copy && !(f_alloc || f_use)
         flags |= CL_MEM_COPY_HOST_PTR
     end
-    return Buffer(T, ctx, flags, len, hostbuf=hostbuf)
+    return Buffer(T, ctx, len, flags, hostbuf=hostbuf)
 end
 
 # low level Buffer constructor with integer parameter flags
-function Buffer(::Type{T}, ctx::Context, flags::api.cl_mem_flags,
-                        len::Integer=0; hostbuf::Union{Nothing,Array{T}}=nothing) where T
+function Buffer(::Type{T}, ctx::Context, len::Integer, flags;
+                hostbuf::Union{Nothing,Array{T}}=nothing) where T
 
     if (hostbuf !== nothing &&
         (flags & (CL_MEM_USE_HOST_PTR | CL_MEM_COPY_HOST_PTR)) == 0)
@@ -123,7 +126,7 @@ function Buffer(::Type{T}, ctx::Context, flags::api.cl_mem_flags,
     end
 
     err_code = Ref{Cint}()
-    mem_id = api.clCreateBuffer(ctx.id, flags, cl_uint(nbytes),
+    mem_id = clCreateBuffer(ctx.id, flags, cl_uint(nbytes),
                                 hostbuf !== nothing ? hostbuf : C_NULL,
                                 err_code)
     if err_code[] != CL_SUCCESS
@@ -133,7 +136,7 @@ function Buffer(::Type{T}, ctx::Context, flags::api.cl_mem_flags,
     try
         return Buffer{T}(mem_id, false, len)
     catch err
-        api.clReleaseMemObject(mem_id)
+        clReleaseMemObject(mem_id)
         throw(err)
     end
 end
@@ -147,10 +150,10 @@ function enqueue_read_buffer(q::CmdQueue,
                              is_blocking::Bool) where T
     n_evts  = wait_for === nothing ? UInt(0) : length(wait_for)
     evt_ids = wait_for === nothing ? C_NULL  : [evt.id for evt in wait_for]
-    ret_evt = Ref{api.cl_event}()
+    ret_evt = Ref{cl_event}()
     nbytes  = sizeof(hostbuf)
     @assert nbytes > 0
-    api.clEnqueueReadBuffer(q.id, buf.id, cl_bool(is_blocking),
+    clEnqueueReadBuffer(q.id, buf.id, cl_bool(is_blocking),
                                    dev_offset, nbytes, hostbuf,
                                    n_evts, evt_ids, ret_evt)
     @return_nanny_event(ret_evt[], hostbuf)
@@ -166,10 +169,10 @@ function enqueue_write_buffer(q::CmdQueue,
                               is_blocking::Bool) where T
     n_evts  = wait_for === nothing ? UInt(0) : length(wait_for)
     evt_ids = wait_for === nothing ? C_NULL  : [evt.id for evt in wait_for]
-    ret_evt = Ref{api.cl_event}()
+    ret_evt = Ref{cl_event}()
     nbytes  = sizeof(hostbuf)
     @assert nbytes > 0
-    api.clEnqueueWriteBuffer(q.id, buf.id, cl_bool(is_blocking),
+    clEnqueueWriteBuffer(q.id, buf.id, cl_bool(is_blocking),
                                     offset, nbytes, hostbuf,
                                     n_evts, evt_ids, ret_evt)
     @return_nanny_event(ret_evt[], hostbuf)
@@ -185,18 +188,18 @@ function enqueue_copy_buffer(q::CmdQueue,
                              wait_for::Union{Nothing,Vector{Event}}) where T
     n_evts  = wait_for === nothing ? UInt(0) : length(wait_for)
     evt_ids = wait_for === nothing ? C_NULL  : [evt.id for evt in wait_for]
-    ret_evt = Ref{api.cl_event}()
+    ret_evt = Ref{cl_event}()
     if byte_count < 0
         byte_count_src = Ref{Csize_t}()
         byte_count_dst = Ref{Csize_t}()
-        api.clGetMemObjectInfo(src.id, CL_MEM_SIZE, sizeof(Csize_t),
+        clGetMemObjectInfo(src.id, CL_MEM_SIZE, sizeof(Csize_t),
                                       byte_count_src, C_NULL)
-        api.clGetMemObjectInfo(src.id, CL_MEM_SIZE, sizeof(Csize_t),
+        clGetMemObjectInfo(src.id, CL_MEM_SIZE, sizeof(Csize_t),
                                       byte_count_dst, C_NULL)
         byte_count = min(byte_count_src[], byte_count_dst[])
     end
     @assert byte_count > 0
-    api.clEnqueueCopyBuffer(q.id, src.id, dst.id,
+    clEnqueueCopyBuffer(q.id, src.id, dst.id,
                                    src_offset, dst_offset, byte_count,
                                    n_evts, evt_ids, ret_evt)
     @return_event ret_evt[]
@@ -228,8 +231,8 @@ function enqueue_unmap_mem(q::CmdQueue,
             evt_ids = [evt.id for evt in wait_for]
         end
     end
-    ret_evt = Ref{api.cl_event}()
-    api.clEnqueueUnmapMemObject(q.id, b.id, a,
+    ret_evt = Ref{cl_event}()
+    clEnqueueUnmapMemObject(q.id, b.id, a,
                                        n_evts, evt_ids, ret_evt)
     b.mapped  = false
     b.hostbuf = C_NULL
@@ -251,7 +254,7 @@ function enqueue_map_mem(q::CmdQueue,
                          dims::Dims,
                          wait_for=nothing,
                          is_blocking=false) where T
-    local f::api.cl_map_flags
+    local f::cl_map_flags
     if flags === :r
         f = CL_MAP_READ
     elseif flags === :w
@@ -267,7 +270,7 @@ end
 # enqueue a memory mapping operation, returning a mapped (pinned) Array and an event
 function enqueue_map_mem(q::CmdQueue,
                          b::Buffer{T},
-                         flags::api.cl_map_flags,
+                         flags::cl_map_flags,
                          offset::Integer,
                          dims::Dims,
                          wait_for=nothing,
@@ -278,12 +281,12 @@ function enqueue_map_mem(q::CmdQueue,
     end
     n_evts  = wait_for === nothing ? cl_uint(0) : cl_uint(length(wait_for))
     evt_ids = wait_for === nothing ? C_NULL  : [evt.id for evt in wait_for]
-    flags   = api.cl_map_flags(flags)
+    flags   = cl_map_flags(flags)
     offset  = unsigned(offset)
     nbytes  = unsigned(prod(dims) * sizeof(T))
-    ret_evt = Ref{api.cl_event}()
+    ret_evt = Ref{cl_event}()
     status  = Ref{Cint}()
-    mapped  = api.clEnqueueMapBuffer(q.id, b.id, cl_bool(is_blocking ? 1 : 0),
+    mapped  = clEnqueueMapBuffer(q.id, b.id, cl_bool(is_blocking ? 1 : 0),
                                      flags, offset, nbytes,
                                      n_evts, evt_ids, ret_evt, status)
     if status[] != CL_SUCCESS
@@ -304,7 +307,7 @@ function enqueue_map_mem(q::CmdQueue,
             end
         end
     catch err
-        api.clEnqueueUnmapMemObject(q.id, b.id, mapped,
+        clEnqueueUnmapMemObject(q.id, b.id, mapped,
                                     unsigned(0), C_NULL, C_NULL)
         b.mapped  = false
         b.hostbuf = C_NULL
@@ -327,10 +330,10 @@ end
             evt_ids = [evt.id for evt in wait_for]
             n_evts  = cl_uint(length(evt_ids))
         end
-        ret_evt = Ref{api.cl_event}()
+        ret_evt = Ref{cl_event}()
         nbytes_pattern = sizeof(pattern)
         @assert nbytes_pattern > 0
-        api.clEnqueueFillBuffer(q.id, buf.id, [pattern],
+        clEnqueueFillBuffer(q.id, buf.id, [pattern],
                                        unsigned(nbytes_pattern), offset, nbytes,
                                        n_evts, evt_ids, ret_evt)
         @return_event ret_evt[]
@@ -396,18 +399,18 @@ function empty_like(ctx::Context, b::Buffer{T}) where T
     len = length(b)
     mf = info(b, :mem_flags)
     if :r in mf
-        return Buffer(T, ctx, :r,  len)
+        return Buffer(T, ctx, len, :r)
     elseif :w in mf
-        return Buffer(T, ctx, :w,  len)
+        return Buffer(T, ctx, len, :w)
     else
-        return Buffer(T, ctx, :rw, len)
+        return Buffer(T, ctx, len, :rw)
     end
 end
 
 # create an empty buffer similar to the passed in Array
 function empty_like(ctx::Context, a::Array{T}, flag::Symbol=:rw) where T
     len = length(a)
-    return Buffer(T, ctx, flag, len)
+    return Buffer(T, ctx, len, flag)
 end
 
 # blocking write of contents of an array to a buffer

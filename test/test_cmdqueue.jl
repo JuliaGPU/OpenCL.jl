@@ -1,6 +1,5 @@
 @testset "OpenCL.CmdQueue" begin
     @testset "OpenCL.CmdQueue constructor" begin
-        has_warned = false
         @test_throws MethodError cl.CmdQueue(nothing, nothing)
         for platform in cl.platforms()
             for device in cl.devices(platform)
@@ -12,11 +11,9 @@
                     cl.CmdQueue(ctx, device, :out_of_order)
                     cl.CmdQueue(ctx, device, (:profile, :out_of_order))
                 catch err
-                    if !has_warned
-                        @warn("Platform $(device[:platform][:name]) does not seem to " *
-                             "suport out of order queues: \n$err")
-                        has_warned = true
-                    end
+                    @warn("Platform $(device[:platform][:name]) does not seem to " *
+                          "suport out of order queues: \n$err",maxlog=1,
+                          exception=(err, catch_backtrace()))
                 end
                 @test_throws ArgumentError cl.CmdQueue(ctx, device, :unrecognized_flag)
                 for flag in [:profile, :out_of_order]
@@ -39,7 +36,7 @@
                     @test q[:context] == ctx
                     @test q[:device] == device
                     @test q[:reference_count] > 0
-                    @test typeof(q[:properties]) == cl.api.cl_command_queue_properties
+                    @test typeof(q[:properties]) == cl.cl_command_queue_properties
                 end
             end
         end

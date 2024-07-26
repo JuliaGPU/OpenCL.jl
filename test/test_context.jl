@@ -115,8 +115,8 @@ end
 
             @test isodd(length(parsed_properties))
             @test parsed_properties[end] == 0
-            @test parsed_properties[1] == cl.api.cl_context_properties(cl.CL_CONTEXT_PLATFORM)
-            @test parsed_properties[2] == cl.api.cl_context_properties(platform.id)
+            @test parsed_properties[1] == cl.cl_context_properties(cl.CL_CONTEXT_PLATFORM)
+            @test parsed_properties[2] == cl.cl_context_properties(platform.id)
         end
     end
 

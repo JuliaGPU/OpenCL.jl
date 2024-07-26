@@ -18,7 +18,7 @@ using LinearAlgebra
 
             @test CLArray(queue, hostarray) != nothing
 
-            @test CLArray(cl.Buffer(Float32, ctx, (:r, :copy), hostbuf=hostarray),
+            @test CLArray(cl.Buffer(Float32, ctx, length(hostarray), (:r, :copy), hostbuf=hostarray),
                           queue,
                           (128, 64)) != nothing
 

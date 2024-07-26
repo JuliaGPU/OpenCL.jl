@@ -1,9 +1,3 @@
-module api
-
-using ..cl: CLError
-
-#include("types.jl")
-
 import OpenCL_jll
 
 const libopencl = OpenCL_jll.libopencl
@@ -76,6 +70,4 @@ function parse_version(version_string)
     end
     return VersionNumber(parse(Int, mg.captures[1]),
                                  parse(Int, mg.captures[2]))
-end
-
 end

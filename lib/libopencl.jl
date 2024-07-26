@@ -25,39 +25,45 @@ const cl_uint = UInt32
 
 const cl_ulong = UInt64
 
-mutable struct _cl_platform_id end
+const cl_GLuint = Cuint
 
-const cl_platform_id = Ptr{_cl_platform_id}
+const cl_GLint = Cint
+
+const cl_GLenum = Cuint
+
+mutable struct _cl_platform_id end
 
 mutable struct _cl_device_id end
 
-const cl_device_id = Ptr{_cl_device_id}
-
 mutable struct _cl_context end
-
-const cl_context = Ptr{_cl_context}
 
 mutable struct _cl_command_queue end
 
-const cl_command_queue = Ptr{_cl_command_queue}
-
 mutable struct _cl_mem end
-
-const cl_mem = Ptr{_cl_mem}
 
 mutable struct _cl_program end
 
-const cl_program = Ptr{_cl_program}
-
 mutable struct _cl_kernel end
-
-const cl_kernel = Ptr{_cl_kernel}
 
 mutable struct _cl_event end
 
-const cl_event = Ptr{_cl_event}
-
 mutable struct _cl_sampler end
+
+const cl_platform_id = Ptr{_cl_platform_id}
+
+const cl_device_id = Ptr{_cl_device_id}
+
+const cl_context = Ptr{_cl_context}
+
+const cl_command_queue = Ptr{_cl_command_queue}
+
+const cl_mem = Ptr{_cl_mem}
+
+const cl_program = Ptr{_cl_program}
+
+const cl_kernel = Ptr{_cl_kernel}
+
+const cl_event = Ptr{_cl_event}
 
 const cl_sampler = Ptr{_cl_sampler}
 
@@ -1082,6 +1088,181 @@ end
                                    event::Ptr{cl_event})::cl_int
 end
 
+const cl_gl_context_info = cl_uint
+
+const cl_gl_object_type = cl_uint
+
+const cl_gl_texture_info = cl_uint
+
+const cl_gl_platform_info = cl_uint
+
+# typedef cl_int CL_API_CALL clGetGLContextInfoKHR_t ( const cl_context_properties * properties , cl_gl_context_info param_name , size_t param_value_size , void * param_value , size_t * param_value_size_ret )
+const clGetGLContextInfoKHR_t = Cvoid
+
+# typedef clGetGLContextInfoKHR_t * clGetGLContextInfoKHR_fn
+const clGetGLContextInfoKHR_fn = Ptr{clGetGLContextInfoKHR_t}
+
+# typedef cl_mem CL_API_CALL clCreateFromGLBuffer_t ( cl_context context , cl_mem_flags flags , cl_GLuint bufobj , cl_int * errcode_ret )
+const clCreateFromGLBuffer_t = Cvoid
+
+# typedef clCreateFromGLBuffer_t * clCreateFromGLBuffer_fn
+const clCreateFromGLBuffer_fn = Ptr{clCreateFromGLBuffer_t}
+
+@checked function clGetGLContextInfoKHR(properties, param_name, param_value_size,
+                                        param_value, param_value_size_ret)
+    @ccall libopencl.clGetGLContextInfoKHR(properties::Ptr{cl_context_properties},
+                                           param_name::cl_gl_context_info,
+                                           param_value_size::Csize_t,
+                                           param_value::Ptr{Cvoid},
+                                           param_value_size_ret::Ptr{Csize_t})::cl_int
+end
+
+function clCreateFromGLBuffer(context, flags, bufobj, errcode_ret)
+    @ccall libopencl.clCreateFromGLBuffer(context::cl_context, flags::cl_mem_flags,
+                                          bufobj::cl_GLuint,
+                                          errcode_ret::Ptr{cl_int})::cl_mem
+end
+
+# typedef cl_mem CL_API_CALL clCreateFromGLTexture_t ( cl_context context , cl_mem_flags flags , cl_GLenum target , cl_GLint miplevel , cl_GLuint texture , cl_int * errcode_ret )
+const clCreateFromGLTexture_t = Cvoid
+
+# typedef clCreateFromGLTexture_t * clCreateFromGLTexture_fn
+const clCreateFromGLTexture_fn = Ptr{clCreateFromGLTexture_t}
+
+function clCreateFromGLTexture(context, flags, target, miplevel, texture, errcode_ret)
+    @ccall libopencl.clCreateFromGLTexture(context::cl_context, flags::cl_mem_flags,
+                                           target::cl_GLenum, miplevel::cl_GLint,
+                                           texture::cl_GLuint,
+                                           errcode_ret::Ptr{cl_int})::cl_mem
+end
+
+# typedef cl_mem CL_API_CALL clCreateFromGLRenderbuffer_t ( cl_context context , cl_mem_flags flags , cl_GLuint renderbuffer , cl_int * errcode_ret )
+const clCreateFromGLRenderbuffer_t = Cvoid
+
+# typedef clCreateFromGLRenderbuffer_t * clCreateFromGLRenderbuffer_fn
+const clCreateFromGLRenderbuffer_fn = Ptr{clCreateFromGLRenderbuffer_t}
+
+# typedef cl_int CL_API_CALL clGetGLObjectInfo_t ( cl_mem memobj , cl_gl_object_type * gl_object_type , cl_GLuint * gl_object_name )
+const clGetGLObjectInfo_t = Cvoid
+
+# typedef clGetGLObjectInfo_t * clGetGLObjectInfo_fn
+const clGetGLObjectInfo_fn = Ptr{clGetGLObjectInfo_t}
+
+# typedef cl_int CL_API_CALL clGetGLTextureInfo_t ( cl_mem memobj , cl_gl_texture_info param_name , size_t param_value_size , void * param_value , size_t * param_value_size_ret )
+const clGetGLTextureInfo_t = Cvoid
+
+# typedef clGetGLTextureInfo_t * clGetGLTextureInfo_fn
+const clGetGLTextureInfo_fn = Ptr{clGetGLTextureInfo_t}
+
+# typedef cl_int CL_API_CALL clEnqueueAcquireGLObjects_t ( cl_command_queue command_queue , cl_uint num_objects , const cl_mem * mem_objects , cl_uint num_events_in_wait_list , const cl_event * event_wait_list , cl_event * event )
+const clEnqueueAcquireGLObjects_t = Cvoid
+
+# typedef clEnqueueAcquireGLObjects_t * clEnqueueAcquireGLObjects_fn
+const clEnqueueAcquireGLObjects_fn = Ptr{clEnqueueAcquireGLObjects_t}
+
+# typedef cl_int CL_API_CALL clEnqueueReleaseGLObjects_t ( cl_command_queue command_queue , cl_uint num_objects , const cl_mem * mem_objects , cl_uint num_events_in_wait_list , const cl_event * event_wait_list , cl_event * event )
+const clEnqueueReleaseGLObjects_t = Cvoid
+
+# typedef clEnqueueReleaseGLObjects_t * clEnqueueReleaseGLObjects_fn
+const clEnqueueReleaseGLObjects_fn = Ptr{clEnqueueReleaseGLObjects_t}
+
+function clCreateFromGLRenderbuffer(context, flags, renderbuffer, errcode_ret)
+    @ccall libopencl.clCreateFromGLRenderbuffer(context::cl_context, flags::cl_mem_flags,
+                                                renderbuffer::cl_GLuint,
+                                                errcode_ret::Ptr{cl_int})::cl_mem
+end
+
+@checked function clGetGLObjectInfo(memobj, gl_object_type, gl_object_name)
+    @ccall libopencl.clGetGLObjectInfo(memobj::cl_mem,
+                                       gl_object_type::Ptr{cl_gl_object_type},
+                                       gl_object_name::Ptr{cl_GLuint})::cl_int
+end
+
+@checked function clGetGLTextureInfo(memobj, param_name, param_value_size, param_value,
+                                     param_value_size_ret)
+    @ccall libopencl.clGetGLTextureInfo(memobj::cl_mem, param_name::cl_gl_texture_info,
+                                        param_value_size::Csize_t, param_value::Ptr{Cvoid},
+                                        param_value_size_ret::Ptr{Csize_t})::cl_int
+end
+
+@checked function clEnqueueAcquireGLObjects(command_queue, num_objects, mem_objects,
+                                            num_events_in_wait_list, event_wait_list, event)
+    @ccall libopencl.clEnqueueAcquireGLObjects(command_queue::cl_command_queue,
+                                               num_objects::cl_uint,
+                                               mem_objects::Ptr{cl_mem},
+                                               num_events_in_wait_list::cl_uint,
+                                               event_wait_list::Ptr{cl_event},
+                                               event::Ptr{cl_event})::cl_int
+end
+
+@checked function clEnqueueReleaseGLObjects(command_queue, num_objects, mem_objects,
+                                            num_events_in_wait_list, event_wait_list, event)
+    @ccall libopencl.clEnqueueReleaseGLObjects(command_queue::cl_command_queue,
+                                               num_objects::cl_uint,
+                                               mem_objects::Ptr{cl_mem},
+                                               num_events_in_wait_list::cl_uint,
+                                               event_wait_list::Ptr{cl_event},
+                                               event::Ptr{cl_event})::cl_int
+end
+
+# typedef cl_mem CL_API_CALL clCreateFromGLTexture2D_t ( cl_context context , cl_mem_flags flags , cl_GLenum target , cl_GLint miplevel , cl_GLuint texture , cl_int * errcode_ret )
+const clCreateFromGLTexture2D_t = Cvoid
+
+# typedef clCreateFromGLTexture2D_t * clCreateFromGLTexture2D_fn
+const clCreateFromGLTexture2D_fn = Ptr{clCreateFromGLTexture2D_t}
+
+# typedef cl_mem CL_API_CALL clCreateFromGLTexture3D_t ( cl_context context , cl_mem_flags flags , cl_GLenum target , cl_GLint miplevel , cl_GLuint texture , cl_int * errcode_ret )
+const clCreateFromGLTexture3D_t = Cvoid
+
+# typedef clCreateFromGLTexture3D_t * clCreateFromGLTexture3D_fn
+const clCreateFromGLTexture3D_fn = Ptr{clCreateFromGLTexture3D_t}
+
+function clCreateFromGLTexture2D(context, flags, target, miplevel, texture, errcode_ret)
+    @ccall libopencl.clCreateFromGLTexture2D(context::cl_context, flags::cl_mem_flags,
+                                             target::cl_GLenum, miplevel::cl_GLint,
+                                             texture::cl_GLuint,
+                                             errcode_ret::Ptr{cl_int})::cl_mem
+end
+
+function clCreateFromGLTexture3D(context, flags, target, miplevel, texture, errcode_ret)
+    @ccall libopencl.clCreateFromGLTexture3D(context::cl_context, flags::cl_mem_flags,
+                                             target::cl_GLenum, miplevel::cl_GLint,
+                                             texture::cl_GLuint,
+                                             errcode_ret::Ptr{cl_int})::cl_mem
+end
+
+mutable struct __GLsync end
+
+const cl_GLsync = Ptr{__GLsync}
+
+# typedef cl_event CL_API_CALL clCreateEventFromGLsyncKHR_t ( cl_context context , cl_GLsync sync , cl_int * errcode_ret )
+const clCreateEventFromGLsyncKHR_t = Cvoid
+
+# typedef clCreateEventFromGLsyncKHR_t * clCreateEventFromGLsyncKHR_fn
+const clCreateEventFromGLsyncKHR_fn = Ptr{clCreateEventFromGLsyncKHR_t}
+
+function clCreateEventFromGLsyncKHR(context, sync, errcode_ret)
+    @ccall libopencl.clCreateEventFromGLsyncKHR(context::cl_context, sync::cl_GLsync,
+                                                errcode_ret::Ptr{cl_int})::cl_event
+end
+
+# typedef cl_int CL_API_CALL clGetSupportedGLTextureFormatsINTEL_t ( cl_context context , cl_mem_flags flags , cl_mem_object_type image_type , cl_uint num_entries , cl_GLenum * gl_formats , cl_uint * num_texture_formats )
+const clGetSupportedGLTextureFormatsINTEL_t = Cvoid
+
+# typedef clGetSupportedGLTextureFormatsINTEL_t * clGetSupportedGLTextureFormatsINTEL_fn
+const clGetSupportedGLTextureFormatsINTEL_fn = Ptr{clGetSupportedGLTextureFormatsINTEL_t}
+
+@checked function clGetSupportedGLTextureFormatsINTEL(context, flags, image_type,
+                                                      num_entries, gl_formats,
+                                                      num_texture_formats)
+    @ccall libopencl.clGetSupportedGLTextureFormatsINTEL(context::cl_context,
+                                                         flags::cl_mem_flags,
+                                                         image_type::cl_mem_object_type,
+                                                         num_entries::cl_uint,
+                                                         gl_formats::Ptr{cl_GLenum},
+                                                         num_texture_formats::Ptr{cl_uint})::cl_int
+end
+
 const CL_NAME_VERSION_MAX_NAME_SIZE = 64
 
 const CL_SUCCESS = 0
@@ -2005,3 +2186,67 @@ const CL_VERSION_MAJOR_MASK = 1 << CL_VERSION_MAJOR_BITS - 1
 const CL_VERSION_MINOR_MASK = 1 << CL_VERSION_MINOR_BITS - 1
 
 const CL_VERSION_PATCH_MASK = 1 << CL_VERSION_PATCH_BITS - 1
+
+const cl_khr_gl_sharing = 1
+
+const CL_KHR_GL_SHARING_EXTENSION_NAME = "cl_khr_gl_sharing"
+
+const CL_INVALID_GL_SHAREGROUP_REFERENCE_KHR = -1000
+
+const CL_CURRENT_DEVICE_FOR_GL_CONTEXT_KHR = 0x2006
+
+const CL_DEVICES_FOR_GL_CONTEXT_KHR = 0x2007
+
+const CL_GL_CONTEXT_KHR = 0x2008
+
+const CL_EGL_DISPLAY_KHR = 0x2009
+
+const CL_GLX_DISPLAY_KHR = 0x200a
+
+const CL_WGL_HDC_KHR = 0x200b
+
+const CL_CGL_SHAREGROUP_KHR = 0x200c
+
+const CL_GL_OBJECT_BUFFER = 0x2000
+
+const CL_GL_OBJECT_TEXTURE2D = 0x2001
+
+const CL_GL_OBJECT_TEXTURE3D = 0x2002
+
+const CL_GL_OBJECT_RENDERBUFFER = 0x2003
+
+const CL_GL_OBJECT_TEXTURE2D_ARRAY = 0x200e
+
+const CL_GL_OBJECT_TEXTURE1D = 0x200f
+
+const CL_GL_OBJECT_TEXTURE1D_ARRAY = 0x2010
+
+const CL_GL_OBJECT_TEXTURE_BUFFER = 0x2011
+
+const CL_GL_TEXTURE_TARGET = 0x2004
+
+const CL_GL_MIPMAP_LEVEL = 0x2005
+
+const cl_khr_gl_event = 1
+
+const CL_KHR_GL_EVENT_EXTENSION_NAME = "cl_khr_gl_event"
+
+const CL_COMMAND_GL_FENCE_SYNC_OBJECT_KHR = 0x200d
+
+const cl_khr_gl_depth_images = 1
+
+const CL_KHR_GL_DEPTH_IMAGES_EXTENSION_NAME = "cl_khr_gl_depth_images"
+
+const CL_DEPTH_STENCIL = 0x10be
+
+const CL_UNORM_INT24 = 0x10df
+
+const cl_khr_gl_msaa_sharing = 1
+
+const CL_KHR_GL_MSAA_SHARING_EXTENSION_NAME = "cl_khr_gl_msaa_sharing"
+
+const CL_GL_NUM_SAMPLES = 0x2012
+
+const cl_intel_sharing_format_query_gl = 1
+
+const CL_INTEL_SHARING_FORMAT_QUERY_GL_EXTENSION_NAME = "cl_intel_sharing_format_query_gl"

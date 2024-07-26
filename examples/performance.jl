@@ -79,9 +79,9 @@ function cl_performance(ndatapts::Integer, nworkers::Integer)
             ctx   = cl.Context(device)
             queue = cl.CmdQueue(ctx, :profile)
 
-            a_buf = cl.Buffer(Float32, ctx, (:r, :copy), hostbuf=a)
-            b_buf = cl.Buffer(Float32, ctx, (:r, :copy), hostbuf=b)
-            c_buf = cl.Buffer(Float32, ctx, :w, length(a))
+            a_buf = cl.Buffer(Float32, ctx, length(a), (:r, :copy), hostbuf=a)
+            b_buf = cl.Buffer(Float32, ctx, length(b), (:r, :copy), hostbuf=b)
+            c_buf = cl.Buffer(Float32, ctx, length(a), :w)
 
             prg  = cl.Program(ctx, source=bench_kernel) |> cl.build!
             kern = cl.Kernel(prg, "sum")

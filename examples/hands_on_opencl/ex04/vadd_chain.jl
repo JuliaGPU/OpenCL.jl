@@ -67,14 +67,14 @@ h_g = rand(Float32, LENGTH)
 # {:use (use host buffer), :alloc (alloc pinned memory), :copy (default)}
 
 # Create the input (a, b, e, g) arrays in device memory and copy data from host
-d_a = cl.Buffer(Float32, ctx, (:r, :copy), hostbuf=h_a)
-d_b = cl.Buffer(Float32, ctx, (:r, :copy), hostbuf=h_b)
-d_e = cl.Buffer(Float32, ctx, (:r, :copy), hostbuf=h_e)
-d_g = cl.Buffer(Float32, ctx, (:r, :copy), hostbuf=h_g)
+d_a = cl.Buffer(Float32, ctx, length(h_a), (:r, :copy), hostbuf=h_a)
+d_b = cl.Buffer(Float32, ctx, length(h_b), (:r, :copy), hostbuf=h_b)
+d_e = cl.Buffer(Float32, ctx, length(h_e), (:r, :copy), hostbuf=h_e)
+d_g = cl.Buffer(Float32, ctx, length(h_g), (:r, :copy), hostbuf=h_g)
 # Create the output (c, d, f) array in device memory
-d_c = cl.Buffer(Float32, ctx, :w, LENGTH)
-d_d = cl.Buffer(Float32, ctx, :w, LENGTH)
-d_f = cl.Buffer(Float32, ctx, :w, LENGTH)
+d_c = cl.Buffer(Float32, ctx, :LENGTH, w)
+d_d = cl.Buffer(Float32, ctx, :LENGTH, w)
+d_f = cl.Buffer(Float32, ctx, :LENGTH, w)
 
 # create the kernel
 vadd = cl.Kernel(program, "vadd")

@@ -28,7 +28,7 @@ info(
         queue = cl.CmdQueue(ctx)
 
         str_len  = length(hello_world_str) + 1
-        out_buf  = cl.Buffer(Cchar, ctx, :w, sizeof(Cchar) * str_len)
+        out_buf  = cl.Buffer(Cchar, ctx, sizeof(Cchar) * str_len, :w)
 
         prg   = cl.Program(ctx, source=hello_world_kernel) |> cl.build!
         kern  = cl.Kernel(prg, "hello")
@@ -59,25 +59,25 @@ end
     for device in cl.devices()
 
         len = 1024
-        h_a = Vector{cl.CL_float}(undef, len)
-        h_b = Vector{cl.CL_float}(undef, len)
-        h_c = Vector{cl.CL_float}(undef, len)
-        h_d = Vector{cl.CL_float}(undef, len)
-        h_e = Vector{cl.CL_float}(undef, len)
-        h_f = Vector{cl.CL_float}(undef, len)
-        h_g = Vector{cl.CL_float}(undef, len)
+        h_a = Vector{Cfloat}(undef, len)
+        h_b = Vector{Cfloat}(undef, len)
+        h_c = Vector{Cfloat}(undef, len)
+        h_d = Vector{Cfloat}(undef, len)
+        h_e = Vector{Cfloat}(undef, len)
+        h_f = Vector{Cfloat}(undef, len)
+        h_g = Vector{Cfloat}(undef, len)
 
         for i in 1:len
-            h_a[i] = cl.cl_float(rand())
-            h_b[i] = cl.cl_float(rand())
-            h_e[i] = cl.cl_float(rand())
-            h_g[i] = cl.cl_float(rand())
+            h_a[i] = Cfloat(rand())
+            h_b[i] = Cfloat(rand())
+            h_e[i] = Cfloat(rand())
+            h_g[i] = Cfloat(rand())
         end
 
         err_code = Ref{cl.Cint}()
 
         # create compute context (TODO: fails if function ptr's not passed...)
-        ctx_id = cl.api.clCreateContext(C_NULL, 1, [device.id],
+        ctx_id = cl.clCreateContext(C_NULL, 1, [device.id],
                                         C_NULL,
                                         C_NULL,
                                         err_code)
@@ -85,91 +85,91 @@ end
             throw(cl.CLError(err_code[]))
         end
 
-        q_id = cl.api.clCreateCommandQueue(ctx_id, device.id, 0, err_code)
+        q_id = cl.clCreateCommandQueue(ctx_id, device.id, 0, err_code)
         if err_code[] != cl.CL_SUCCESS
             error("Failed to create command queue")
         end
 
         # create program
         bytesource = String(test_source)
-        prg_id = cl.api.clCreateProgramWithSource(ctx_id, 1, [bytesource], C_NULL, err_code)
+        prg_id = cl.clCreateProgramWithSource(ctx_id, 1, [bytesource], C_NULL, err_code)
         if err_code[] != cl.CL_SUCCESS
             error("Failed to create program")
         end
 
         # build program
-        cl.api.clBuildProgram(prg_id, 0, C_NULL, C_NULL, C_NULL, C_NULL)
+        cl.clBuildProgram(prg_id, 0, C_NULL, C_NULL, C_NULL, C_NULL)
 
         # create compute kernel
-        k_id = cl.api.clCreateKernel(prg_id, "sum", err_code)
+        k_id = cl.clCreateKernel(prg_id, "sum", err_code)
         if err_code[] != cl.CL_SUCCESS
             error("Failed to create compute kernel")
         end
 
         # create input array in device memory
-        Aid = cl.api.clCreateBuffer(ctx_id, cl.CL_MEM_READ_ONLY | cl.CL_MEM_COPY_HOST_PTR,
-                                    sizeof(cl.CL_float) * len, h_a, err_code)
+        Aid = cl.clCreateBuffer(ctx_id, cl.CL_MEM_READ_ONLY | cl.CL_MEM_COPY_HOST_PTR,
+                                    sizeof(Cfloat) * len, h_a, err_code)
         if err_code[] != cl.CL_SUCCESS
             error("Error creating buffer A")
         end
-        Bid = cl.api.clCreateBuffer(ctx_id, cl.CL_MEM_READ_ONLY | cl.CL_MEM_COPY_HOST_PTR,
-                                    sizeof(cl.CL_float) * len, h_b, err_code)
+        Bid = cl.clCreateBuffer(ctx_id, cl.CL_MEM_READ_ONLY | cl.CL_MEM_COPY_HOST_PTR,
+                                    sizeof(Cfloat) * len, h_b, err_code)
         if err_code[] != cl.CL_SUCCESS
             error("Error creating buffer B")
         end
-        Eid = cl.api.clCreateBuffer(ctx_id, cl.CL_MEM_WRITE_ONLY | cl.CL_MEM_COPY_HOST_PTR,
-                                    sizeof(cl.CL_float) * len, h_e, err_code)
+        Eid = cl.clCreateBuffer(ctx_id, cl.CL_MEM_WRITE_ONLY | cl.CL_MEM_COPY_HOST_PTR,
+                                    sizeof(Cfloat) * len, h_e, err_code)
         if err_code[] != cl.CL_SUCCESS
             error("Error creating buffer E")
         end
-        Gid = cl.api.clCreateBuffer(ctx_id, cl.CL_MEM_WRITE_ONLY | cl.CL_MEM_COPY_HOST_PTR,
-                                    sizeof(cl.CL_float) * len, h_g, err_code)
+        Gid = cl.clCreateBuffer(ctx_id, cl.CL_MEM_WRITE_ONLY | cl.CL_MEM_COPY_HOST_PTR,
+                                    sizeof(Cfloat) * len, h_g, err_code)
         if err_code[] != cl.CL_SUCCESS
             error("Error creating buffer G")
         end
 
         # create output arrays in device memory
 
-        Cid = cl.api.clCreateBuffer(ctx_id, cl.CL_MEM_READ_WRITE,
-                                    sizeof(cl.CL_float) * len, C_NULL, err_code)
+        Cid = cl.clCreateBuffer(ctx_id, cl.CL_MEM_READ_WRITE,
+                                    sizeof(Cfloat) * len, C_NULL, err_code)
         if err_code[] != cl.CL_SUCCESS
             error("Error creating buffer C")
         end
-        Did = cl.api.clCreateBuffer(ctx_id, cl.CL_MEM_READ_WRITE,
-                                    sizeof(cl.CL_float) * len, C_NULL, err_code)
+        Did = cl.clCreateBuffer(ctx_id, cl.CL_MEM_READ_WRITE,
+                                    sizeof(Cfloat) * len, C_NULL, err_code)
         if err_code[] != cl.CL_SUCCESS
             error("Error creating buffer D")
         end
-        Fid = cl.api.clCreateBuffer(ctx_id, cl.CL_MEM_WRITE_ONLY,
-                                    sizeof(cl.CL_float) * len, C_NULL, err_code)
+        Fid = cl.clCreateBuffer(ctx_id, cl.CL_MEM_WRITE_ONLY,
+                                    sizeof(Cfloat) * len, C_NULL, err_code)
         if err_code[] != cl.CL_SUCCESS
             error("Error creating buffer F")
         end
 
-        cl.api.clSetKernelArg(k_id, 0, sizeof(cl.api.cl_mem), [Aid])
-        cl.api.clSetKernelArg(k_id, 1, sizeof(cl.api.cl_mem), [Bid])
-        cl.api.clSetKernelArg(k_id, 2, sizeof(cl.api.cl_mem), [Cid])
-        cl.api.clSetKernelArg(k_id, 3, sizeof(cl.Cuint), cl.Cuint[len])
+        cl.clSetKernelArg(k_id, 0, sizeof(cl.cl_mem), [Aid])
+        cl.clSetKernelArg(k_id, 1, sizeof(cl.cl_mem), [Bid])
+        cl.clSetKernelArg(k_id, 2, sizeof(cl.cl_mem), [Cid])
+        cl.clSetKernelArg(k_id, 3, sizeof(cl.Cuint), cl.Cuint[len])
 
         nglobal = Ref{Csize_t}(len)
-        cl.api.clEnqueueNDRangeKernel(q_id, k_id,  1, C_NULL,
+        cl.clEnqueueNDRangeKernel(q_id, k_id,  1, C_NULL,
                                       nglobal, C_NULL, 0, C_NULL, C_NULL)
 
-        cl.api.clSetKernelArg(k_id, 0, sizeof(cl.api.cl_mem), [Eid])
-        cl.api.clSetKernelArg(k_id, 1, sizeof(cl.api.cl_mem), [Cid])
-        cl.api.clSetKernelArg(k_id, 2, sizeof(cl.api.cl_mem), [Did])
-        cl.api.clEnqueueNDRangeKernel(q_id, k_id,  1, C_NULL,
+        cl.clSetKernelArg(k_id, 0, sizeof(cl.cl_mem), [Eid])
+        cl.clSetKernelArg(k_id, 1, sizeof(cl.cl_mem), [Cid])
+        cl.clSetKernelArg(k_id, 2, sizeof(cl.cl_mem), [Did])
+        cl.clEnqueueNDRangeKernel(q_id, k_id,  1, C_NULL,
                                       nglobal, C_NULL, 0, C_NULL, C_NULL)
 
-        cl.api.clSetKernelArg(k_id, 0, sizeof(cl.api.cl_mem), [Gid])
-        cl.api.clSetKernelArg(k_id, 1, sizeof(cl.api.cl_mem), [Did])
-        cl.api.clSetKernelArg(k_id, 2, sizeof(cl.api.cl_mem), [Fid])
-        cl.api.clEnqueueNDRangeKernel(q_id, k_id,  1, C_NULL,
+        cl.clSetKernelArg(k_id, 0, sizeof(cl.cl_mem), [Gid])
+        cl.clSetKernelArg(k_id, 1, sizeof(cl.cl_mem), [Did])
+        cl.clSetKernelArg(k_id, 2, sizeof(cl.cl_mem), [Fid])
+        cl.clEnqueueNDRangeKernel(q_id, k_id,  1, C_NULL,
                                       nglobal, C_NULL, 0, C_NULL, C_NULL)
 
         # read back the result from compute device...
-        cl.api.clEnqueueReadBuffer(q_id, Fid, cl.CL_TRUE, 0,
-                                   sizeof(cl.CL_float) * len, h_f, 0, C_NULL, C_NULL)
+        cl.clEnqueueReadBuffer(q_id, Fid, cl.CL_TRUE, 0,
+                                   sizeof(Cfloat) * len, h_f, 0, C_NULL, C_NULL)
 
         # test results
         for i in 1:len
@@ -235,12 +235,12 @@ let test_struct = "
         P = [Params(0.5, 10.0, [0.0, 0.0], 3)]
 
         #TODO: constructor for single immutable types.., check if passed parameter isbits
-        P_buf = cl.Buffer(Params, ctx, :r, length(P))
+        P_buf = cl.Buffer(Params, ctx, length(P), :r)
         cl.write!(q, P_buf, P)
 
-        X_buf = cl.Buffer(Float32, ctx, (:r, :copy), hostbuf=X)
-        Y_buf = cl.Buffer(Float32, ctx, (:r, :copy), hostbuf=Y)
-        R_buf = cl.Buffer(Float32, ctx, :w, length(X))
+        X_buf = cl.Buffer(Float32, ctx, length(X), (:r, :copy), hostbuf=X)
+        Y_buf = cl.Buffer(Float32, ctx, length(Y), (:r, :copy), hostbuf=Y)
+        R_buf = cl.Buffer(Float32, ctx, length(X), :w)
 
         global_size = size(X)
         q(part3, global_size, nothing, X_buf, Y_buf, R_buf, P_buf)
@@ -291,7 +291,7 @@ let test_mutable_pointerfree = "
         part3 = cl.Kernel(p, "part3")
 
         P = MutableParams(0.5, 10.0)
-        P_buf = cl.Buffer(Float32, ctx, :w, 2)
+        P_buf = cl.Buffer(Float32, ctx, 2, :w)
         q(part3, 1, nothing, P_buf, P)
 
         r = cl.read(q, P_buf)

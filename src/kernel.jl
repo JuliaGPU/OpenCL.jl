@@ -1,10 +1,10 @@
 # OpenCL.Kernel
 mutable struct Kernel <: CLObject
-    id :: api.cl_kernel
+    id::cl_kernel
 
-    function Kernel(k::api.cl_kernel, retain=false)
+    function Kernel(k::cl_kernel, retain=false)
         if retain
-            api.clRetainKernel(k)
+            clRetainKernel(k)
         end
         kernel = new(k)
         finalizer(_finalize, kernel)
@@ -14,7 +14,7 @@ end
 
 function _finalize(k::Kernel)
     if k.id != C_NULL
-        api.clReleaseKernel(k.id)
+        clReleaseKernel(k.id)
         k.id = C_NULL
     end
 end
@@ -35,7 +35,7 @@ function Kernel(p::Program, kernel_name::String)
         end
     end
     err_code = Ref{Cint}()
-    kernel_id = api.clCreateKernel(p.id, kernel_name, err_code)
+    kernel_id = clCreateKernel(p.id, kernel_name, err_code)
     if err_code[] != CL_SUCCESS
         throw(CLError(err_code[]))
     end
@@ -59,7 +59,7 @@ Base.length(l::LocalMem{T}) where {T} = Int(l.nbytes ÷ sizeof(T))
 
 function set_arg!(k::Kernel, idx::Integer, arg::Nothing)
     @assert idx > 0
-    api.clSetKernelArg(k.id, cl_uint(idx-1), sizeof(api.cl_mem), C_NULL)
+    clSetKernelArg(k.id, cl_uint(idx-1), sizeof(cl_mem), C_NULL)
     return k
 end
 
@@ -73,13 +73,13 @@ end
 function set_arg!(k::Kernel, idx::Integer, arg::CLMemObject)
     @assert idx > 0
     arg_boxed = Ref{typeof(arg.id)}(arg.id)
-    api.clSetKernelArg(k.id, cl_uint(idx-1), sizeof(api.cl_mem), arg_boxed)
+    clSetKernelArg(k.id, cl_uint(idx-1), sizeof(cl_mem), arg_boxed)
     return k
 end
 
 function set_arg!(k::Kernel, idx::Integer, arg::LocalMem)
     @assert idx > 0 "Kernel idx must be bigger 0"
-    api.clSetKernelArg(k.id, cl_uint(idx-1), arg.nbytes, C_NULL)
+    clSetKernelArg(k.id, cl_uint(idx-1), arg.nbytes, C_NULL)
     return k
 end
 
@@ -181,7 +181,7 @@ end
 function set_arg!(k::Kernel, idx::Integer, arg::T) where T
     @assert idx > 0 "Kernel idx must be bigger 0"
     ref, tsize = to_cl_ref(arg)
-    err = api.unchecked_clSetKernelArg(k.id, cl_uint(idx - 1), tsize, ref)
+    err = unchecked_clSetKernelArg(k.id, cl_uint(idx - 1), tsize, ref)
     if err == CL_INVALID_ARG_SIZE
         error("""
             Julia and OpenCL type don't match at kernel argument $idx: Found $T.
@@ -219,11 +219,11 @@ function set_args!(k::Kernel, args...)
     end
 end
 
-function work_group_info(k::Kernel, winfo::api.cl_kernel_work_group_info, d::Device)
+function work_group_info(k::Kernel, winfo, d::Device)
     if (winfo == CL_KERNEL_LOCAL_MEM_SIZE ||
         winfo == CL_KERNEL_PRIVATE_MEM_SIZE)
         result1 = Ref{Culong}(0)
-        api.clGetKernelWorkGroupInfo(k.id, d.id, winfo,
+        clGetKernelWorkGroupInfo(k.id, d.id, winfo,
                                             sizeof(Culong), result1, C_NULL)
         return Int(result1[])
     elseif winfo == CL_KERNEL_COMPILE_WORK_GROUP_SIZE
@@ -232,11 +232,11 @@ function work_group_info(k::Kernel, winfo::api.cl_kernel_work_group_info, d::Dev
         # [1] https://www.khronos.org/registry/OpenCL/sdk/1.2/docs/man/xhtml/clGetKernelWorkGroupInfo.html
         @assert sizeof(Csize_t) == sizeof(Int)
         result2 = Vector{Int}(undef, 3)
-        api.clGetKernelWorkGroupInfo(k.id, d.id, winfo, 3*sizeof(Int), result2, C_NULL)
+        clGetKernelWorkGroupInfo(k.id, d.id, winfo, 3*sizeof(Int), result2, C_NULL)
         return result2
     else
         result = Ref{Csize_t}(0)
-        api.clGetKernelWorkGroupInfo(k.id, d.id, winfo,
+        clGetKernelWorkGroupInfo(k.id, d.id, winfo,
                                             sizeof(Culong), result, C_NULL)
         return Int(result[])
     end
@@ -350,8 +350,8 @@ function enqueue_kernel(q::CmdQueue,
         wait_event_ids = C_NULL
     end
 
-    ret_event = Ref{api.cl_event}()
-    api.clEnqueueNDRangeKernel(q.id, k.id, cl_uint(work_dim), goffset, gsize, lsize,
+    ret_event = Ref{cl_event}()
+    clEnqueueNDRangeKernel(q.id, k.id, cl_uint(work_dim), goffset, gsize, lsize,
                                       n_events, wait_event_ids, ret_event)
     return Event(ret_event[], retain=false)
 end
@@ -371,54 +371,54 @@ function enqueue_task(q::CmdQueue, k::Kernel; wait_for=nothing)
             evt_ids = [evt.id for evt in wait_for]
         end
     end
-    ret_event = Ref{api.cl_event}()
-    api.clEnqueueTask(q.id, k.id, n_evts, evt_ids, ret_event)
+    ret_event = Ref{cl_event}()
+    clEnqueueTask(q.id, k.id, n_evts, evt_ids, ret_event)
     return ret_event[]
 end
 
 function info(k::Kernel, kinfo::Symbol)
     name(k::Kernel) = begin
         size = Ref{Csize_t}()
-        api.clGetKernelInfo(k.id, CL_KERNEL_FUNCTION_NAME,
+        clGetKernelInfo(k.id, CL_KERNEL_FUNCTION_NAME,
                                    0, C_NULL, size)
         result = Vector{Cchar}(undef, size[])
-        api.clGetKernelInfo(k.id, CL_KERNEL_FUNCTION_NAME,
+        clGetKernelInfo(k.id, CL_KERNEL_FUNCTION_NAME,
                                    size[], result, size)
         return CLString(result)
     end
 
     num_args(k::Kernel) = begin
         ret = Ref{Cuint}()
-        api.clGetKernelInfo(k.id, CL_KERNEL_NUM_ARGS,
+        clGetKernelInfo(k.id, CL_KERNEL_NUM_ARGS,
                                    sizeof(Cuint), ret, C_NULL)
         return ret[]
     end
 
     reference_count(k::Kernel) = begin
         ret = Ref{Cuint}()
-        api.clGetKernelInfo(k.id, CL_KERNEL_REFERENCE_COUNT,
+        clGetKernelInfo(k.id, CL_KERNEL_REFERENCE_COUNT,
                                    sizeof(Cuint), ret, C_NULL)
         return ret[]
     end
 
     program(k::Kernel) = begin
-        ret = Ref{api.cl_program}()
-        api.clGetKernelInfo(k.id, CL_KERNEL_PROGRAM,
-                                   sizeof(api.cl_program), ret, C_NULL)
+        ret = Ref{cl_program}()
+        clGetKernelInfo(k.id, CL_KERNEL_PROGRAM,
+                                   sizeof(cl_program), ret, C_NULL)
         return Program(ret[], retain=true)
     end
 
     # Only supported for version 1.2 and above
     attributes(k::Kernel) = begin
         size = Ref{Csize_t}()
-        rcode = api.unchecked_clGetKernelInfo(k.id, CL_KERNEL_ATTRIBUTES,
+        rcode = unchecked_clGetKernelInfo(k.id, CL_KERNEL_ATTRIBUTES,
                                               0, C_NULL, size)
         # Version 1.1 mostly MESA drivers will pass through the below condition
         if rcode == CL_INVALID_VALUE || size[] <= 1
             return ""
         end
         result = Vector{Cchar}(undef, size[])
-        api.clGetKernelInfo(k.id, CL_KERNEL_ATTRIBUTES,
+        clGetKernelInfo(k.id, CL_KERNEL_ATTRIBUTES,
                                    size[], result, size)
         return CLString(result)
     end

@@ -17,7 +17,7 @@ macro return_event(evt)
         try
             return Event(evt, retain=false)
         catch err
-            api.clReleaseEvent(evt)
+            clReleaseEvent(evt)
             throw(err)
         end
     end
@@ -29,7 +29,7 @@ macro return_nanny_event(evt, obj)
         try
             return NannyEvent(evt, $(esc(obj)))
         catch err
-            api.clReleaseEvent(evt)
+            clReleaseEvent(evt)
             throw(err)
         end
     end

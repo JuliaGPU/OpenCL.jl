@@ -1,17 +1,17 @@
 # OpenCL.CmdQueue
 
 mutable struct CmdQueue <: CLObject
-    id::api.cl_command_queue
+    id::cl_command_queue
 
-    function CmdQueue(q_id::api.cl_command_queue; retain=false)
+    function CmdQueue(q_id::cl_command_queue; retain=false)
         if retain
-            api.clRetainCommandQueue(q_id)
+            clRetainCommandQueue(q_id)
         end
         q = new(q_id)
         finalizer(q) do x
             retain || _deletecached!(q)
             if x.id != C_NULL
-                api.clReleaseCommandQueue(x.id)
+                clReleaseCommandQueue(x.id)
                 x.id = C_NULL
             end
         end
@@ -31,7 +31,7 @@ Base.getindex(q::CmdQueue, qinfo::Symbol) = info(q, qinfo)
 
 function CmdQueue(ctx::Context)
     devs  = devices(ctx)
-    flags = api.cl_command_queue_properties(0)
+    flags = cl_command_queue_properties(0)
     if isempty(devs)
         throw(ArgumentError("OpenCL.CmdQueue Context argument does not have any devices"))
     end
@@ -55,12 +55,12 @@ function CmdQueue(ctx::Context, props::NTuple{2, Symbol})
 end
 
 function CmdQueue(ctx::Context, dev::Device)
-    flags = api.cl_command_queue_properties(0)
+    flags = cl_command_queue_properties(0)
     return CmdQueue(ctx, dev, flags)
 end
 
 function CmdQueue(ctx::Context, dev::Device, prop::Symbol)
-    flags = api.cl_command_queue_properties(0)
+    flags = cl_command_queue_properties(0)
     if prop == :out_of_order
         flags |= CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE
     elseif prop == :profile
@@ -79,12 +79,12 @@ function CmdQueue(ctx::Context, dev::Device, props::NTuple{2,Symbol})
     return CmdQueue(ctx, dev, flags)
 end
 
-function CmdQueue(ctx::Context, dev::Device, props::api.cl_command_queue_properties)
+function CmdQueue(ctx::Context, dev::Device, props)
     err_code = Ref{Cint}()
-    queue_id = api.clCreateCommandQueue(ctx.id, dev.id, props, err_code)
+    queue_id = clCreateCommandQueue(ctx.id, dev.id, props, err_code)
     if err_code[] != CL_SUCCESS
         if queue_id != C_NULL
-            api.clReleaseCommandQueue(queue_id)
+            clReleaseCommandQueue(queue_id)
         end
         throw(CLError(err_code[]))
     end
@@ -92,41 +92,41 @@ function CmdQueue(ctx::Context, dev::Device, props::api.cl_command_queue_propert
 end
 
 function flush(q::CmdQueue)
-    api.clFlush(q.id)
+    clFlush(q.id)
     return q
 end
 
 function finish(q::CmdQueue)
-    api.clFinish(q.id)
+    clFinish(q.id)
     return q
 end
 
 function info(q::CmdQueue, qinfo::Symbol)
     context(q::CmdQueue) = begin
-        ctx_id = Ref{api.cl_context}()
-        api.clGetCommandQueueInfo(q.id, CL_QUEUE_CONTEXT,
-                                         sizeof(api.cl_context), ctx_id, C_NULL)
+        ctx_id = Ref{cl_context}()
+        clGetCommandQueueInfo(q.id, CL_QUEUE_CONTEXT,
+                                         sizeof(cl_context), ctx_id, C_NULL)
         Context(ctx_id[], retain=true)
     end
 
     device(q::CmdQueue) = begin
-        dev_id = Ref{api.cl_device_id}()
-        api.clGetCommandQueueInfo(q.id, CL_QUEUE_DEVICE,
-                                         sizeof(api.cl_device_id), dev_id, C_NULL)
+        dev_id = Ref{cl_device_id}()
+        clGetCommandQueueInfo(q.id, CL_QUEUE_DEVICE,
+                                         sizeof(cl_device_id), dev_id, C_NULL)
         Device(dev_id[])
     end
 
     reference_count(q::CmdQueue) = begin
         ref_count = Ref{Cuint}()
-        api.clGetCommandQueueInfo(q.id, CL_QUEUE_REFERENCE_COUNT,
+        clGetCommandQueueInfo(q.id, CL_QUEUE_REFERENCE_COUNT,
                                          sizeof(Cuint), ref_count, C_NULL)
         ref_count[]
     end
 
     properties(q::CmdQueue) = begin
-        props = Ref{api.cl_command_queue_properties}()
-        api.clGetCommandQueueInfo(q.id, CL_QUEUE_PROPERTIES,
-                                         sizeof(api.cl_command_queue_properties),
+        props = Ref{cl_command_queue_properties}()
+        clGetCommandQueueInfo(q.id, CL_QUEUE_PROPERTIES,
+                                         sizeof(cl_command_queue_properties),
                                          props, C_NULL)
         props[]
     end

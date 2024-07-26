@@ -6,26 +6,20 @@ module cl
 abstract type CLObject end
 
 Base.hash(x::CLObject) = hash(pointer(x))
-Base.isequal(x :: T, y :: T) where {T <: CLObject} = Base.hash(x) == Base.hash(y)
-Base.:(==)(x :: T, y :: T) where {T <: CLObject} = Base.hash(x) == Base.hash(y)
-
-# OpenCL Types
-include("types.jl")
+Base.isequal(x::T, y::T) where {T <: CLObject} = Base.hash(x) == Base.hash(y)
+Base.:(==)(x::T, y::T) where {T <: CLObject} = Base.hash(x) == Base.hash(y)
 
 # The arrays contain a nullbyte that we pop first
-function CLString(v :: Array{Cchar})
+function CLString(v::Array{Cchar})
     pop!(v)
     String(reinterpret(UInt8, v))
 end
 
-# OpenCL Constants
-include("constants.jl")
+# OpenCL low level api
+include("api.jl")
 
 # Errors
 include("error.jl")
-
-# OpenCL low level api
-include("api.jl")
 
 # Macros
 include("macros.jl")
@@ -67,7 +61,7 @@ include("array.jl")
 end # cl
 
 function __init__()
-    if cl.api.libopencl == ""
+    if cl.libopencl == ""
         @warn "Could not locate an OpenCL library\nOpenCL API calls will be unavailable"
     end
 end
