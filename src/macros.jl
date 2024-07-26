@@ -1,24 +1,3 @@
-macro check(clfunc)
-    quote
-        local err::CL_int
-        err = $(esc(clfunc))
-        if err != CL_SUCCESS
-            throw(CLError(err))
-        end
-        err
-    end
-end
-
-macro check_release(clfunc)
-    quote
-        local err::CL_int
-        err = $(esc(clfunc))
-        if err != CL_SUCCESS
-            error("release! $($(string(clfunc))) failed with code $err.")
-        end
-    end
-end
-
 #TODO: these are just stubs for future expanded versions
 macro ocl_v1_1_only(ex)
     quote
@@ -38,7 +17,7 @@ macro return_event(evt)
         try
             return Event(evt, retain=false)
         catch err
-            @check api.clReleaseEvent(evt)
+            api.clReleaseEvent(evt)
             throw(err)
         end
     end
@@ -50,7 +29,7 @@ macro return_nanny_event(evt, obj)
         try
             return NannyEvent(evt, $(esc(obj)))
         catch err
-            @check api.clReleaseEvent(evt)
+            api.clReleaseEvent(evt)
             throw(err)
         end
     end

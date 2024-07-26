@@ -74,7 +74,7 @@ end
             h_g[i] = cl.cl_float(rand())
         end
 
-        err_code = Ref{cl.CL_int}()
+        err_code = Ref{cl.Cint}()
 
         # create compute context (TODO: fails if function ptr's not passed...)
         ctx_id = cl.api.clCreateContext(C_NULL, 1, [device.id],
@@ -98,10 +98,7 @@ end
         end
 
         # build program
-        err = cl.api.clBuildProgram(prg_id, 0, C_NULL, C_NULL, C_NULL, C_NULL)
-        if err != cl.CL_SUCCESS
-            error("Failed to build program")
-        end
+        cl.api.clBuildProgram(prg_id, 0, C_NULL, C_NULL, C_NULL, C_NULL)
 
         # create compute kernel
         k_id = cl.api.clCreateKernel(prg_id, "sum", err_code)
@@ -149,51 +146,30 @@ end
             error("Error creating buffer F")
         end
 
-        err  = cl.api.clSetKernelArg(k_id, 0, sizeof(cl.CL_mem), [Aid])
-        err |= cl.api.clSetKernelArg(k_id, 1, sizeof(cl.CL_mem), [Bid])
-        err |= cl.api.clSetKernelArg(k_id, 2, sizeof(cl.CL_mem), [Cid])
-        err |= cl.api.clSetKernelArg(k_id, 3, sizeof(cl.CL_uint), cl.CL_uint[len])
-        if err != cl.CL_SUCCESS
-            error("Error setting kernel 1 args")
-        end
+        cl.api.clSetKernelArg(k_id, 0, sizeof(cl.api.cl_mem), [Aid])
+        cl.api.clSetKernelArg(k_id, 1, sizeof(cl.api.cl_mem), [Bid])
+        cl.api.clSetKernelArg(k_id, 2, sizeof(cl.api.cl_mem), [Cid])
+        cl.api.clSetKernelArg(k_id, 3, sizeof(cl.Cuint), cl.Cuint[len])
 
         nglobal = Ref{Csize_t}(len)
-        err = cl.api.clEnqueueNDRangeKernel(q_id, k_id,  1, C_NULL,
-                                            nglobal, C_NULL, 0, C_NULL, C_NULL)
-        if err != cl.CL_SUCCESS
-            error("Failed to execute kernel 1")
-        end
+        cl.api.clEnqueueNDRangeKernel(q_id, k_id,  1, C_NULL,
+                                      nglobal, C_NULL, 0, C_NULL, C_NULL)
 
-        err  = cl.api.clSetKernelArg(k_id, 0, sizeof(cl.CL_mem), [Eid])
-        err |= cl.api.clSetKernelArg(k_id, 1, sizeof(cl.CL_mem), [Cid])
-        err |= cl.api.clSetKernelArg(k_id, 2, sizeof(cl.CL_mem), [Did])
-        if err != cl.CL_SUCCESS
-            error("Error setting kernel 2 args")
-        end
-        err = cl.api.clEnqueueNDRangeKernel(q_id, k_id,  1, C_NULL,
-                                            nglobal, C_NULL, 0, C_NULL, C_NULL)
-        if err != cl.CL_SUCCESS
-            error("Failed to execute kernel 2")
-        end
+        cl.api.clSetKernelArg(k_id, 0, sizeof(cl.api.cl_mem), [Eid])
+        cl.api.clSetKernelArg(k_id, 1, sizeof(cl.api.cl_mem), [Cid])
+        cl.api.clSetKernelArg(k_id, 2, sizeof(cl.api.cl_mem), [Did])
+        cl.api.clEnqueueNDRangeKernel(q_id, k_id,  1, C_NULL,
+                                      nglobal, C_NULL, 0, C_NULL, C_NULL)
 
-        err  = cl.api.clSetKernelArg(k_id, 0, sizeof(cl.CL_mem), [Gid])
-        err |= cl.api.clSetKernelArg(k_id, 1, sizeof(cl.CL_mem), [Did])
-        err |= cl.api.clSetKernelArg(k_id, 2, sizeof(cl.CL_mem), [Fid])
-        if err != cl.CL_SUCCESS
-            error("Error setting kernel 3 args")
-        end
-        err = cl.api.clEnqueueNDRangeKernel(q_id, k_id,  1, C_NULL,
-                                            nglobal, C_NULL, 0, C_NULL, C_NULL)
-        if err != cl.CL_SUCCESS
-            error("Failed to execute kernel 3")
-        end
+        cl.api.clSetKernelArg(k_id, 0, sizeof(cl.api.cl_mem), [Gid])
+        cl.api.clSetKernelArg(k_id, 1, sizeof(cl.api.cl_mem), [Did])
+        cl.api.clSetKernelArg(k_id, 2, sizeof(cl.api.cl_mem), [Fid])
+        cl.api.clEnqueueNDRangeKernel(q_id, k_id,  1, C_NULL,
+                                      nglobal, C_NULL, 0, C_NULL, C_NULL)
 
         # read back the result from compute device...
-        err = cl.api.clEnqueueReadBuffer(q_id, Fid, cl.CL_TRUE, 0,
-                                         sizeof(cl.CL_float) * len, h_f, 0, C_NULL, C_NULL)
-        if err != cl.CL_SUCCESS
-            error("Failed to read output array")
-        end
+        cl.api.clEnqueueReadBuffer(q_id, Fid, cl.CL_TRUE, 0,
+                                   sizeof(cl.CL_float) * len, h_f, 0, C_NULL, C_NULL)
 
         # test results
         for i in 1:len

@@ -1,7 +1,7 @@
 using Base.GC
 
 struct TestStruct
-    a::cl.CL_int
+    a::cl.Cint
     b::cl.CL_float
 end
 
@@ -71,14 +71,14 @@ end
 
              for mf1 in [:rw, :r, :w]
                  for mf2 in [:copy, :use, :alloc, :null]
-                     for mtype in [cl.CL_char,
-                                   cl.CL_uchar,
-                                   cl.CL_short,
-                                   cl.CL_ushort,
-                                   cl.CL_int,
-                                   cl.CL_uint,
-                                   cl.CL_long,
-                                   cl.CL_ulong,
+                     for mtype in [cl.Cchar,
+                                   cl.Cuchar,
+                                   cl.Cshort,
+                                   cl.Cushort,
+                                   cl.Cint,
+                                   cl.Cuint,
+                                   cl.Clong,
+                                   cl.Culong,
                                    cl.CL_half,
                                    cl.CL_float,
                                    cl.CL_double,

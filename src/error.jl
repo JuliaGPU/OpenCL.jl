@@ -176,7 +176,7 @@ end
 Base.show(io::IO, err::OpenCLException) = Base.print(io, "OpenCL Error: $(err.msg)")
 
 struct CLError <: Exception
-    code::CL_int
+    code::Cint
     desc::Symbol
 
     function CLError(c::Integer)

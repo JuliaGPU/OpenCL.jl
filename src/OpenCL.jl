@@ -13,7 +13,7 @@ Base.:(==)(x :: T, y :: T) where {T <: CLObject} = Base.hash(x) == Base.hash(y)
 include("types.jl")
 
 # The arrays contain a nullbyte that we pop first
-function CLString(v :: Array{CL_char})
+function CLString(v :: Array{Cchar})
     pop!(v)
     String(reinterpret(UInt8, v))
 end
@@ -21,11 +21,11 @@ end
 # OpenCL Constants
 include("constants.jl")
 
-# OpenCL low level api
-include("api.jl")
-
 # Errors
 include("error.jl")
+
+# OpenCL low level api
+include("api.jl")
 
 # Macros
 include("macros.jl")

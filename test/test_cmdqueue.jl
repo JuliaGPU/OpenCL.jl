@@ -39,7 +39,7 @@
                     @test q[:context] == ctx
                     @test q[:device] == device
                     @test q[:reference_count] > 0
-                    @test typeof(q[:properties]) == cl.CL_command_queue_properties
+                    @test typeof(q[:properties]) == cl.api.cl_command_queue_properties
                 end
             end
         end

@@ -9,7 +9,7 @@ opencl_version(obj :: CLObject) = api.parse_version(obj[:version])
 opencl_version(c :: Context)  = opencl_version(first(devices(c)))
 opencl_version(q :: CmdQueue) = opencl_version(q[:device])
 
-const _versionDict = Dict{Ptr{Nothing}, VersionNumber}()
+const _versionDict = Dict{Ptr, VersionNumber}()
 
 _deletecached!(obj :: CLObject) = delete!(_versionDict, pointer(obj))
 
