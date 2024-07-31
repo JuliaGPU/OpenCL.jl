@@ -128,24 +128,18 @@ end
          @test_throws TypeError cl.Buffer(Float32, ctx, 1, :use, hostbuf=C_NULL)
      end
 
-    if device[:platform][:name] == "Portable Computing Language"
-        # the pocl platform claims to implement v1.2 of the spec, but does not
-        @warn("Skipping OpenCL.Kernel constructor for " *
-             "Portable Computing Language Platform")
-    else
-        @testset "fill" begin
-            ctx = cl.Context(device)
-            queue = cl.CmdQueue(ctx)
-            testarray = zeros(Float32, 1000)
-            buf = cl.Buffer(Float32, ctx, length(testarray), (:rw, :copy), hostbuf=testarray)
-            @test length(buf) == length(testarray)
+    @testset "fill" begin
+        ctx = cl.Context(device)
+        queue = cl.CmdQueue(ctx)
+        testarray = zeros(Float32, 1000)
+        buf = cl.Buffer(Float32, ctx, length(testarray), (:rw, :copy), hostbuf=testarray)
+        @test length(buf) == length(testarray)
 
-            cl.fill!(queue, buf, 1f0)
-            readback = cl.read(queue, buf)
-            @test all(x -> x == 1.0, readback)
-            @test all(x -> x == 0.0, testarray)
-            @test buf.valid == true
-        end
+        cl.fill!(queue, buf, 1f0)
+        readback = cl.read(queue, buf)
+        @test all(x -> x == 1.0, readback)
+        @test all(x -> x == 0.0, testarray)
+        @test buf.valid == true
     end
 
     @testset "write!" begin

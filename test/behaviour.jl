@@ -4,37 +4,33 @@ info(
                               Running Behavior Tests
       ======================================================================")
 =#
-if device[:platform][:name] == "Portable Computing Language"
-    @warn("Skipping OpenCL.Kernel mem/workgroup size for Portable Computing Language Platform")
-else
-    @testset "Hello World Test" begin
-        hello_world_kernel = "
-            #pragma OPENCL EXTENSION cl_khr_byte_addressable_store : enable
+@testset "Hello World Test" begin
+    hello_world_kernel = "
+        #pragma OPENCL EXTENSION cl_khr_byte_addressable_store : enable
 
-            __constant char hw[] = \"hello world\";
+        __constant char hw[] = \"hello world\";
 
-            __kernel void hello(__global char *out) {
-                int tid = get_global_id(0);
-                out[tid] = hw[tid];
-            }"
+        __kernel void hello(__global char *out) {
+            int tid = get_global_id(0);
+            out[tid] = hw[tid];
+        }"
 
-        hello_world_str = "hello world"
+    hello_world_str = "hello world"
 
 
-        ctx   = cl.Context(device)
-        queue = cl.CmdQueue(ctx)
+    ctx   = cl.Context(device)
+    queue = cl.CmdQueue(ctx)
 
-        str_len  = length(hello_world_str) + 1
-        out_buf  = cl.Buffer(Cchar, ctx, sizeof(Cchar) * str_len, :w)
+    str_len  = length(hello_world_str) + 1
+    out_buf  = cl.Buffer(Cchar, ctx, sizeof(Cchar) * str_len, :w)
 
-        prg   = cl.Program(ctx, source=hello_world_kernel) |> cl.build!
-        kern  = cl.Kernel(prg, "hello")
+    prg   = cl.Program(ctx, source=hello_world_kernel) |> cl.build!
+    kern  = cl.Kernel(prg, "hello")
 
-        queue(kern, str_len, nothing, out_buf)
-        h = cl.read(queue, out_buf)
+    queue(kern, str_len, nothing, out_buf)
+    h = cl.read(queue, out_buf)
 
-        @test cl.CLString(h) == hello_world_str
-    end
+    @test cl.CLString(h) == hello_world_str
 end
 
 @testset "Low Level API Test" begin
@@ -208,35 +204,31 @@ let test_struct = "
     }
 "
 
-if device[:platform][:name] == "Portable Computing Language"
-    @warn("Skipping OpenCL Struct Buffer Test for Portable Computing Language Platform")
-else
-    @testset "Struct Buffer Test" begin
-        ctx = cl.Context(device)
-        q   = cl.CmdQueue(ctx)
-        p   = cl.Program(ctx, source=test_struct) |> cl.build!
+@testset "Struct Buffer Test" begin
+    ctx = cl.Context(device)
+    q   = cl.CmdQueue(ctx)
+    p   = cl.Program(ctx, source=test_struct) |> cl.build!
 
-        part3 = cl.Kernel(p, "part3")
+    part3 = cl.Kernel(p, "part3")
 
-        X = fill(1f0, 10)
-        Y = fill(1f0, 10)
+    X = fill(1f0, 10)
+    Y = fill(1f0, 10)
 
-        P = [Params(0.5, 10.0, [0.0, 0.0], 3)]
+    P = [Params(0.5, 10.0, [0.0, 0.0], 3)]
 
-        #TODO: constructor for single immutable types.., check if passed parameter isbits
-        P_buf = cl.Buffer(Params, ctx, length(P), :r)
-        cl.write!(q, P_buf, P)
+    #TODO: constructor for single immutable types.., check if passed parameter isbits
+    P_buf = cl.Buffer(Params, ctx, length(P), :r)
+    cl.write!(q, P_buf, P)
 
-        X_buf = cl.Buffer(Float32, ctx, length(X), (:r, :copy), hostbuf=X)
-        Y_buf = cl.Buffer(Float32, ctx, length(Y), (:r, :copy), hostbuf=Y)
-        R_buf = cl.Buffer(Float32, ctx, length(X), :w)
+    X_buf = cl.Buffer(Float32, ctx, length(X), (:r, :copy), hostbuf=X)
+    Y_buf = cl.Buffer(Float32, ctx, length(Y), (:r, :copy), hostbuf=Y)
+    R_buf = cl.Buffer(Float32, ctx, length(X), :w)
 
-        global_size = size(X)
-        q(part3, global_size, nothing, X_buf, Y_buf, R_buf, P_buf)
+    global_size = size(X)
+    q(part3, global_size, nothing, X_buf, Y_buf, R_buf, P_buf)
 
-        r = cl.read(q, R_buf)
-        @test all(x -> x == 13.5, r)
-    end
+    r = cl.read(q, R_buf)
+    @test all(x -> x == 13.5, r)
 end
 
 end
@@ -265,25 +257,21 @@ let test_mutable_pointerfree = "
 "
 
 
-if device[:platform][:name] == "Portable Computing Language"
-    @warn("Skipping OpenCL Struct Buffer Test for Portable Computing Language Platform")
-else
-    @testset "Struct Buffer Test" begin
-        ctx = cl.Context(device)
-        q   = cl.CmdQueue(ctx)
-        p   = cl.Program(ctx, source=test_mutable_pointerfree) |> cl.build!
+@testset "Struct Buffer Test" begin
+    ctx = cl.Context(device)
+    q   = cl.CmdQueue(ctx)
+    p   = cl.Program(ctx, source=test_mutable_pointerfree) |> cl.build!
 
-        part3 = cl.Kernel(p, "part3")
+    part3 = cl.Kernel(p, "part3")
 
-        P = MutableParams(0.5, 10.0)
-        P_buf = cl.Buffer(Float32, ctx, 2, :w)
-        q(part3, 1, nothing, P_buf, P)
+    P = MutableParams(0.5, 10.0)
+    P_buf = cl.Buffer(Float32, ctx, 2, :w)
+    q(part3, 1, nothing, P_buf, P)
 
-        r = cl.read(q, P_buf)
+    r = cl.read(q, P_buf)
 
-        @test r[1] == 0.5
-        @test r[2] == 10.0
-    end
+    @test r[1] == 0.5
+    @test r[2] == 10.0
 end
 
 end

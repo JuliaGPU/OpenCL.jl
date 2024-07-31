@@ -36,25 +36,13 @@
         @test isempty(strip(prg[:build_log][device]))
     end
 
-    # BUILD_SUCCESS undefined in POCL implementation..
-    if device[:platform][:name] == "Portable Computing Language"
-        @warn("Skipping OpenCL.Program build for Portable Computing Language Platform")
-    else
     @testset "build" begin
         ctx = cl.Context(device)
         prg = cl.Program(ctx, source=test_source)
         @test cl.build!(prg) != nothing
 
         @test prg[:build_status][device] == cl.CL_BUILD_SUCCESS
-
-        # test build by methods chaining
-        @test prg[:build_status][device] == cl.CL_BUILD_SUCCESS
-        if device[:platform][:name] != "Intel(R) OpenCL"
-            # The intel CPU driver is very verbose on Linux and output
-            # compilation status even without any warnings
-            @test isempty(strip(prg[:build_log][device]))
-        end
-    end
+        @test prg[:build_log][device] isa String
     end
 
     @testset "source code" begin
@@ -64,7 +52,7 @@
     end
 
     if device[:platform][:name] == "Portable Computing Language"
-        @warn("Skipping OpenCL.Program build for Portable Computing Language Platform")
+        @warn("Skipping unsupported binary build on POCL")
     else
         @testset "binaries" begin
             ctx = cl.Context(device)
@@ -86,5 +74,5 @@
                 @test err.desc == :CL_INVALID_PROGRAM_EXECUTABLE
             end
         end
-       end
+    end
 end

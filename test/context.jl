@@ -48,10 +48,6 @@ end
     end
 
 
-    if platform[:name] == "Portable Computing Language"
-        @warn("Skipping OpenCL.Context platform properties for " *
-             "Portable Computing Language Platform")
-    else
     @testset "platform properties" begin
         try
             cl.Context(cl.CL_DEVICE_TYPE_CPU)
@@ -94,7 +90,6 @@ end
             @test typeof(err) == cl.CLError
             @test err.desc == :CL_DEVICE_NOT_FOUND
         end
-    end
     end
 
     @testset "create_some_context" begin
