@@ -5,7 +5,6 @@ struct CLTestStruct
 end
 
 @testset "OpenCL.Kernel" begin
-
     test_source = "
     __kernel void sum(__global const float *a,
                       __global const float *b,
@@ -21,13 +20,11 @@ end
 
     #TODO: tests for invalid kernel build error && logs...
 
-    @testset "OpenCL.Kernel constructor" begin
-        for device in cl.devices()
-            if device[:platform][:name] == "Portable Computing Language"
-                @warn("Skipping OpenCL.Kernel constructor for " *
-                     "Portable Computing Language Platform")
-                continue
-            end
+    if device[:platform][:name] == "Portable Computing Language"
+        @warn("Skipping OpenCL.Kernel constructor for " *
+             "Portable Computing Language Platform")
+    else
+        @testset "OpenCL.Kernel constructor" begin
             ctx = cl.Context(device)
             prg = cl.Program(ctx, source=test_source)
             @test_throws ArgumentError cl.Kernel(prg, "sum")
@@ -36,12 +33,11 @@ end
         end
     end
 
-    @testset "OpenCL.Kernel info" begin
-        for device in cl.devices()
-            if device[:platform][:name] == "Portable Computing Language"
-                @warn("Skipping OpenCL.Kernel info for Portable Computing Language Platform")
-                continue
-            end
+    if device[:platform][:name] == "Portable Computing Language"
+        @warn("Skipping OpenCL.Kernel constructor for " *
+             "Portable Computing Language Platform")
+    else
+        @testset "OpenCL.Kernel info" begin
             ctx = cl.Context(device)
             prg = cl.Program(ctx, source=test_source)
             cl.build!(prg)
@@ -54,12 +50,11 @@ end
         end
     end
 
-    @testset "OpenCL.Kernel mem/workgroup size" begin
-        for device in cl.devices()
-            if device[:platform][:name] == "Portable Computing Language"
-                @warn("Skipping OpenCL.Kernel mem/workgroup size for Portable Computing Language Platform")
-                continue
-            end
+    if device[:platform][:name] == "Portable Computing Language"
+        @warn("Skipping OpenCL.Kernel constructor for " *
+             "Portable Computing Language Platform")
+    else
+        @testset "OpenCL.Kernel mem/workgroup size" begin
             ctx = cl.Context(device)
             prg = cl.Program(ctx, source=test_source)
             cl.build!(prg)
@@ -78,14 +73,11 @@ end
         end
     end
 
-    @testset "OpenCL.Kernel set_arg!/set_args!" begin
-         for device in cl.devices()
-
-            if device[:platform][:name] == "Portable Computing Language"
-                @warn("Skipping OpenCL.Kernel mem/workgroup size for Portable Computing Language Platform")
-                continue
-            end
-
+    if device[:platform][:name] == "Portable Computing Language"
+        @warn("Skipping OpenCL.Kernel constructor for " *
+             "Portable Computing Language Platform")
+    else
+        @testset "OpenCL.Kernel set_arg!/set_args!" begin
             ctx = cl.Context(device)
             queue = cl.CmdQueue(ctx)
 
@@ -139,13 +131,11 @@ end
         end
     end
 
-    @testset "OpenCL.Kernel enqueue_kernel" begin
-        for device in cl.devices()
-            if device[:platform][:name] == "Portable Computing Language"
-                @warn("Skipping OpenCL.Kernel mem/workgroup size for Portable Computing Language Platform")
-                continue
-            end
-
+    if device[:platform][:name] == "Portable Computing Language"
+        @warn("Skipping OpenCL.Kernel constructor for " *
+             "Portable Computing Language Platform")
+    else
+        @testset "OpenCL.Kernel enqueue_kernel" begin
             simple_kernel = "
                 __kernel void test(__global float *i) {
                     *i += 1;
@@ -191,67 +181,65 @@ end
         end
     end
 
-
-    test_source = "
-    struct __attribute__((packed)) Test2{
-        long f1;
-        int __attribute__((aligned (8))) f2;
-    };
-    __kernel void structest(__global float *out, struct Test2 b){
-        out[0] = b.f1;
-        out[1] = b.f2;
-    }
-    "
-    for device in cl.devices()
-        if device[:platform][:name] == "Portable Computing Language"
-            @warn("Skipping OpenCL.Kernel constructor for " *
-                 "Portable Computing Language Platform")
-            continue
+    if device[:platform][:name] == "Portable Computing Language" || Sys.isapple()
+        @warn("Skipping OpenCL.Kernel constructor for " *
+              "Portable Computing Language Platform")
+    else
+        @testset "packed structures" begin
+            test_source = "
+            struct __attribute__((packed)) Test2{
+                long f1;
+                int __attribute__((aligned (8))) f2;
+            };
+            __kernel void structest(__global float *out, struct Test2 b){
+                out[0] = b.f1;
+                out[1] = b.f2;
+            }
+            "
+            ctx = cl.Context(device)
+            prg = cl.Program(ctx, source = test_source)
+            queue = cl.CmdQueue(ctx)
+            cl.build!(prg)
+            structkernel = cl.Kernel(prg, "structest")
+            out = cl.Buffer(Float32, ctx, 2, :w)
+            bstruct = (1, Int32(4))
+            structkernel[queue, (1,)](out, bstruct)
+            r = cl.read(queue, out)
+            @test r  == [1f0, 4f0]
         end
-        Sys.isapple() && continue
-        ctx = cl.Context(device)
-        prg = cl.Program(ctx, source = test_source)
-        queue = cl.CmdQueue(ctx)
-        cl.build!(prg)
-        structkernel = cl.Kernel(prg, "structest")
-        out = cl.Buffer(Float32, ctx, 2, :w)
-        bstruct = (1, Int32(4))
-        structkernel[queue, (1,)](out, bstruct)
-        r = cl.read(queue, out)
-        @test r  == [1f0, 4f0]
     end
 
-    test_source = "
-    //packed
-    struct __attribute__((packed)) Test{
-        float3 f1;
-        int f2; // empty type gets replaced with Int32 (no empty types allowed in OpenCL)
-        // you might need to define the alignement of fields to match julia's layout
-        float f3; // for the types used here the alignement matches though!
-    };
-    __kernel void structest(__global float *out, struct Test a){
-        out[0] = a.f1.x;
-        out[1] = a.f1.y;
-        out[2] = a.f1.z;
-        out[3] = a.f3;
-    }
-    "
+    if device[:platform][:name] == "Portable Computing Language"
+        @warn("Skipping OpenCL.Kernel constructor for " *
+              "Portable Computing Language Platform")
+    else
+        @testset "empty types" begin
+            test_source = "
+            //packed
+            struct __attribute__((packed)) Test{
+                float3 f1;
+                int f2; // empty type gets replaced with Int32 (no empty types allowed in OpenCL)
+                // you might need to define the alignement of fields to match julia's layout
+                float f3; // for the types used here the alignement matches though!
+            };
+            __kernel void structest(__global float *out, struct Test a){
+                out[0] = a.f1.x;
+                out[1] = a.f1.y;
+                out[2] = a.f1.z;
+                out[3] = a.f3;
+            }
+            "
 
-    for device in cl.devices()
-        if device[:platform][:name] == "Portable Computing Language"
-            @warn("Skipping OpenCL.Kernel constructor for " *
-                 "Portable Computing Language Platform")
-            continue
+            ctx = cl.Context(device)
+            prg = cl.Program(ctx, source = test_source)
+            queue = cl.CmdQueue(ctx)
+            cl.build!(prg)
+            structkernel = cl.Kernel(prg, "structest")
+            out = cl.Buffer(Float32, ctx, 4, :w)
+            astruct = CLTestStruct((1f0, 2f0, 3f0), nothing, 22f0)
+            structkernel[queue, (1,)](out, astruct)
+            r = cl.read(queue, out)
+            @test r == [1f0, 2f0, 3f0, 22f0]
         end
-        ctx = cl.Context(device)
-        prg = cl.Program(ctx, source = test_source)
-        queue = cl.CmdQueue(ctx)
-        cl.build!(prg)
-        structkernel = cl.Kernel(prg, "structest")
-        out = cl.Buffer(Float32, ctx, 4, :w)
-        astruct = CLTestStruct((1f0, 2f0, 3f0), nothing, 22f0)
-        structkernel[queue, (1,)](out, astruct)
-        r = cl.read(queue, out)
-        @test r == [1f0, 2f0, 3f0, 22f0]
     end
 end

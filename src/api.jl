@@ -21,6 +21,14 @@ macro checked(ex)
     body = ex.args[2]
     @assert Meta.isexpr(body, :block)
 
+    # we need to detect the first API call, so add an initialization check
+    body = quote
+        if !initialized[]
+            initialize()
+        end
+        $body
+    end
+
     # generate a "safe" version that performs a check
     safe_body = quote
         check() do
@@ -62,6 +70,25 @@ function retry_reclaim(f, isfailed)
 end
 
 include("../lib/libopencl.jl")
+
+# lazy initialization
+const initialized = Ref{Bool}(false)
+@noinline function initialize()
+    initialized[] = true
+
+    if isempty(OpenCL_jll.drivers)
+        @warn """No OpenCL driver JLLs were detected at the time of the first call into OpenCL.jl.
+                 Only system drivers will be available."""
+        return
+    end
+
+    withenv("OCL_ICD_FILENAMES"=>join(OpenCL_jll.drivers, ':')) do
+        num_platforms = Ref{Cuint}()
+        @ccall libopencl.clGetPlatformIDs(
+            0::cl_uint, C_NULL::Ptr{cl_platform_id},
+            num_platforms::Ptr{cl_uint})::cl_int
+    end
+end
 
 function parse_version(version_string)
     mg = match(r"^OpenCL ([0-9]+)\.([0-9]+) .*$", version_string)

@@ -4,25 +4,22 @@ info(
                               Running Behavior Tests
       ======================================================================")
 =#
-@testset "OpenCL Hello World Test" begin
+if device[:platform][:name] == "Portable Computing Language"
+    @warn("Skipping OpenCL.Kernel mem/workgroup size for Portable Computing Language Platform")
+else
+    @testset "OpenCL Hello World Test" begin
+        hello_world_kernel = "
+            #pragma OPENCL EXTENSION cl_khr_byte_addressable_store : enable
 
-    hello_world_kernel = "
-        #pragma OPENCL EXTENSION cl_khr_byte_addressable_store : enable
+            __constant char hw[] = \"hello world\";
 
-        __constant char hw[] = \"hello world\";
+            __kernel void hello(__global char *out) {
+                int tid = get_global_id(0);
+                out[tid] = hw[tid];
+            }"
 
-        __kernel void hello(__global char *out) {
-            int tid = get_global_id(0);
-            out[tid] = hw[tid];
-        }"
+        hello_world_str = "hello world"
 
-    hello_world_str = "hello world"
-
-    for device in cl.devices()
-        if device[:platform][:name] == "Portable Computing Language"
-            @warn("Skipping OpenCL.Kernel mem/workgroup size for Portable Computing Language Platform")
-            continue
-        end
 
         ctx   = cl.Context(device)
         queue = cl.CmdQueue(ctx)
@@ -40,7 +37,6 @@ info(
     end
 end
 
-
 @testset "OpenCL Low Level Api Test" begin
 
   test_source = "
@@ -56,126 +52,123 @@ end
     }
     "
 
-    for device in cl.devices()
+    len = 1024
+    h_a = Vector{Cfloat}(undef, len)
+    h_b = Vector{Cfloat}(undef, len)
+    h_c = Vector{Cfloat}(undef, len)
+    h_d = Vector{Cfloat}(undef, len)
+    h_e = Vector{Cfloat}(undef, len)
+    h_f = Vector{Cfloat}(undef, len)
+    h_g = Vector{Cfloat}(undef, len)
 
-        len = 1024
-        h_a = Vector{Cfloat}(undef, len)
-        h_b = Vector{Cfloat}(undef, len)
-        h_c = Vector{Cfloat}(undef, len)
-        h_d = Vector{Cfloat}(undef, len)
-        h_e = Vector{Cfloat}(undef, len)
-        h_f = Vector{Cfloat}(undef, len)
-        h_g = Vector{Cfloat}(undef, len)
+    for i in 1:len
+        h_a[i] = Cfloat(rand())
+        h_b[i] = Cfloat(rand())
+        h_e[i] = Cfloat(rand())
+        h_g[i] = Cfloat(rand())
+    end
 
-        for i in 1:len
-            h_a[i] = Cfloat(rand())
-            h_b[i] = Cfloat(rand())
-            h_e[i] = Cfloat(rand())
-            h_g[i] = Cfloat(rand())
-        end
+    err_code = Ref{cl.Cint}()
 
-        err_code = Ref{cl.Cint}()
+    # create compute context (TODO: fails if function ptr's not passed...)
+    ctx_id = cl.clCreateContext(C_NULL, 1, [device.id],
+                                    C_NULL,
+                                    C_NULL,
+                                    err_code)
+    if err_code[] != cl.CL_SUCCESS
+        throw(cl.CLError(err_code[]))
+    end
 
-        # create compute context (TODO: fails if function ptr's not passed...)
-        ctx_id = cl.clCreateContext(C_NULL, 1, [device.id],
-                                        C_NULL,
-                                        C_NULL,
-                                        err_code)
-        if err_code[] != cl.CL_SUCCESS
-            throw(cl.CLError(err_code[]))
-        end
+    q_id = cl.clCreateCommandQueue(ctx_id, device.id, 0, err_code)
+    if err_code[] != cl.CL_SUCCESS
+        error("Failed to create command queue")
+    end
 
-        q_id = cl.clCreateCommandQueue(ctx_id, device.id, 0, err_code)
-        if err_code[] != cl.CL_SUCCESS
-            error("Failed to create command queue")
-        end
+    # create program
+    bytesource = String(test_source)
+    prg_id = cl.clCreateProgramWithSource(ctx_id, 1, [bytesource], C_NULL, err_code)
+    if err_code[] != cl.CL_SUCCESS
+        error("Failed to create program")
+    end
 
-        # create program
-        bytesource = String(test_source)
-        prg_id = cl.clCreateProgramWithSource(ctx_id, 1, [bytesource], C_NULL, err_code)
-        if err_code[] != cl.CL_SUCCESS
-            error("Failed to create program")
-        end
+    # build program
+    cl.clBuildProgram(prg_id, 0, C_NULL, C_NULL, C_NULL, C_NULL)
 
-        # build program
-        cl.clBuildProgram(prg_id, 0, C_NULL, C_NULL, C_NULL, C_NULL)
+    # create compute kernel
+    k_id = cl.clCreateKernel(prg_id, "sum", err_code)
+    if err_code[] != cl.CL_SUCCESS
+        error("Failed to create compute kernel")
+    end
 
-        # create compute kernel
-        k_id = cl.clCreateKernel(prg_id, "sum", err_code)
-        if err_code[] != cl.CL_SUCCESS
-            error("Failed to create compute kernel")
-        end
+    # create input array in device memory
+    Aid = cl.clCreateBuffer(ctx_id, cl.CL_MEM_READ_ONLY | cl.CL_MEM_COPY_HOST_PTR,
+                                sizeof(Cfloat) * len, h_a, err_code)
+    if err_code[] != cl.CL_SUCCESS
+        error("Error creating buffer A")
+    end
+    Bid = cl.clCreateBuffer(ctx_id, cl.CL_MEM_READ_ONLY | cl.CL_MEM_COPY_HOST_PTR,
+                                sizeof(Cfloat) * len, h_b, err_code)
+    if err_code[] != cl.CL_SUCCESS
+        error("Error creating buffer B")
+    end
+    Eid = cl.clCreateBuffer(ctx_id, cl.CL_MEM_WRITE_ONLY | cl.CL_MEM_COPY_HOST_PTR,
+                                sizeof(Cfloat) * len, h_e, err_code)
+    if err_code[] != cl.CL_SUCCESS
+        error("Error creating buffer E")
+    end
+    Gid = cl.clCreateBuffer(ctx_id, cl.CL_MEM_WRITE_ONLY | cl.CL_MEM_COPY_HOST_PTR,
+                                sizeof(Cfloat) * len, h_g, err_code)
+    if err_code[] != cl.CL_SUCCESS
+        error("Error creating buffer G")
+    end
 
-        # create input array in device memory
-        Aid = cl.clCreateBuffer(ctx_id, cl.CL_MEM_READ_ONLY | cl.CL_MEM_COPY_HOST_PTR,
-                                    sizeof(Cfloat) * len, h_a, err_code)
-        if err_code[] != cl.CL_SUCCESS
-            error("Error creating buffer A")
-        end
-        Bid = cl.clCreateBuffer(ctx_id, cl.CL_MEM_READ_ONLY | cl.CL_MEM_COPY_HOST_PTR,
-                                    sizeof(Cfloat) * len, h_b, err_code)
-        if err_code[] != cl.CL_SUCCESS
-            error("Error creating buffer B")
-        end
-        Eid = cl.clCreateBuffer(ctx_id, cl.CL_MEM_WRITE_ONLY | cl.CL_MEM_COPY_HOST_PTR,
-                                    sizeof(Cfloat) * len, h_e, err_code)
-        if err_code[] != cl.CL_SUCCESS
-            error("Error creating buffer E")
-        end
-        Gid = cl.clCreateBuffer(ctx_id, cl.CL_MEM_WRITE_ONLY | cl.CL_MEM_COPY_HOST_PTR,
-                                    sizeof(Cfloat) * len, h_g, err_code)
-        if err_code[] != cl.CL_SUCCESS
-            error("Error creating buffer G")
-        end
+    # create output arrays in device memory
 
-        # create output arrays in device memory
+    Cid = cl.clCreateBuffer(ctx_id, cl.CL_MEM_READ_WRITE,
+                                sizeof(Cfloat) * len, C_NULL, err_code)
+    if err_code[] != cl.CL_SUCCESS
+        error("Error creating buffer C")
+    end
+    Did = cl.clCreateBuffer(ctx_id, cl.CL_MEM_READ_WRITE,
+                                sizeof(Cfloat) * len, C_NULL, err_code)
+    if err_code[] != cl.CL_SUCCESS
+        error("Error creating buffer D")
+    end
+    Fid = cl.clCreateBuffer(ctx_id, cl.CL_MEM_WRITE_ONLY,
+                                sizeof(Cfloat) * len, C_NULL, err_code)
+    if err_code[] != cl.CL_SUCCESS
+        error("Error creating buffer F")
+    end
 
-        Cid = cl.clCreateBuffer(ctx_id, cl.CL_MEM_READ_WRITE,
-                                    sizeof(Cfloat) * len, C_NULL, err_code)
-        if err_code[] != cl.CL_SUCCESS
-            error("Error creating buffer C")
-        end
-        Did = cl.clCreateBuffer(ctx_id, cl.CL_MEM_READ_WRITE,
-                                    sizeof(Cfloat) * len, C_NULL, err_code)
-        if err_code[] != cl.CL_SUCCESS
-            error("Error creating buffer D")
-        end
-        Fid = cl.clCreateBuffer(ctx_id, cl.CL_MEM_WRITE_ONLY,
-                                    sizeof(Cfloat) * len, C_NULL, err_code)
-        if err_code[] != cl.CL_SUCCESS
-            error("Error creating buffer F")
-        end
+    cl.clSetKernelArg(k_id, 0, sizeof(cl.cl_mem), [Aid])
+    cl.clSetKernelArg(k_id, 1, sizeof(cl.cl_mem), [Bid])
+    cl.clSetKernelArg(k_id, 2, sizeof(cl.cl_mem), [Cid])
+    cl.clSetKernelArg(k_id, 3, sizeof(cl.Cuint), cl.Cuint[len])
 
-        cl.clSetKernelArg(k_id, 0, sizeof(cl.cl_mem), [Aid])
-        cl.clSetKernelArg(k_id, 1, sizeof(cl.cl_mem), [Bid])
-        cl.clSetKernelArg(k_id, 2, sizeof(cl.cl_mem), [Cid])
-        cl.clSetKernelArg(k_id, 3, sizeof(cl.Cuint), cl.Cuint[len])
+    nglobal = Ref{Csize_t}(len)
+    cl.clEnqueueNDRangeKernel(q_id, k_id,  1, C_NULL,
+                                  nglobal, C_NULL, 0, C_NULL, C_NULL)
 
-        nglobal = Ref{Csize_t}(len)
-        cl.clEnqueueNDRangeKernel(q_id, k_id,  1, C_NULL,
-                                      nglobal, C_NULL, 0, C_NULL, C_NULL)
+    cl.clSetKernelArg(k_id, 0, sizeof(cl.cl_mem), [Eid])
+    cl.clSetKernelArg(k_id, 1, sizeof(cl.cl_mem), [Cid])
+    cl.clSetKernelArg(k_id, 2, sizeof(cl.cl_mem), [Did])
+    cl.clEnqueueNDRangeKernel(q_id, k_id,  1, C_NULL,
+                                  nglobal, C_NULL, 0, C_NULL, C_NULL)
 
-        cl.clSetKernelArg(k_id, 0, sizeof(cl.cl_mem), [Eid])
-        cl.clSetKernelArg(k_id, 1, sizeof(cl.cl_mem), [Cid])
-        cl.clSetKernelArg(k_id, 2, sizeof(cl.cl_mem), [Did])
-        cl.clEnqueueNDRangeKernel(q_id, k_id,  1, C_NULL,
-                                      nglobal, C_NULL, 0, C_NULL, C_NULL)
+    cl.clSetKernelArg(k_id, 0, sizeof(cl.cl_mem), [Gid])
+    cl.clSetKernelArg(k_id, 1, sizeof(cl.cl_mem), [Did])
+    cl.clSetKernelArg(k_id, 2, sizeof(cl.cl_mem), [Fid])
+    cl.clEnqueueNDRangeKernel(q_id, k_id,  1, C_NULL,
+                                  nglobal, C_NULL, 0, C_NULL, C_NULL)
 
-        cl.clSetKernelArg(k_id, 0, sizeof(cl.cl_mem), [Gid])
-        cl.clSetKernelArg(k_id, 1, sizeof(cl.cl_mem), [Did])
-        cl.clSetKernelArg(k_id, 2, sizeof(cl.cl_mem), [Fid])
-        cl.clEnqueueNDRangeKernel(q_id, k_id,  1, C_NULL,
-                                      nglobal, C_NULL, 0, C_NULL, C_NULL)
+    # read back the result from compute device...
+    cl.clEnqueueReadBuffer(q_id, Fid, cl.CL_TRUE, 0,
+                               sizeof(Cfloat) * len, h_f, 0, C_NULL, C_NULL)
 
-        # read back the result from compute device...
-        cl.clEnqueueReadBuffer(q_id, Fid, cl.CL_TRUE, 0,
-                                   sizeof(Cfloat) * len, h_f, 0, C_NULL, C_NULL)
-
-        # test results
-        for i in 1:len
-            tmp = h_a[i] + h_b[i] + h_e[i] + h_g[i]
-            @test tmp ≈ h_f[i]
-        end
+    # test results
+    for i in 1:len
+        tmp = h_a[i] + h_b[i] + h_e[i] + h_g[i]
+        @test tmp ≈ h_f[i]
     end
 end
 
@@ -215,14 +208,10 @@ let test_struct = "
     }
 "
 
-@testset "OpenCL Struct Buffer Test" begin
-    for device in cl.devices()
-
-        if device[:platform][:name] == "Portable Computing Language"
-            @warn("Skipping OpenCL Struct Buffer Test for Portable Computing Language Platform")
-            continue
-        end
-
+if device[:platform][:name] == "Portable Computing Language"
+    @warn("Skipping OpenCL Struct Buffer Test for Portable Computing Language Platform")
+else
+    @testset "OpenCL Struct Buffer Test" begin
         ctx = cl.Context(device)
         q   = cl.CmdQueue(ctx)
         p   = cl.Program(ctx, source=test_struct) |> cl.build!
@@ -276,14 +265,10 @@ let test_mutable_pointerfree = "
 "
 
 
-@testset "OpenCL Struct Buffer Test" begin
-    for device in cl.devices()
-
-        if device[:platform][:name] == "Portable Computing Language"
-            @warn("Skipping OpenCL Struct Buffer Test for Portable Computing Language Platform")
-            continue
-        end
-
+if device[:platform][:name] == "Portable Computing Language"
+    @warn("Skipping OpenCL Struct Buffer Test for Portable Computing Language Platform")
+else
+    @testset "OpenCL Struct Buffer Test" begin
         ctx = cl.Context(device)
         q   = cl.CmdQueue(ctx)
         p   = cl.Program(ctx, source=test_mutable_pointerfree) |> cl.build!

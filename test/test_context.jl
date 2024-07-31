@@ -24,83 +24,77 @@ end
 @testset "OpenCL.Context" begin
     @testset "OpenCL.Context constructor" begin
         @test_throws MethodError (cl.Context([]))
-        for platform in cl.platforms()
-            for device in cl.devices(platform)
-                ctx = cl.Context(device)
-                @test ctx != nothing
-                ctx_id = ctx.id
-                ctx2 = cl.Context(ctx_id)
-                @test cl.is_ctx_id_alive(ctx_id)
-                @test ctx.id != C_NULL
-                @test ctx2.id != C_NULL
-                finalize(ctx)
-                @test ctx.id == C_NULL
-                @test ctx2.id != C_NULL
-                @test cl.is_ctx_id_alive(ctx_id)
-                finalize(ctx2)
-                @test ctx.id == C_NULL
-                @test ctx2.id == C_NULL
-                # jeez, this segfaults... WHY? I suspect a driver bug for refcount == 0?
-                # NVIDIA 381.22
-                #@test !cl.is_ctx_id_alive(ctx_id)
-                @testset "Context callback" begin
-                    ctx = cl.Context(device, callback = context_test_callback)
-                    create_context_error(ctx)
-                end
-            end
+        ctx = cl.Context(device)
+        @test ctx != nothing
+        ctx_id = ctx.id
+        ctx2 = cl.Context(ctx_id)
+        @test cl.is_ctx_id_alive(ctx_id)
+        @test ctx.id != C_NULL
+        @test ctx2.id != C_NULL
+        finalize(ctx)
+        @test ctx.id == C_NULL
+        @test ctx2.id != C_NULL
+        @test cl.is_ctx_id_alive(ctx_id)
+        finalize(ctx2)
+        @test ctx.id == C_NULL
+        @test ctx2.id == C_NULL
+        # jeez, this segfaults... WHY? I suspect a driver bug for refcount == 0?
+        # NVIDIA 381.22
+        #@test !cl.is_ctx_id_alive(ctx_id)
+        @testset "Context callback" begin
+            ctx = cl.Context(device, callback = context_test_callback)
+            create_context_error(ctx)
         end
     end
 
-    @testset "OpenCL.Context platform properties" begin
-        for platform in cl.platforms()
-            try
-                cl.Context(cl.CL_DEVICE_TYPE_CPU)
-            catch err
-                @test typeof(err) == cl.CLError
-                # CL_DEVICE_NOT_FOUND could be throw for GPU only drivers
-                @test err.desc in (:CL_INVALID_PLATFORM,
-                                         :CL_DEVICE_NOT_FOUND)
-            end
 
-            if platform[:name] == "Portable Computing Language"
-                @warn("Skipping OpenCL.Context platform properties for " *
-                     "Portable Computing Language Platform")
+    if platform[:name] == "Portable Computing Language"
+        @warn("Skipping OpenCL.Context platform properties for " *
+             "Portable Computing Language Platform")
+    else
+    @testset "OpenCL.Context platform properties" begin
+        try
+            cl.Context(cl.CL_DEVICE_TYPE_CPU)
+        catch err
+            @test typeof(err) == cl.CLError
+            # CL_DEVICE_NOT_FOUND could be throw for GPU only drivers
+            @test err.desc in (:CL_INVALID_PLATFORM,
+                                     :CL_DEVICE_NOT_FOUND)
+        end
+
+        properties = [(cl.CL_CONTEXT_PLATFORM, platform)]
+        for (cl_dev_type, sym_dev_type) in [(cl.CL_DEVICE_TYPE_CPU, :cpu),
+                                            (cl.CL_DEVICE_TYPE_GPU, :gpu)]
+            if !cl.has_device_type(platform, sym_dev_type)
                 continue
             end
+            @test cl.Context(sym_dev_type, properties=properties) != nothing
+            @test cl.Context(cl_dev_type, properties=properties) != nothing
+            ctx = cl.Context(cl_dev_type, properties=properties)
+            @test isempty(cl.properties(ctx)) == false
+            test_properties = cl.properties(ctx)
 
-            properties = [(cl.CL_CONTEXT_PLATFORM, platform)]
-            for (cl_dev_type, sym_dev_type) in [(cl.CL_DEVICE_TYPE_CPU, :cpu),
-                                                (cl.CL_DEVICE_TYPE_GPU, :gpu)]
-                if !cl.has_device_type(platform, sym_dev_type)
-                    continue
+            @test test_properties == properties
+
+            platform_in_properties = false
+            for (t, v) in test_properties
+                if t == cl.CL_CONTEXT_PLATFORM
+                    @test v[:name] == platform[:name]
+                    @test v == platform
+                    platform_in_properties = true
+                    break
                 end
-                @test cl.Context(sym_dev_type, properties=properties) != nothing
-                @test cl.Context(cl_dev_type, properties=properties) != nothing
-                ctx = cl.Context(cl_dev_type, properties=properties)
-                @test isempty(cl.properties(ctx)) == false
-                test_properties = cl.properties(ctx)
-
-                @test test_properties == properties
-
-                platform_in_properties = false
-                for (t, v) in test_properties
-                    if t == cl.CL_CONTEXT_PLATFORM
-                        @test v[:name] == platform[:name]
-                        @test v == platform
-                        platform_in_properties = true
-                        break
-                    end
-                end
-                @test platform_in_properties
             end
-            try
-                ctx2 = cl.Context(cl.CL_DEVICE_TYPE_ACCELERATOR,
-                                  properties=properties)
-            catch err
-                @test typeof(err) == cl.CLError
-                @test err.desc == :CL_DEVICE_NOT_FOUND
-            end
+            @test platform_in_properties
         end
+        try
+            ctx2 = cl.Context(cl.CL_DEVICE_TYPE_ACCELERATOR,
+                              properties=properties)
+        catch err
+            @test typeof(err) == cl.CLError
+            @test err.desc == :CL_DEVICE_NOT_FOUND
+        end
+    end
     end
 
     @testset "OpenCL.Context create_some_context" begin
@@ -109,15 +103,13 @@ end
     end
 
    @testset "OpenCL.Context parsing" begin
-        for platform in cl.platforms()
-            properties = [(cl.CL_CONTEXT_PLATFORM, platform)]
-            parsed_properties = cl._parse_properties(properties)
+        properties = [(cl.CL_CONTEXT_PLATFORM, platform)]
+        parsed_properties = cl._parse_properties(properties)
 
-            @test isodd(length(parsed_properties))
-            @test parsed_properties[end] == 0
-            @test parsed_properties[1] == cl.cl_context_properties(cl.CL_CONTEXT_PLATFORM)
-            @test parsed_properties[2] == cl.cl_context_properties(platform.id)
-        end
+        @test isodd(length(parsed_properties))
+        @test parsed_properties[end] == 0
+        @test parsed_properties[1] == cl.cl_context_properties(cl.CL_CONTEXT_PLATFORM)
+        @test parsed_properties[2] == cl.cl_context_properties(platform.id)
     end
 
 end

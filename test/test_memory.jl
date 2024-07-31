@@ -1,3 +1,11 @@
+function create_test_buffer()
+    ctx = cl.Context(device)
+    queue = cl.CmdQueue(ctx)
+    testarray = zeros(Float32, 1000)
+    buf = cl.Buffer(Float32, ctx, length(testarray), (:rw, :copy), hostbuf=testarray)
+    return (queue, buf, testarray, ctx)
+end
+
 @testset "OpenCL.Memory" begin
     @testset "OpenCL.CLMemObject context" begin
         _, buf, _, expected = create_test_buffer()
