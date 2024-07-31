@@ -1,10 +1,9 @@
-import OpenCL.cl.CLArray
+using .cl: CLArray
 
 using LinearAlgebra
 
-@testset "OpenCL.CLArray" begin
-
-    @testset "OpenCL.CLArray constructors" begin
+@testset "CLArray" begin
+    @testset "constructors" begin
         ctx = cl.Context(device)
         queue = cl.CmdQueue(ctx)
         hostarray = zeros(Float32, 128*64)
@@ -21,9 +20,9 @@ using LinearAlgebra
                       (128, 64)) != nothing
 
         @test copy(A) == A
-     end
+    end
 
-    @testset "OpenCL.CLArray fill" begin
+    @testset "fill" begin
         ctx = cl.Context(device)
         queue = cl.CmdQueue(ctx)
 
@@ -31,9 +30,9 @@ using LinearAlgebra
                                         32, 64)) == fill(Float32(0.5), 32, 64)
         @test cl.to_host(cl.zeros(Float32, queue, 64)) == zeros(Float32, 64)
         @test cl.to_host(cl.ones(Float32, queue, 64)) == ones(Float32, 64)
-     end
+    end
 
-    @testset "OpenCL.CLArray core functions" begin
+    @testset "core functions" begin
         ctx = cl.Context(device)
         queue = cl.CmdQueue(ctx)
         A = CLArray(queue, rand(Float32, 128, 64))
@@ -49,5 +48,5 @@ using LinearAlgebra
         ev = transpose!(B, A)
         cl.wait(ev)
         #@test cl.to_host(copy(A')) == cl.to_host(B)
-     end
+    end
 end

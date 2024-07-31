@@ -3,8 +3,8 @@ if occursin("Portable", platform[:name]) ||
     msg = "$(platform[:name]) does not implement User Events or shows other problems"
     @warn(msg)
 else
-@testset "OpenCL.Event" begin
-    @testset "OpenCL.Event status" begin
+@testset "Event" begin
+    @testset "status" begin
         ctx = cl.Context(device)
         evt = cl.UserEvent(ctx)
         evt[:status]
@@ -14,7 +14,7 @@ else
         finalize(evt)
     end
 
-    @testset "OpenCL.Event wait" begin
+    @testset "wait" begin
         ctx = cl.Context(device)
         # create user event
         usr_evt = cl.UserEvent(ctx)
@@ -39,7 +39,7 @@ else
         @test cl.cl_event_status(:complete) == cl.CL_COMPLETE
     end
 
-    @testset "OpenCL.Event callback" begin
+    @testset "callback" begin
         global callback_called = Ref(false)
 
         function test_callback(evt, status)

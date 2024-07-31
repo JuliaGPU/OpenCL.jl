@@ -1,4 +1,4 @@
-@testset "OpenCL.Program" begin
+@testset "Program" begin
     test_source = "
     __kernel void sum(__global const float *a,
                       __global const float *b,
@@ -14,12 +14,12 @@
         cl.Program(ctx, source=test_source)
     end
 
-    @testset "OpenCL.Program source constructor" begin
+    @testset "source constructor" begin
         ctx = cl.Context(device)
         prg = cl.Program(ctx, source=test_source)
         @test prg != nothing
     end
-    @testset "OpenCL.Program info" begin
+    @testset "info" begin
         ctx = cl.Context(device)
         prg = cl.Program(ctx, source=test_source)
 
@@ -40,7 +40,7 @@
     if device[:platform][:name] == "Portable Computing Language"
         @warn("Skipping OpenCL.Program build for Portable Computing Language Platform")
     else
-    @testset "OpenCL.Program build" begin
+    @testset "build" begin
         ctx = cl.Context(device)
         prg = cl.Program(ctx, source=test_source)
         @test cl.build!(prg) != nothing
@@ -57,7 +57,7 @@
     end
     end
 
-    @testset "OpenCL.Program source code" begin
+    @testset "source code" begin
        ctx = cl.Context(device)
        prg = cl.Program(ctx, source=test_source)
        @test prg[:source] == test_source
@@ -66,7 +66,7 @@
     if device[:platform][:name] == "Portable Computing Language"
         @warn("Skipping OpenCL.Program build for Portable Computing Language Platform")
     else
-        @testset "OpenCL.Program binaries" begin
+        @testset "binaries" begin
             ctx = cl.Context(device)
             prg = cl.Program(ctx, source=test_source) |> cl.build!
 

@@ -4,7 +4,7 @@ struct CLTestStruct
     f3::Float32
 end
 
-@testset "OpenCL.Kernel" begin
+@testset "Kernel" begin
     test_source = "
     __kernel void sum(__global const float *a,
                       __global const float *b,
@@ -24,7 +24,7 @@ end
         @warn("Skipping OpenCL.Kernel constructor for " *
              "Portable Computing Language Platform")
     else
-        @testset "OpenCL.Kernel constructor" begin
+        @testset "constructor" begin
             ctx = cl.Context(device)
             prg = cl.Program(ctx, source=test_source)
             @test_throws ArgumentError cl.Kernel(prg, "sum")
@@ -37,7 +37,7 @@ end
         @warn("Skipping OpenCL.Kernel constructor for " *
              "Portable Computing Language Platform")
     else
-        @testset "OpenCL.Kernel info" begin
+        @testset "info" begin
             ctx = cl.Context(device)
             prg = cl.Program(ctx, source=test_source)
             cl.build!(prg)
@@ -54,7 +54,7 @@ end
         @warn("Skipping OpenCL.Kernel constructor for " *
              "Portable Computing Language Platform")
     else
-        @testset "OpenCL.Kernel mem/workgroup size" begin
+        @testset "mem/workgroup size" begin
             ctx = cl.Context(device)
             prg = cl.Program(ctx, source=test_source)
             cl.build!(prg)
@@ -77,7 +77,7 @@ end
         @warn("Skipping OpenCL.Kernel constructor for " *
              "Portable Computing Language Platform")
     else
-        @testset "OpenCL.Kernel set_arg!/set_args!" begin
+        @testset "set_arg!/set_args!" begin
             ctx = cl.Context(device)
             queue = cl.CmdQueue(ctx)
 
@@ -135,7 +135,7 @@ end
         @warn("Skipping OpenCL.Kernel constructor for " *
              "Portable Computing Language Platform")
     else
-        @testset "OpenCL.Kernel enqueue_kernel" begin
+        @testset "enqueue_kernel" begin
             simple_kernel = "
                 __kernel void test(__global float *i) {
                     *i += 1;

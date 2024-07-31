@@ -21,8 +21,8 @@ function create_context_error(ctx)
 end
 
 
-@testset "OpenCL.Context" begin
-    @testset "OpenCL.Context constructor" begin
+@testset "Context" begin
+    @testset "constructor" begin
         @test_throws MethodError (cl.Context([]))
         ctx = cl.Context(device)
         @test ctx != nothing
@@ -52,7 +52,7 @@ end
         @warn("Skipping OpenCL.Context platform properties for " *
              "Portable Computing Language Platform")
     else
-    @testset "OpenCL.Context platform properties" begin
+    @testset "platform properties" begin
         try
             cl.Context(cl.CL_DEVICE_TYPE_CPU)
         catch err
@@ -97,12 +97,12 @@ end
     end
     end
 
-    @testset "OpenCL.Context create_some_context" begin
+    @testset "create_some_context" begin
         @test cl.create_some_context() != nothing
         @test typeof(cl.create_some_context()) == cl.Context
     end
 
-   @testset "OpenCL.Context parsing" begin
+   @testset "parsing" begin
         properties = [(cl.CL_CONTEXT_PLATFORM, platform)]
         parsed_properties = cl._parse_properties(properties)
 

@@ -1,5 +1,5 @@
-@testset "OpenCL.Device" begin
-    @testset "Device Type" begin
+@testset "Device" begin
+    @testset "Type" begin
         for (t, k) in zip((cl.CL_DEVICE_TYPE_GPU, cl.CL_DEVICE_TYPE_CPU,
                            cl.CL_DEVICE_TYPE_ACCELERATOR, cl.CL_DEVICE_TYPE_ALL),
                           (:gpu, :cpu, :accelerator, :all))
@@ -14,7 +14,7 @@
         end
     end
 
-    @testset "Device Equality" begin
+    @testset "Equality" begin
         devices = cl.devices(platform)
 
         if length(devices) > 1
@@ -30,7 +30,7 @@
     if occursin("Portable", platform[:name])
         @warn("Skipping Device Info tests for Portable Computing Language Platform")
     else
-        @testset "Device Info" begin
+        @testset "Info" begin
             device_info_keys = Symbol[
                     :driver_version,
                     :version,

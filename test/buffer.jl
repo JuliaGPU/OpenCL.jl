@@ -5,8 +5,8 @@ struct TestStruct
     b::Cfloat
 end
 
-@testset "OpenCL.Buffer" begin
-    @testset "OpenCL.Buffer constructors" begin
+@testset "Buffer" begin
+    @testset "constructors" begin
         ctx = cl.Context(device)
         testarray = zeros(Float32, 1000)
 
@@ -74,7 +74,7 @@ end
                                          hostbuf=C_NULL)
      end
 
-     @testset "OpenCL.Buffer constructors symbols" begin
+     @testset "constructors symbols" begin
          ctx = cl.Context(device)
 
          for mf1 in [:rw, :r, :w]
@@ -133,7 +133,7 @@ end
         @warn("Skipping OpenCL.Kernel constructor for " *
              "Portable Computing Language Platform")
     else
-        @testset "OpenCL.Buffer fill" begin
+        @testset "fill" begin
             ctx = cl.Context(device)
             queue = cl.CmdQueue(ctx)
             testarray = zeros(Float32, 1000)
@@ -148,7 +148,7 @@ end
         end
     end
 
-    @testset "OpenCL.Buffer write!" begin
+    @testset "write!" begin
         ctx = cl.Context(device)
         queue = cl.CmdQueue(ctx)
         testarray = zeros(Float32, 1000)
@@ -160,7 +160,7 @@ end
         @test buf.valid == true
     end
 
-    @testset "OpenCL.Buffer empty_like" begin
+    @testset "empty_like" begin
         ctx = cl.Context(device)
         queue = cl.CmdQueue(ctx)
         testarray = zeros(Float32, 1000)
@@ -169,7 +169,7 @@ end
         @test sizeof(cl.empty_like(ctx, buf)) == sizeof(testarray)
     end
 
-    @testset "OpenCL.Buffer copy!" begin
+    @testset "copy!" begin
         ctx = cl.Context(device)
         queue = cl.CmdQueue(ctx)
         test_array = fill(2f0, 1000)
@@ -185,7 +185,7 @@ end
         @test all(x -> isapprox(x, 2.0), c_arr) == true
     end
 
-    @testset "OpenCL.Buffer map/unmap" begin
+    @testset "map/unmap" begin
         ctx = cl.Context(device)
         queue = cl.CmdQueue(ctx)
         b = cl.Buffer(Float32, ctx, 100, :rw)

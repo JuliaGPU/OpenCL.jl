@@ -7,7 +7,7 @@ info(
 if device[:platform][:name] == "Portable Computing Language"
     @warn("Skipping OpenCL.Kernel mem/workgroup size for Portable Computing Language Platform")
 else
-    @testset "OpenCL Hello World Test" begin
+    @testset "Hello World Test" begin
         hello_world_kernel = "
             #pragma OPENCL EXTENSION cl_khr_byte_addressable_store : enable
 
@@ -37,7 +37,7 @@ else
     end
 end
 
-@testset "OpenCL Low Level Api Test" begin
+@testset "Low Level API Test" begin
 
   test_source = "
     __kernel void sum(__global const float *a,
@@ -211,7 +211,7 @@ let test_struct = "
 if device[:platform][:name] == "Portable Computing Language"
     @warn("Skipping OpenCL Struct Buffer Test for Portable Computing Language Platform")
 else
-    @testset "OpenCL Struct Buffer Test" begin
+    @testset "Struct Buffer Test" begin
         ctx = cl.Context(device)
         q   = cl.CmdQueue(ctx)
         p   = cl.Program(ctx, source=test_struct) |> cl.build!
@@ -268,7 +268,7 @@ let test_mutable_pointerfree = "
 if device[:platform][:name] == "Portable Computing Language"
     @warn("Skipping OpenCL Struct Buffer Test for Portable Computing Language Platform")
 else
-    @testset "OpenCL Struct Buffer Test" begin
+    @testset "Struct Buffer Test" begin
         ctx = cl.Context(device)
         q   = cl.CmdQueue(ctx)
         p   = cl.Program(ctx, source=test_mutable_pointerfree) |> cl.build!

@@ -6,8 +6,8 @@ function create_test_buffer()
     return (queue, buf, testarray, ctx)
 end
 
-@testset "OpenCL.Memory" begin
-    @testset "OpenCL.CLMemObject context" begin
+@testset "Memory" begin
+    @testset "context" begin
         _, buf, _, expected = create_test_buffer()
 
         ctx = cl.context(buf)
@@ -16,7 +16,7 @@ end
         @test isequal(ctx, expected) != nothing
     end
 
-    @testset "OpenCL.CLMemObject properties" begin
+    @testset "properties" begin
         _, buf, _, _ = create_test_buffer()
 
         expectations = [

@@ -1,5 +1,5 @@
-@testset "OpenCL.Platform" begin
-    @testset "Platform Info" begin
+@testset "Platform" begin
+    @testset "Info" begin
         @test length(cl.platforms()) == cl.num_platforms()
 
         @test platform != nothing
@@ -12,7 +12,7 @@
         @test 0 <= v.minor <= 2
     end
 
-    @testset "Platform Equality" begin
+    @testset "Equality" begin
         platform       = cl.platforms()[1]
         platform_copy  = cl.platforms()[1]
 

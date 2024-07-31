@@ -1,5 +1,5 @@
-@testset "OpenCL.Minver" begin
-    @testset "OpenCL.Minver platform" begin
+@testset "Minver" begin
+    @testset "platform" begin
         version = cl.opencl_version(platform)
 
         v11 = cl.min_v11(platform)
@@ -15,7 +15,7 @@
         @test v22 == (version >= v"2.2")
     end
 
-    @testset "OpenCL.Minver device" begin
+    @testset "device" begin
         version = cl.opencl_version(device)
 
         v11 = cl.min_v11(device)

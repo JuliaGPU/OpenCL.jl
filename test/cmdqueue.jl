@@ -1,5 +1,5 @@
-@testset "OpenCL.CmdQueue" begin
-    @testset "OpenCL.CmdQueue constructor" begin
+@testset "CmdQueue" begin
+    @testset "constructor" begin
         @test_throws MethodError cl.CmdQueue(nothing, nothing)
         ctx = cl.Context(device)
         @test cl.CmdQueue(ctx) != nothing
@@ -22,7 +22,7 @@
         end
     end
 
-    @testset "OpenCL.CmdQueue info" begin
+    @testset "info" begin
         ctx = cl.Context(device)
         q1 = cl.CmdQueue(ctx)
         q2 = cl.CmdQueue(ctx, device)

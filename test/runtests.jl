@@ -24,19 +24,18 @@ device = first(cl.devices(platform, :cpu))
     @test clx == 0 # TODO should it be like this?
 end
 
-include("test_platform.jl")
-include("test_context.jl")
-include("test_device.jl")
-include("test_cmdqueue.jl")
-include("test_minver.jl")
-#TODO: fix test_event.jl
-#include("test_event.jl")
-include("test_program.jl")
-include("test_kernel.jl")
-include("test_behaviour.jl")
-include("test_memory.jl")
-include("test_buffer.jl")
-include("test_array.jl")
+include("platform.jl")
+include("context.jl")
+include("device.jl")
+include("cmdqueue.jl")
+include("minver.jl")
+#include("event.jl")
+include("program.jl")
+include("kernel.jl")
+include("behaviour.jl")
+include("memory.jl")
+include("buffer.jl")
+include("array.jl")
 
 @testset "context jl reference counting" begin
     Base.GC.gc()
