@@ -1,16 +1,16 @@
 # OpenCL.Context
 
-const _ctx_reference_count = Dict{CL_context, Int}()
+const _ctx_reference_count = Dict{cl_context, Int}()
 
-function create_jl_reference!(ctx_id::CL_context)
+function create_jl_reference!(ctx_id::cl_context)
     if haskey(_ctx_reference_count, ctx_id) # for the first jl reference, we already have a refcount of 1
-        @check api.clRetainContext(ctx_id) # increase internal refcount, if creating an additional reference
+        clRetainContext(ctx_id) # increase internal refcount, if creating an additional reference
     end
     refcount = get!(_ctx_reference_count, ctx_id, 0)
     _ctx_reference_count[ctx_id] = refcount + 1
     return
 end
-function free_jl_reference!(ctx_id::CL_context)
+function free_jl_reference!(ctx_id::cl_context)
     if !haskey(_ctx_reference_count, ctx_id)
         error("Freeing unknown context")
     end
@@ -26,12 +26,12 @@ function free_jl_reference!(ctx_id::CL_context)
 end
 
 mutable struct Context <: CLObject
-    id :: CL_context
+    id::cl_context
     # If created from ctx_id already, we need to increase the reference count
     # because then we give out multiple context references with multiple finalizers to the world
     # TODO should we make it in a way, that you can't overwrite it?
-    function Context(ctx_id::CL_context; retain = false)
-        retain && @check api.clRetainContext(ctx_id)
+    function Context(ctx_id::cl_context; retain = false)
+        retain && clRetainContext(ctx_id)
         if !is_ctx_id_alive(ctx_id)
             error("ctx_id not alive: ", ctx_id)
         end
@@ -50,21 +50,21 @@ mutable struct Context <: CLObject
 end
 
 number_of_references(ctx::Context) = number_of_references(ctx.id)
-function number_of_references(ctx_id::CL_context)
-    refcounts = Ref{CL_uint}()
-    @check api.clGetContextInfo(
+function number_of_references(ctx_id::cl_context)
+    refcounts = Ref{Cuint}()
+    clGetContextInfo(
         ctx_id, CL_CONTEXT_REFERENCE_COUNT,
-        sizeof(CL_uint), refcounts, C_NULL
+        sizeof(Cuint), refcounts, C_NULL
     )
     return refcounts[]
 end
 
-function is_ctx_id_alive(ctx_id::CL_context)
+function is_ctx_id_alive(ctx_id::cl_context)
     number_of_references(ctx_id) > 0
 end
-function release_ctx_id(ctx_id::CL_context)
+function release_ctx_id(ctx_id::cl_context)
     if is_ctx_id_alive(ctx_id)
-        @check api.clReleaseContext(ctx_id)
+        clReleaseContext(ctx_id)
     else
         error("Double free for context: ", ctx_id)
     end
@@ -82,10 +82,10 @@ function Base.show(io::IO, ctx::Context)
 end
 
 struct _CtxErr
-    handle :: Ptr{Nothing}
-    err_info :: Ptr{Cchar}
-    priv_info :: Ptr{Nothing}
-    cb :: Csize_t
+    handle::Ptr{Nothing}
+    err_info::Ptr{Cchar}
+    priv_info::Ptr{Nothing}
+    cb::Csize_t
 end
 
 const io_lock = ReentrantLock()
@@ -129,15 +129,15 @@ function Context(devs::Vector{Device};
     end
 
     n_devices = length(devs)
-    device_ids = Vector{CL_device_id}(undef, n_devices)
+    device_ids = Vector{cl_device_id}(undef, n_devices)
     for (i, d) in enumerate(devs)
         device_ids[i] = d.id
     end
 
-    err_code = Ref{CL_int}()
+    err_code = Ref{Cint}()
     payload = callback === nothing ? raise_context_error : callback
     f_ptr = @cfunction($payload, Nothing, (Ptr{Cchar}, Ptr{Nothing}, Csize_t))
-    ctx_id = api.clCreateContext(
+    ctx_id = clCreateContext(
         ctx_properties, n_devices, device_ids,
         ctx_callback_ptr(), f_ptr, err_code)
     if err_code[] != CL_SUCCESS
@@ -150,7 +150,7 @@ end
 Context(d::Device; properties=nothing, callback=nothing) =
     Context([d], properties=properties, callback=callback)
 
-function Context(dev_type::CL_device_type; properties = nothing, callback = nothing)
+function Context(dev_type; properties = nothing, callback = nothing)
     if properties !== nothing
         ctx_properties = _parse_properties(properties)
     else
@@ -161,9 +161,9 @@ function Context(dev_type::CL_device_type; properties = nothing, callback = noth
     else
         ctx_user_data_cb = raise_context_error
     end
-    err_code = Ref{CL_int}()
+    err_code = Ref{Cint}()
     ctx_user_data = @cfunction($ctx_user_data_cb, Nothing, (Ptr{Cchar}, Ptr{Nothing}, Csize_t))
-    ctx_id = api.clCreateContextFromType(ctx_properties, dev_type,
+    ctx_id = clCreateContextFromType(ctx_properties, dev_type,
                                          ctx_callback_ptr(), ctx_user_data, err_code)
     if err_code[] != CL_SUCCESS
         throw(CLError(err_code[]))
@@ -178,19 +178,19 @@ function Context(dev_type::Symbol;
 end
 
 
-function properties(ctx_id::CL_context)
+function properties(ctx_id::cl_context)
     nbytes = Ref{Csize_t}(0)
-    @check api.clGetContextInfo(ctx_id, CL_CONTEXT_PROPERTIES, 0, C_NULL, nbytes)
+    clGetContextInfo(ctx_id, CL_CONTEXT_PROPERTIES, 0, C_NULL, nbytes)
 
     # Calculate length of storage array
     # At nbytes[] the size of the properties array in bytes is stored
-    # The length of the property array is then nbytes[] / sizeof(CL_context_properties)
+    # The length of the property array is then nbytes[] / sizeof(cl_context_properties)
     # Note: nprops should be odd since it requires a C_NULL terminated array
-    nprops = div(nbytes[], sizeof(CL_context_properties))
+    nprops = div(nbytes[], sizeof(cl_context_properties))
 
-    props = Vector{CL_context_properties}(undef, nprops)
-    @check api.clGetContextInfo(ctx_id, CL_CONTEXT_PROPERTIES,
-                                nbytes[], props, C_NULL)
+    props = Vector{cl_context_properties}(undef, nprops)
+    clGetContextInfo(ctx_id, CL_CONTEXT_PROPERTIES,
+                         nbytes[], props, C_NULL)
     #properties array of [key,value..., C_NULL]
     result = Any[]
     for i in 1:2:nprops
@@ -204,8 +204,6 @@ function properties(ctx_id::CL_context)
            key == CL_GLX_DISPLAY_KHR ||
            key == CL_WGL_HDC_KHR ||
            key == CL_CGL_SHAREGROUP_KHR
-            push!(result, (key, value))
-        elseif Sys.isapple() ? (key == CL_CONTEXT_PROPERTY_USE_CGL_SHAREGROUP_APPLE) : false
             push!(result, (key, value))
         elseif key == 0
             if i != nprops
@@ -228,7 +226,7 @@ function _parse_properties(props)
     if isempty(props)
         return C_NULL
     end
-    cl_props = CL_context_properties[]
+    cl_props = cl_context_properties[]
     for prop_tuple in props
         if length(prop_tuple) != 2
             throw(ArgumentError("Context property tuples must be of type (key, value)"))
@@ -256,9 +254,9 @@ function _parse_properties(props)
 end
 
 function num_devices(ctx::Context)
-    ndevices = Ref{CL_uint}()
-    @check api.clGetContextInfo(ctx.id, CL_CONTEXT_NUM_DEVICES,
-                                sizeof(CL_uint), ndevices, C_NULL)
+    ndevices = Ref{Cuint}()
+    clGetContextInfo(ctx.id, CL_CONTEXT_NUM_DEVICES,
+                                sizeof(Cuint), ndevices, C_NULL)
     return ndevices[]
 end
 
@@ -267,9 +265,9 @@ function devices(ctx::Context)
     if n == 0
         return []
     end
-    dev_ids = Vector{CL_device_id}(undef, n)
-    @check api.clGetContextInfo(ctx.id, CL_CONTEXT_DEVICES,
-                                n * sizeof(CL_device_id), dev_ids, C_NULL)
+    dev_ids = Vector{cl_device_id}(undef, n)
+    clGetContextInfo(ctx.id, CL_CONTEXT_DEVICES,
+                                n * sizeof(cl_device_id), dev_ids, C_NULL)
     return [Device(id) for id in dev_ids]
 end
 
@@ -283,7 +281,8 @@ function create_some_context()
             local ctx::Context
             try
                 ctx = Context(dev)
-            catch
+            catch err
+                @warn "Could not create context for GPU device $dev" exception=(err,catch_backtrace())
                 continue
             end
             return ctx
@@ -295,7 +294,8 @@ function create_some_context()
             local ctx::Context
             try
                 ctx = Context(dev)
-            catch
+            catch err
+                @warn "Could not create context for CPU device $dev" exception=(err,catch_backtrace())
                 continue
             end
             return ctx

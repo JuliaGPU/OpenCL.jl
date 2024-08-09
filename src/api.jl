@@ -1,43 +1,94 @@
-module api
-
-include("types.jl")
-
 import OpenCL_jll
 
 const libopencl = OpenCL_jll.libopencl
 
-function _ocl_func(func, ret_type, arg_types)
-    local args_in = Symbol[Symbol("arg$i")
-                           for (i, T) in enumerate(arg_types.args)]
+"""
+    @checked function foo(...)
+        rv = ...
+        return rv
+    end
 
-    esc(quote
-        function $func($(args_in...))
-            ccall(($(string(func)), libopencl),
-                   $ret_type,
-                   $arg_types,
-                   $(args_in...))
+Macro for wrapping a function definition returning a status code. Two versions of the
+function will be generated: `foo`, with the function body wrapped by an invocation of the
+`check` function (to be implemented by the caller of this macro), and `unchecked_foo` where no
+such invocation is present and the status code is returned to the caller.
+"""
+macro checked(ex)
+    # parse the function definition
+    @assert Meta.isexpr(ex, :function)
+    sig = ex.args[1]
+    @assert Meta.isexpr(sig, :call)
+    body = ex.args[2]
+    @assert Meta.isexpr(body, :block)
+
+    # we need to detect the first API call, so add an initialization check
+    body = quote
+        if !initialized[]
+            initialize()
         end
-    end)
+        $body
+    end
+
+    # generate a "safe" version that performs a check
+    safe_body = quote
+        check() do
+            $body
+        end
+    end
+    safe_sig = Expr(:call, sig.args[1], sig.args[2:end]...)
+    safe_def = Expr(:function, safe_sig, safe_body)
+
+    # generate a "unchecked" version that returns the error code instead
+    unchecked_sig = Expr(:call, Symbol("unchecked_", sig.args[1]), sig.args[2:end]...)
+    unchecked_def = Expr(:function, unchecked_sig, body)
+
+    return esc(:($safe_def, $unchecked_def))
 end
 
-macro ocl_func(func, ret_type, arg_types)
-    _ocl_func(func, ret_type, arg_types)
+function retry_reclaim(f, isfailed)
+    ret = f()
+
+    # slow path, incrementally reclaiming more memory until we succeed
+    if isfailed(ret)
+        phase = 1
+        while true
+            if phase == 1
+                GC.gc(false)
+            elseif phase == 2
+                GC.gc(true)
+            else
+                break
+            end
+            phase += 1
+
+            ret = f()
+            isfailed(ret) || break
+        end
+    end
+
+    ret
 end
 
-const CL_callback  = Ptr{Nothing}
+include("../lib/libopencl.jl")
 
-abstract type CL_user_data_tag end
-const CL_user_data = Ptr{CL_user_data_tag}
+# lazy initialization
+const initialized = Ref{Bool}(false)
+@noinline function initialize()
+    initialized[] = true
 
-Base.cconvert(::Type{Ptr{CL_user_data_tag}}, obj::T) where {T} = Ref{T}(obj)
+    if isempty(OpenCL_jll.drivers)
+        @warn """No OpenCL driver JLLs were detected at the time of the first call into OpenCL.jl.
+                 Only system drivers will be available."""
+        return
+    end
 
-Base.unsafe_convert(P::Type{Ptr{CL_user_data_tag}}, ptr::Ref) = P(Base.unsafe_convert(Ptr{Cvoid}, ptr))
-Base.unsafe_convert(P::Type{Ptr{CL_user_data_tag}}, ptr::Ptr) = P(Base.unsafe_convert(Ptr{Cvoid}, ptr))
-
-include("api/opencl_1.0.0.jl")
-include("api/opencl_1.1.0.jl")
-include("api/opencl_1.2.0.jl")
-include("api/opencl_2.0.0.jl")
+    withenv("OCL_ICD_FILENAMES"=>join(OpenCL_jll.drivers, ':')) do
+        num_platforms = Ref{Cuint}()
+        @ccall libopencl.clGetPlatformIDs(
+            0::cl_uint, C_NULL::Ptr{cl_platform_id},
+            num_platforms::Ptr{cl_uint})::cl_int
+    end
+end
 
 function parse_version(version_string)
     mg = match(r"^OpenCL ([0-9]+)\.([0-9]+) .*$", version_string)
@@ -46,6 +97,4 @@ function parse_version(version_string)
     end
     return VersionNumber(parse(Int, mg.captures[1]),
                                  parse(Int, mg.captures[2]))
-end
-
 end

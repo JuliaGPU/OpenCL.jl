@@ -112,9 +112,9 @@ ctx = cl.create_some_context()
 queue = cl.CmdQueue(ctx, :profile)
 
 # create OpenCL Buffers
-d_a = cl.Buffer(Float32, ctx, (:r,:copy), hostbuf=h_A)
-d_b = cl.Buffer(Float32, ctx, (:r,:copy), hostbuf=h_B)
-d_c = cl.Buffer(Float32, ctx, :w, length(h_C))
+d_a = cl.Buffer(Float32, ctx, length(h_A), (:r,:copy), hostbuf=h_A)
+d_b = cl.Buffer(Float32, ctx, length(h_B), (:r,:copy), hostbuf=h_B)
+d_c = cl.Buffer(Float32, ctx, length(h_C), :w)
 
 prg  = cl.Program(ctx, source=kernel_source) |> cl.build!
 mmul = cl.Kernel(prg, "mmul")

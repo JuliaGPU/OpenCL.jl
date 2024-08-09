@@ -46,9 +46,9 @@ b = rand(Float32, 50_000)
 
 device, ctx, queue = cl.create_compute_context()
 
-a_buff = cl.Buffer(Float32, ctx, (:r, :copy), hostbuf=a)
-b_buff = cl.Buffer(Float32, ctx, (:r, :copy), hostbuf=b)
-c_buff = cl.Buffer(Float32, ctx, :w, length(a))
+a_buff = cl.Buffer(Float32, ctx, length(a), (:r, :copy), hostbuf=a)
+b_buff = cl.Buffer(Float32, ctx, length(b), (:r, :copy), hostbuf=b)
+c_buff = cl.Buffer(Float32, ctx, length(a), :w)
 
 p = cl.Program(ctx, source=sum_kernel) |> cl.build!
 k = cl.Kernel(p, "sum")
@@ -146,7 +146,7 @@ Here's a rough translation between the OpenCL API in C to this Julia version. Op
 | `clGetKernelInfo` | `cl.info(kernel, :symbol)` | Kernel info: `:name`, `:num_args`, `:reference_count`, `:program`, `:attributes` |
 | `clEnqueueNDRangeKernel` | `cl.enqueue_kernel(queue, kernel, global_work_size)`, `cl.enqueue_kernel(queue, kernel, global_work_size, local_work_size; global_work_offset, wait_on)` | |
 | `clSetKernelArg` | `cl.set_arg!(kernel, idx, arg)` | `idx` starts at 1 |
-| `clCreateUserEvent` | `cl.UserEvent(ctx; retain)`  | | 
+| `clCreateUserEvent` | `cl.UserEvent(ctx; retain)`  | |
 | `clGetEventInfo`    | `cl.info(event, :symbol)`    | Event info: `:context`, `:command_queue`, `:reference_count`, `:command_type`, `:status`, `:profile_start`, `:profile_end`, `:profile_queued`, `:profile_submit`, `:profile_duration`
 | `clWaitForEvents`   | `cl.wait(event)`, `cl.wait(events)` |
 | `clEnqueueMarkerWithWaitList` | `cl.enqueue_marker_with_wait_list(queue, wait_for)` | |

@@ -3,13 +3,13 @@
 using Printf
 
 mutable struct Program <: CLObject
-    id::CL_program
+    id::cl_program
     binary::Bool
 
-    function Program(program_id::CL_program;
+    function Program(program_id::cl_program;
                      retain::Bool=false, binary::Bool=false)
         if retain
-            @check api.clRetainProgram(program_id)
+            clRetainProgram(program_id)
         end
         p = new(program_id, binary)
         finalizer(_finalize, p)
@@ -19,7 +19,7 @@ end
 
 function _finalize(p::Program)
     if p.id != C_NULL
-        @check api.clReleaseProgram(p.id)
+        clReleaseProgram(p.id)
         p.id = C_NULL
     end
 end
@@ -35,14 +35,14 @@ Base.pointer(p::Program) = p.id
 Base.getindex(p::Program, pinfo::Symbol) = info(p, pinfo)
 
 function Program(ctx::Context; source=nothing, binaries=nothing)
-    local program_id::CL_program
+    local program_id::cl_program
     if source !== nothing && binaries !== nothing
         throw(ArgumentError("Program be source or binary"))
     end
     if source !== nothing
         byte_source = [String(source)]
-        err_code = Ref{CL_int}()
-        program_id = api.clCreateProgramWithSource(ctx.id, 1, byte_source, C_NULL, err_code)
+        err_code = Ref{Cint}()
+        program_id = clCreateProgramWithSource(ctx.id, 1, byte_source, C_NULL, err_code)
         if err_code[] != CL_SUCCESS
             throw(CLError(err_code[]))
         end
@@ -50,9 +50,9 @@ function Program(ctx::Context; source=nothing, binaries=nothing)
 
     elseif binaries !== nothing
         ndevices = length(binaries)
-        device_ids = Vector{CL_device_id}(undef, ndevices)
+        device_ids = Vector{cl_device_id}(undef, ndevices)
         bin_lengths = Vector{Csize_t}(undef, ndevices)
-        binary_status = Vector{CL_int}(undef, ndevices)
+        binary_status = Vector{Cint}(undef, ndevices)
         binary_ptrs= Vector{Ptr{UInt8}}(undef, ndevices)
         try
             for (i, (dev, bin)) in enumerate(binaries)
@@ -60,8 +60,8 @@ function Program(ctx::Context; source=nothing, binaries=nothing)
                 bin_lengths[i] = length(bin)
                 binary_ptrs[i] = Base.unsafe_convert(Ptr{UInt8}, pointer(bin))
             end
-            err_code = Ref{CL_int}()
-            program_id = api.clCreateProgramWithBinary(ctx.id, ndevices, device_ids, bin_lengths,
+            err_code = Ref{Cint}()
+            program_id = clCreateProgramWithBinary(ctx.id, ndevices, device_ids, bin_lengths,
                                                        binary_ptrs, binary_status, err_code)
             if err_code[] != CL_SUCCESS
                 throw(CLError(err_code[]))
@@ -89,10 +89,7 @@ function build!(p::Program; options = "", raise = true)
     opts = String(options)
     ndevices = 0
     device_ids = C_NULL
-    err = api.clBuildProgram(p.id, cl_uint(ndevices), device_ids, opts, C_NULL, C_NULL)
-    if err != CL_BUILD_PROGRAM_FAILURE
-       @check err
-    end
+    err = unchecked_clBuildProgram(p.id, cl_uint(ndevices), device_ids, opts, C_NULL, C_NULL)
     for (dev, status) in cl.info(p, :build_status)
         if status == cl.CL_BUILD_ERROR
             println(stderr, "Couldn't compile kernel: ")
@@ -100,33 +97,36 @@ function build!(p::Program; options = "", raise = true)
             print_with_linenumbers(source, "    ", stderr)
             println(stderr, "With following build error:")
             println(stderr, cl.info(p, :build_log)[dev])
-            raise && @check err # throw the build error when raise!
+            raise && err # throw the build error when raise!
         end
+    end
+    if err != CL_SUCCESS
+       throw(CLError(err))
     end
     return p
 end
 
 function info(p::Program, pinfo::Symbol)
     num_devices(p::Program) = begin
-        ret = Ref{CL_uint}()
-        @check api.clGetProgramInfo(p.id, CL_PROGRAM_NUM_DEVICES, sizeof(ret), ret, C_NULL)
+        ret = Ref{Cuint}()
+        clGetProgramInfo(p.id, CL_PROGRAM_NUM_DEVICES, sizeof(ret), ret, C_NULL)
         return ret[]
     end
 
     devices(p::Program) = begin
         ndevices = num_devices(p)
-        device_ids = Vector{CL_device_id}(undef, ndevices)
-        @check api.clGetProgramInfo(p.id, CL_PROGRAM_DEVICES,
-                                    sizeof(CL_device_id) * ndevices, device_ids, C_NULL)
+        device_ids = Vector{cl_device_id}(undef, ndevices)
+        clGetProgramInfo(p.id, CL_PROGRAM_DEVICES,
+                             sizeof(cl_device_id) * ndevices, device_ids, C_NULL)
         return [Device(device_ids[i]) for i in 1:ndevices]
     end
 
     build_status(p::Program) = begin
-        status_dict = Dict{Device, CL_build_status}()
-        status = Ref{CL_build_status}()
+        status_dict = Dict{Device, cl_build_status}()
+        status = Ref{cl_build_status}()
         for d in devices(p)
-            @check api.clGetProgramBuildInfo(p.id, d.id, CL_PROGRAM_BUILD_STATUS,
-                                             sizeof(CL_build_status), status, C_NULL)
+            clGetProgramBuildInfo(p.id, d.id, CL_PROGRAM_BUILD_STATUS,
+                                      sizeof(cl_build_status), status, C_NULL)
             status_dict[d] = status[]
         end
         return status_dict
@@ -136,15 +136,15 @@ function info(p::Program, pinfo::Symbol)
         logs = Dict{Device, String}()
         for d in devices(p)
             log_len = Ref{Csize_t}()
-            @check api.clGetProgramBuildInfo(p.id, d.id, CL_PROGRAM_BUILD_LOG,
-                                             0, C_NULL, log_len)
+            clGetProgramBuildInfo(p.id, d.id, CL_PROGRAM_BUILD_LOG,
+                                      0, C_NULL, log_len)
             if log_len[] == 0
                 logs[d] = ""
                 continue
             end
-            log_bytestring = Vector{CL_char}(undef, log_len[])
-            @check api.clGetProgramBuildInfo(p.id, d.id, CL_PROGRAM_BUILD_LOG,
-                                            log_len[], log_bytestring, C_NULL)
+            log_bytestring = Vector{Cchar}(undef, log_len[])
+            clGetProgramBuildInfo(p.id, d.id, CL_PROGRAM_BUILD_LOG,
+                                      log_len[], log_bytestring, C_NULL)
             logs[d] = CLString(log_bytestring)
         end
         return logs
@@ -153,11 +153,11 @@ function info(p::Program, pinfo::Symbol)
     binaries(p::Program) = begin
         binary_dict = Dict{Device, Array{UInt8}}()
         slen = Ref{Csize_t}()
-        @check api.clGetProgramInfo(p.id, CL_PROGRAM_BINARY_SIZES,
+        clGetProgramInfo(p.id, CL_PROGRAM_BINARY_SIZES,
                                     0, C_NULL, slen)
 
         sizes = zeros(Csize_t, slen[])
-        @check api.clGetProgramInfo(p.id, CL_PROGRAM_BINARY_SIZES,
+        clGetProgramInfo(p.id, CL_PROGRAM_BINARY_SIZES,
                                     slen[], sizes, C_NULL)
         bins = Vector{Ptr{UInt8}}(undef, length(sizes))
         # keep a reference to the underlying binary arrays
@@ -173,7 +173,7 @@ function info(p::Program, pinfo::Symbol)
                 bins[i] = Base.unsafe_convert(Ptr{UInt8}, C_NULL)
             end
         end
-        @check api.clGetProgramInfo(p.id, CL_PROGRAM_BINARIES,
+        clGetProgramInfo(p.id, CL_PROGRAM_BINARIES,
                                     length(sizes) * sizeof(Ptr{UInt8}),
                                     bins, C_NULL)
         bidx = 1
@@ -189,24 +189,24 @@ function info(p::Program, pinfo::Symbol)
     source(p::Program) = begin
         p.binary && throw(CLError(-45))
         src_len = Ref{Csize_t}()
-        @check api.clGetProgramInfo(p.id, CL_PROGRAM_SOURCE, 0, C_NULL, src_len)
+        clGetProgramInfo(p.id, CL_PROGRAM_SOURCE, 0, C_NULL, src_len)
         src_len[] <= 1 && return nothing
         src = Vector{Cchar}(undef, src_len[])
-        @check api.clGetProgramInfo(p.id, CL_PROGRAM_SOURCE, src_len[], src, C_NULL)
+        clGetProgramInfo(p.id, CL_PROGRAM_SOURCE, src_len[], src, C_NULL)
         return CLString(src)
     end
 
     context(p::Program) = begin
-        ret = Ref{CL_context}()
-        @check api.clGetProgramInfo(p.id, CL_PROGRAM_CONTEXT,
-                                    sizeof(CL_context), ret, C_NULL)
+        ret = Ref{cl_context}()
+        clGetProgramInfo(p.id, CL_PROGRAM_CONTEXT,
+                                    sizeof(cl_context), ret, C_NULL)
         return Context(ret[], retain = true)
     end
 
     reference_count(p::Program) = begin
-        ret = Ref{CL_uint}()
-        @check api.clGetProgramInfo(p.id, CL_PROGRAM_REFERENCE_COUNT,
-                                    sizeof(CL_uint), ret, C_NULL)
+        ret = Ref{Cuint}()
+        clGetProgramInfo(p.id, CL_PROGRAM_REFERENCE_COUNT,
+                                    sizeof(Cuint), ret, C_NULL)
         return ret[]
     end
 

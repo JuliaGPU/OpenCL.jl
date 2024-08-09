@@ -1,17 +1,17 @@
 # OpenCL.CmdQueue
 
 mutable struct CmdQueue <: CLObject
-    id::CL_command_queue
+    id::cl_command_queue
 
-    function CmdQueue(q_id::CL_command_queue; retain=false)
+    function CmdQueue(q_id::cl_command_queue; retain=false)
         if retain
-            @check api.clRetainCommandQueue(q_id)
+            clRetainCommandQueue(q_id)
         end
         q = new(q_id)
         finalizer(q) do x
             retain || _deletecached!(q)
             if x.id != C_NULL
-                @check api.clReleaseCommandQueue(x.id)
+                clReleaseCommandQueue(x.id)
                 x.id = C_NULL
             end
         end
@@ -79,12 +79,12 @@ function CmdQueue(ctx::Context, dev::Device, props::NTuple{2,Symbol})
     return CmdQueue(ctx, dev, flags)
 end
 
-function CmdQueue(ctx::Context, dev::Device, props::CL_command_queue_properties)
-    err_code = Ref{CL_int}()
-    queue_id = api.clCreateCommandQueue(ctx.id, dev.id, props, err_code)
+function CmdQueue(ctx::Context, dev::Device, props)
+    err_code = Ref{Cint}()
+    queue_id = clCreateCommandQueue(ctx.id, dev.id, props, err_code)
     if err_code[] != CL_SUCCESS
         if queue_id != C_NULL
-            api.clReleaseCommandQueue(queue_id)
+            clReleaseCommandQueue(queue_id)
         end
         throw(CLError(err_code[]))
     end
@@ -92,41 +92,41 @@ function CmdQueue(ctx::Context, dev::Device, props::CL_command_queue_properties)
 end
 
 function flush(q::CmdQueue)
-    @check api.clFlush(q.id)
+    clFlush(q.id)
     return q
 end
 
 function finish(q::CmdQueue)
-    @check api.clFinish(q.id)
+    clFinish(q.id)
     return q
 end
 
 function info(q::CmdQueue, qinfo::Symbol)
     context(q::CmdQueue) = begin
-        ctx_id = Ref{CL_context}()
-        @check api.clGetCommandQueueInfo(q.id, CL_QUEUE_CONTEXT,
-                                         sizeof(CL_context), ctx_id, C_NULL)
+        ctx_id = Ref{cl_context}()
+        clGetCommandQueueInfo(q.id, CL_QUEUE_CONTEXT,
+                                         sizeof(cl_context), ctx_id, C_NULL)
         Context(ctx_id[], retain=true)
     end
 
     device(q::CmdQueue) = begin
-        dev_id = Ref{CL_device_id}()
-        @check api.clGetCommandQueueInfo(q.id, CL_QUEUE_DEVICE,
-                                         sizeof(CL_device_id), dev_id, C_NULL)
+        dev_id = Ref{cl_device_id}()
+        clGetCommandQueueInfo(q.id, CL_QUEUE_DEVICE,
+                                         sizeof(cl_device_id), dev_id, C_NULL)
         Device(dev_id[])
     end
 
     reference_count(q::CmdQueue) = begin
-        ref_count = Ref{CL_uint}()
-        @check api.clGetCommandQueueInfo(q.id, CL_QUEUE_REFERENCE_COUNT,
-                                         sizeof(CL_uint), ref_count, C_NULL)
+        ref_count = Ref{Cuint}()
+        clGetCommandQueueInfo(q.id, CL_QUEUE_REFERENCE_COUNT,
+                                         sizeof(Cuint), ref_count, C_NULL)
         ref_count[]
     end
 
     properties(q::CmdQueue) = begin
-        props = Ref{CL_command_queue_properties}()
-        @check api.clGetCommandQueueInfo(q.id, CL_QUEUE_PROPERTIES,
-                                         sizeof(CL_command_queue_properties),
+        props = Ref{cl_command_queue_properties}()
+        clGetCommandQueueInfo(q.id, CL_QUEUE_PROPERTIES,
+                                         sizeof(cl_command_queue_properties),
                                          props, C_NULL)
         props[]
     end

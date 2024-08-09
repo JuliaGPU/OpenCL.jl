@@ -16,9 +16,9 @@ device, ctx, queue = cl.create_compute_context()
 
 # create opencl buffer objects
 # copies to the device initiated when the kernel function is called
-a_buff = cl.Buffer(Float32, ctx, (:r, :copy), hostbuf=a)
-b_buff = cl.Buffer(Float32, ctx, (:r, :copy), hostbuf=b)
-c_buff = cl.Buffer(Float32, ctx, :w, length(a))
+a_buff = cl.Buffer(Float32, ctx, length(a), (:r, :copy); hostbuf=a)
+b_buff = cl.Buffer(Float32, ctx, length(b), (:r, :copy); hostbuf=b)
+c_buff = cl.Buffer(Float32, ctx, length(a), :w)
 
 # build the program and construct a kernel object
 p = cl.Program(ctx, source=sum_kernel_src) |> cl.build!

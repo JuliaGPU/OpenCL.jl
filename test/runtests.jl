@@ -3,6 +3,23 @@ using Test
 using OpenCL
 using Base.GC
 
+backend = get(ENV, "JULIA_OPENCL_BACKEND", "POCL")
+if backend == "POCL"
+    # Use POCL for the tests
+    # XXX: support testing with other OpenCL implementations
+    using pocl_jll
+    platform = filter(cl.platforms()) do platform
+        cl.info(platform, :name) == "Portable Computing Language"
+    end |> first
+    device = first(cl.devices(platform, :cpu))
+else
+    platform = first(cl.platforms())
+    device = first(cl.devices(platform))
+end
+@info "Testing using $backend back-end" platform device
+
+@testset "OpenCL.jl" begin
+
 @testset "layout" begin
     x = ((10f0, 1f0, 2f0), (10f0, 1f0, 2f0), (10f0, 1f0, 2f0))
     clx = cl.replace_different_layout(x)
@@ -13,31 +30,24 @@ using Base.GC
     @test clx == 0 # TODO should it be like this?
 end
 
-function create_test_buffer()
-    ctx = cl.create_some_context()
-    queue = cl.CmdQueue(ctx)
-    testarray = zeros(Float32, 1000)
-    buf = cl.Buffer(Float32, ctx, (:rw, :copy), hostbuf=testarray)
-    return (queue, buf, testarray, ctx)
-end
-
-include("test_platform.jl")
-include("test_context.jl")
-include("test_device.jl")
-include("test_cmdqueue.jl")
-include("test_minver.jl")
-#TODO: fix test_event.jl
-#include("test_event.jl")
-include("test_program.jl")
-include("test_kernel.jl")
-include("test_behaviour.jl")
-include("test_memory.jl")
-include("test_buffer.jl")
-include("test_array.jl")
+include("platform.jl")
+include("context.jl")
+include("device.jl")
+include("cmdqueue.jl")
+include("minver.jl")
+#include("event.jl")
+include("program.jl")
+include("kernel.jl")
+include("behaviour.jl")
+include("memory.jl")
+include("buffer.jl")
+include("array.jl")
 
 @testset "context jl reference counting" begin
     Base.GC.gc()
     @test isempty(cl._ctx_reference_count)
+end
+
 end
 
 end # module

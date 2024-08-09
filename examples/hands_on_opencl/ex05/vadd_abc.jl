@@ -50,12 +50,12 @@ h_a = rand(Float32, LENGTH)
 h_b = rand(Float32, LENGTH)
 h_c = rand(Float32, LENGTH)
 
-d_a = cl.Buffer(Float32, ctx, (:r, :copy), hostbuf=h_a)
-d_b = cl.Buffer(Float32, ctx, (:r, :copy), hostbuf=h_b)
-d_c = cl.Buffer(Float32, ctx, (:r, :copy), hostbuf=h_c)
+d_a = cl.Buffer(Float32, ctx, length(h_a), (:r, :copy), hostbuf=h_a)
+d_b = cl.Buffer(Float32, ctx, length(h_b), (:r, :copy), hostbuf=h_b)
+d_c = cl.Buffer(Float32, ctx, length(h_c), (:r, :copy), hostbuf=h_c)
 
 # create the output (r) buffer in device memory
-d_r = cl.Buffer(Float32, ctx, :w, LENGTH)
+d_r = cl.Buffer(Float32, ctx, LENGTH, :w)
 
 # create the kernel
 vadd = cl.Kernel(program, "vadd")

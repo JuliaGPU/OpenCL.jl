@@ -1,0 +1,12 @@
+[general]
+library_name = "libopencl"
+output_file_path = "../lib/libopencl.jl"
+prologue_file_path = "./opencl_prologue.jl"
+print_using_CEnum = false
+
+
+[codegen]
+use_ccall_macro = true
+
+[api]
+checked_rettypes = [ "cl_int" ]

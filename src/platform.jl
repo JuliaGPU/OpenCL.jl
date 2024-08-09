@@ -1,13 +1,13 @@
 # OpenCL.Platform
 
 struct Platform <: CLObject
-    id::CL_platform_id
+    id::cl_platform_id
 end
 
 Base.pointer(p::Platform) = p.id
 
 function info(p::Platform, pinfo::Symbol)
-    info_map = Dict{Symbol, CL_platform_info}(
+    info_map = Dict{Symbol, cl_platform_info}(
         :profile => CL_PLATFORM_PROFILE,
         :version => CL_PLATFORM_VERSION,
         :name    => CL_PLATFORM_NAME,
@@ -39,36 +39,36 @@ function Base.show(io::IO, p::Platform)
 end
 
 function platforms()
-    nplatforms = Ref{CL_uint}()
-    @check api.clGetPlatformIDs(0, C_NULL, nplatforms)
-    cl_platform_ids = Vector{CL_platform_id}(undef, nplatforms[])
-    @check api.clGetPlatformIDs(nplatforms[], cl_platform_ids, C_NULL)
+    nplatforms = Ref{Cuint}()
+    clGetPlatformIDs(0, C_NULL, nplatforms)
+    cl_platform_ids = Vector{cl_platform_id}(undef, nplatforms[])
+    clGetPlatformIDs(nplatforms[], cl_platform_ids, C_NULL)
     return [Platform(id) for id in cl_platform_ids]
 end
 
 function num_platforms()
-    nplatforms = Ref{CL_uint}()
-    @check api.clGetPlatformIDs(0, C_NULL, nplatforms)
+    nplatforms = Ref{Cuint}()
+    clGetPlatformIDs(0, C_NULL, nplatforms)
     return Int(nplatforms[])
 end
 
-function info(p::Platform, pinfo::CL_platform_info)
+function info(p::Platform, pinfo)
     size = Ref{Csize_t}()
-    @check api.clGetPlatformInfo(p.id, pinfo, 0, C_NULL, size)
-    result = Vector{CL_char}(undef, size[])
-    @check api.clGetPlatformInfo(p.id, pinfo, size[], result, C_NULL)
+    clGetPlatformInfo(p.id, pinfo, 0, C_NULL, size)
+    result = Vector{Cchar}(undef, size[])
+    clGetPlatformInfo(p.id, pinfo, size[], result, C_NULL)
     return CLString(result)
 end
 
-function devices(p::Platform, dtype::CL_device_type)
+function devices(p::Platform, dtype)
     try
-        ndevices = Ref{CL_uint}()
-        @check api.clGetDeviceIDs(p.id, dtype, 0, C_NULL, ndevices)
+        ndevices = Ref{Cuint}()
+        clGetDeviceIDs(p.id, dtype, 0, C_NULL, ndevices)
         if ndevices[] == 0
             return Device[]
         end
-        result = Vector{CL_device_id}(undef, ndevices[])
-        @check api.clGetDeviceIDs(p.id, dtype, ndevices[], result, C_NULL)
+        result = Vector{cl_device_id}(undef, ndevices[])
+        clGetDeviceIDs(p.id, dtype, ndevices[], result, C_NULL)
         return Device[Device(id) for id in result]
     catch err
         if err.desc == :CL_DEVICE_NOT_FOUND || err.code == -1
@@ -85,7 +85,7 @@ function devices(p::Platform, dtype::Symbol)
     devices(p, cl_device_type(dtype))
 end
 
-function devices(dtype::CL_device_type)
+function devices(dtype)
     devs = Device[]
     for platform in platforms()
         append!(devs, devices(platform, dtype))
