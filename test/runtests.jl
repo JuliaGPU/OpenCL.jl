@@ -3,14 +3,20 @@ using Test
 using OpenCL
 using Base.GC
 
-# Use POCL for the tests
-# XXX: support testing with other OpenCL implementations
-using pocl_jll
-platform = filter(cl.platforms()) do platform
-    cl.info(platform, :name) == "Portable Computing Language"
-end |> first
-device = first(cl.devices(platform, :cpu))
-@info "Testing using POCL" platform device
+backend = get(ENV, "JULIA_OPENCL_BACKEND", "POCL")
+if backend == "POCL"
+    # Use POCL for the tests
+    # XXX: support testing with other OpenCL implementations
+    using pocl_jll
+    platform = filter(cl.platforms()) do platform
+        cl.info(platform, :name) == "Portable Computing Language"
+    end |> first
+    device = first(cl.devices(platform, :cpu))
+else
+    platform = first(cl.platforms())
+    device = first(cl.devices(platform))
+end
+@info "Testing using $backend back-end" platform device
 
 @testset "OpenCL.jl" begin
 

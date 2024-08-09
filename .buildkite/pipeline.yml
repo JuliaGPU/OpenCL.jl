@@ -1,0 +1,16 @@
+steps:
+  - label: "CUDA"
+    plugins:
+      - JuliaCI/julia#v1:
+          version: "1.10"
+      - JuliaCI/julia-test#v1: ~
+      - JuliaCI/julia-coverage#v1:
+          codecov: true
+    agents:
+      queue: "juliagpu"
+      cuda: "*"
+    if: build.message !~ /\[skip tests\]/
+    env:
+      JULIA_OPENCL_BACKEND: "CUDA"
+      OCL_ICD_FILENAMES: "libnvidia-opencl.so.1"
+    timeout_in_minutes: 60
