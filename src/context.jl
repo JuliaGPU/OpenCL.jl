@@ -205,8 +205,6 @@ function properties(ctx_id::cl_context)
            key == CL_WGL_HDC_KHR ||
            key == CL_CGL_SHAREGROUP_KHR
             push!(result, (key, value))
-        elseif Sys.isapple() ? (key == CL_CONTEXT_PROPERTY_USE_CGL_SHAREGROUP_APPLE) : false
-            push!(result, (key, value))
         elseif key == 0
             if i != nprops
                 @warn("Encountered OpenCL.Context property key == 0 at position $i")
