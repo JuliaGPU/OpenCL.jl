@@ -1,22 +1,22 @@
-### >> THIS PACKAGE NEEDS A MAINTAINER << ###
-
-Please reach out to @juliohm if you would like to be the new maintainer.
-
 # OpenCL.jl
 
-[![][buildkite-img]][buildkite-url]
+[![][buildkite-img]][buildkite-url] [![][github-img]][github-url]
 
 [buildkite-img]: https://badge.buildkite.com/6b2a46bff67692115dea3ad5a275d2f80777a5a99ffe42adb0.svg
 [buildkite-url]: https://buildkite.com/julialang/opencl-dot-jl
+[github-img]: https://github.com/JuliaGPU/OpenCL.jl/actions/workflows/CI.yml/badge.svg
+[github-url]: https://github.com/JuliaGPU/OpenCL.jl/actions/workflows/CI.yml
 
 *Julia interface for the OpenCL parallel computation API*
 
 This package aims to be a complete solution for OpenCL programming in Julia, similar in scope to [PyOpenCL] for Python. It provides a high level API for OpenCL to make programing hardware accelerators, such as GPUs, FPGAs, and DSPs, as well as multicore CPUs much less onerous.
 
-OpenCL.jl provides access to [OpenCL API](https://www.khronos.org/registry/OpenCL/) versions 1.0, 1.1, 1.2 and 2.0.
+**OpenCL.jl needs your help! If you can help maintaining this package, please reach out on the [JuliaLang Slack](https://julialang.org/slack/) #gpu channel**
+
 
 ## Installation
-1. Install an OpenCL driver. (If you're on macOS, OpenCL is either already available or unsupported.)
+
+1. Install an OpenCL driver. You can install one system-wide, i.e., using your package manager, or use `pocl_jll.jl` for a CPU back-end.
 2. Add OpenCL to your Julia environment:
 
 ```julia
@@ -24,13 +24,14 @@ using Pkg
 Pkg.add("OpenCL")
 ```
 
+
 ## Basic example: vector add
 
 **Note:** We use `cl.create_compute_context()` here which only considers GPUs and CPUs.
 
 ```julia
 using LinearAlgebra
-using OpenCL
+using OpenCL, pocl_jll
 
 const sum_kernel = "
    __kernel void sum(__global const float *a,
@@ -64,14 +65,18 @@ else
 end
 ```
 
+
 ## More examples
-You may want to check out the `examples` folder. Either `git clone` the repository to your local machine or navigate to the OpenCL.jl install directory via
+
+You may want to check out the `examples` folder. Either `git clone` the repository to your local machine or navigate to the OpenCL.jl install directory via:
+
 ```julia
 using OpenCL
 cd(joinpath(dirname(pathof(OpenCL)), ".."))
 ```
 
-Otherwise, feel free to take a look at the Jupyter notebooks below
+Otherwise, feel free to take a look at the Jupyter notebooks below:
+
   * [OpenCL Fractals]
   * [GPU Buffer Transpose]
   * [Low Level API]
@@ -79,6 +84,7 @@ Otherwise, feel free to take a look at the Jupyter notebooks below
 [OpenCL Fractals]:http://nbviewer.ipython.org/7517923
 [GPU Buffer Transpose]:http://nbviewer.ipython.org/7517952
 [Low Level API]:http://nbviewer.ipython.org/7452048
+
 
 ## Credit
 
@@ -94,14 +100,12 @@ This package is heavily influenced by the work of others:
 [Boost.Compute]:https://github.com/kylelutz/compute
 [rust-opencl]: https://github.com/luqmana/rust-opencl
 
-## Documentation: API
 
+## Documentation: API
 
 Here's a rough translation between the OpenCL API in C to this Julia version. Optional arguments are indicated by `[name?]` (see `clCreateBuffer`, for example). For a quick reference to the C version, see [the Khronos quick reference card](https://www.khronos.org/files/opencl-1-2-quick-reference-card.pdf).
 
-
 ### Platform and Devices
-
 
 | C                   | Julia                                                       | Notes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 |---------------------|-------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -112,9 +116,7 @@ Here's a rough translation between the OpenCL API in C to this Julia version. Op
 | `clCreateContext`   | `cl.context(queue)`, `cl.context(CLMemObject), `cl.context(CLArray)` | |
 | `clReleaeContext`   | `cl.release!` | |
 
-
 ### Buffers
-
 
 | C                      | Julia                                                                                                       | Notes                                                      |
 |------------------------|-------------------------------------------------------------------------------------------------------------|------------------------------------------------------------|
@@ -124,9 +126,7 @@ Here's a rough translation between the OpenCL API in C to this Julia version. Op
 | `clEnqueueReadBuffer`  | `cl.enqueue_read_buffer(queue, buffer, hostbuf, dev_offset, wait_for, is_blocking)`                         |                                                            |
 | `clEnqueueWriteBuffer` | `cl.enqueue_write_buffer(queue, buffer, hostbuf, byte_count, offset, wait_for, is_blocking)`                |                                                            |
 
-
 ### Program Objects
-
 
 | C                             | Julia                        | Notes                                                                                                                           |
 |-------------------------------|------------------------------|---------------------------------------------------------------------------------------------------------------------------------|
@@ -136,9 +136,7 @@ Here's a rough translation between the OpenCL API in C to this Julia version. Op
 | `clBuildProgram`              | `cl.build!(progrm, options)` |                                                                                                                                 |
 | `clGetProgramInfo`            | `cl.info(program, :symbol)`  | Program info: `:reference_count`, `:devices`, `:context`, `:num_devices`, `:source`, `:binaries`, `:build_log`, `:build_status` |
 
-
 ### Kernel and Event Objects
-
 
 | C | Julia | Notes |
 | --- | --- | ----- |
