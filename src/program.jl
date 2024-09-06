@@ -4,14 +4,12 @@ using Printf
 
 mutable struct Program <: CLObject
     id::cl_program
-    binary::Bool
 
-    function Program(program_id::cl_program;
-                     retain::Bool=false, binary::Bool=false)
+    function Program(program_id::cl_program; retain::Bool=false)
         if retain
             clRetainProgram(program_id)
         end
-        p = new(program_id, binary)
+        p = new(program_id)
         finalizer(_finalize, p)
         return p
     end
@@ -34,10 +32,9 @@ Base.pointer(p::Program) = p.id
 
 Base.getindex(p::Program, pinfo::Symbol) = info(p, pinfo)
 
-function Program(ctx::Context; source=nothing, binaries=nothing)
-    local program_id::cl_program
-    if source !== nothing && binaries !== nothing
-        throw(ArgumentError("Program be source or binary"))
+function Program(ctx::Context; source=nothing, binaries=nothing, il=nothing)
+    if source !== nothing && binaries !== nothing && il !== nothing
+        throw(ArgumentError("Program be source, binary, or intermediate language"))
     end
     if source !== nothing
         byte_source = [String(source)]
@@ -46,7 +43,13 @@ function Program(ctx::Context; source=nothing, binaries=nothing)
         if err_code[] != CL_SUCCESS
             throw(CLError(err_code[]))
         end
-        return Program(program_id, binary=false)
+
+    elseif il !== nothing
+        err_code = Ref{Cint}()
+        program_id = clCreateProgramWithIL(ctx.id, il, length(il), err_code)
+        if err_code[] != CL_SUCCESS
+            throw(CLError(err_code[]))
+        end
 
     elseif binaries !== nothing
         ndevices = length(binaries)
@@ -74,8 +77,8 @@ function Program(ctx::Context; source=nothing, binaries=nothing)
         catch err
             throw(err)
         end
-        return Program(program_id, binary=true)
     end
+    Program(program_id)
 end
 
 function print_with_linenumbers(text, pad = "", io = STDOUT)
@@ -187,7 +190,6 @@ function info(p::Program, pinfo::Symbol)
     end
 
     source(p::Program) = begin
-        p.binary && throw(CLError(-45))
         src_len = Ref{Csize_t}()
         clGetProgramInfo(p.id, CL_PROGRAM_SOURCE, 0, C_NULL, src_len)
         src_len[] <= 1 && return nothing

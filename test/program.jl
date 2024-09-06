@@ -65,14 +65,7 @@
             @test length(binaries[device]) > 0
             prg2 = cl.Program(ctx, binaries=binaries)
             @test prg2[:binaries] == binaries
-            try
-                prg2[:source]
-                error("should not happen")
-            catch err
-                @test isa(err, cl.CLError)
-                @test err.code == -45
-                @test err.desc == :CL_INVALID_PROGRAM_EXECUTABLE
-            end
+            @test prg2[:source] === nothing
         end
     end
 end

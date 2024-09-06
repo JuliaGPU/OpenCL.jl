@@ -1,0 +1,8 @@
+coverage:
+  ignore:
+    - "lib"
+    - "src/kernels"
+  status:
+    patch: false
+    project: false
+    changes: false
