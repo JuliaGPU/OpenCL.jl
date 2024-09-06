@@ -56,9 +56,3 @@ function get_kernel(ctx::Context, program_file::String,
         return kernel
     end
 end
-
-min_v11(elem) = check_version(elem, v"1.1")
-min_v12(elem) = check_version(elem, v"1.2")
-min_v20(elem) = check_version(elem, v"2.0")
-min_v21(elem) = check_version(elem, v"2.1")
-min_v22(elem) = check_version(elem, v"2.2")
