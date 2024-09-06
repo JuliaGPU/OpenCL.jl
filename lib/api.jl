@@ -90,11 +90,12 @@ const initialized = Ref{Bool}(false)
     end
 end
 
-function parse_version(version_string)
-    mg = match(r"^OpenCL ([0-9]+)\.([0-9]+) .*$", version_string)
-    if mg === nothing
-        error("Non conforming version string: $(ver)")
+const _versionDict = Dict{Ptr, VersionNumber}()
+
+_deletecached!(obj::CLObject) = delete!(_versionDict, pointer(obj))
+
+function check_version(obj::CLObject, version::VersionNumber)
+    version <= get!(_versionDict, pointer(obj)) do
+        opencl_version(obj)
     end
-    return VersionNumber(parse(Int, mg.captures[1]),
-                                 parse(Int, mg.captures[2]))
 end

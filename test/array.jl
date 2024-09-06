@@ -1,5 +1,3 @@
-using .cl: CLArray
-
 using LinearAlgebra
 
 @testset "CLArray" begin
@@ -26,10 +24,10 @@ using LinearAlgebra
         ctx = cl.Context(device)
         queue = cl.CmdQueue(ctx)
 
-        @test cl.to_host(cl.fill(Float32, queue, Float32(0.5),
+        @test to_host(fill(Float32, queue, Float32(0.5),
                                         32, 64)) == fill(Float32(0.5), 32, 64)
-        @test cl.to_host(cl.zeros(Float32, queue, 64)) == zeros(Float32, 64)
-        @test cl.to_host(cl.ones(Float32, queue, 64)) == ones(Float32, 64)
+        @test to_host(zeros(Float32, queue, 64)) == zeros(Float32, 64)
+        @test to_host(ones(Float32, queue, 64)) == ones(Float32, 64)
     end
 
     @testset "core functions" begin
@@ -44,9 +42,9 @@ using LinearAlgebra
         @test reshape(B, 128, 64) == A
         # transpose
         X = CLArray(queue, rand(Float32, 32, 32))
-        B = cl.zeros(Float32, queue, 64, 128)
+        B = zeros(Float32, queue, 64, 128)
         ev = transpose!(B, A)
         cl.wait(ev)
-        #@test cl.to_host(copy(A')) == cl.to_host(B)
+        #@test to_host(copy(A')) == to_host(B)
     end
 end
