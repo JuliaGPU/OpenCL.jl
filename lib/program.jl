@@ -33,8 +33,8 @@ Base.pointer(p::Program) = p.id
 Base.getindex(p::Program, pinfo::Symbol) = info(p, pinfo)
 
 function Program(ctx::Context; source=nothing, binaries=nothing, il=nothing)
-    if source !== nothing && binaries !== nothing && il !== nothing
-        throw(ArgumentError("Program be source, binary, or intermediate language"))
+    if count(!isnothing, (source, binaries, il)) != 1
+        throw(ArgumentError("Program must be source, binary, or intermediate language"))
     end
     if source !== nothing
         byte_source = [String(source)]
