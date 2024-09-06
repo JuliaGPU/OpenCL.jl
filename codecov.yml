@@ -1,6 +1,6 @@
 coverage:
   ignore:
-    - "lib"
+    - "lib/lib*.jl"
     - "src/kernels"
   status:
     patch: false

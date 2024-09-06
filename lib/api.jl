@@ -90,11 +90,11 @@ const initialized = Ref{Bool}(false)
     end
 end
 
-function parse_version(version_string)
-    mg = match(r"^OpenCL ([0-9]+)\.([0-9]+) .*$", version_string)
-    if mg === nothing
-        error("Non conforming version string: $(ver)")
+function __init__()
+    if !OpenCL_jll.is_available()
+        @error "OpenCL_jll is not available for your platform, OpenCL.jl. will not work."
     end
-    return VersionNumber(parse(Int, mg.captures[1]),
-                                 parse(Int, mg.captures[2]))
 end
+
+const _versionDict = Dict{Ptr, VersionNumber}()
+_deletecached!(obj::CLObject) = delete!(_versionDict, pointer(obj))

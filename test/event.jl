@@ -1,7 +1,7 @@
-if occursin("Portable", platform[:name]) ||
-   occursin("Intel Gen OCL", platform[:name])
-    msg = "$(platform[:name]) does not implement User Events or shows other problems"
-    @warn(msg)
+if backend in ["POCL", "Intel"]
+    # unsupported by POCL
+    # hangs on Intel
+    @warn "Skipping event tests"
 else
 @testset "Event" begin
     @testset "status" begin

@@ -7,7 +7,7 @@
         for k in [:profile, :version, :name, :vendor, :extensions]
             @test platform[k] == cl.info(platform, k)
         end
-        v = cl.opencl_version(platform)
+        v = opencl_version(platform)
         @test 1 <= v.major <= 3
         @test 0 <= v.minor <= 2
     end

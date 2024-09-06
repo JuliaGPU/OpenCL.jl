@@ -61,22 +61,16 @@ function info(p::Platform, pinfo)
 end
 
 function devices(p::Platform, dtype)
-    try
-        ndevices = Ref{Cuint}()
-        clGetDeviceIDs(p.id, dtype, 0, C_NULL, ndevices)
-        if ndevices[] == 0
-            return Device[]
-        end
-        result = Vector{cl_device_id}(undef, ndevices[])
-        clGetDeviceIDs(p.id, dtype, ndevices[], result, C_NULL)
-        return Device[Device(id) for id in result]
-    catch err
-        if err.desc == :CL_DEVICE_NOT_FOUND || err.code == -1
-            return Device[]
-        else
-            throw(err)
-        end
+    ndevices = Ref{Cuint}()
+    ret = unchecked_clGetDeviceIDs(p.id, dtype, 0, C_NULL, ndevices)
+    if ret == CL_DEVICE_NOT_FOUND || ndevices[] == 0
+        return Device[]
+    elseif ret != CL_SUCCESS
+        throw(CLError(ret))
     end
+    result = Vector{cl_device_id}(undef, ndevices[])
+    clGetDeviceIDs(p.id, dtype, ndevices[], result, C_NULL)
+    return Device[Device(id) for id in result]
 end
 
 devices(p::Platform) = devices(p, CL_DEVICE_TYPE_ALL)

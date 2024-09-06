@@ -11,6 +11,6 @@ steps:
       cuda: "*"
     if: build.message !~ /\[skip tests\]/
     env:
-      JULIA_OPENCL_BACKEND: "CUDA"
+      JULIA_OPENCL_BACKEND: "NVIDIA"
       OCL_ICD_FILENAMES: "libnvidia-opencl.so.1"
     timeout_in_minutes: 60

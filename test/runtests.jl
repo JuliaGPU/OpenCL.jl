@@ -1,22 +1,32 @@
-module TestOpenCL
 using Test
 using OpenCL
-using Base.GC
 
 backend = get(ENV, "JULIA_OPENCL_BACKEND", "POCL")
 if backend == "POCL"
-    # Use POCL for the tests
-    # XXX: support testing with other OpenCL implementations
     using pocl_jll
     platform = filter(cl.platforms()) do platform
         cl.info(platform, :name) == "Portable Computing Language"
     end |> first
     device = first(cl.devices(platform, :cpu))
-else
-    platform = first(cl.platforms())
+elseif backend in ["NVIDIA", "Intel"]
+    platforms = filter(cl.platforms()) do platform
+        contains(cl.info(platform, :name), backend)
+    end
+    platform = first(platforms)
     device = first(cl.devices(platform))
+else
+    # we're strict about the possible values for 'backend'
+    # so that we can more easily match in the tests.
+    error("""Unknown OpenCL backend: $backend.
+
+             Supported built-in backends: POCL.
+             Supported system back-ends: Intel, NVIDIA.""")
 end
-@info "Testing using $backend back-end" platform device
+@info """Testing using $backend back-end
+         - platform: $(cl.info(platform, :name))
+         - device: $(cl.info(device, :name))
+
+         To test with a different back-end, define JULIA_OPENCL_BACKEND."""
 
 @testset "OpenCL.jl" begin
 
@@ -34,8 +44,7 @@ include("platform.jl")
 include("context.jl")
 include("device.jl")
 include("cmdqueue.jl")
-include("minver.jl")
-#include("event.jl")
+include("event.jl")
 include("program.jl")
 include("kernel.jl")
 include("behaviour.jl")
@@ -44,10 +53,8 @@ include("buffer.jl")
 include("array.jl")
 
 @testset "context jl reference counting" begin
-    Base.GC.gc()
+    GC.gc()
     @test isempty(cl._ctx_reference_count)
 end
 
 end
-
-end # module
