@@ -15,12 +15,18 @@ elseif backend in ["NVIDIA", "Intel"]
     platform = first(platforms)
     device = first(cl.devices(platform))
 else
+    # we're strict about the possible values for 'backend'
+    # so that we can more easily match in the tests.
     error("""Unknown OpenCL backend: $backend.
 
              Supported built-in backends: POCL.
              Supported system back-ends: Intel, NVIDIA.""")
 end
-@info "Testing using $backend back-end" platform device
+@info """Testing using $backend back-end
+         - platform: $(cl.info(platform, :name))
+         - device: $(cl.info(device, :name))
+
+         To test with a different back-end, define JULIA_OPENCL_BACKEND."""
 
 @testset "OpenCL.jl" begin
 
