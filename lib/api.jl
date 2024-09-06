@@ -91,11 +91,4 @@ const initialized = Ref{Bool}(false)
 end
 
 const _versionDict = Dict{Ptr, VersionNumber}()
-
 _deletecached!(obj::CLObject) = delete!(_versionDict, pointer(obj))
-
-function check_version(obj::CLObject, version::VersionNumber)
-    version <= get!(_versionDict, pointer(obj)) do
-        opencl_version(obj)
-    end
-end

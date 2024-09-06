@@ -43,6 +43,30 @@ end
 
 NannyEvent(evt::Event, obj; retain=false) = NannyEvent(evt.id, obj, retain=retain)
 
+macro return_event(evt)
+    quote
+        evt = $(esc(evt))
+        try
+            return Event(evt, retain=false)
+        catch err
+            clReleaseEvent(evt)
+            throw(err)
+        end
+    end
+end
+
+macro return_nanny_event(evt, obj)
+    quote
+        evt = $(esc(evt))
+        try
+            return NannyEvent(evt, $(esc(obj)))
+        catch err
+            clReleaseEvent(evt)
+            throw(err)
+        end
+    end
+end
+
 Base.pointer(evt::CLEvent) = evt.id
 
 function Base.show(io::IO, evt::Event)
