@@ -92,7 +92,8 @@ end
 
 ## other array operations
 
-const TRANSPOSE_PROGRAM_PATH = joinpath(dirname(@__FILE__), "kernels/transpose.cl")
+const TRANSPOSE_FLOAT_PROGRAM_PATH = joinpath(@__DIR__, "kernels", "transpose_float.cl")
+const TRANSPOSE_DOUBLE_PROGRAM_PATH = joinpath(@__DIR__, "kernels", "transpose_double.cl")
 
 function max_block_size(queue::CmdQueue, h::Int, w::Int)
     dev = info(queue, :device)
@@ -109,7 +110,7 @@ function LinearAlgebra.transpose!(B::CLMatrix{Float32}, A::CLMatrix{Float32};
                                   queue=A.queue)
     block_size = max_block_size(queue, size(A, 1), size(A, 2))
     ctx = context(A)
-    kernel = get_kernel(ctx, TRANSPOSE_PROGRAM_PATH, "transpose",
+    kernel = get_kernel(ctx, TRANSPOSE_FLOAT_PROGRAM_PATH, "transpose",
                           block_size=block_size)
     h, w = size(A)
     lmem = LocalMem(Float32, block_size * (block_size + 1))
@@ -129,9 +130,13 @@ end
 """Transpose CLMatrix A, write result to a preallicated CLMatrix B"""
 function LinearAlgebra.transpose!(B::CLMatrix{Float64}, A::CLMatrix{Float64};
                          queue=A.queue)
+    dev = info(queue, :device)
+    if !in("cl_khr_fp64", info(dev, :extensions))
+        throw(ArgumentError("Double precision not supported by device"))
+    end
     block_size = max_block_size(queue, size(A, 1), size(A, 2))
     ctx = context(A)
-    kernel = get_kernel(ctx, TRANSPOSE_PROGRAM_PATH, "transpose_double",
+    kernel = get_kernel(ctx, TRANSPOSE_DOUBLE_PROGRAM_PATH, "transpose",
                           block_size=block_size)
     h, w = size(A)
     # lmem = LocalMem(Float64, block_size * (block_size + 1))
