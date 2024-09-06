@@ -1,4 +1,9 @@
 @testset "Program" begin
+    let ctx = cl.Context(device)
+        @test_throws ArgumentError cl.Program(ctx)
+        @test_throws ArgumentError cl.Program(ctx; source="", il="")
+    end
+
     test_source = "
     __kernel void sum(__global const float *a,
                       __global const float *b,
