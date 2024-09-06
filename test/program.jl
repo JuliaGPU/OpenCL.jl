@@ -51,8 +51,8 @@
        @test prg[:source] == test_source
     end
 
-    if device[:platform][:name] == "Portable Computing Language"
-        @warn("Skipping unsupported binary build on POCL")
+    if backend == "POCL"
+        @warn "Skipping binary program tests"
     else
         @testset "binaries" begin
             ctx = cl.Context(device)
