@@ -316,43 +316,40 @@ function enqueue_map_mem(q::CmdQueue,
     return (mapped_arr, Event(ret_evt[]))
 end
 
-@ocl_v1_2_only begin
-
-    # low level enqueue fill operation, return event
-    function enqueue_fill_buffer(q::CmdQueue, buf::Buffer{T},
-                                 pattern::T, offset::Csize_t,
-                                 nbytes::Csize_t,
-                                 wait_for::Union{Vector{Event},Nothing}) where T
-        if wait_for === nothing
-            evt_ids = C_NULL
-            n_evts = cl_uint(0)
-        else
-            evt_ids = [evt.id for evt in wait_for]
-            n_evts  = cl_uint(length(evt_ids))
-        end
-        ret_evt = Ref{cl_event}()
-        nbytes_pattern = sizeof(pattern)
-        @assert nbytes_pattern > 0
-        clEnqueueFillBuffer(q.id, buf.id, [pattern],
-                                       unsigned(nbytes_pattern), offset, nbytes,
-                                       n_evts, evt_ids, ret_evt)
-        @return_event ret_evt[]
+# low level enqueue fill operation, return event
+function enqueue_fill_buffer(q::CmdQueue, buf::Buffer{T},
+                             pattern::T, offset::Csize_t,
+                             nbytes::Csize_t,
+                             wait_for::Union{Vector{Event},Nothing}) where T
+    if wait_for === nothing
+        evt_ids = C_NULL
+        n_evts = cl_uint(0)
+    else
+        evt_ids = [evt.id for evt in wait_for]
+        n_evts  = cl_uint(length(evt_ids))
     end
+    ret_evt = Ref{cl_event}()
+    nbytes_pattern = sizeof(pattern)
+    @assert nbytes_pattern > 0
+    clEnqueueFillBuffer(q.id, buf.id, [pattern],
+                                   unsigned(nbytes_pattern), offset, nbytes,
+                                   n_evts, evt_ids, ret_evt)
+    @return_event ret_evt[]
+end
 
-    # enqueue a fill operation, return an event
-    function enqueue_fill(q::CmdQueue, buf::Buffer{T}, x::T) where T
-        nbytes = sizeof(buf)
-        evt = enqueue_fill_buffer(q, buf, x, unsigned(0),
-                                  unsigned(nbytes), nothing)
-        return evt
-    end
+# enqueue a fill operation, return an event
+function enqueue_fill(q::CmdQueue, buf::Buffer{T}, x::T) where T
+    nbytes = sizeof(buf)
+    evt = enqueue_fill_buffer(q, buf, x, unsigned(0),
+                              unsigned(nbytes), nothing)
+    return evt
+end
 
-    # (blocking) fill the contents of a buffer with with a given value
-    function fill!(q::CmdQueue, buf::Buffer{T}, x::T) where T
-        evt = enqueue_fill(q, buf, x)
-        wait(evt)
-        return evt
-    end
+# (blocking) fill the contents of a buffer with with a given value
+function fill!(q::CmdQueue, buf::Buffer{T}, x::T) where T
+    evt = enqueue_fill(q, buf, x)
+    wait(evt)
+    return evt
 end
 
 # copy the contents of a buffer into an array

@@ -53,45 +53,42 @@ end
 
 Base.getindex(evt::CLEvent, evt_info::Symbol) = info(evt, evt_info)
 
-@ocl_v1_1_only begin
+mutable struct UserEvent <: CLEvent
+    id::cl_event
 
-    mutable struct UserEvent <: CLEvent
-        id::cl_event
-
-        function UserEvent(evt_id::cl_event, retain=false)
-            if retain
-                clRetainEvent(evt_id)
-            end
-            evt = new(evt_id)
-            finalizer(_finalize, evt)
-            return evt
+    function UserEvent(evt_id::cl_event, retain=false)
+        if retain
+            clRetainEvent(evt_id)
         end
-    end
-
-    function UserEvent(ctx::Context; retain=false)
-        status = Ref{Cint}()
-        evt_id = clCreateUserEvent(ctx.id, status)
-        if status[] != CL_SUCCESS
-            throw(CLError(status[]))
-        end
-        try
-            return UserEvent(evt_id, retain)
-        catch err
-            clReleaseEvent(evt_id)
-            throw(err)
-        end
-    end
-
-    function Base.show(io::IO, evt::UserEvent)
-        ptr_val = convert(UInt, Base.pointer(evt))
-        ptr_address = "0x$(string(ptr_val, base = 16, pad = Sys.WORD_SIZE>>2))"
-        print(io, "OpenCL.UserEvent(@$ptr_address)")
-    end
-
-    function complete(evt::UserEvent)
-        clSetUserEventStatus(evt.id, CL_COMPLETE)
+        evt = new(evt_id)
+        finalizer(_finalize, evt)
         return evt
     end
+end
+
+function UserEvent(ctx::Context; retain=false)
+    status = Ref{Cint}()
+    evt_id = clCreateUserEvent(ctx.id, status)
+    if status[] != CL_SUCCESS
+        throw(CLError(status[]))
+    end
+    try
+        return UserEvent(evt_id, retain)
+    catch err
+        clReleaseEvent(evt_id)
+        throw(err)
+    end
+end
+
+function Base.show(io::IO, evt::UserEvent)
+    ptr_val = convert(UInt, Base.pointer(evt))
+    ptr_address = "0x$(string(ptr_val, base = 16, pad = Sys.WORD_SIZE>>2))"
+    print(io, "OpenCL.UserEvent(@$ptr_address)")
+end
+
+function complete(evt::UserEvent)
+    clSetUserEventStatus(evt.id, CL_COMPLETE)
+    return evt
 end
 
 struct _EventCB
@@ -156,28 +153,26 @@ function wait(evts::Vector{CLEvent})
     return evts
 end
 
-@ocl_v1_2_only begin
-    function enqueue_marker_with_wait_list(q::CmdQueue,
-                                           wait_for::Vector{CLEvent})
-        n_wait_events = cl_uint(length(wait_for))
-        wait_evt_ids = [evt.id for evt in wait_for]
-        ret_evt = Ref{cl_event}()
-        clEnqueueMarkerWithWaitList(q.id, n_wait_events,
-                                               isempty(wait_evt_ids) ? C_NULL : wait_evt_ids,
-                                               ret_evt)
-        @return_event ret_evt[]
-    end
+function enqueue_marker_with_wait_list(q::CmdQueue,
+                                       wait_for::Vector{CLEvent})
+    n_wait_events = cl_uint(length(wait_for))
+    wait_evt_ids = [evt.id for evt in wait_for]
+    ret_evt = Ref{cl_event}()
+    clEnqueueMarkerWithWaitList(q.id, n_wait_events,
+                                           isempty(wait_evt_ids) ? C_NULL : wait_evt_ids,
+                                           ret_evt)
+    @return_event ret_evt[]
+end
 
-    function enqueue_barrier_with_wait_list(q::CmdQueue,
-                                            wait_for::Vector{CLEvent})
-        n_wait_events = cl_uint(length(wait_for))
-        wait_evt_ids = [evt.id for evt in wait_for]
-        ret_evt = Ref{cl_event}()
-        clEnqueueBarrierWithWaitList(q.id, n_wait_events,
-                                                isempty(wait_evt_ids) ? C_NULL : wait_evt_ids,
-                                                ret_evt)
-        @return_event ret_evt[]
-    end
+function enqueue_barrier_with_wait_list(q::CmdQueue,
+                                        wait_for::Vector{CLEvent})
+    n_wait_events = cl_uint(length(wait_for))
+    wait_evt_ids = [evt.id for evt in wait_for]
+    ret_evt = Ref{cl_event}()
+    clEnqueueBarrierWithWaitList(q.id, n_wait_events,
+                                            isempty(wait_evt_ids) ? C_NULL : wait_evt_ids,
+                                            ret_evt)
+    @return_event ret_evt[]
 end
 
 function enqueue_marker(q::CmdQueue)
