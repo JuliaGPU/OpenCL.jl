@@ -85,23 +85,6 @@ function devices(p::Platform, dtype::Symbol)
     devices(p, cl_device_type(dtype))
 end
 
-function devices(dtype)
-    devs = Device[]
-    for platform in platforms()
-        append!(devs, devices(platform, dtype))
-    end
-    return devs
-end
-devices(dtype::Symbol) = devices(cl_device_type(dtype))
-
-function devices()
-    devs = Device[]
-    for platform in platforms()
-        append!(devs, devices(platform))
-    end
-    return devs
-end
-
 has_device_type(p::Platform, dtype) = length(devices(p, dtype)) > 0
 
 available_devices(p::Platform, dtype::Symbol) = filter(d -> info(d, :available),  devices(p, dtype))
