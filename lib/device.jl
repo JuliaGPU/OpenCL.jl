@@ -236,16 +236,16 @@ function info(d::Device, s::Symbol)
         :max_image3d_shape => max_image3d_shape
     )
 
-try
-    func = info_map[s]
-    func(d)
-catch err
-    if isa(err, KeyError)
-        throw(ArgumentError("OpenCL.Device has no info for: $s"))
-    else
-        throw(err)
+    try
+        func = info_map[s]
+        func(d)
+    catch err
+        if isa(err, KeyError)
+            throw(ArgumentError("OpenCL.Device has no info for: $s"))
+        else
+            throw(err)
+        end
     end
-end
 end
 
 function cl_device_type(dtype::Symbol)
