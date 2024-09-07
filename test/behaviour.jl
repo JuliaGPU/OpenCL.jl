@@ -18,17 +18,14 @@ info(
     hello_world_str = "hello world"
 
 
-    ctx   = cl.Context(device)
-    queue = cl.CmdQueue(ctx)
-
     str_len  = length(hello_world_str) + 1
-    out_buf  = cl.Buffer(Cchar, ctx, sizeof(Cchar) * str_len, :w)
+    out_buf  = cl.Buffer(Cchar, cl.context(), sizeof(Cchar) * str_len, :w)
 
-    prg   = cl.Program(ctx, source=hello_world_kernel) |> cl.build!
+    prg   = cl.Program(cl.context(), source=hello_world_kernel) |> cl.build!
     kern  = cl.Kernel(prg, "hello")
 
-    queue(kern, str_len, nothing, out_buf)
-    h = cl.read(queue, out_buf)
+    cl.queue()(kern, str_len, nothing, out_buf)
+    h = cl.read(cl.queue(), out_buf)
 
     @test cl.CLString(h) == hello_world_str
 end
@@ -67,7 +64,7 @@ end
     err_code = Ref{cl.Cint}()
 
     # create compute context (TODO: fails if function ptr's not passed...)
-    ctx_id = cl.clCreateContext(C_NULL, 1, [device.id],
+    ctx_id = cl.clCreateContext(C_NULL, 1, [cl.device().id],
                                     C_NULL,
                                     C_NULL,
                                     err_code)
@@ -75,7 +72,7 @@ end
         throw(cl.CLError(err_code[]))
     end
 
-    q_id = cl.clCreateCommandQueue(ctx_id, device.id, 0, err_code)
+    q_id = cl.clCreateCommandQueue(ctx_id, cl.device().id, 0, err_code)
     if err_code[] != cl.CL_SUCCESS
         error("Failed to create command queue")
     end
@@ -205,9 +202,7 @@ let test_struct = "
 "
 
 @testset "Struct Buffer Test" begin
-    ctx = cl.Context(device)
-    q   = cl.CmdQueue(ctx)
-    p   = cl.Program(ctx, source=test_struct) |> cl.build!
+    p   = cl.Program(cl.context(), source=test_struct) |> cl.build!
 
     part3 = cl.Kernel(p, "part3")
 
@@ -217,17 +212,17 @@ let test_struct = "
     P = [Params(0.5, 10.0, [0.0, 0.0], 3)]
 
     #TODO: constructor for single immutable types.., check if passed parameter isbits
-    P_buf = cl.Buffer(Params, ctx, length(P), :r)
-    cl.write!(q, P_buf, P)
+    P_buf = cl.Buffer(Params, cl.context(), length(P), :r)
+    cl.write!(cl.queue(), P_buf, P)
 
-    X_buf = cl.Buffer(Float32, ctx, length(X), (:r, :copy), hostbuf=X)
-    Y_buf = cl.Buffer(Float32, ctx, length(Y), (:r, :copy), hostbuf=Y)
-    R_buf = cl.Buffer(Float32, ctx, length(X), :w)
+    X_buf = cl.Buffer(Float32, cl.context(), length(X), (:r, :copy), hostbuf=X)
+    Y_buf = cl.Buffer(Float32, cl.context(), length(Y), (:r, :copy), hostbuf=Y)
+    R_buf = cl.Buffer(Float32, cl.context(), length(X), :w)
 
     global_size = size(X)
-    q(part3, global_size, nothing, X_buf, Y_buf, R_buf, P_buf)
+    cl.queue()(part3, global_size, nothing, X_buf, Y_buf, R_buf, P_buf)
 
-    r = cl.read(q, R_buf)
+    r = cl.read(cl.queue(), R_buf)
     @test all(x -> x == 13.5, r)
 end
 
@@ -258,17 +253,15 @@ let test_mutable_pointerfree = "
 
 
 @testset "Struct Buffer Test" begin
-    ctx = cl.Context(device)
-    q   = cl.CmdQueue(ctx)
-    p   = cl.Program(ctx, source=test_mutable_pointerfree) |> cl.build!
+    p   = cl.Program(cl.context(), source=test_mutable_pointerfree) |> cl.build!
 
     part3 = cl.Kernel(p, "part3")
 
     P = MutableParams(0.5, 10.0)
-    P_buf = cl.Buffer(Float32, ctx, 2, :w)
-    q(part3, 1, nothing, P_buf, P)
+    P_buf = cl.Buffer(Float32, cl.context(), 2, :w)
+    cl.queue()(part3, 1, nothing, P_buf, P)
 
-    r = cl.read(q, P_buf)
+    r = cl.read(cl.queue(), P_buf)
 
     @test r[1] == 0.5
     @test r[2] == 10.0

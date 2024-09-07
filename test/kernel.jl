@@ -21,16 +21,14 @@ end
     #TODO: tests for invalid kernel build error && logs...
 
     @testset "constructor" begin
-        ctx = cl.Context(device)
-        prg = cl.Program(ctx, source=test_source)
+        prg = cl.Program(cl.context(), source=test_source)
         @test_throws ArgumentError cl.Kernel(prg, "sum")
         cl.build!(prg)
         @test cl.Kernel(prg, "sum") != nothing
     end
 
     @testset "info" begin
-        ctx = cl.Context(device)
-        prg = cl.Program(ctx, source=test_source)
+        prg = cl.Program(cl.context(), source=test_source)
         cl.build!(prg)
         k = cl.Kernel(prg, "sum")
         @test k[:name] == "sum"
@@ -41,8 +39,7 @@ end
     end
 
     @testset "mem/workgroup size" begin
-        ctx = cl.Context(device)
-        prg = cl.Program(ctx, source=test_source)
+        prg = cl.Program(cl.context(), source=test_source)
         cl.build!(prg)
         k = cl.Kernel(prg, "sum")
         for (sf, clf) in [(:size, cl.CL_KERNEL_WORK_GROUP_SIZE),
@@ -50,19 +47,18 @@ end
                           (:local_mem_size, cl.CL_KERNEL_LOCAL_MEM_SIZE),
                           (:private_mem_size, cl.CL_KERNEL_PRIVATE_MEM_SIZE),
                           (:prefered_size_multiple, cl.CL_KERNEL_PREFERRED_WORK_GROUP_SIZE_MULTIPLE)]
-            @test cl.work_group_info(k, sf, device) != nothing
-            @test cl.work_group_info(k, clf, device) != nothing
+            @test cl.work_group_info(k, sf, cl.device()) != nothing
+            @test cl.work_group_info(k, clf, cl.device()) != nothing
             if sf != :compile_size
-                @test cl.work_group_info(k, sf, device) == cl.work_group_info(k, clf, device)
+                @test cl.work_group_info(k, sf, cl.device()) == cl.work_group_info(k, clf, cl.device())
             end
         end
     end
 
     @testset "set_arg!/set_args!" begin
-        ctx = cl.Context(device)
-        queue = cl.CmdQueue(ctx)
+        queue = cl.CmdQueue(cl.context())
 
-        prg = cl.Program(ctx, source=test_source) |> cl.build!
+        prg = cl.Program(cl.context(), source=test_source) |> cl.build!
         k = cl.Kernel(prg, "sum")
 
         count  = 1024
@@ -70,9 +66,9 @@ end
 
         h_ones = ones(Float32, count)
 
-        A = cl.Buffer(Float32, ctx, length(h_ones), (:r, :copy), hostbuf=h_ones)
-        B = cl.Buffer(Float32, ctx, length(h_ones), (:r, :copy), hostbuf=h_ones)
-        C = cl.Buffer(Float32, ctx, count, :w)
+        A = cl.Buffer(Float32, cl.context(), length(h_ones), (:r, :copy), hostbuf=h_ones)
+        B = cl.Buffer(Float32, cl.context(), length(h_ones), (:r, :copy), hostbuf=h_ones)
+        C = cl.Buffer(Float32, cl.context(), count, :w)
 
         # sizeof mem object for buffer in bytes
         @test sizeof(A) == nbytes
@@ -117,21 +113,19 @@ end
                 *i += 1;
             };"
 
-        ctx = cl.Context(device)
-
         h_buff = Float32[1,]
-        d_buff = cl.Buffer(Float32, ctx, length(h_buff), (:rw, :copy), hostbuf=h_buff)
+        d_buff = cl.Buffer(Float32, cl.context(), length(h_buff), (:rw, :copy), hostbuf=h_buff)
 
-        p = cl.Program(ctx, source=simple_kernel) |> cl.build!
+        p = cl.Program(cl.context(), source=simple_kernel) |> cl.build!
         k = cl.Kernel(p, "test")
-        q = cl.CmdQueue(ctx)
+        q = cl.CmdQueue(cl.context())
 
         # dimensions must be the same size
         @test_throws ArgumentError q(k, (1,), (1,1), d_buff)
         @test_throws ArgumentError q(k, (1,1), (1,), d_buff)
 
         # dimensions are bounded
-        max_work_dim = device[:max_work_item_dims]
+        max_work_dim = cl.device()[:max_work_item_dims]
         bad = tuple([1 for _ in 1:(max_work_dim + 1)])
         @test_throws MethodError q(k, bad, d_buff)
 
@@ -167,12 +161,11 @@ end
             out[1] = b.f2;
         }
         "
-        ctx = cl.Context(device)
-        prg = cl.Program(ctx, source = test_source)
-        queue = cl.CmdQueue(ctx)
+        prg = cl.Program(cl.context(), source = test_source)
+        queue = cl.CmdQueue(cl.context())
         cl.build!(prg)
         structkernel = cl.Kernel(prg, "structest")
-        out = cl.Buffer(Float32, ctx, 2, :w)
+        out = cl.Buffer(Float32, cl.context(), 2, :w)
         bstruct = (1, Int32(4))
         structkernel[queue, (1,)](out, bstruct)
         r = cl.read(queue, out)
@@ -196,12 +189,11 @@ end
         }
         "
 
-        ctx = cl.Context(device)
-        prg = cl.Program(ctx, source = test_source)
-        queue = cl.CmdQueue(ctx)
+        prg = cl.Program(cl.context(), source = test_source)
+        queue = cl.CmdQueue(cl.context())
         cl.build!(prg)
         structkernel = cl.Kernel(prg, "structest")
-        out = cl.Buffer(Float32, ctx, 4, :w)
+        out = cl.Buffer(Float32, cl.context(), 4, :w)
         astruct = CLTestStruct((1f0, 2f0, 3f0), nothing, 22f0)
         structkernel[queue, (1,)](out, astruct)
         r = cl.read(queue, out)

@@ -1,7 +1,7 @@
 @testset "Program" begin
-    let ctx = cl.Context(device)
-        @test_throws ArgumentError cl.Program(ctx)
-        @test_throws ArgumentError cl.Program(ctx; source="", il="")
+    let
+        @test_throws ArgumentError cl.Program(cl.context())
+        @test_throws ArgumentError cl.Program(cl.context(); source="", il="")
     end
 
     test_source = "
@@ -15,44 +15,39 @@
     "
 
     function create_test_program()
-        ctx = cl.Context(device)
-        cl.Program(ctx, source=test_source)
+        cl.Program(cl.context(), source=test_source)
     end
 
     @testset "source constructor" begin
-        ctx = cl.Context(device)
-        prg = cl.Program(ctx, source=test_source)
+        prg = cl.Program(cl.context(), source=test_source)
         @test prg != nothing
     end
     @testset "info" begin
-        ctx = cl.Context(device)
-        prg = cl.Program(ctx, source=test_source)
+        prg = cl.Program(cl.context(), source=test_source)
 
-        @test prg[:context] == ctx
+        @test prg[:context] == cl.context()
 
         @test typeof(prg[:devices]) == Vector{cl.Device}
         @test length(prg[:devices]) > 0
-        @test device in prg[:devices]
+        @test cl.device() in prg[:devices]
 
         @test typeof(prg[:source]) == String
         @test prg[:source] == test_source
 
         @test prg[:reference_count] > 0
-        @test isempty(strip(prg[:build_log][device]))
+        @test isempty(strip(prg[:build_log][cl.device()]))
     end
 
     @testset "build" begin
-        ctx = cl.Context(device)
-        prg = cl.Program(ctx, source=test_source)
+        prg = cl.Program(cl.context(), source=test_source)
         @test cl.build!(prg) != nothing
 
-        @test prg[:build_status][device] == cl.CL_BUILD_SUCCESS
-        @test prg[:build_log][device] isa String
+        @test prg[:build_status][cl.device()] == cl.CL_BUILD_SUCCESS
+        @test prg[:build_log][cl.device()] isa String
     end
 
     @testset "source code" begin
-       ctx = cl.Context(device)
-       prg = cl.Program(ctx, source=test_source)
+       prg = cl.Program(cl.context(), source=test_source)
        @test prg[:source] == test_source
     end
 
@@ -60,15 +55,14 @@
         @warn "Skipping binary program tests"
     else
         @testset "binaries" begin
-            ctx = cl.Context(device)
-            prg = cl.Program(ctx, source=test_source) |> cl.build!
+            prg = cl.Program(cl.context(), source=test_source) |> cl.build!
 
-            @test device in collect(keys(prg[:binaries]))
+            @test cl.device() in collect(keys(prg[:binaries]))
             binaries = prg[:binaries]
-            @test device in collect(keys(binaries))
-            @test binaries[device] != nothing
-            @test length(binaries[device]) > 0
-            prg2 = cl.Program(ctx, binaries=binaries)
+            @test cl.device() in collect(keys(binaries))
+            @test binaries[cl.device()] != nothing
+            @test length(binaries[cl.device()]) > 0
+            prg2 = cl.Program(cl.context(), binaries=binaries)
             @test prg2[:binaries] == binaries
             @test prg2[:source] === nothing
         end

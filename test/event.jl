@@ -5,8 +5,7 @@ if backend in ["POCL", "Intel"]
 else
 @testset "Event" begin
     @testset "status" begin
-        ctx = cl.Context(device)
-        evt = cl.UserEvent(ctx)
+        evt = cl.UserEvent(cl.context())
         evt[:status]
         @test evt[:status] == :submitted
         cl.complete(evt)
@@ -15,14 +14,12 @@ else
     end
 
     @testset "wait" begin
-        ctx = cl.Context(device)
         # create user event
-        usr_evt = cl.UserEvent(ctx)
-        q = cl.CmdQueue(ctx)
-        cl.enqueue_wait_for_events(q, usr_evt)
+        usr_evt = cl.UserEvent(cl.context())
+        cl.enqueue_wait_for_events(cl.queue(), usr_evt)
 
         # create marker event
-        mkr_evt = cl.enqueue_marker(q)
+        mkr_evt = cl.enqueue_marker(cl.queue())
 
         @test usr_evt[:status] == :submitted
         @test mkr_evt[:status] in (:queued, :submitted)
@@ -46,13 +43,11 @@ else
             callback_called[] = true
         end
 
-        ctx = cl.Context(device)
-        usr_evt = cl.UserEvent(ctx)
-        queue = cl.CmdQueue(ctx)
+        usr_evt = cl.UserEvent(cl.context())
 
-        cl.enqueue_wait_for_events(queue, usr_evt)
+        cl.enqueue_wait_for_events(cl.queue(), usr_evt)
 
-        mkr_evt = cl.enqueue_marker(queue)
+        mkr_evt = cl.enqueue_marker(cl.queue())
         cl.add_callback(mkr_evt, test_callback)
 
         @test usr_evt[:status] == :submitted
