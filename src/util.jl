@@ -1,11 +1,4 @@
-export create_compute_context, opencl_version
-
-function create_compute_context()
-    ctx    = create_some_context()
-    device = first(devices(ctx))
-    queue  = cl.CmdQueue(ctx)
-    return (device, ctx, queue)
-end
+export opencl_version
 
 function parse_version(version_string)
     mg = match(r"^OpenCL ([0-9]+)\.([0-9]+) .*$", version_string)

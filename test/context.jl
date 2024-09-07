@@ -92,11 +92,6 @@ end
         end
     end
 
-    @testset "create_some_context" begin
-        @test cl.create_some_context() != nothing
-        @test typeof(cl.create_some_context()) == cl.Context
-    end
-
    @testset "parsing" begin
         properties = [(cl.CL_CONTEXT_PLATFORM, platform)]
         parsed_properties = cl._parse_properties(properties)

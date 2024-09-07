@@ -73,6 +73,12 @@ function devices(p::Platform, dtype)
     return Device[Device(id) for id in result]
 end
 
+function default_device(p::Platform)
+    devs = devices(p, CL_DEVICE_TYPE_DEFAULT)
+    isempty(devs) && return nothing
+    return only(devs)
+end
+
 devices(p::Platform) = devices(p, CL_DEVICE_TYPE_ALL)
 
 function devices(p::Platform, dtype::Symbol)

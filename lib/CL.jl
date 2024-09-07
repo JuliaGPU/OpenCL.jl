@@ -28,4 +28,6 @@ include("buffer.jl")
 include("program.jl")
 include("kernel.jl")
 
+include("state.jl")
+
 end
