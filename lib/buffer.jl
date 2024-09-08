@@ -28,6 +28,8 @@ mutable struct Buffer{T} <: CLMemObject
     end
 end
 
+Base.unsafe_convert(::Type{cl_mem}, b::Buffer) = b.id
+
 Base.ndims(b::Buffer) = 1
 Base.eltype(b::Buffer{T}) where {T} = T
 Base.length(b::Buffer{T}) where {T} = Int(b.len)
@@ -153,7 +155,7 @@ function enqueue_read_buffer(q::CmdQueue,
     ret_evt = Ref{cl_event}()
     nbytes  = sizeof(hostbuf)
     @assert nbytes > 0
-    clEnqueueReadBuffer(q, buf.id, cl_bool(is_blocking),
+    clEnqueueReadBuffer(q, buf, cl_bool(is_blocking),
                         dev_offset, nbytes, hostbuf,
                         n_evts, evt_ids, ret_evt)
     @return_nanny_event(ret_evt[], hostbuf)
@@ -172,7 +174,7 @@ function enqueue_write_buffer(q::CmdQueue,
     ret_evt = Ref{cl_event}()
     nbytes  = sizeof(hostbuf)
     @assert nbytes > 0
-    clEnqueueWriteBuffer(q, buf.id, cl_bool(is_blocking),
+    clEnqueueWriteBuffer(q, buf, cl_bool(is_blocking),
                          offset, nbytes, hostbuf,
                          n_evts, evt_ids, ret_evt)
     @return_nanny_event(ret_evt[], hostbuf)
@@ -232,7 +234,7 @@ function enqueue_unmap_mem(q::CmdQueue,
         end
     end
     ret_evt = Ref{cl_event}()
-    clEnqueueUnmapMemObject(q, b.id, a, n_evts, evt_ids, ret_evt)
+    clEnqueueUnmapMemObject(q, b, a, n_evts, evt_ids, ret_evt)
     b.mapped  = false
     b.hostbuf = C_NULL
     @return_event ret_evt[]
@@ -285,7 +287,7 @@ function enqueue_map_mem(q::CmdQueue,
     nbytes  = unsigned(prod(dims) * sizeof(T))
     ret_evt = Ref{cl_event}()
     status  = Ref{Cint}()
-    mapped  = clEnqueueMapBuffer(q, b.id, cl_bool(is_blocking ? 1 : 0),
+    mapped  = clEnqueueMapBuffer(q, b, cl_bool(is_blocking ? 1 : 0),
                                  flags, offset, nbytes,
                                  n_evts, evt_ids, ret_evt, status)
     if status[] != CL_SUCCESS
@@ -306,8 +308,7 @@ function enqueue_map_mem(q::CmdQueue,
             end
         end
     catch err
-        clEnqueueUnmapMemObject(q, b.id, mapped,
-                                unsigned(0), C_NULL, C_NULL)
+        clEnqueueUnmapMemObject(q, b, mapped, unsigned(0), C_NULL, C_NULL)
         b.mapped  = false
         b.hostbuf = C_NULL
         rethrow(err)
@@ -330,7 +331,7 @@ function enqueue_fill_buffer(q::CmdQueue, buf::Buffer{T},
     ret_evt = Ref{cl_event}()
     nbytes_pattern = sizeof(pattern)
     @assert nbytes_pattern > 0
-    clEnqueueFillBuffer(q, buf.id, [pattern],
+    clEnqueueFillBuffer(q, buf, [pattern],
                         unsigned(nbytes_pattern), offset, nbytes,
                         n_evts, evt_ids, ret_evt)
     @return_event ret_evt[]
