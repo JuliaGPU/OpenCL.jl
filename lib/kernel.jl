@@ -223,8 +223,7 @@ function work_group_info(k::Kernel, winfo, d::Device)
     if (winfo == CL_KERNEL_LOCAL_MEM_SIZE ||
         winfo == CL_KERNEL_PRIVATE_MEM_SIZE)
         result1 = Ref{Culong}(0)
-        clGetKernelWorkGroupInfo(k.id, d.id, winfo,
-                                            sizeof(Culong), result1, C_NULL)
+        clGetKernelWorkGroupInfo(k.id, d, winfo, sizeof(Culong), result1, C_NULL)
         return Int(result1[])
     elseif winfo == CL_KERNEL_COMPILE_WORK_GROUP_SIZE
         # Intel driver has a bug so we can't query the required size.
@@ -232,12 +231,11 @@ function work_group_info(k::Kernel, winfo, d::Device)
         # [1] https://www.khronos.org/registry/OpenCL/sdk/1.2/docs/man/xhtml/clGetKernelWorkGroupInfo.html
         @assert sizeof(Csize_t) == sizeof(Int)
         result2 = Vector{Int}(undef, 3)
-        clGetKernelWorkGroupInfo(k.id, d.id, winfo, 3*sizeof(Int), result2, C_NULL)
+        clGetKernelWorkGroupInfo(k.id, d, winfo, 3*sizeof(Int), result2, C_NULL)
         return result2
     else
         result = Ref{Csize_t}(0)
-        clGetKernelWorkGroupInfo(k.id, d.id, winfo,
-                                            sizeof(Culong), result, C_NULL)
+        clGetKernelWorkGroupInfo(k.id, d, winfo, sizeof(Culong), result, C_NULL)
         return Int(result[])
     end
 end

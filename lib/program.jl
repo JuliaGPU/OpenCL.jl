@@ -128,8 +128,8 @@ function info(p::Program, pinfo::Symbol)
         status_dict = Dict{Device, cl_build_status}()
         status = Ref{cl_build_status}()
         for d in devices(p)
-            clGetProgramBuildInfo(p.id, d.id, CL_PROGRAM_BUILD_STATUS,
-                                      sizeof(cl_build_status), status, C_NULL)
+            clGetProgramBuildInfo(p.id, d, CL_PROGRAM_BUILD_STATUS,
+                                  sizeof(cl_build_status), status, C_NULL)
             status_dict[d] = status[]
         end
         return status_dict
@@ -139,15 +139,14 @@ function info(p::Program, pinfo::Symbol)
         logs = Dict{Device, String}()
         for d in devices(p)
             log_len = Ref{Csize_t}()
-            clGetProgramBuildInfo(p.id, d.id, CL_PROGRAM_BUILD_LOG,
-                                      0, C_NULL, log_len)
+            clGetProgramBuildInfo(p.id, d, CL_PROGRAM_BUILD_LOG, 0, C_NULL, log_len)
             if log_len[] == 0
                 logs[d] = ""
                 continue
             end
             log_bytestring = Vector{Cchar}(undef, log_len[])
-            clGetProgramBuildInfo(p.id, d.id, CL_PROGRAM_BUILD_LOG,
-                                      log_len[], log_bytestring, C_NULL)
+            clGetProgramBuildInfo(p.id, d, CL_PROGRAM_BUILD_LOG,
+                                  log_len[], log_bytestring, C_NULL)
             logs[d] = CLString(log_bytestring)
         end
         return logs
