@@ -92,7 +92,7 @@ end
 
 function UserEvent(ctx::Context; retain=false)
     status = Ref{Cint}()
-    evt_id = clCreateUserEvent(ctx.id, status)
+    evt_id = clCreateUserEvent(ctx, status)
     if status[] != CL_SUCCESS
         throw(CLError(status[]))
     end

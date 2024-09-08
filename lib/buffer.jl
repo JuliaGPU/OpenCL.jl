@@ -126,9 +126,9 @@ function Buffer(::Type{T}, ctx::Context, len::Integer, flags;
     end
 
     err_code = Ref{Cint}()
-    mem_id = clCreateBuffer(ctx.id, flags, cl_uint(nbytes),
-                                hostbuf !== nothing ? hostbuf : C_NULL,
-                                err_code)
+    mem_id = clCreateBuffer(ctx, flags, cl_uint(nbytes),
+                            hostbuf !== nothing ? hostbuf : C_NULL,
+                            err_code)
     if err_code[] != CL_SUCCESS
         throw(CLError(err_code[]))
     end

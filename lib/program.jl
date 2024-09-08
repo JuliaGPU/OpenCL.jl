@@ -39,14 +39,14 @@ function Program(ctx::Context; source=nothing, binaries=nothing, il=nothing)
     if source !== nothing
         byte_source = [String(source)]
         err_code = Ref{Cint}()
-        program_id = clCreateProgramWithSource(ctx.id, 1, byte_source, C_NULL, err_code)
+        program_id = clCreateProgramWithSource(ctx, 1, byte_source, C_NULL, err_code)
         if err_code[] != CL_SUCCESS
             throw(CLError(err_code[]))
         end
 
     elseif il !== nothing
         err_code = Ref{Cint}()
-        program_id = clCreateProgramWithIL(ctx.id, il, length(il), err_code)
+        program_id = clCreateProgramWithIL(ctx, il, length(il), err_code)
         if err_code[] != CL_SUCCESS
             throw(CLError(err_code[]))
         end
@@ -64,7 +64,7 @@ function Program(ctx::Context; source=nothing, binaries=nothing, il=nothing)
                 binary_ptrs[i] = Base.unsafe_convert(Ptr{UInt8}, pointer(bin))
             end
             err_code = Ref{Cint}()
-            program_id = clCreateProgramWithBinary(ctx.id, ndevices, device_ids, bin_lengths,
+            program_id = clCreateProgramWithBinary(ctx, ndevices, device_ids, bin_lengths,
                                                        binary_ptrs, binary_status, err_code)
             if err_code[] != CL_SUCCESS
                 throw(CLError(err_code[]))
