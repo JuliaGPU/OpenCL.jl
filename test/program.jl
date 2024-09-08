@@ -1,7 +1,7 @@
 @testset "Program" begin
     let
-        @test_throws ArgumentError cl.Program(cl.context())
-        @test_throws ArgumentError cl.Program(cl.context(); source="", il="")
+        @test_throws ArgumentError cl.Program()
+        @test_throws ArgumentError cl.Program(source="", il="")
     end
 
     test_source = "
@@ -15,15 +15,15 @@
     "
 
     function create_test_program()
-        cl.Program(cl.context(), source=test_source)
+        cl.Program(source=test_source)
     end
 
     @testset "source constructor" begin
-        prg = cl.Program(cl.context(), source=test_source)
+        prg = cl.Program(source=test_source)
         @test prg != nothing
     end
     @testset "info" begin
-        prg = cl.Program(cl.context(), source=test_source)
+        prg = cl.Program(source=test_source)
 
         @test prg[:context] == cl.context()
 
@@ -39,7 +39,7 @@
     end
 
     @testset "build" begin
-        prg = cl.Program(cl.context(), source=test_source)
+        prg = cl.Program(source=test_source)
         @test cl.build!(prg) != nothing
 
         @test prg[:build_status][cl.device()] == cl.CL_BUILD_SUCCESS
@@ -47,7 +47,7 @@
     end
 
     @testset "source code" begin
-       prg = cl.Program(cl.context(), source=test_source)
+       prg = cl.Program(source=test_source)
        @test prg[:source] == test_source
     end
 
@@ -55,14 +55,14 @@
         @warn "Skipping binary program tests"
     else
         @testset "binaries" begin
-            prg = cl.Program(cl.context(), source=test_source) |> cl.build!
+            prg = cl.Program(source=test_source) |> cl.build!
 
             @test cl.device() in collect(keys(prg[:binaries]))
             binaries = prg[:binaries]
             @test cl.device() in collect(keys(binaries))
             @test binaries[cl.device()] != nothing
             @test length(binaries[cl.device()]) > 0
-            prg2 = cl.Program(cl.context(), binaries=binaries)
+            prg2 = cl.Program(binaries=binaries)
             @test prg2[:binaries] == binaries
             @test prg2[:source] === nothing
         end

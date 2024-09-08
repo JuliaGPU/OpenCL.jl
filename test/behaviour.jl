@@ -21,7 +21,7 @@ info(
     str_len  = length(hello_world_str) + 1
     out_buf  = cl.Buffer(Cchar, sizeof(Cchar) * str_len, :w)
 
-    prg   = cl.Program(cl.context(), source=hello_world_kernel) |> cl.build!
+    prg   = cl.Program(source=hello_world_kernel) |> cl.build!
     kern  = cl.Kernel(prg, "hello")
 
     cl.queue()(kern, str_len, nothing, out_buf)
@@ -199,7 +199,7 @@ let test_struct = "
 "
 
 @testset "Struct Buffer Test" begin
-    p   = cl.Program(cl.context(), source=test_struct) |> cl.build!
+    p   = cl.Program(source=test_struct) |> cl.build!
 
     part3 = cl.Kernel(p, "part3")
 
@@ -250,7 +250,7 @@ let test_mutable_pointerfree = "
 
 
 @testset "Struct Buffer Test" begin
-    p   = cl.Program(cl.context(), source=test_mutable_pointerfree) |> cl.build!
+    p   = cl.Program(source=test_mutable_pointerfree) |> cl.build!
 
     part3 = cl.Kernel(p, "part3")
 

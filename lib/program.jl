@@ -34,21 +34,21 @@ Base.pointer(p::Program) = p.id
 
 Base.getindex(p::Program, pinfo::Symbol) = info(p, pinfo)
 
-function Program(ctx::Context; source=nothing, binaries=nothing, il=nothing)
+function Program(; source=nothing, binaries=nothing, il=nothing)
     if count(!isnothing, (source, binaries, il)) != 1
         throw(ArgumentError("Program must be source, binary, or intermediate language"))
     end
     if source !== nothing
         byte_source = [String(source)]
         err_code = Ref{Cint}()
-        program_id = clCreateProgramWithSource(ctx, 1, byte_source, C_NULL, err_code)
+        program_id = clCreateProgramWithSource(context(), 1, byte_source, C_NULL, err_code)
         if err_code[] != CL_SUCCESS
             throw(CLError(err_code[]))
         end
 
     elseif il !== nothing
         err_code = Ref{Cint}()
-        program_id = clCreateProgramWithIL(ctx, il, length(il), err_code)
+        program_id = clCreateProgramWithIL(context(), il, length(il), err_code)
         if err_code[] != CL_SUCCESS
             throw(CLError(err_code[]))
         end
@@ -66,8 +66,8 @@ function Program(ctx::Context; source=nothing, binaries=nothing, il=nothing)
                 binary_ptrs[i] = Base.unsafe_convert(Ptr{UInt8}, pointer(bin))
             end
             err_code = Ref{Cint}()
-            program_id = clCreateProgramWithBinary(ctx, ndevices, device_ids, bin_lengths,
-                                                       binary_ptrs, binary_status, err_code)
+            program_id = clCreateProgramWithBinary(context(), ndevices, device_ids, bin_lengths,
+                                                   binary_ptrs, binary_status, err_code)
             if err_code[] != CL_SUCCESS
                 throw(CLError(err_code[]))
             end

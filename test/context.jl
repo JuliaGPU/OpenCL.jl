@@ -12,7 +12,7 @@ function create_context_error()
         int c = 1 + 1;
     };"
     try
-        p = cl.Program(cl.context(), source = empty_kernel) |> cl.build!
+        p = cl.Program(source = empty_kernel) |> cl.build!
         k = cl.Kernel(p, "test")
         cl.queue()(k, 1, 10000000)
     catch

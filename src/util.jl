@@ -31,7 +31,7 @@ end
 function build_kernel(ctx::cl.Context, program::String,
                       kernel_name::String; vars...)
     src = format(program; vars...)
-    p = cl.Program(ctx, source=src)
+    p = cl.Program(source=src)
     cl.build!(p)
     return cl.Kernel(p, kernel_name)
 end

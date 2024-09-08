@@ -21,14 +21,14 @@ end
     #TODO: tests for invalid kernel build error && logs...
 
     @testset "constructor" begin
-        prg = cl.Program(cl.context(), source=test_source)
+        prg = cl.Program(source=test_source)
         @test_throws ArgumentError cl.Kernel(prg, "sum")
         cl.build!(prg)
         @test cl.Kernel(prg, "sum") != nothing
     end
 
     @testset "info" begin
-        prg = cl.Program(cl.context(), source=test_source)
+        prg = cl.Program(source=test_source)
         cl.build!(prg)
         k = cl.Kernel(prg, "sum")
         @test k[:name] == "sum"
@@ -39,7 +39,7 @@ end
     end
 
     @testset "mem/workgroup size" begin
-        prg = cl.Program(cl.context(), source=test_source)
+        prg = cl.Program(source=test_source)
         cl.build!(prg)
         k = cl.Kernel(prg, "sum")
         for (sf, clf) in [(:size, cl.CL_KERNEL_WORK_GROUP_SIZE),
@@ -56,7 +56,7 @@ end
     end
 
     @testset "set_arg!/set_args!" begin
-        prg = cl.Program(cl.context(), source=test_source) |> cl.build!
+        prg = cl.Program(source=test_source) |> cl.build!
         k = cl.Kernel(prg, "sum")
 
         count  = 1024
@@ -114,7 +114,7 @@ end
         h_buff = Float32[1,]
         d_buff = cl.Buffer(Float32, length(h_buff), (:rw, :copy), hostbuf=h_buff)
 
-        p = cl.Program(cl.context(), source=simple_kernel) |> cl.build!
+        p = cl.Program(source=simple_kernel) |> cl.build!
         k = cl.Kernel(p, "test")
 
         # dimensions must be the same size
@@ -158,7 +158,7 @@ end
             out[1] = b.f2;
         }
         "
-        prg = cl.Program(cl.context(), source = test_source)
+        prg = cl.Program(source = test_source)
         cl.build!(prg)
         structkernel = cl.Kernel(prg, "structest")
         out = cl.Buffer(Float32, 2, :w)
@@ -185,7 +185,7 @@ end
         }
         "
 
-        prg = cl.Program(cl.context(), source = test_source)
+        prg = cl.Program(source = test_source)
         cl.build!(prg)
         structkernel = cl.Kernel(prg, "structest")
         out = cl.Buffer(Float32, 4, :w)
