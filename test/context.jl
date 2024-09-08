@@ -14,7 +14,7 @@ function create_context_error()
     try
         p = cl.Program(source = empty_kernel) |> cl.build!
         k = cl.Kernel(p, "test")
-        cl.queue()(k, 1, 10000000)
+        cl.launch(k, 1, 10000000)
     catch
     end
 end

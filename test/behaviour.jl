@@ -24,7 +24,7 @@ info(
     prg   = cl.Program(source=hello_world_kernel) |> cl.build!
     kern  = cl.Kernel(prg, "hello")
 
-    cl.queue()(kern, str_len, nothing, out_buf)
+    cl.launch(kern, str_len, nothing, out_buf)
     h = cl.read(out_buf)
 
     @test cl.CLString(h) == hello_world_str
@@ -217,7 +217,7 @@ let test_struct = "
     R_buf = cl.Buffer(Float32, length(X), :w)
 
     global_size = size(X)
-    cl.queue()(part3, global_size, nothing, X_buf, Y_buf, R_buf, P_buf)
+    cl.launch(part3, global_size, nothing, X_buf, Y_buf, R_buf, P_buf)
 
     r = cl.read(R_buf)
     @test all(x -> x == 13.5, r)
@@ -256,7 +256,7 @@ let test_mutable_pointerfree = "
 
     P = MutableParams(0.5, 10.0)
     P_buf = cl.Buffer(Float32, 2, :w)
-    cl.queue()(part3, 1, nothing, P_buf, P)
+    cl.launch(part3, 1, nothing, P_buf, P)
 
     r = cl.read(P_buf)
 

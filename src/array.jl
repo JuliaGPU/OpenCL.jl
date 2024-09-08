@@ -109,7 +109,7 @@ function LinearAlgebra.transpose!(B::CLMatrix{Float32}, A::CLMatrix{Float32})
     h, w = size(A)
     lmem = cl.LocalMem(Float32, block_size * (block_size + 1))
     cl.set_args!(kernel, buffer(B), buffer(A), UInt32(h), UInt32(w), lmem)
-    return cl.enqueue_kernel(cl.queue(), kernel, (h, w), (block_size, block_size))
+    return cl.enqueue_kernel(kernel, (h, w), (block_size, block_size))
 end
 
 """Transpose CLMatrix A"""

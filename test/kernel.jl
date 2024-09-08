@@ -79,7 +79,7 @@ end
         @test cl.set_arg!(k, 3, C) != nothing
         @test cl.set_arg!(k, 4, UInt32(count)) != nothing
 
-        cl.enqueue_kernel(cl.queue(), k, count) |> cl.wait
+        cl.enqueue_kernel(k, count) |> cl.wait
         r = cl.read(C)
 
         @test all(x -> x == 2.0, r)
@@ -94,10 +94,10 @@ end
         cl.copy!(B, h_twos)
 
         #TODO: check for ocl version, fill is opencl v1.2
-        #cl.enqueue_fill(cl.queue(), A, 2f0)
-        #cl.enqueue_fill(cl.queue(), B, 2f0)
+        #cl.enqueue_fill(A, 2f0)
+        #cl.enqueue_fill(B, 2f0)
 
-        cl.enqueue_kernel(cl.queue(), k, count)
+        cl.enqueue_kernel(k, count)
         cl.finish(cl.queue())
 
         r = cl.read(C)
@@ -118,31 +118,31 @@ end
         k = cl.Kernel(p, "test")
 
         # dimensions must be the same size
-        @test_throws ArgumentError cl.queue()(k, (1,), (1,1), d_buff)
-        @test_throws ArgumentError cl.queue()(k, (1,1), (1,), d_buff)
+        @test_throws ArgumentError cl.launch(k, (1,), (1,1), d_buff)
+        @test_throws ArgumentError cl.launch(k, (1,1), (1,), d_buff)
 
         # dimensions are bounded
         max_work_dim = cl.device()[:max_work_item_dims]
         bad = tuple([1 for _ in 1:(max_work_dim + 1)])
-        @test_throws MethodError cl.queue()(k, bad, d_buff)
+        @test_throws MethodError cl.launch(k, bad, d_buff)
 
         # devices have finite work sizes
-        @test_throws MethodError cl.queue()(k, (typemax(Int),), d_buff)
+        @test_throws MethodError cl.launch(k, (typemax(Int),), d_buff)
 
         # blocking call to kernel finishes cmd queue
-        cl.queue()(k, 1, 1, d_buff)
+        cl.launch(k, 1, 1, d_buff)
 
         r = cl.read(d_buff)
         @test r[1] == 2
 
         # alternative kernel call syntax
-        k[cl.queue(), (1,), (1,)](d_buff)
+        k[(1,), (1,)](d_buff)
         r = cl.read(d_buff)
         @test r[1] == 3
 
         # enqueue task is an alias for calling
         # a kernel with a global/local size of 1
-        evt = cl.enqueue_task(cl.queue(), k)
+        evt = cl.enqueue_task(k)
         r = cl.read(d_buff)
         @test r[1] == 4
     end
@@ -163,7 +163,7 @@ end
         structkernel = cl.Kernel(prg, "structest")
         out = cl.Buffer(Float32, 2, :w)
         bstruct = (1, Int32(4))
-        structkernel[cl.queue(), (1,)](out, bstruct)
+        structkernel[(1,)](out, bstruct)
         r = cl.read(out)
         @test r  == [1f0, 4f0]
     end
@@ -190,7 +190,7 @@ end
         structkernel = cl.Kernel(prg, "structest")
         out = cl.Buffer(Float32, 4, :w)
         astruct = CLTestStruct((1f0, 2f0, 3f0), nothing, 22f0)
-        structkernel[cl.queue(), (1,)](out, astruct)
+        structkernel[(1,)](out, astruct)
         r = cl.read(out)
         @test r == [1f0, 2f0, 3f0, 22f0]
     end
