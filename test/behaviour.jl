@@ -19,13 +19,13 @@ info(
 
 
     str_len  = length(hello_world_str) + 1
-    out_buf  = cl.Buffer(Cchar, cl.context(), sizeof(Cchar) * str_len, :w)
+    out_buf  = cl.Buffer(Cchar, sizeof(Cchar) * str_len, :w)
 
     prg   = cl.Program(cl.context(), source=hello_world_kernel) |> cl.build!
     kern  = cl.Kernel(prg, "hello")
 
     cl.queue()(kern, str_len, nothing, out_buf)
-    h = cl.read(cl.queue(), out_buf)
+    h = cl.read(out_buf)
 
     @test cl.CLString(h) == hello_world_str
 end
@@ -209,17 +209,17 @@ let test_struct = "
     P = [Params(0.5, 10.0, [0.0, 0.0], 3)]
 
     #TODO: constructor for single immutable types.., check if passed parameter isbits
-    P_buf = cl.Buffer(Params, cl.context(), length(P), :r)
-    cl.write!(cl.queue(), P_buf, P)
+    P_buf = cl.Buffer(Params, length(P), :r)
+    cl.write!(P_buf, P)
 
-    X_buf = cl.Buffer(Float32, cl.context(), length(X), (:r, :copy), hostbuf=X)
-    Y_buf = cl.Buffer(Float32, cl.context(), length(Y), (:r, :copy), hostbuf=Y)
-    R_buf = cl.Buffer(Float32, cl.context(), length(X), :w)
+    X_buf = cl.Buffer(Float32, length(X), (:r, :copy), hostbuf=X)
+    Y_buf = cl.Buffer(Float32, length(Y), (:r, :copy), hostbuf=Y)
+    R_buf = cl.Buffer(Float32, length(X), :w)
 
     global_size = size(X)
     cl.queue()(part3, global_size, nothing, X_buf, Y_buf, R_buf, P_buf)
 
-    r = cl.read(cl.queue(), R_buf)
+    r = cl.read(R_buf)
     @test all(x -> x == 13.5, r)
 end
 
@@ -255,10 +255,10 @@ let test_mutable_pointerfree = "
     part3 = cl.Kernel(p, "part3")
 
     P = MutableParams(0.5, 10.0)
-    P_buf = cl.Buffer(Float32, cl.context(), 2, :w)
+    P_buf = cl.Buffer(Float32, 2, :w)
     cl.queue()(part3, 1, nothing, P_buf, P)
 
-    r = cl.read(cl.queue(), P_buf)
+    r = cl.read(P_buf)
 
     @test r[1] == 0.5
     @test r[2] == 10.0

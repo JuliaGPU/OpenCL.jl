@@ -28,7 +28,7 @@ sum_kernel = cl.Kernel(p, "sum")
 sum_kernel[queue, size(a)](a_buff, b_buff, c_buff)
 
 # perform a blocking read of the result from the device
-r = cl.read(queue, c_buff)
+r = cl.read(c_buff)
 
 # check to see if our result is what we expect!
 if isapprox(norm(r - (a+b)), zero(Float32))

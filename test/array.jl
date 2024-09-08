@@ -11,7 +11,7 @@ using LinearAlgebra
 
         @test CLArray(hostarray) != nothing
 
-        @test CLArray(cl.Buffer(Float32, cl.context(), length(hostarray), (:r, :copy), hostbuf=hostarray),
+        @test CLArray(cl.Buffer(Float32, length(hostarray), (:r, :copy), hostbuf=hostarray),
                       (128, 64)) != nothing
 
         @test copy(A) == A

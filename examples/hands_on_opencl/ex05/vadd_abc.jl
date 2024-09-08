@@ -67,7 +67,7 @@ vadd[queue, size(h_a)](d_a, d_b, d_c, d_r, UInt32(LENGTH))
 # by convention..
 # cl.(action) calls are blocking
 # cl.enqueue_(action) calll are async/non-blocking
-h_r = cl.read(queue, d_r)
+h_r = cl.read(d_r)
 
 # test the results
 correct = 0

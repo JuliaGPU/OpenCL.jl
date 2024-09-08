@@ -19,7 +19,7 @@ end
 
 function CLArray(flags::Tuple{Vararg{Symbol}},
                  hostarray::AbstractArray{T,N}) where {T, N}
-    buf = cl.Buffer(T, cl.context(), length(hostarray), flags, hostbuf=hostarray)
+    buf = cl.Buffer(T, length(hostarray), flags, hostbuf=hostarray)
     sz = size(hostarray)
     CLArray(cl.context(), buf, sz)
 end
@@ -32,7 +32,7 @@ Base.copy(A::CLArray; ctx=A.ctx,
 
 function Base.deepcopy(A::CLArray{T,N}) where {T, N}
     new_buf = cl.Buffer(T, A.ctx, prod(A.size))
-    copy!(cl.queue(), new_buf, A.buffer)
+    copy!(new_buf, A.buffer)
     return CLArray(A.ctx, new_buf, A.size)
 end
 
@@ -42,10 +42,10 @@ Create in device memory array of type `t` and size `dims` filled by value `x`.
 function fill(::Type{T}, x::T, dims...) where T
     v = opencl_version(cl.context())
     if v.major == 1 && v.minor >= 2
-        buf = cl.Buffer(T, cl.context(), prod(dims))
+        buf = cl.Buffer(T, prod(dims))
         fill!(q, buf, x)
     else
-        buf = cl.Buffer(T, cl.context(), prod(dims), (:rw, :copy), hostbuf=Base.fill(x, dims))
+        buf = cl.Buffer(T, prod(dims), (:rw, :copy), hostbuf=Base.fill(x, dims))
     end
     return CLArray(buf, dims)
 end
@@ -82,7 +82,7 @@ Base.show(io::IO, A::CLArray{T,N}) where {T, N} =
 
 function to_host(A::CLArray{T,N}) where {T, N}
     hA = Array{T}(undef, size(A)...)
-    copy!(cl.queue(), hA, buffer(A))
+    copy!(hA, buffer(A))
     return hA
 end
 
@@ -133,7 +133,7 @@ function LinearAlgebra.transpose!(B::CLMatrix{Float64}, A::CLMatrix{Float64})
     # lmem = cl.LocalMem(Float64, block_size * (block_size + 1))
     lmem = cl.LocalMem(Float64, block_size * block_size)
     cl.set_args!(kernel, buffer(B), buffer(A), UInt32(h), UInt32(w), lmem)
-    return cl.enqueue_kernel(cl.queue(), kernel, (h, w), (block_size, block_size))
+    return cl.enqueue_kernel(kernel, (h, w), (block_size, block_size))
 end
 
 """Transpose CLMatrix A"""

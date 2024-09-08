@@ -56,7 +56,7 @@ k = cl.Kernel(p, "sum")
 
 queue(k, size(a), nothing, a_buff, b_buff, c_buff)
 
-r = cl.read(queue, c_buff)
+r = cl.read(c_buff)
 
 if isapprox(norm(r - (a+b)), zero(Float32))
     @info "Success!"

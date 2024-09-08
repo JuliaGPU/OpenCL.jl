@@ -64,9 +64,9 @@ end
 
         h_ones = ones(Float32, count)
 
-        A = cl.Buffer(Float32, cl.context(), length(h_ones), (:r, :copy), hostbuf=h_ones)
-        B = cl.Buffer(Float32, cl.context(), length(h_ones), (:r, :copy), hostbuf=h_ones)
-        C = cl.Buffer(Float32, cl.context(), count, :w)
+        A = cl.Buffer(Float32, length(h_ones), (:r, :copy), hostbuf=h_ones)
+        B = cl.Buffer(Float32, length(h_ones), (:r, :copy), hostbuf=h_ones)
+        C = cl.Buffer(Float32, count, :w)
 
         # sizeof mem object for buffer in bytes
         @test sizeof(A) == nbytes
@@ -80,7 +80,7 @@ end
         @test cl.set_arg!(k, 4, UInt32(count)) != nothing
 
         cl.enqueue_kernel(cl.queue(), k, count) |> cl.wait
-        r = cl.read(cl.queue(), C)
+        r = cl.read(C)
 
         @test all(x -> x == 2.0, r)
         cl.flush(cl.queue())
@@ -90,8 +90,8 @@ end
         cl.set_args!(k2, A, B, C, UInt32(count))
 
         h_twos = fill(2f0, count)
-        cl.copy!(cl.queue(), A, h_twos)
-        cl.copy!(cl.queue(), B, h_twos)
+        cl.copy!(A, h_twos)
+        cl.copy!(B, h_twos)
 
         #TODO: check for ocl version, fill is opencl v1.2
         #cl.enqueue_fill(cl.queue(), A, 2f0)
@@ -100,7 +100,7 @@ end
         cl.enqueue_kernel(cl.queue(), k, count)
         cl.finish(cl.queue())
 
-        r = cl.read(cl.queue(), C)
+        r = cl.read(C)
 
         @test all(x -> x == 4.0, r)
     end
@@ -112,7 +112,7 @@ end
             };"
 
         h_buff = Float32[1,]
-        d_buff = cl.Buffer(Float32, cl.context(), length(h_buff), (:rw, :copy), hostbuf=h_buff)
+        d_buff = cl.Buffer(Float32, length(h_buff), (:rw, :copy), hostbuf=h_buff)
 
         p = cl.Program(cl.context(), source=simple_kernel) |> cl.build!
         k = cl.Kernel(p, "test")
@@ -132,18 +132,18 @@ end
         # blocking call to kernel finishes cmd queue
         cl.queue()(k, 1, 1, d_buff)
 
-        r = cl.read(cl.queue(), d_buff)
+        r = cl.read(d_buff)
         @test r[1] == 2
 
         # alternative kernel call syntax
         k[cl.queue(), (1,), (1,)](d_buff)
-        r = cl.read(cl.queue(), d_buff)
+        r = cl.read(d_buff)
         @test r[1] == 3
 
         # enqueue task is an alias for calling
         # a kernel with a global/local size of 1
         evt = cl.enqueue_task(cl.queue(), k)
-        r = cl.read(cl.queue(), d_buff)
+        r = cl.read(d_buff)
         @test r[1] == 4
     end
 
@@ -161,10 +161,10 @@ end
         prg = cl.Program(cl.context(), source = test_source)
         cl.build!(prg)
         structkernel = cl.Kernel(prg, "structest")
-        out = cl.Buffer(Float32, cl.context(), 2, :w)
+        out = cl.Buffer(Float32, 2, :w)
         bstruct = (1, Int32(4))
         structkernel[cl.queue(), (1,)](out, bstruct)
-        r = cl.read(cl.queue(), out)
+        r = cl.read(out)
         @test r  == [1f0, 4f0]
     end
 
@@ -188,10 +188,10 @@ end
         prg = cl.Program(cl.context(), source = test_source)
         cl.build!(prg)
         structkernel = cl.Kernel(prg, "structest")
-        out = cl.Buffer(Float32, cl.context(), 4, :w)
+        out = cl.Buffer(Float32, 4, :w)
         astruct = CLTestStruct((1f0, 2f0, 3f0), nothing, 22f0)
         structkernel[cl.queue(), (1,)](out, astruct)
-        r = cl.read(cl.queue(), out)
+        r = cl.read(out)
         @test r == [1f0, 2f0, 3f0, 22f0]
     end
 end

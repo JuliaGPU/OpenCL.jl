@@ -45,15 +45,15 @@ end
 #      design is messy. probably best move all flags into a kwarg?
 
 # high level Buffer constructors with symbol flags
-function Buffer(::Type{T}, ctx::Context, len::Integer; hostbuf=nothing) where T
-    Buffer(T, ctx, len, (:rw, :null), hostbuf=hostbuf)
+function Buffer(::Type{T}, len::Integer; hostbuf=nothing) where T
+    Buffer(T, len, (:rw, :null), hostbuf=hostbuf)
 end
 
-function Buffer(::Type{T}, ctx::Context, len::Integer, mem_flag::Symbol; hostbuf=nothing) where T
-    Buffer(T, ctx, len, (mem_flag, :null), hostbuf=hostbuf)
+function Buffer(::Type{T}, len::Integer, mem_flag::Symbol; hostbuf=nothing) where T
+    Buffer(T, len, (mem_flag, :null), hostbuf=hostbuf)
 end
 
-function Buffer(::Type{T}, ctx::Context, len::Integer, mem_flags::NTuple{2, Symbol}; hostbuf=nothing) where T
+function Buffer(::Type{T}, len::Integer, mem_flags::NTuple{2, Symbol}; hostbuf=nothing) where T
     f_r  = :r  in mem_flags
     f_w  = :w  in mem_flags
     f_rw = :rw in mem_flags
@@ -88,11 +88,11 @@ function Buffer(::Type{T}, ctx::Context, len::Integer, mem_flags::NTuple{2, Symb
     elseif f_copy && !(f_alloc || f_use)
         flags |= CL_MEM_COPY_HOST_PTR
     end
-    return Buffer(T, ctx, len, flags, hostbuf=hostbuf)
+    return Buffer(T, len, flags, hostbuf=hostbuf)
 end
 
 # low level Buffer constructor with integer parameter flags
-function Buffer(::Type{T}, ctx::Context, len::Integer, flags;
+function Buffer(::Type{T}, len::Integer, flags;
                 hostbuf::Union{Nothing,Array{T}}=nothing) where T
 
     if (hostbuf !== nothing &&
@@ -128,7 +128,7 @@ function Buffer(::Type{T}, ctx::Context, len::Integer, flags;
     end
 
     err_code = Ref{Cint}()
-    mem_id = clCreateBuffer(ctx, flags, cl_uint(nbytes),
+    mem_id = clCreateBuffer(context(), flags, cl_uint(nbytes),
                             hostbuf !== nothing ? hostbuf : C_NULL,
                             err_code)
     if err_code[] != CL_SUCCESS
@@ -144,8 +144,7 @@ function Buffer(::Type{T}, ctx::Context, len::Integer, flags;
 end
 
 # enqueue a read from buffer to hoast array from buffer, return an event
-function enqueue_read_buffer(q::CmdQueue,
-                             buf::Buffer{T},
+function enqueue_read_buffer(buf::Buffer{T},
                              hostbuf::Array{T},
                              dev_offset::Csize_t,
                              wait_for::Union{Nothing,Vector{Event}},
@@ -155,15 +154,14 @@ function enqueue_read_buffer(q::CmdQueue,
     ret_evt = Ref{cl_event}()
     nbytes  = sizeof(hostbuf)
     @assert nbytes > 0
-    clEnqueueReadBuffer(q, buf, cl_bool(is_blocking),
+    clEnqueueReadBuffer(queue(), buf, cl_bool(is_blocking),
                         dev_offset, nbytes, hostbuf,
                         n_evts, evt_ids, ret_evt)
     @return_nanny_event(ret_evt[], hostbuf)
 end
 
 # enqueue a write from host array to buffer, return an event
-function enqueue_write_buffer(q::CmdQueue,
-                              buf::Buffer{T},
+function enqueue_write_buffer(buf::Buffer{T},
                               hostbuf::Array{T},
                               byte_count::Csize_t,
                               offset::Csize_t,
@@ -174,15 +172,14 @@ function enqueue_write_buffer(q::CmdQueue,
     ret_evt = Ref{cl_event}()
     nbytes  = sizeof(hostbuf)
     @assert nbytes > 0
-    clEnqueueWriteBuffer(q, buf, cl_bool(is_blocking),
+    clEnqueueWriteBuffer(queue(), buf, cl_bool(is_blocking),
                          offset, nbytes, hostbuf,
                          n_evts, evt_ids, ret_evt)
     @return_nanny_event(ret_evt[], hostbuf)
 end
 
 # enqueue a copy from one buffer to another, return an event
-function enqueue_copy_buffer(q::CmdQueue,
-                             src::Buffer{T},
+function enqueue_copy_buffer(src::Buffer{T},
                              dst::Buffer{T},
                              byte_count::Csize_t,
                              src_offset::Csize_t,
@@ -199,7 +196,7 @@ function enqueue_copy_buffer(q::CmdQueue,
         byte_count = min(byte_count_src[], byte_count_dst[])
     end
     @assert byte_count > 0
-    clEnqueueCopyBuffer(q, src, dst,
+    clEnqueueCopyBuffer(queue(), src, dst,
                         src_offset, dst_offset, byte_count,
                         n_evts, evt_ids, ret_evt)
     @return_event ret_evt[]
@@ -209,8 +206,7 @@ end
 ismapped(b::Buffer) = b.mapped
 
 # enqueue an unmap buffer op, return an event
-function enqueue_unmap_mem(q::CmdQueue,
-                           b::Buffer{T},
+function enqueue_unmap_mem(b::Buffer{T},
                            a::Array{T};
                            wait_for=nothing) where T
     if b.hostbuf != pointer(a)
@@ -232,22 +228,21 @@ function enqueue_unmap_mem(q::CmdQueue,
         end
     end
     ret_evt = Ref{cl_event}()
-    clEnqueueUnmapMemObject(q, b, a, n_evts, evt_ids, ret_evt)
+    clEnqueueUnmapMemObject(queue(), b, a, n_evts, evt_ids, ret_evt)
     b.mapped  = false
     b.hostbuf = C_NULL
     @return_event ret_evt[]
 end
 
 # (blocking) unmap a given buffer/array
-function unmap!(q::CmdQueue, b::Buffer{T}, a::Array{T}) where T
-    evt = enqueue_unmap_mem(q, b, a)
+function unmap!(b::Buffer{T}, a::Array{T}) where T
+    evt = enqueue_unmap_mem(b, a)
     return wait(evt)
 end
 
 
 # enqueue a memory mapping operation, returning a mapped (pinned) Array and an event
-function enqueue_map_mem(q::CmdQueue,
-                         b::Buffer{T},
+function enqueue_map_mem(b::Buffer{T},
                          flags::Symbol,
                          offset::Integer,
                          dims::Dims,
@@ -263,12 +258,11 @@ function enqueue_map_mem(q::CmdQueue,
     else
         throw(ArgumentError("enqueue_unmap can have flags of :r, :w, or :rw, got :$flags"))
     end
-    return enqueue_map_mem(q, b, f, offset, dims, wait_for, is_blocking)
+    return enqueue_map_mem(b, f, offset, dims, wait_for, is_blocking)
 end
 
 # enqueue a memory mapping operation, returning a mapped (pinned) Array and an event
-function enqueue_map_mem(q::CmdQueue,
-                         b::Buffer{T},
+function enqueue_map_mem(b::Buffer{T},
                          flags::cl_map_flags,
                          offset::Integer,
                          dims::Dims,
@@ -285,7 +279,7 @@ function enqueue_map_mem(q::CmdQueue,
     nbytes  = unsigned(prod(dims) * sizeof(T))
     ret_evt = Ref{cl_event}()
     status  = Ref{Cint}()
-    mapped  = clEnqueueMapBuffer(q, b, cl_bool(is_blocking ? 1 : 0),
+    mapped  = clEnqueueMapBuffer(queue(), b, cl_bool(is_blocking ? 1 : 0),
                                  flags, offset, nbytes,
                                  n_evts, evt_ids, ret_evt, status)
     if status[] != CL_SUCCESS
@@ -302,11 +296,11 @@ function enqueue_map_mem(q::CmdQueue,
         b.hostbuf = mapped
         finalizer(mapped_arr) do x
             if b.mapped && b.hostbuf != C_NULL
-                unmap!(q, b, x)
+                unmap!(queue(), b, x)
             end
         end
     catch err
-        clEnqueueUnmapMemObject(q, b, mapped, unsigned(0), C_NULL, C_NULL)
+        clEnqueueUnmapMemObject(queue(), b, mapped, unsigned(0), C_NULL, C_NULL)
         b.mapped  = false
         b.hostbuf = C_NULL
         rethrow(err)
@@ -315,7 +309,7 @@ function enqueue_map_mem(q::CmdQueue,
 end
 
 # low level enqueue fill operation, return event
-function enqueue_fill_buffer(q::CmdQueue, buf::Buffer{T},
+function enqueue_fill_buffer(buf::Buffer{T},
                              pattern::T, offset::Csize_t,
                              nbytes::Csize_t,
                              wait_for::Union{Vector{Event},Nothing}) where T
@@ -329,95 +323,94 @@ function enqueue_fill_buffer(q::CmdQueue, buf::Buffer{T},
     ret_evt = Ref{cl_event}()
     nbytes_pattern = sizeof(pattern)
     @assert nbytes_pattern > 0
-    clEnqueueFillBuffer(q, buf, [pattern],
+    clEnqueueFillBuffer(queue(), buf, [pattern],
                         unsigned(nbytes_pattern), offset, nbytes,
                         n_evts, evt_ids, ret_evt)
     @return_event ret_evt[]
 end
 
 # enqueue a fill operation, return an event
-function enqueue_fill(q::CmdQueue, buf::Buffer{T}, x::T) where T
+function enqueue_fill(buf::Buffer{T}, x::T) where T
     nbytes = sizeof(buf)
-    evt = enqueue_fill_buffer(q, buf, x, unsigned(0),
-                              unsigned(nbytes), nothing)
+    evt = enqueue_fill_buffer(buf, x, unsigned(0), unsigned(nbytes), nothing)
     return evt
 end
 
 # (blocking) fill the contents of a buffer with with a given value
-function fill!(q::CmdQueue, buf::Buffer{T}, x::T) where T
-    evt = enqueue_fill(q, buf, x)
+function fill!(buf::Buffer{T}, x::T) where T
+    evt = enqueue_fill(buf, x)
     wait(evt)
     return evt
 end
 
 # copy the contents of a buffer into an array
-function Base.copy!(q::CmdQueue, dst::Array{T}, src::Buffer{T}) where T
+function Base.copy!(dst::Array{T}, src::Buffer{T}) where T
     if sizeof(dst) != sizeof(src)
         throw(ArgumentError("Buffer and Array to be copied must be the same size"))
     end
-    evt = enqueue_read_buffer(q, src, dst, UInt(0), nothing, true)
+    evt = enqueue_read_buffer(src, dst, UInt(0), nothing, true)
     return evt
 end
 
 # copy the contents of an array into a buffer
-function Base.copy!(q::CmdQueue, dst::Buffer{T}, src::Array{T}) where T
+function Base.copy!(dst::Buffer{T}, src::Array{T}) where T
     if sizeof(dst) != sizeof(src)
         throw(ArgumentError("Array and Buffer to be copied must be the same size"))
     end
     nbytes = convert(Csize_t, sizeof(src))
-    evt = enqueue_write_buffer(q, dst, src, nbytes, unsigned(0), nothing, true)
+    evt = enqueue_write_buffer(dst, src, nbytes, unsigned(0), nothing, true)
     return evt
 end
 
 # copy the contents of a buffer into another buffer
-function Base.copy!(q::CmdQueue, dst::Buffer{T}, src::Buffer{T}) where T
+function Base.copy!(dst::Buffer{T}, src::Buffer{T}) where T
     if sizeof(dst) != sizeof(src)
         throw(ArgumentError("Buffers to be copied must be the same size"))
     end
     nbytes = convert(Csize_t, sizeof(src))
-    evt = enqueue_copy_buffer(q, src, dst, nbytes, unsigned(0),
+    evt = enqueue_copy_buffer(src, dst, nbytes, unsigned(0),
                               unsigned(0), nothing)
     wait(evt)
     return evt
 end
 
 # copy bufer into identical buffer object
-function Base.copy(q::CmdQueue, src::Buffer{T}) where T
+function Base.copy(src::Buffer{T}) where T
     nbytes = sizeof(src)
-    new_buff = empty_like(q[:context], src)
-    copy!(q, new_buff, src)
+    new_buff = empty_like(src)
+    copy!(new_buff, src)
     return new_buff
 end
 
 # create an empty buffer similar to the passed in buffer
-function empty_like(ctx::Context, b::Buffer{T}) where T
+function empty_like(b::Buffer{T}) where T
     len = length(b)
     mf = info(b, :mem_flags)
     if :r in mf
-        return Buffer(T, ctx, len, :r)
+        return Buffer(T, len, :r)
     elseif :w in mf
-        return Buffer(T, ctx, len, :w)
+        return Buffer(T, len, :w)
     else
-        return Buffer(T, ctx, len, :rw)
+        return Buffer(T, len, :rw)
     end
 end
 
 # create an empty buffer similar to the passed in Array
-function empty_like(ctx::Context, a::Array{T}, flag::Symbol=:rw) where T
+function empty_like(a::Array{T}, flag::Symbol=:rw) where T
     len = length(a)
-    return Buffer(T, ctx, len, flag)
+    return Buffer(T, len, flag)
 end
 
 # blocking write of contents of an array to a buffer
-function write!(q::CmdQueue, buf::Buffer{T}, hostbuf::Array{T}) where T
+function write!(buf::Buffer{T}, hostbuf::Array{T}) where T
     nbytes = unsigned(sizeof(hostbuf))
-    enqueue_write_buffer(q, buf, hostbuf, nbytes, unsigned(0), nothing, true)
+    enqueue_write_buffer(buf, hostbuf, nbytes, unsigned(0), nothing, true)
     return
 end
 
 # blocking read of the contents of a buffer into a new array
-function read(q::CmdQueue, buf::Buffer{T}) where T
+function read(buf::Buffer{T}) where T
     hostbuf = Vector{T}(undef, length(buf))
-    enqueue_read_buffer(q, buf, hostbuf, unsigned(0), nothing, true)
+    enqueue_read_buffer(buf, hostbuf, unsigned(0), nothing, true)
     return hostbuf
 end

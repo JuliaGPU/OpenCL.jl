@@ -1,6 +1,6 @@
 function create_test_buffer()
     testarray = zeros(Float32, 1000)
-    cl.Buffer(Float32, cl.context(), length(testarray), (:rw, :copy), hostbuf=testarray)
+    cl.Buffer(Float32, length(testarray), (:rw, :copy), hostbuf=testarray)
 end
 
 @testset "Memory" begin

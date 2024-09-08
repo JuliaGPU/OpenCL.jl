@@ -97,7 +97,7 @@ function cl_performance(ndatapts::Integer, nworkers::Integer)
             t = evt[:profile_duration] * 1e-9
             @printf("Execution time of test: %.4f seconds\n", t)
 
-            c_device = cl.read(queue, c_buf)
+            c_device = cl.read(c_buf)
             @info("Result norm: $(norm(c - c_device))")
         end
     end
