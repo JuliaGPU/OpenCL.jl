@@ -28,6 +28,8 @@ Base.show(io::IO, p::Program) = begin
     print(io, "OpenCL.Program(@$ptr_address)")
 end
 
+Base.unsafe_convert(::Type{cl_program}, p::Program) = p.id
+
 Base.pointer(p::Program) = p.id
 
 Base.getindex(p::Program, pinfo::Symbol) = info(p, pinfo)
@@ -92,7 +94,7 @@ function build!(p::Program; options = "", raise = true)
     opts = String(options)
     ndevices = 0
     device_ids = C_NULL
-    err = unchecked_clBuildProgram(p.id, cl_uint(ndevices), device_ids, opts, C_NULL, C_NULL)
+    err = unchecked_clBuildProgram(p, cl_uint(ndevices), device_ids, opts, C_NULL, C_NULL)
     for (dev, status) in cl.info(p, :build_status)
         if status == cl.CL_BUILD_ERROR
             println(stderr, "Couldn't compile kernel: ")
@@ -112,15 +114,15 @@ end
 function info(p::Program, pinfo::Symbol)
     num_devices(p::Program) = begin
         ret = Ref{Cuint}()
-        clGetProgramInfo(p.id, CL_PROGRAM_NUM_DEVICES, sizeof(ret), ret, C_NULL)
+        clGetProgramInfo(p, CL_PROGRAM_NUM_DEVICES, sizeof(ret), ret, C_NULL)
         return ret[]
     end
 
     devices(p::Program) = begin
         ndevices = num_devices(p)
         device_ids = Vector{cl_device_id}(undef, ndevices)
-        clGetProgramInfo(p.id, CL_PROGRAM_DEVICES,
-                             sizeof(cl_device_id) * ndevices, device_ids, C_NULL)
+        clGetProgramInfo(p, CL_PROGRAM_DEVICES,
+                         sizeof(cl_device_id) * ndevices, device_ids, C_NULL)
         return [Device(device_ids[i]) for i in 1:ndevices]
     end
 
@@ -128,7 +130,7 @@ function info(p::Program, pinfo::Symbol)
         status_dict = Dict{Device, cl_build_status}()
         status = Ref{cl_build_status}()
         for d in devices(p)
-            clGetProgramBuildInfo(p.id, d, CL_PROGRAM_BUILD_STATUS,
+            clGetProgramBuildInfo(p, d, CL_PROGRAM_BUILD_STATUS,
                                   sizeof(cl_build_status), status, C_NULL)
             status_dict[d] = status[]
         end
@@ -139,13 +141,13 @@ function info(p::Program, pinfo::Symbol)
         logs = Dict{Device, String}()
         for d in devices(p)
             log_len = Ref{Csize_t}()
-            clGetProgramBuildInfo(p.id, d, CL_PROGRAM_BUILD_LOG, 0, C_NULL, log_len)
+            clGetProgramBuildInfo(p, d, CL_PROGRAM_BUILD_LOG, 0, C_NULL, log_len)
             if log_len[] == 0
                 logs[d] = ""
                 continue
             end
             log_bytestring = Vector{Cchar}(undef, log_len[])
-            clGetProgramBuildInfo(p.id, d, CL_PROGRAM_BUILD_LOG,
+            clGetProgramBuildInfo(p, d, CL_PROGRAM_BUILD_LOG,
                                   log_len[], log_bytestring, C_NULL)
             logs[d] = CLString(log_bytestring)
         end
@@ -155,12 +157,10 @@ function info(p::Program, pinfo::Symbol)
     binaries(p::Program) = begin
         binary_dict = Dict{Device, Array{UInt8}}()
         slen = Ref{Csize_t}()
-        clGetProgramInfo(p.id, CL_PROGRAM_BINARY_SIZES,
-                                    0, C_NULL, slen)
+        clGetProgramInfo(p, CL_PROGRAM_BINARY_SIZES, 0, C_NULL, slen)
 
         sizes = zeros(Csize_t, slen[])
-        clGetProgramInfo(p.id, CL_PROGRAM_BINARY_SIZES,
-                                    slen[], sizes, C_NULL)
+        clGetProgramInfo(p, CL_PROGRAM_BINARY_SIZES, slen[], sizes, C_NULL)
         bins = Vector{Ptr{UInt8}}(undef, length(sizes))
         # keep a reference to the underlying binary arrays
         # as storing the pointer to the array hides the additional
@@ -175,9 +175,9 @@ function info(p::Program, pinfo::Symbol)
                 bins[i] = Base.unsafe_convert(Ptr{UInt8}, C_NULL)
             end
         end
-        clGetProgramInfo(p.id, CL_PROGRAM_BINARIES,
-                                    length(sizes) * sizeof(Ptr{UInt8}),
-                                    bins, C_NULL)
+        clGetProgramInfo(p, CL_PROGRAM_BINARIES,
+                         length(sizes) * sizeof(Ptr{UInt8}),
+                         bins, C_NULL)
         bidx = 1
         for (i, d) in enumerate(devices(p))
             if sizes[i] > 0
@@ -190,24 +190,22 @@ function info(p::Program, pinfo::Symbol)
 
     source(p::Program) = begin
         src_len = Ref{Csize_t}()
-        clGetProgramInfo(p.id, CL_PROGRAM_SOURCE, 0, C_NULL, src_len)
+        clGetProgramInfo(p, CL_PROGRAM_SOURCE, 0, C_NULL, src_len)
         src_len[] <= 1 && return nothing
         src = Vector{Cchar}(undef, src_len[])
-        clGetProgramInfo(p.id, CL_PROGRAM_SOURCE, src_len[], src, C_NULL)
+        clGetProgramInfo(p, CL_PROGRAM_SOURCE, src_len[], src, C_NULL)
         return CLString(src)
     end
 
     context(p::Program) = begin
         ret = Ref{cl_context}()
-        clGetProgramInfo(p.id, CL_PROGRAM_CONTEXT,
-                                    sizeof(cl_context), ret, C_NULL)
+        clGetProgramInfo(p, CL_PROGRAM_CONTEXT, sizeof(cl_context), ret, C_NULL)
         return Context(ret[], retain = true)
     end
 
     reference_count(p::Program) = begin
         ret = Ref{Cuint}()
-        clGetProgramInfo(p.id, CL_PROGRAM_REFERENCE_COUNT,
-                                    sizeof(Cuint), ret, C_NULL)
+        clGetProgramInfo(p, CL_PROGRAM_REFERENCE_COUNT, sizeof(Cuint), ret, C_NULL)
         return ret[]
     end
 

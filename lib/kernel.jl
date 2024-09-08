@@ -35,7 +35,7 @@ function Kernel(p::Program, kernel_name::String)
         end
     end
     err_code = Ref{Cint}()
-    kernel_id = clCreateKernel(p.id, kernel_name, err_code)
+    kernel_id = clCreateKernel(p, kernel_name, err_code)
     if err_code[] != CL_SUCCESS
         throw(CLError(err_code[]))
     end
