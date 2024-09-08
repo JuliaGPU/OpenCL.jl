@@ -5,7 +5,7 @@ if backend in ["POCL", "Intel"]
 else
 @testset "Event" begin
     @testset "status" begin
-        evt = cl.UserEvent(cl.context())
+        evt = cl.UserEvent()
         evt[:status]
         @test evt[:status] == :submitted
         cl.complete(evt)
@@ -15,11 +15,11 @@ else
 
     @testset "wait" begin
         # create user event
-        usr_evt = cl.UserEvent(cl.context())
-        cl.enqueue_wait_for_events(cl.queue(), usr_evt)
+        usr_evt = cl.UserEvent()
+        cl.enqueue_wait_for_events(usr_evt)
 
         # create marker event
-        mkr_evt = cl.enqueue_marker(cl.queue())
+        mkr_evt = cl.enqueue_marker()
 
         @test usr_evt[:status] == :submitted
         @test mkr_evt[:status] in (:queued, :submitted)
@@ -43,11 +43,11 @@ else
             callback_called[] = true
         end
 
-        usr_evt = cl.UserEvent(cl.context())
+        usr_evt = cl.UserEvent()
 
-        cl.enqueue_wait_for_events(cl.queue(), usr_evt)
+        cl.enqueue_wait_for_events(usr_evt)
 
-        mkr_evt = cl.enqueue_marker(cl.queue())
+        mkr_evt = cl.enqueue_marker()
         cl.add_callback(mkr_evt, test_callback)
 
         @test usr_evt[:status] == :submitted

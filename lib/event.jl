@@ -92,9 +92,9 @@ mutable struct UserEvent <: CLEvent
     end
 end
 
-function UserEvent(ctx::Context; retain=false)
+function UserEvent(; retain=false)
     status = Ref{Cint}()
-    evt_id = clCreateUserEvent(ctx, status)
+    evt_id = clCreateUserEvent(context(), status)
     if status[] != CL_SUCCESS
         throw(CLError(status[]))
     end
@@ -179,49 +179,47 @@ function wait(evts::Vector{CLEvent})
     return evts
 end
 
-function enqueue_marker_with_wait_list(q::CmdQueue,
-                                       wait_for::Vector{CLEvent})
+function enqueue_marker_with_wait_list(wait_for::Vector{CLEvent})
     n_wait_events = cl_uint(length(wait_for))
     wait_evt_ids = [evt.id for evt in wait_for]
     ret_evt = Ref{cl_event}()
-    clEnqueueMarkerWithWaitList(q, n_wait_events,
+    clEnqueueMarkerWithWaitList(queue(), n_wait_events,
                                 isempty(wait_evt_ids) ? C_NULL : wait_evt_ids,
                                 ret_evt)
     @return_event ret_evt[]
 end
 
-function enqueue_barrier_with_wait_list(q::CmdQueue,
-                                        wait_for::Vector{CLEvent})
+function enqueue_barrier_with_wait_list(wait_for::Vector{CLEvent})
     n_wait_events = cl_uint(length(wait_for))
     wait_evt_ids = [evt.id for evt in wait_for]
     ret_evt = Ref{cl_event}()
-    clEnqueueBarrierWithWaitList(q, n_wait_events,
+    clEnqueueBarrierWithWaitList(queue(), n_wait_events,
                                  isempty(wait_evt_ids) ? C_NULL : wait_evt_ids,
                                  ret_evt)
     @return_event ret_evt[]
 end
 
-function enqueue_marker(q::CmdQueue)
+function enqueue_marker()
     evt = Ref{cl_event}()
-    clEnqueueMarker(q, evt)
+    clEnqueueMarker(queue(), evt)
     @return_event evt[]
 end
 @deprecate enqueue_marker enqueue_marker_with_wait_list
 
-function enqueue_wait_for_events(q::CmdQueue, wait_for::Vector{T}) where {T<:CLEvent}
+function enqueue_wait_for_events(wait_for::Vector{T}) where {T<:CLEvent}
     n_wait_events = cl_uint(length(wait_for))
     wait_evt_ids = [evt.id for evt in wait_for]
-    clEnqueueWaitForEvents(q, n_wait_events,
+    clEnqueueWaitForEvents(queue(), n_wait_events,
                            isempty(wait_evt_ids) ? C_NULL : pointer(wait_evt_ids))
 end
 
-function enqueue_wait_for_events(q::CmdQueue, wait_for::CLEvent)
-    enqueue_wait_for_events(q, [wait_for])
+function enqueue_wait_for_events(wait_for::CLEvent)
+    enqueue_wait_for_events([wait_for])
 end
 
-function enqueue_barrier(q::CmdQueue)
-    clEnqueueBarrier(q)
-    return q
+function enqueue_barrier()
+    clEnqueueBarrier(queue())
+    return
 end
 @deprecate enqueue_barrier enqueue_barrier_with_wait_list
 
