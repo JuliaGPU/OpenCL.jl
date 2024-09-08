@@ -97,7 +97,7 @@ end
 
 function queue()
     get!(task_local_storage(), :CLQueue) do
-        q = cl.CmdQueue(context())
+        q = cl.CmdQueue()
         task_local_storage(:CLQueue, q)
         q
     end::cl.CmdQueue

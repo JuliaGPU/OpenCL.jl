@@ -29,37 +29,7 @@ end
 
 Base.getindex(q::CmdQueue, qinfo::Symbol) = info(q, qinfo)
 
-function CmdQueue(ctx::Context)
-    devs  = devices(ctx)
-    flags = cl_command_queue_properties(0)
-    if isempty(devs)
-        throw(ArgumentError("OpenCL.CmdQueue Context argument does not have any devices"))
-    end
-    return CmdQueue(ctx, first(devs), flags)
-end
-
-function CmdQueue(ctx::Context, prop::Symbol)
-    devs = devices(ctx)
-    if isempty(devs)
-        throw(ArgumentError("OpenCL.CmdQueue Context argument does not have any devices"))
-    end
-    return CmdQueue(ctx, first(devs), prop)
-end
-
-function CmdQueue(ctx::Context, props::NTuple{2, Symbol})
-    devs = devices(ctx)
-    if isempty(devs)
-        throw(ArgumentError("OpenCL.CmdQueue Context argument does not have any devices"))
-    end
-    return CmdQueue(ctx, first(devs), props)
-end
-
-function CmdQueue(ctx::Context, dev::Device)
-    flags = cl_command_queue_properties(0)
-    return CmdQueue(ctx, dev, flags)
-end
-
-function CmdQueue(ctx::Context, dev::Device, prop::Symbol)
+function CmdQueue(prop::Symbol)
     flags = cl_command_queue_properties(0)
     if prop == :out_of_order
         flags |= CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE
@@ -68,20 +38,20 @@ function CmdQueue(ctx::Context, dev::Device, prop::Symbol)
     else
         throw(ArgumentError("Only :out_of_order and :profile flags are valid, recognized flag $prop"))
     end
-    return CmdQueue(ctx, dev, flags)
+    return CmdQueue(flags)
 end
 
-function CmdQueue(ctx::Context, dev::Device, props::NTuple{2,Symbol})
+function CmdQueue(props::NTuple{2,Symbol})
     if !(:out_of_order in props && :profile in props)
         throw(ArgumentError("Only :out_of_order and :profile flags are vaid, unrecognized flags $props"))
     end
     flags = CL_QUEUE_PROFILING_ENABLE | CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE
-    return CmdQueue(ctx, dev, flags)
+    return CmdQueue(flags)
 end
 
-function CmdQueue(ctx::Context, dev::Device, props)
+function CmdQueue(flags=cl_command_queue_properties(0))
     err_code = Ref{Cint}()
-    queue_id = clCreateCommandQueue(ctx.id, dev.id, props, err_code)
+    queue_id = clCreateCommandQueue(context().id, device().id, flags, err_code)
     if err_code[] != CL_SUCCESS
         if queue_id != C_NULL
             clReleaseCommandQueue(queue_id)

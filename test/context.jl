@@ -6,16 +6,15 @@ function context_test_callback(arg1, arg2, arg3)
     return
 end
 
-function create_context_error(ctx)
+function create_context_error()
     empty_kernel = "
     __kernel void test() {
         int c = 1 + 1;
     };"
     try
-        p = cl.Program(ctx, source = empty_kernel) |> cl.build!
+        p = cl.Program(cl.context(), source = empty_kernel) |> cl.build!
         k = cl.Kernel(p, "test")
-        q = cl.CmdQueue(ctx)
-        q(k, 1, 10000000)
+        cl.queue()(k, 1, 10000000)
     catch
     end
 end
@@ -41,10 +40,14 @@ end
         # jeez, this segfaults... WHY? I suspect a driver bug for refcount == 0?
         # NVIDIA 381.22
         #@test !cl.is_ctx_id_alive(ctx_id)
-        @testset "Context callback" begin
-            ctx = cl.Context(cl.device(), callback = context_test_callback)
-            create_context_error(ctx)
-        end
+
+        # TODO: support switching contexts
+        #@testset "Context callback" begin
+        #    ctx = cl.Context(cl.device(), callback = context_test_callback)
+        #    context!(ctx) do
+        #        create_context_error()
+        #    end
+        #end
     end
 
 

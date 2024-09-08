@@ -56,8 +56,6 @@ end
     end
 
     @testset "set_arg!/set_args!" begin
-        queue = cl.CmdQueue(cl.context())
-
         prg = cl.Program(cl.context(), source=test_source) |> cl.build!
         k = cl.Kernel(prg, "sum")
 
@@ -81,28 +79,28 @@ end
         @test cl.set_arg!(k, 3, C) != nothing
         @test cl.set_arg!(k, 4, UInt32(count)) != nothing
 
-        cl.enqueue_kernel(queue, k, count) |> cl.wait
-        r = cl.read(queue, C)
+        cl.enqueue_kernel(cl.queue(), k, count) |> cl.wait
+        r = cl.read(cl.queue(), C)
 
         @test all(x -> x == 2.0, r)
-        cl.flush(queue)
+        cl.flush(cl.queue())
 
         # test set_args with new kernel
         k2 = cl.Kernel(prg, "sum")
         cl.set_args!(k2, A, B, C, UInt32(count))
 
         h_twos = fill(2f0, count)
-        cl.copy!(queue, A, h_twos)
-        cl.copy!(queue, B, h_twos)
+        cl.copy!(cl.queue(), A, h_twos)
+        cl.copy!(cl.queue(), B, h_twos)
 
         #TODO: check for ocl version, fill is opencl v1.2
-        #cl.enqueue_fill(queue, A, 2f0)
-        #cl.enqueue_fill(queue, B, 2f0)
+        #cl.enqueue_fill(cl.queue(), A, 2f0)
+        #cl.enqueue_fill(cl.queue(), B, 2f0)
 
-        cl.enqueue_kernel(queue, k, count)
-        cl.finish(queue)
+        cl.enqueue_kernel(cl.queue(), k, count)
+        cl.finish(cl.queue())
 
-        r = cl.read(queue, C)
+        r = cl.read(cl.queue(), C)
 
         @test all(x -> x == 4.0, r)
     end
@@ -118,35 +116,34 @@ end
 
         p = cl.Program(cl.context(), source=simple_kernel) |> cl.build!
         k = cl.Kernel(p, "test")
-        q = cl.CmdQueue(cl.context())
 
         # dimensions must be the same size
-        @test_throws ArgumentError q(k, (1,), (1,1), d_buff)
-        @test_throws ArgumentError q(k, (1,1), (1,), d_buff)
+        @test_throws ArgumentError cl.queue()(k, (1,), (1,1), d_buff)
+        @test_throws ArgumentError cl.queue()(k, (1,1), (1,), d_buff)
 
         # dimensions are bounded
         max_work_dim = cl.device()[:max_work_item_dims]
         bad = tuple([1 for _ in 1:(max_work_dim + 1)])
-        @test_throws MethodError q(k, bad, d_buff)
+        @test_throws MethodError cl.queue()(k, bad, d_buff)
 
         # devices have finite work sizes
-        @test_throws MethodError q(k, (typemax(Int),), d_buff)
+        @test_throws MethodError cl.queue()(k, (typemax(Int),), d_buff)
 
         # blocking call to kernel finishes cmd queue
-        q(k, 1, 1, d_buff)
+        cl.queue()(k, 1, 1, d_buff)
 
-        r = cl.read(q, d_buff)
+        r = cl.read(cl.queue(), d_buff)
         @test r[1] == 2
 
         # alternative kernel call syntax
-        k[q, (1,), (1,)](d_buff)
-        r = cl.read(q, d_buff)
+        k[cl.queue(), (1,), (1,)](d_buff)
+        r = cl.read(cl.queue(), d_buff)
         @test r[1] == 3
 
         # enqueue task is an alias for calling
         # a kernel with a global/local size of 1
-        evt = cl.enqueue_task(q, k)
-        r = cl.read(q, d_buff)
+        evt = cl.enqueue_task(cl.queue(), k)
+        r = cl.read(cl.queue(), d_buff)
         @test r[1] == 4
     end
 
@@ -162,13 +159,12 @@ end
         }
         "
         prg = cl.Program(cl.context(), source = test_source)
-        queue = cl.CmdQueue(cl.context())
         cl.build!(prg)
         structkernel = cl.Kernel(prg, "structest")
         out = cl.Buffer(Float32, cl.context(), 2, :w)
         bstruct = (1, Int32(4))
-        structkernel[queue, (1,)](out, bstruct)
-        r = cl.read(queue, out)
+        structkernel[cl.queue(), (1,)](out, bstruct)
+        r = cl.read(cl.queue(), out)
         @test r  == [1f0, 4f0]
     end
 
@@ -190,13 +186,12 @@ end
         "
 
         prg = cl.Program(cl.context(), source = test_source)
-        queue = cl.CmdQueue(cl.context())
         cl.build!(prg)
         structkernel = cl.Kernel(prg, "structest")
         out = cl.Buffer(Float32, cl.context(), 4, :w)
         astruct = CLTestStruct((1f0, 2f0, 3f0), nothing, 22f0)
-        structkernel[queue, (1,)](out, astruct)
-        r = cl.read(queue, out)
+        structkernel[cl.queue(), (1,)](out, astruct)
+        r = cl.read(cl.queue(), out)
         @test r == [1f0, 2f0, 3f0, 22f0]
     end
 end
