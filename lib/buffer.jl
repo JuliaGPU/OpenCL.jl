@@ -153,9 +153,9 @@ function enqueue_read_buffer(q::CmdQueue,
     ret_evt = Ref{cl_event}()
     nbytes  = sizeof(hostbuf)
     @assert nbytes > 0
-    clEnqueueReadBuffer(q.id, buf.id, cl_bool(is_blocking),
-                                   dev_offset, nbytes, hostbuf,
-                                   n_evts, evt_ids, ret_evt)
+    clEnqueueReadBuffer(q, buf.id, cl_bool(is_blocking),
+                        dev_offset, nbytes, hostbuf,
+                        n_evts, evt_ids, ret_evt)
     @return_nanny_event(ret_evt[], hostbuf)
 end
 
@@ -172,9 +172,9 @@ function enqueue_write_buffer(q::CmdQueue,
     ret_evt = Ref{cl_event}()
     nbytes  = sizeof(hostbuf)
     @assert nbytes > 0
-    clEnqueueWriteBuffer(q.id, buf.id, cl_bool(is_blocking),
-                                    offset, nbytes, hostbuf,
-                                    n_evts, evt_ids, ret_evt)
+    clEnqueueWriteBuffer(q, buf.id, cl_bool(is_blocking),
+                         offset, nbytes, hostbuf,
+                         n_evts, evt_ids, ret_evt)
     @return_nanny_event(ret_evt[], hostbuf)
 end
 
@@ -199,9 +199,9 @@ function enqueue_copy_buffer(q::CmdQueue,
         byte_count = min(byte_count_src[], byte_count_dst[])
     end
     @assert byte_count > 0
-    clEnqueueCopyBuffer(q.id, src.id, dst.id,
-                                   src_offset, dst_offset, byte_count,
-                                   n_evts, evt_ids, ret_evt)
+    clEnqueueCopyBuffer(q, src.id, dst.id,
+                        src_offset, dst_offset, byte_count,
+                        n_evts, evt_ids, ret_evt)
     @return_event ret_evt[]
 end
 
@@ -232,8 +232,7 @@ function enqueue_unmap_mem(q::CmdQueue,
         end
     end
     ret_evt = Ref{cl_event}()
-    clEnqueueUnmapMemObject(q.id, b.id, a,
-                                       n_evts, evt_ids, ret_evt)
+    clEnqueueUnmapMemObject(q, b.id, a, n_evts, evt_ids, ret_evt)
     b.mapped  = false
     b.hostbuf = C_NULL
     @return_event ret_evt[]
@@ -286,9 +285,9 @@ function enqueue_map_mem(q::CmdQueue,
     nbytes  = unsigned(prod(dims) * sizeof(T))
     ret_evt = Ref{cl_event}()
     status  = Ref{Cint}()
-    mapped  = clEnqueueMapBuffer(q.id, b.id, cl_bool(is_blocking ? 1 : 0),
-                                     flags, offset, nbytes,
-                                     n_evts, evt_ids, ret_evt, status)
+    mapped  = clEnqueueMapBuffer(q, b.id, cl_bool(is_blocking ? 1 : 0),
+                                 flags, offset, nbytes,
+                                 n_evts, evt_ids, ret_evt, status)
     if status[] != CL_SUCCESS
         throw(CLError(status[]))
     end
@@ -307,8 +306,8 @@ function enqueue_map_mem(q::CmdQueue,
             end
         end
     catch err
-        clEnqueueUnmapMemObject(q.id, b.id, mapped,
-                                    unsigned(0), C_NULL, C_NULL)
+        clEnqueueUnmapMemObject(q, b.id, mapped,
+                                unsigned(0), C_NULL, C_NULL)
         b.mapped  = false
         b.hostbuf = C_NULL
         rethrow(err)
@@ -331,9 +330,9 @@ function enqueue_fill_buffer(q::CmdQueue, buf::Buffer{T},
     ret_evt = Ref{cl_event}()
     nbytes_pattern = sizeof(pattern)
     @assert nbytes_pattern > 0
-    clEnqueueFillBuffer(q.id, buf.id, [pattern],
-                                   unsigned(nbytes_pattern), offset, nbytes,
-                                   n_evts, evt_ids, ret_evt)
+    clEnqueueFillBuffer(q, buf.id, [pattern],
+                        unsigned(nbytes_pattern), offset, nbytes,
+                        n_evts, evt_ids, ret_evt)
     @return_event ret_evt[]
 end
 

@@ -19,6 +19,8 @@ mutable struct CmdQueue <: CLObject
     end
 end
 
+Base.unsafe_convert(::Type{cl_command_queue}, q::CmdQueue) = q.id
+
 Base.pointer(q::CmdQueue) = q.id
 
 function Base.show(io::IO, q::CmdQueue)
@@ -62,42 +64,38 @@ function CmdQueue(flags=cl_command_queue_properties(0))
 end
 
 function flush(q::CmdQueue)
-    clFlush(q.id)
+    clFlush(q)
     return q
 end
 
 function finish(q::CmdQueue)
-    clFinish(q.id)
+    clFinish(q)
     return q
 end
 
 function info(q::CmdQueue, qinfo::Symbol)
     context(q::CmdQueue) = begin
         ctx_id = Ref{cl_context}()
-        clGetCommandQueueInfo(q.id, CL_QUEUE_CONTEXT,
-                                         sizeof(cl_context), ctx_id, C_NULL)
+        clGetCommandQueueInfo(q, CL_QUEUE_CONTEXT, sizeof(cl_context), ctx_id, C_NULL)
         Context(ctx_id[], retain=true)
     end
 
     device(q::CmdQueue) = begin
         dev_id = Ref{cl_device_id}()
-        clGetCommandQueueInfo(q.id, CL_QUEUE_DEVICE,
-                                         sizeof(cl_device_id), dev_id, C_NULL)
+        clGetCommandQueueInfo(q, CL_QUEUE_DEVICE, sizeof(cl_device_id), dev_id, C_NULL)
         Device(dev_id[])
     end
 
     reference_count(q::CmdQueue) = begin
         ref_count = Ref{Cuint}()
-        clGetCommandQueueInfo(q.id, CL_QUEUE_REFERENCE_COUNT,
-                                         sizeof(Cuint), ref_count, C_NULL)
+        clGetCommandQueueInfo(q, CL_QUEUE_REFERENCE_COUNT, sizeof(Cuint), ref_count, C_NULL)
         ref_count[]
     end
 
     properties(q::CmdQueue) = begin
         props = Ref{cl_command_queue_properties}()
-        clGetCommandQueueInfo(q.id, CL_QUEUE_PROPERTIES,
-                                         sizeof(cl_command_queue_properties),
-                                         props, C_NULL)
+        clGetCommandQueueInfo(q, CL_QUEUE_PROPERTIES, sizeof(cl_command_queue_properties),
+                              props, C_NULL)
         props[]
     end
 

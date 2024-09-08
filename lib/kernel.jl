@@ -349,8 +349,8 @@ function enqueue_kernel(q::CmdQueue,
     end
 
     ret_event = Ref{cl_event}()
-    clEnqueueNDRangeKernel(q.id, k.id, cl_uint(work_dim), goffset, gsize, lsize,
-                                      n_events, wait_event_ids, ret_event)
+    clEnqueueNDRangeKernel(q, k.id, cl_uint(work_dim), goffset, gsize, lsize,
+                           n_events, wait_event_ids, ret_event)
     return Event(ret_event[], retain=false)
 end
 
@@ -370,7 +370,7 @@ function enqueue_task(q::CmdQueue, k::Kernel; wait_for=nothing)
         end
     end
     ret_event = Ref{cl_event}()
-    clEnqueueTask(q.id, k.id, n_evts, evt_ids, ret_event)
+    clEnqueueTask(q, k.id, n_evts, evt_ids, ret_event)
     return ret_event[]
 end
 
