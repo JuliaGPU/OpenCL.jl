@@ -11,7 +11,7 @@ mutable struct CmdQueue <: CLObject
         finalizer(q) do x
             retain || _deletecached!(q)
             if x.id != C_NULL
-                clReleaseCommandQueue(x.id)
+                clReleaseCommandQueue(x)
                 x.id = C_NULL
             end
         end

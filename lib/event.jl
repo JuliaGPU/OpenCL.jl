@@ -36,7 +36,7 @@ end
 
 function _finalize(evt::CLEvent)
     if evt.id != C_NULL
-        clReleaseEvent(evt.id)
+        clReleaseEvent(evt)
         evt.id = C_NULL
     end
 end

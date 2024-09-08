@@ -17,7 +17,7 @@ end
 
 function _finalize(p::Program)
     if p.id != C_NULL
-        clReleaseProgram(p.id)
+        clReleaseProgram(p)
         p.id = C_NULL
     end
 end

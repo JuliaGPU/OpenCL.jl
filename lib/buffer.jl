@@ -194,14 +194,12 @@ function enqueue_copy_buffer(q::CmdQueue,
     if byte_count < 0
         byte_count_src = Ref{Csize_t}()
         byte_count_dst = Ref{Csize_t}()
-        clGetMemObjectInfo(src.id, CL_MEM_SIZE, sizeof(Csize_t),
-                                      byte_count_src, C_NULL)
-        clGetMemObjectInfo(src.id, CL_MEM_SIZE, sizeof(Csize_t),
-                                      byte_count_dst, C_NULL)
+        clGetMemObjectInfo(src, CL_MEM_SIZE, sizeof(Csize_t), byte_count_src, C_NULL)
+        clGetMemObjectInfo(src, CL_MEM_SIZE, sizeof(Csize_t), byte_count_dst, C_NULL)
         byte_count = min(byte_count_src[], byte_count_dst[])
     end
     @assert byte_count > 0
-    clEnqueueCopyBuffer(q, src.id, dst.id,
+    clEnqueueCopyBuffer(q, src, dst,
                         src_offset, dst_offset, byte_count,
                         n_evts, evt_ids, ret_evt)
     @return_event ret_evt[]
