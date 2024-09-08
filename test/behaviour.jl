@@ -64,15 +64,12 @@ end
     err_code = Ref{cl.Cint}()
 
     # create compute context (TODO: fails if function ptr's not passed...)
-    ctx_id = cl.clCreateContext(C_NULL, 1, [cl.device().id],
-                                    C_NULL,
-                                    C_NULL,
-                                    err_code)
+    ctx_id = cl.clCreateContext(C_NULL, 1, [cl.device().id], C_NULL, C_NULL, err_code)
     if err_code[] != cl.CL_SUCCESS
         throw(cl.CLError(err_code[]))
     end
 
-    q_id = cl.clCreateCommandQueue(ctx_id, cl.device().id, 0, err_code)
+    q_id = cl.clCreateCommandQueue(ctx_id, cl.device(), 0, err_code)
     if err_code[] != cl.CL_SUCCESS
         error("Failed to create command queue")
     end

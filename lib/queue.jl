@@ -51,7 +51,7 @@ end
 
 function CmdQueue(flags=cl_command_queue_properties(0))
     err_code = Ref{Cint}()
-    queue_id = clCreateCommandQueue(context().id, device().id, flags, err_code)
+    queue_id = clCreateCommandQueue(context(), device(), flags, err_code)
     if err_code[] != CL_SUCCESS
         if queue_id != C_NULL
             clReleaseCommandQueue(queue_id)
