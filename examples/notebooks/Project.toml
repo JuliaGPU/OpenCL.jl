@@ -1,0 +1,3 @@
+[deps]
+PyPlot = "d330b81b-6aea-500a-939a-2ce795aea3ee"
+pocl_jll = "627d6b7a-bbe6-5189-83e7-98cc0a5aeadd"
