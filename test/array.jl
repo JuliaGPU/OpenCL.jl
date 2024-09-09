@@ -19,7 +19,7 @@ using LinearAlgebra
 
     @testset "fill" begin
         @test to_host(OpenCL.fill(Float32, Float32(0.5),
-                                        32, 64)) == fill(Float32(0.5), 32, 64)
+                                  32, 64)) == fill(Float32(0.5), 32, 64)
         @test to_host(OpenCL.zeros(Float32, 64)) == zeros(Float32, 64)
         @test to_host(OpenCL.ones(Float32, 64)) == ones(Float32, 64)
     end
@@ -29,9 +29,11 @@ using LinearAlgebra
         @test size(A) == (128, 64)
         @test ndims(A) == 2
         @test length(A) == 128*64
+
         # reshape
         B = reshape(A, 128*64)
         @test reshape(B, 128, 64) == A
+
         # transpose
         X = CLArray(rand(Float32, 32, 32))
         B = OpenCL.zeros(Float32, 64, 128)

@@ -1,28 +1,14 @@
 using Test
 using OpenCL
-
-backend = lowercase(get(ENV, "JULIA_OPENCL_BACKEND", "pocl"))
-if backend == "pocl"
-    using pocl_jll
-end
-cl.platform!(backend)
-@info """Testing using $backend back-end
-         - platform: $(cl.platform().name)
-         - device: $(cl.device().name)
-
-         To test with a different back-end, define JULIA_OPENCL_BACKEND."""
+using pocl_jll
 
 @testset "OpenCL.jl" begin
 
-@testset "layout" begin
-    x = ((10f0, 1f0, 2f0), (10f0, 1f0, 2f0), (10f0, 1f0, 2f0))
-    clx = cl.replace_different_layout(x)
+@testset "$(platform.name): $(device.name)" for platform in cl.platforms(),
+                                                 device in cl.devices(platform)
 
-    @test clx == ((10f0, 1f0, 2f0, 0f0), (10f0, 1f0, 2f0, 0f0), (10f0, 1f0, 2f0, 0f0))
-    x = (nothing, nothing, nothing)
-    clx = cl.replace_different_layout(x)
-    @test clx == 0 # TODO should it be like this?
-end
+cl.platform!(platform)
+cl.device!(device)
 
 include("platform.jl")
 include("context.jl")
@@ -35,5 +21,7 @@ include("behaviour.jl")
 include("memory.jl")
 include("buffer.jl")
 include("array.jl")
+
+end
 
 end

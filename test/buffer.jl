@@ -1,10 +1,3 @@
-using Base.GC
-
-struct TestStruct
-    a::Cint
-    b::Cfloat
-end
-
 @testset "Buffer" begin
     @testset "constructors" begin
         testarray = zeros(Float32, 1000)
@@ -106,6 +99,13 @@ end
              end
          end
 
+        TestStruct = @eval(module $(gensym("KernelTest"))
+                struct TestStruct
+                    a::Cint
+                    b::Cfloat
+                end
+            end).TestStruct
+
          test_array = Vector{TestStruct}(undef, 100)
          @test cl.Buffer(TestStruct, length(test_array), :alloc) != nothing
          @test cl.Buffer(TestStruct, length(test_array), :copy;
@@ -188,7 +188,7 @@ end
             @test_throws ArgumentError cl.unmap!(b, a)
 
             # gc here quickly force any memory errors
-            Base.GC.gc()
+            GC.gc()
         end
         @test cl.ismapped(b) == false
         a, evt = cl.enqueue_map_mem(b, :rw, 0, (10,10))

@@ -1,7 +1,7 @@
-if backend in ["pocl", "intel"]
+if contains(cl.platform().vendor, "Intel") || contains(cl.platform().vendor, "pocl")
     # unsupported by POCL
     # hangs on Intel
-    @warn "Skipping event tests"
+    @warn "Skipping event tests on $(cl.platform().name)"
 else
 @testset "Event" begin
     @testset "status" begin

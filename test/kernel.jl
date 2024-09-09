@@ -1,9 +1,3 @@
-struct CLTestStruct
-    f1::NTuple{3, Float32}
-    f2::Nothing
-    f3::Float32
-end
-
 @testset "Kernel" begin
     test_source = "
     __kernel void sum(__global const float *a,
@@ -178,6 +172,14 @@ end
         }
         "
 
+        CLTestStruct = @eval(module $(gensym("KernelTest"))
+                struct CLTestStruct
+                    f1::NTuple{3, Float32}
+                    f2::Nothing
+                    f3::Float32
+                end
+            end).CLTestStruct
+
         prg = cl.Program(source = test_source)
         cl.build!(prg)
         structkernel = cl.Kernel(prg, "structest")
@@ -186,5 +188,15 @@ end
         structkernel[(1,)](out, astruct)
         r = cl.read(out)
         @test r == [1f0, 2f0, 3f0, 22f0]
+    end
+
+    @testset "layout" begin
+        x = ((10f0, 1f0, 2f0), (10f0, 1f0, 2f0), (10f0, 1f0, 2f0))
+        clx = cl.replace_different_layout(x)
+
+        @test clx == ((10f0, 1f0, 2f0, 0f0), (10f0, 1f0, 2f0, 0f0), (10f0, 1f0, 2f0, 0f0))
+        x = (nothing, nothing, nothing)
+        clx = cl.replace_different_layout(x)
+        @test clx == 0 # TODO should it be like this?
     end
 end
