@@ -102,3 +102,27 @@ function queue()
         q
     end::cl.CmdQueue
 end
+
+# switch the current task to a different queue
+function queue!(q::cl.CmdQueue)
+    task_local_storage(:CLQueue, q)
+    return q
+end
+
+# allow selecting a queue by properties
+function queue!(args...)
+    q = cl.CmdQueue(args...)
+    task_local_storage(:CLQueue, q)
+    return q
+end
+
+# temporarily switch the current task to a different queue
+function queue!(f::Base.Callable, args...)
+    old = queue()
+    queue!(args...)
+    try
+        f()
+    finally
+        queue!(old)
+    end
+end

@@ -42,13 +42,11 @@ function cl_performance(ndatapts::Integer, nworkers::Integer)
     @printf("Julia Execution time: %.4f seconds\n", t2 - t1)
 
     for platform in cl.platforms()
-
-        if platform[:name] == "Portable Computing Language"
-            @warn("Portable Computing Language platform not yet supported")
-            continue
-        end
+        cl.platform!(platform)
 
         for device in cl.available_devices(platform)
+            cl.device!(device)
+
             @printf("====================================================\n")
             @printf("Platform name:    %s\n",  platform[:name])
             @printf("Platform profile: %s\n",  platform[:profile])
@@ -76,29 +74,28 @@ function cl_performance(ndatapts::Integer, nworkers::Integer)
                 continue
             end
 
-            ctx   = cl.Context(device)
-            queue = cl.CmdQueue(ctx, :profile)
+            a_buf = cl.Buffer(Float32, length(a), (:r, :copy), hostbuf=a)
+            b_buf = cl.Buffer(Float32, length(b), (:r, :copy), hostbuf=b)
+            c_buf = cl.Buffer(Float32, length(a), :w)
 
-            a_buf = cl.Buffer(Float32, ctx, length(a), (:r, :copy), hostbuf=a)
-            b_buf = cl.Buffer(Float32, ctx, length(b), (:r, :copy), hostbuf=b)
-            c_buf = cl.Buffer(Float32, ctx, length(a), :w)
-
-            prg  = cl.Program(ctx, source=bench_kernel) |> cl.build!
+            prg  = cl.Program(source=bench_kernel) |> cl.build!
             kern = cl.Kernel(prg, "sum")
 
             # work_group_multiple = kern[:prefered_work_group_size_multiple]
             global_size = (ndatapts,)
             local_size  = (nworkers,)
 
-            # call the kernel
-            evt = kern[queue, global_size, local_size](a_buf, b_buf, c_buf)
+            cl.queue!(:profile) do
+                # call the kernel
+                evt = kern[global_size, local_size](a_buf, b_buf, c_buf)
 
-            # duration in ns
-            t = evt[:profile_duration] * 1e-9
-            @printf("Execution time of test: %.4f seconds\n", t)
+                # duration in ns
+                t = evt[:profile_duration] * 1e-9
+                @printf("Execution time of test: %.4f seconds\n", t)
 
-            c_device = cl.read(c_buf)
-            @info("Result norm: $(norm(c - c_device))")
+                c_device = cl.read(c_buf)
+                @info("Result norm: $(norm(c - c_device))")
+            end
         end
     end
 end
