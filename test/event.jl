@@ -1,4 +1,4 @@
-if backend in ["POCL", "Intel"]
+if backend in ["pocl", "intel"]
     # unsupported by POCL
     # hangs on Intel
     @warn "Skipping event tests"

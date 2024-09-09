@@ -51,7 +51,7 @@
        @test prg[:source] == test_source
     end
 
-    if backend == "POCL"
+    if backend == "pocl"
         @warn "Skipping binary program tests"
     else
         @testset "binaries" begin

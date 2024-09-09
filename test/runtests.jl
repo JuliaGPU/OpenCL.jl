@@ -1,8 +1,8 @@
 using Test
 using OpenCL
 
-backend = get(ENV, "JULIA_OPENCL_BACKEND", "POCL")
-if backend == "POCL"
+backend = lowercase(get(ENV, "JULIA_OPENCL_BACKEND", "pocl"))
+if backend == "pocl"
     using pocl_jll
 end
 cl.platform!(backend)
