@@ -1,25 +1,3 @@
-
-function context_test_callback(arg1, arg2, arg3)
-    # We're not really testing it because, nvidia doesn't seem to care about this functionality:
-    # https://devtalk.nvidia.com/default/topic/497433/context-callback-never-called/
-    OpenCL.cl.log_error("Callback works")
-    return
-end
-
-function create_context_error()
-    empty_kernel = "
-    __kernel void test() {
-        int c = 1 + 1;
-    };"
-    try
-        p = cl.Program(source = empty_kernel) |> cl.build!
-        k = cl.Kernel(p, "test")
-        cl.launch(k, 1, 10000000)
-    catch
-    end
-end
-
-
 @testset "Context" begin
     @testset "constructor" begin
         @test_throws MethodError (cl.Context([]))
@@ -43,6 +21,26 @@ end
 
         # TODO: support switching contexts
         #@testset "Context callback" begin
+        #    function context_test_callback(arg1, arg2, arg3)
+        #        # We're not really testing it because, nvidia doesn't seem to care about this functionality:
+        #        # https://devtalk.nvidia.com/default/topic/497433/context-callback-never-called/
+        #        OpenCL.cl.log_error("Callback works")
+        #        return
+        #    end
+        #
+        #    function create_context_error()
+        #        empty_kernel = "
+        #        __kernel void test() {
+        #            int c = 1 + 1;
+        #        };"
+        #        try
+        #            p = cl.Program(source = empty_kernel) |> cl.build!
+        #            k = cl.Kernel(p, "test")
+        #            cl.launch(k, 1, 10000000)
+        #        catch
+        #        end
+        #    end
+        #
         #    ctx = cl.Context(cl.device(), callback = context_test_callback)
         #    context!(ctx) do
         #        create_context_error()

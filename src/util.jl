@@ -28,24 +28,20 @@ function format(s::String; vars...)
     s
 end
 
-function build_kernel(ctx::cl.Context, program::String,
-                      kernel_name::String; vars...)
+function build_kernel(program::String, kernel_name::String; vars...)
     src = format(program; vars...)
     p = cl.Program(source=src)
     cl.build!(p)
     return cl.Kernel(p, kernel_name)
 end
 
-# cache for kernels; dict of form `(program_file, kernel_name, vars) -> kernel`
-const CACHED_KERNELS = Dict{Tuple{String, String, Dict}, cl.Kernel}()
-
-function get_kernel(ctx::cl.Context, program_file::String,
-                    kernel_name::String; vars...)
-    key = (program_file, kernel_name, Dict(vars))
+const CACHED_KERNELS = Dict{Any, cl.Kernel}()
+function get_kernel(program_file::String, kernel_name::String; vars...)
+    key = (cl.context(), program_file, kernel_name, Dict(vars))
     if in(key, keys(CACHED_KERNELS))
         return CACHED_KERNELS[key]
     else
-        kernel = build_kernel(ctx, read(program_file, String), kernel_name; vars...)
+        kernel = build_kernel(read(program_file, String), kernel_name; vars...)
         CACHED_KERNELS[key] = kernel
         return kernel
     end

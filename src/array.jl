@@ -103,8 +103,7 @@ Transpose CLMatrix A, write result to a preallicated CLMatrix B
 """
 function LinearAlgebra.transpose!(B::CLMatrix{Float32}, A::CLMatrix{Float32})
     block_size = max_block_size(size(A, 1), size(A, 2))
-    ctx = context(A)
-    kernel = get_kernel(ctx, TRANSPOSE_FLOAT_PROGRAM_PATH, "transpose",
+    kernel = get_kernel(TRANSPOSE_FLOAT_PROGRAM_PATH, "transpose",
                         block_size=block_size)
     h, w = size(A)
     lmem = cl.LocalMem(Float32, block_size * (block_size + 1))
@@ -126,9 +125,8 @@ function LinearAlgebra.transpose!(B::CLMatrix{Float64}, A::CLMatrix{Float64})
         throw(ArgumentError("Double precision not supported by device"))
     end
     block_size = max_block_size(size(A, 1), size(A, 2))
-    ctx = context(A)
-    kernel = get_kernel(ctx, TRANSPOSE_DOUBLE_PROGRAM_PATH, "transpose",
-                          block_size=block_size)
+    kernel = get_kernel(TRANSPOSE_DOUBLE_PROGRAM_PATH, "transpose",
+                        block_size=block_size)
     h, w = size(A)
     # lmem = cl.LocalMem(Float64, block_size * (block_size + 1))
     lmem = cl.LocalMem(Float64, block_size * block_size)

@@ -156,43 +156,45 @@ end
     end
 end
 
-struct Params
-    A::Float32
-    B::Float32
-    #TODO: fixed size arrays?
-    X1::Float32
-    X2::Float32
-    C::Int32
-    Params(a, b, x, c) = begin
-        new(Float32(a),
-            Float32(b),
-            Float32(x[1]),
-            Float32(x[2]),
-            Int32(c))
-    end
-end
-
-let test_struct = "
-    typedef struct Params
-    {
-        float A;
-        float B;
-        float x[2];  //padding
-        int C;
-    } Params;
-
-
-    __kernel void part3(__global const float *a,
-                        __global const float *b,
-                        __global float *c,
-                        __constant struct Params* test)
-    {
-        int gid = get_global_id(0);
-        c[gid] = test->A * a[gid] + test->B * b[gid] + test->C;
-    }
-"
-
 @testset "Struct Buffer Test" begin
+    test_struct = "
+        typedef struct Params
+        {
+            float A;
+            float B;
+            float x[2];  //padding
+            int C;
+        } Params;
+
+
+        __kernel void part3(__global const float *a,
+                            __global const float *b,
+                            __global float *c,
+                            __constant struct Params* test)
+        {
+            int gid = get_global_id(0);
+            c[gid] = test->A * a[gid] + test->B * b[gid] + test->C;
+        }
+    "
+
+    Params = @eval(module $(gensym("KernelTest"))
+            struct Params
+                A::Float32
+                B::Float32
+                #TODO: fixed size arrays?
+                X1::Float32
+                X2::Float32
+                C::Int32
+                Params(a, b, x, c) = begin
+                    new(Float32(a),
+                        Float32(b),
+                        Float32(x[1]),
+                        Float32(x[2]),
+                        Int32(c))
+                end
+            end
+        end).Params
+
     p   = cl.Program(source=test_struct) |> cl.build!
 
     part3 = cl.Kernel(p, "part3")
@@ -217,33 +219,32 @@ let test_struct = "
     @test all(x -> x == 13.5, r)
 end
 
-end
-
-mutable struct MutableParams
-    A::Float32
-    B::Float32
-end
-
-
-let test_mutable_pointerfree = "
-    typedef struct Params
-    {
-        float A;
-        float B;
-    } Params;
-
-
-    __kernel void part3(
-        __global float *a,
-        Params test
-    ){
-        a[0] = test.A;
-        a[1] = test.B;
-    }
-"
-
 
 @testset "Struct Buffer Test" begin
+    test_mutable_pointerfree = "
+        typedef struct Params
+        {
+            float A;
+            float B;
+        } Params;
+
+
+        __kernel void part3(
+            __global float *a,
+            Params test
+        ){
+            a[0] = test.A;
+            a[1] = test.B;
+        }
+    "
+
+    MutableParams = @eval(module $(gensym("KernelTest"))
+            mutable struct MutableParams
+                A::Float32
+                B::Float32
+            end
+        end).MutableParams
+
     p   = cl.Program(source=test_mutable_pointerfree) |> cl.build!
 
     part3 = cl.Kernel(p, "part3")
@@ -256,6 +257,4 @@ let test_mutable_pointerfree = "
 
     @test r[1] == 0.5
     @test r[2] == 10.0
-end
-
 end

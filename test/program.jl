@@ -51,8 +51,8 @@
        @test prg.source == test_source
     end
 
-    if backend == "pocl"
-        @warn "Skipping binary program tests"
+    if contains(cl.platform().vendor, "pocl")
+        @warn "Skipping binary program tests on $(cl.platform().name)"
     else
         @testset "binaries" begin
             prg = cl.Program(source=test_source) |> cl.build!
