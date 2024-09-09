@@ -35,8 +35,6 @@ function Base.getproperty(d::Device, s::Symbol)
 
     # scalar values
     int_properties = Dict(
-        :queue_properties           => (CL_DEVICE_QUEUE_PROPERTIES, cl_command_queue_properties),
-        :exec_capabilities          => (CL_DEVICE_EXECUTION_CAPABILITIES, cl_device_exec_capabilities),
         :vendor_id                  => (CL_DEVICE_VENDOR_ID,                 Cuint),
         :max_compute_units          => (CL_DEVICE_MAX_COMPUTE_UNITS,         Cuint),
         :max_work_item_dims         => (CL_DEVICE_MAX_WORK_ITEM_DIMENSIONS,  Cuint),
@@ -56,7 +54,7 @@ function Base.getproperty(d::Device, s::Symbol)
         prop, typ = int_properties[s]
         result = Ref{typ}()
         clGetDeviceInfo(d, prop, sizeof(typ), result, C_NULL)
-        return result[]
+        return Int(result[])
     end
 
     # boolean properties
@@ -79,6 +77,12 @@ function Base.getproperty(d::Device, s::Symbol)
         :has_queue_out_of_order_exec => CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE,
         :has_queue_profiling         => CL_QUEUE_PROFILING_ENABLE,
     )
+    if s == :queue_properties
+        result = Ref{cl_command_queue_properties}()
+        clGetDeviceInfo(d, CL_DEVICE_QUEUE_PROPERTIES,
+                        sizeof(cl_command_queue_properties), result, C_NULL)
+        return result[]
+    end
     if haskey(queue_properties, s)
         return d.queue_properties & queue_properties[s] != 0
     end
@@ -88,6 +92,12 @@ function Base.getproperty(d::Device, s::Symbol)
     exec_properties = Dict(
         :has_native_kernel => CL_EXEC_NATIVE_KERNEL,
     )
+    if s == :exec_capabilities
+        result = Ref{cl_device_exec_capabilities}()
+        clGetDeviceInfo(d, CL_DEVICE_EXECUTION_CAPABILITIES,
+                        sizeof(cl_device_exec_capabilities), result, C_NULL)
+        return result[]
+    end
     if haskey(exec_properties, s)
         return d.exec_capabilities & exec_properties[s] != 0
     end
@@ -103,8 +113,7 @@ function Base.getproperty(d::Device, s::Symbol)
 
     if s == :platform
         result = Ref{cl_platform_id}()
-        clGetDeviceInfo(d, CL_DEVICE_PLATFORM,
-                        sizeof(cl_platform_id), result, C_NULL)
+        clGetDeviceInfo(d, CL_DEVICE_PLATFORM, sizeof(cl_platform_id), result, C_NULL)
         return Platform(result[])
     end
 
@@ -126,10 +135,8 @@ function Base.getproperty(d::Device, s::Symbol)
     end
 
     if s == :max_work_item_size
-        dims = Ref{Cuint}()
-        clGetDeviceInfo(d, CL_DEVICE_MAX_WORK_ITEM_DIMENSIONS, sizeof(Cuint), dims, C_NULL)
-        result = Vector{Csize_t}(undef, dims[])
-        clGetDeviceInfo(d, CL_DEVICE_MAX_WORK_ITEM_SIZES, sizeof(Csize_t) * dims[], result, C_NULL)
+        result = Vector{Csize_t}(undef, d.max_work_item_dims)
+        clGetDeviceInfo(d, CL_DEVICE_MAX_WORK_ITEM_SIZES, sizeof(result), result, C_NULL)
         return tuple([Int(r) for r in result]...)
     end
 

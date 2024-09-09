@@ -119,49 +119,68 @@ function Base.getproperty(p::Program, s::Symbol)
         clGetProgramInfo(p, CL_PROGRAM_NUM_DEVICES, sizeof(Cuint), count, C_NULL)
         return Int(count[])
     elseif s == :devices
-        ndevices = getproperty(p, :num_devices)
-        device_ids = Vector{cl_device_id}(undef, ndevices)
-        clGetProgramInfo(p, CL_PROGRAM_DEVICES, sizeof(cl_device_id) * ndevices, device_ids, C_NULL)
+        device_ids = Vector{cl_device_id}(undef, p.num_devices)
+        clGetProgramInfo(p, CL_PROGRAM_DEVICES, sizeof(device_ids), device_ids, C_NULL)
         return [Device(id) for id in device_ids]
     elseif s == :source
-        size = Ref{Csize_t}()
-        clGetProgramInfo(p, CL_PROGRAM_SOURCE, 0, C_NULL, size)
-        source = Vector{Cchar}(undef, size[])
-        clGetProgramInfo(p, CL_PROGRAM_SOURCE, size[], source, C_NULL)
-        return unsafe_string(pointer(source))
+        src_len = Ref{Csize_t}()
+        clGetProgramInfo(p, CL_PROGRAM_SOURCE, 0, C_NULL, src_len)
+        src_len[] <= 1 && return nothing
+        src = Vector{Cchar}(undef, src_len[])
+        clGetProgramInfo(p, CL_PROGRAM_SOURCE, src_len[], src, C_NULL)
+        return CLString(src)
     elseif s == :binary_sizes
-        ndevices = getproperty(p, :num_devices)
-        sizes = Vector{Csize_t}(undef, ndevices)
-        clGetProgramInfo(p, CL_PROGRAM_BINARY_SIZES, sizeof(Csize_t) * ndevices, sizes, C_NULL)
+        sizes = Vector{Csize_t}(undef, p.num_devices)
+        clGetProgramInfo(p, CL_PROGRAM_BINARY_SIZES, sizeof(sizes), sizes, C_NULL)
         return sizes
     elseif s == :binaries
-        sizes = getproperty(p, :binary_sizes)
-        binaries = [Vector{UInt8}(undef, size) for size in sizes]
-        pointers = [pointer(binary) for binary in binaries]
-        clGetProgramInfo(p, CL_PROGRAM_BINARIES, sizeof(Ptr{UInt8}) * length(pointers), pointers, C_NULL)
-        return binaries
+        sizes = p.binary_sizes
+
+        bins = Vector{Ptr{UInt8}}(undef, length(sizes))
+        # keep a reference to the underlying binary arrays
+        # as storing the pointer to the array hides the additional
+        # reference from julia's garbage collector
+        bin_arrays = Any[]
+        for (i, s) in enumerate(sizes)
+            if s > 0
+                bin = Vector{UInt8}(undef, s)
+                bins[i] = pointer(bin)
+                push!(bin_arrays, bin)
+            else
+                bins[i] = Base.unsafe_convert(Ptr{UInt8}, C_NULL)
+            end
+        end
+        clGetProgramInfo(p, CL_PROGRAM_BINARIES, sizeof(bins), bins, C_NULL)
+
+        binary_dict = Dict{Device, Array{UInt8}}()
+        bidx = 1
+        for (i, d) in enumerate(p.devices)
+            if sizes[i] > 0
+                binary_dict[d] = bin_arrays[bidx]
+                bidx += 1
+            end
+        end
+        return binary_dict
     elseif s == :context
         ctx = Ref{cl_context}()
         clGetProgramInfo(p, CL_PROGRAM_CONTEXT, sizeof(cl_context), ctx, C_NULL)
         return Context(ctx[], retain=true)
     elseif s == :build_status
-        devices = getproperty(p, :devices)
         status_dict = Dict{Device, cl_build_status}()
-        for device in devices
+        for device in p.devices
             status = Ref{cl_build_status}()
             clGetProgramBuildInfo(p, device, CL_PROGRAM_BUILD_STATUS, sizeof(cl_build_status), status, C_NULL)
             status_dict[device] = status[]
         end
         return status_dict
     elseif s == :build_log
-        devices = getproperty(p, :devices)
         log_dict = Dict{Device, String}()
-        for device in devices
+        for device in p.devices
             size = Ref{Csize_t}()
             clGetProgramBuildInfo(p, device, CL_PROGRAM_BUILD_LOG, 0, C_NULL, size)
             log = Vector{Cchar}(undef, size[])
             clGetProgramBuildInfo(p, device, CL_PROGRAM_BUILD_LOG, size[], log, C_NULL)
-            log_dict[device] = unsafe_string(pointer(log))
+            log_dict[device] = CLString(log)
         end
         return log_dict
     else

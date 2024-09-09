@@ -257,11 +257,11 @@ function Base.getproperty(evt::CLEvent, s::Symbol)
     if s == :context
         ctx = Ref{cl_context}()
         clGetEventInfo(evt, CL_EVENT_CONTEXT, sizeof(cl_context), ctx, C_NULL)
-        return Context(ctx[], retain=true)
+        return Context(ctx[])
     elseif s == :command_queue
         cmd_q = Ref{cl_command_queue}()
         clGetEventInfo(evt, CL_EVENT_COMMAND_QUEUE, sizeof(cl_command_queue), cmd_q, C_NULL)
-        return CmdQueue(cmd_q[], retain=true)
+        return CmdQueue(cmd_q[])
     elseif s == :command_type
         cmd_t = Ref{Cint}()
         clGetEventInfo(evt, CL_EVENT_COMMAND_TYPE, sizeof(Cint), cmd_t, C_NULL)

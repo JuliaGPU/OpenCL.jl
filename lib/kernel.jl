@@ -24,7 +24,7 @@ Base.unsafe_convert(::Type{cl_kernel}, k::Kernel) = k.id
 Base.pointer(k::Kernel) = k.id
 
 Base.show(io::IO, k::Kernel) = begin
-    print(io, "OpenCL.Kernel(\"$(k.name)\" nargs=$(k.num_args))")
+    print(io, "OpenCL.Kernel(\"$(k.function_name)\" nargs=$(k.num_args))")
 end
 
 function Kernel(p::Program, kernel_name::String)
@@ -219,43 +219,6 @@ function set_args!(k::Kernel, args...)
     end
 end
 
-function work_group_info(k::Kernel, s, d::Device)
-    if (s == CL_KERNEL_LOCAL_MEM_SIZE ||
-        s == CL_KERNEL_PRIVATE_MEM_SIZE)
-        result1 = Ref{Culong}(0)
-        clGetKernelWorkGroupInfo(k, d, s, sizeof(Culong), result1, C_NULL)
-        return Int(result1[])
-    elseif s == CL_KERNEL_COMPILE_WORK_GROUP_SIZE
-        # Intel driver has a bug so we can't query the required size.
-        # As specified by [1] the return value in this case is size_t[3].
-        # [1] https://www.khronos.org/registry/OpenCL/sdk/1.2/docs/man/xhtml/clGetKernelWorkGroupInfo.html
-        @assert sizeof(Csize_t) == sizeof(Int)
-        result2 = Vector{Int}(undef, 3)
-        clGetKernelWorkGroupInfo(k, d, s, 3*sizeof(Int), result2, C_NULL)
-        return result2
-    else
-        result = Ref{Csize_t}(0)
-        clGetKernelWorkGroupInfo(k, d, s, sizeof(Culong), result, C_NULL)
-        return Int(result[])
-    end
-end
-
-function work_group_info(k::Kernel, s::Symbol, d::Device)
-    if s == :size
-        work_group_info(k, CL_KERNEL_WORK_GROUP_SIZE, d)
-    elseif s == :compile_size
-        work_group_info(k, CL_KERNEL_COMPILE_WORK_GROUP_SIZE, d)
-    elseif s == :local_mem_size
-        work_group_info(k, CL_KERNEL_LOCAL_MEM_SIZE, d)
-    elseif s == :private_mem_size
-        work_group_info(k, CL_KERNEL_PRIVATE_MEM_SIZE, d)
-    elseif s == :prefered_size_multiple
-        work_group_info(k, CL_KERNEL_PREFERRED_WORK_GROUP_SIZE_MULTIPLE, d)
-    else
-        throw(ArgumentError(("Unknown work_group_info flag: :$s")))
-    end
-end
-
 # produce a cl.call thunk with kernel queue, global/local sizes
 Base.getindex(k::Kernel, args...) = begin
     if length(args) < 1 || length(args) > 2
@@ -414,31 +377,26 @@ work_group_info(k::Kernel, d::Device) = KernelWorkGroupInfo(k, d)
 
 function Base.getproperty(ki::KernelWorkGroupInfo, s::Symbol)
     k = getfield(ki, :kernel)
-    d = getfield(ki, :devic)
+    d = getfield(ki, :device)
 
-    function get(param_name::cl_kernel_work_group_info, ::Type{T}) where T
-        result = Ref{T}()
-        clGetKernelWorkGroupInfo(k, d, param_name, sizeof(T), result, C_NULL)
+    function get(val, typ)
+        result = Ref{typ}()
+        clGetKernelWorkGroupInfo(k, d, val, sizeof(typ), result, C_NULL)
         return result[]
     end
+
     if s == :size
-        return get(k, CL_KERNEL_WORK_GROUP_SIZE, Csize_t, d)
+        Int(get(CL_KERNEL_WORK_GROUP_SIZE, Csize_t))
     elseif s == :compile_size
-        # Intel driver has a bug so we can't query the required size.
-        # As specified by [1] the return value in this case is size_t[3].
-        # [1] https://www.khronos.org/registry/OpenCL/sdk/1.2/docs/man/xhtml/clGetKernelWorkGroupInfo.html
-        @assert sizeof(Csize_t) == sizeof(Int)
-        result = Vector{Int}(undef, 3)
-        clGetKernelWorkGroupInfo(k, d, winfo, 3*sizeof(Int), result, C_NULL)
-        return result
+        Int.(get(CL_KERNEL_COMPILE_WORK_GROUP_SIZE, NTuple{3, Csize_t}))
     elseif s == :local_mem_size
-        return get(k, CL_KERNEL_LOCAL_MEM_SIZE, Culong, d)
+        Int(get(CL_KERNEL_LOCAL_MEM_SIZE, Culong))
     elseif s == :private_mem_size
-        return get(k, CL_KERNEL_PRIVATE_MEM_SIZE, Culong, d)
+        Int(get(CL_KERNEL_PRIVATE_MEM_SIZE, Culong))
     elseif s == :prefered_size_multiple
-        return get(k, CL_KERNEL_PREFERRED_WORK_GROUP_SIZE_MULTIPLE, Csize_t, d)
+        Int(get(CL_KERNEL_PREFERRED_WORK_GROUP_SIZE_MULTIPLE, Csize_t))
     else
-        throw(ArgumentError("Unknown work_group_info flag: :$s"))
+        getfield(ki, s)
     end
 end
 

@@ -42,16 +42,9 @@ end
         prg = cl.Program(source=test_source)
         cl.build!(prg)
         k = cl.Kernel(prg, "sum")
-        for (sf, clf) in [(:size, cl.CL_KERNEL_WORK_GROUP_SIZE),
-                          (:compile_size, cl.CL_KERNEL_COMPILE_WORK_GROUP_SIZE),
-                          (:local_mem_size, cl.CL_KERNEL_LOCAL_MEM_SIZE),
-                          (:private_mem_size, cl.CL_KERNEL_PRIVATE_MEM_SIZE),
-                          (:prefered_size_multiple, cl.CL_KERNEL_PREFERRED_WORK_GROUP_SIZE_MULTIPLE)]
-            @test cl.work_group_info(k, sf, cl.device()) != nothing
-            @test cl.work_group_info(k, clf, cl.device()) != nothing
-            if sf != :compile_size
-                @test cl.work_group_info(k, sf, cl.device()) == cl.work_group_info(k, clf, cl.device())
-            end
+        wginfo = cl.work_group_info(k, cl.device())
+        for sf in [:size, :compile_size, :local_mem_size, :private_mem_size, :prefered_size_multiple]
+            @test getproperty(wginfo, sf) != nothing
         end
     end
 

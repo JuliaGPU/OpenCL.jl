@@ -185,12 +185,12 @@ function Base.getproperty(ctx::Context, s::Symbol)
         clGetContextInfo(ctx, CL_CONTEXT_NUM_DEVICES, sizeof(Cuint), ndevices, C_NULL)
         return Int(ndevices[])
     elseif s == :devices
-        n = getproperty(ctx, :num_devices)
+        n = ctx.num_devices
         if n == 0
             return Device[]
         end
         dev_ids = Vector{cl_device_id}(undef, n)
-        clGetContextInfo(ctx, CL_CONTEXT_DEVICES, n * sizeof(cl_device_id), dev_ids, C_NULL)
+        clGetContextInfo(ctx, CL_CONTEXT_DEVICES, sizeof(dev_ids), dev_ids, C_NULL)
         return [Device(id) for id in dev_ids]
     elseif s == :properties
         nbytes = Ref{Csize_t}(0)
