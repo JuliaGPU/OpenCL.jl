@@ -24,7 +24,7 @@ end
         clGetDeviceInfo(d, prop, 0, C_NULL, sz)
         chars = Vector{Cchar}(undef, sz[])
         clGetDeviceInfo(d, prop, sz[], chars, C_NULL)
-        return CLString(chars)
+        return unsafe_string(pointer(chars))
     end
     if s === :profile
         return get_string(CL_DEVICE_PROFILE)
@@ -123,7 +123,7 @@ end
         clGetDeviceInfo(d, CL_DEVICE_EXTENSIONS, 0, C_NULL, size)
         result = Vector{Cchar}(undef, size[])
         clGetDeviceInfo(d, CL_DEVICE_EXTENSIONS, size[], result, C_NULL)
-        bs = CLString(result)
+        bs = unsafe_string(pointer(result))
         return String[string(s) for s in split(bs)]
     end
 
