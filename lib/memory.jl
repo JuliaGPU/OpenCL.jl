@@ -9,12 +9,13 @@ abstract type CLMemObject <: CLObject end
 #     ...
 # end
 
+Base.unsafe_convert(::Type{cl_mem}, mem::CLMemObject) = mem.id
+
 Base.pointer(mem::CLMemObject) = mem.id
 
 Base.sizeof(mem::CLMemObject) = begin
     val = Ref{Csize_t}(0)
-    clGetMemObjectInfo(mem.id, CL_MEM_SIZE, sizeof(Csize_t),
-                                  val, C_NULL)
+    clGetMemObjectInfo(mem, CL_MEM_SIZE, sizeof(Csize_t), val, C_NULL)
     return val[]
 end
 
@@ -31,8 +32,7 @@ end
 
 context(mem::CLMemObject) = begin
     param = Ref{cl_context}()
-    clGetMemObjectInfo(mem.id, CL_MEM_CONTEXT,
-                                  sizeof(Csize_t), param, C_NULL)
+    clGetMemObjectInfo(mem, CL_MEM_CONTEXT, sizeof(Csize_t), param, C_NULL)
     return Context(param[], retain=true)
 end
 

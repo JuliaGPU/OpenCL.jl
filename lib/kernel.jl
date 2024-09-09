@@ -19,6 +19,8 @@ function _finalize(k::Kernel)
     end
 end
 
+Base.unsafe_convert(::Type{cl_kernel}, k::Kernel) = k.id
+
 Base.pointer(k::Kernel) = k.id
 
 Base.show(io::IO, k::Kernel) = begin
@@ -35,7 +37,7 @@ function Kernel(p::Program, kernel_name::String)
         end
     end
     err_code = Ref{Cint}()
-    kernel_id = clCreateKernel(p.id, kernel_name, err_code)
+    kernel_id = clCreateKernel(p, kernel_name, err_code)
     if err_code[] != CL_SUCCESS
         throw(CLError(err_code[]))
     end
@@ -59,7 +61,7 @@ Base.length(l::LocalMem{T}) where {T} = Int(l.nbytes ÷ sizeof(T))
 
 function set_arg!(k::Kernel, idx::Integer, arg::Nothing)
     @assert idx > 0
-    clSetKernelArg(k.id, cl_uint(idx-1), sizeof(cl_mem), C_NULL)
+    clSetKernelArg(k, cl_uint(idx-1), sizeof(cl_mem), C_NULL)
     return k
 end
 
@@ -73,13 +75,13 @@ end
 function set_arg!(k::Kernel, idx::Integer, arg::CLMemObject)
     @assert idx > 0
     arg_boxed = Ref{typeof(arg.id)}(arg.id)
-    clSetKernelArg(k.id, cl_uint(idx-1), sizeof(cl_mem), arg_boxed)
+    clSetKernelArg(k, cl_uint(idx-1), sizeof(cl_mem), arg_boxed)
     return k
 end
 
 function set_arg!(k::Kernel, idx::Integer, arg::LocalMem)
     @assert idx > 0 "Kernel idx must be bigger 0"
-    clSetKernelArg(k.id, cl_uint(idx-1), arg.nbytes, C_NULL)
+    clSetKernelArg(k, cl_uint(idx-1), arg.nbytes, C_NULL)
     return k
 end
 
@@ -181,7 +183,7 @@ end
 function set_arg!(k::Kernel, idx::Integer, arg::T) where T
     @assert idx > 0 "Kernel idx must be bigger 0"
     ref, tsize = to_cl_ref(arg)
-    err = unchecked_clSetKernelArg(k.id, cl_uint(idx - 1), tsize, ref)
+    err = unchecked_clSetKernelArg(k, cl_uint(idx - 1), tsize, ref)
     if err == CL_INVALID_ARG_SIZE
         error("""
             Julia and OpenCL type don't match at kernel argument $idx: Found $T.
@@ -223,8 +225,7 @@ function work_group_info(k::Kernel, winfo, d::Device)
     if (winfo == CL_KERNEL_LOCAL_MEM_SIZE ||
         winfo == CL_KERNEL_PRIVATE_MEM_SIZE)
         result1 = Ref{Culong}(0)
-        clGetKernelWorkGroupInfo(k.id, d.id, winfo,
-                                            sizeof(Culong), result1, C_NULL)
+        clGetKernelWorkGroupInfo(k, d, winfo, sizeof(Culong), result1, C_NULL)
         return Int(result1[])
     elseif winfo == CL_KERNEL_COMPILE_WORK_GROUP_SIZE
         # Intel driver has a bug so we can't query the required size.
@@ -232,12 +233,11 @@ function work_group_info(k::Kernel, winfo, d::Device)
         # [1] https://www.khronos.org/registry/OpenCL/sdk/1.2/docs/man/xhtml/clGetKernelWorkGroupInfo.html
         @assert sizeof(Csize_t) == sizeof(Int)
         result2 = Vector{Int}(undef, 3)
-        clGetKernelWorkGroupInfo(k.id, d.id, winfo, 3*sizeof(Int), result2, C_NULL)
+        clGetKernelWorkGroupInfo(k, d, winfo, 3*sizeof(Int), result2, C_NULL)
         return result2
     else
         result = Ref{Csize_t}(0)
-        clGetKernelWorkGroupInfo(k.id, d.id, winfo,
-                                            sizeof(Culong), result, C_NULL)
+        clGetKernelWorkGroupInfo(k, d, winfo, sizeof(Culong), result, C_NULL)
         return Int(result[])
     end
 end
@@ -260,51 +260,46 @@ end
 
 # produce a cl.call thunk with kernel queue, global/local sizes
 Base.getindex(k::Kernel, args...) = begin
-    if length(args) < 2 || length(args) > 3
-        throw(ArgumentError("kernel must be called with a queue & global size as arguments"))
+    if length(args) < 1 || length(args) > 2
+        throw(ArgumentError("kernel must be called with a global size as arguments"))
     end
-    if !(isa(args[1], CmdQueue))
-        throw(ArgumentError("kernel first argument must a a CmdQueue"))
-    end
-    if !(isa(args[2], Dims)) || length(args[2]) > 3
+    if !(isa(args[1], Dims)) || length(args[1]) > 3
         throw(ArgumentError("kernel global size must be of Dims type (dim <= 3)"))
     end
-    if length(args) == 3 && (!(isa(args[3], Dims)) || length(args[3]) > 3)
+    if length(args) == 2 && (!(isa(args[2], Dims)) || length(args[2]) > 3)
         throw(ArgumentError("kernel local size must be of Dims type (dim <= 3)"))
     end
-    queue = args[1]
-    global_size = args[2]
-    local_size  = length(args) == 3 ? args[3] : nothing
+    global_size = args[1]
+    local_size  = length(args) == 2 ? args[2] : nothing
     # TODO: we cannot pass keywords in anon functions yet, return kernel call thunk
-    return (args...) -> queue(k, global_size, local_size, args...)
+    return (args...) -> launch(k, global_size, local_size, args...)
 end
 
 # blocking kernel call that finishes queue
-function (q::CmdQueue)(k::Kernel, global_work_size, local_work_size,
-                      args...; global_work_offset=nothing,
-                      wait_on::Union{Nothing,Vector{Event}}=nothing)
+# XXX: shouldn't be blocking!
+function launch(k::Kernel, global_work_size, local_work_size,
+                args...; global_work_offset=nothing,
+                wait_on::Union{Nothing,Vector{Event}}=nothing)
     set_args!(k, args...)
-    evt = enqueue_kernel(q, k,
+    evt = enqueue_kernel(k,
                          global_work_size,
                          local_work_size,
                          global_work_offset=global_work_offset,
                          wait_on=wait_on)
-    finish(q)
+    finish(queue())
     return evt
 end
 
-function enqueue_kernel(q::CmdQueue, k::Kernel, global_work_size)
-    enqueue_kernel(q, k, global_work_size, nothing)
+function enqueue_kernel(k::Kernel, global_work_size)
+    enqueue_kernel(k, global_work_size, nothing)
 end
 
-function enqueue_kernel(q::CmdQueue,
-                        k::Kernel,
+function enqueue_kernel(k::Kernel,
                         global_work_size,
                         local_work_size;
                         global_work_offset=nothing,
                         wait_on::Union{Nothing,Vector{Event}}=nothing)
-    device = q[:device]
-    max_work_dim = device[:max_work_item_dims]
+    max_work_dim = device()[:max_work_item_dims]
     work_dim     = length(global_work_size)
     if work_dim > max_work_dim
         throw(ArgumentError("global_work_size has max dim of $max_work_dim"))
@@ -351,13 +346,12 @@ function enqueue_kernel(q::CmdQueue,
     end
 
     ret_event = Ref{cl_event}()
-    clEnqueueNDRangeKernel(q.id, k.id, cl_uint(work_dim), goffset, gsize, lsize,
-                                      n_events, wait_event_ids, ret_event)
+    clEnqueueNDRangeKernel(queue(), k, cl_uint(work_dim), goffset, gsize, lsize,
+                           n_events, wait_event_ids, ret_event)
     return Event(ret_event[], retain=false)
 end
 
-
-function enqueue_task(q::CmdQueue, k::Kernel; wait_for=nothing)
+function enqueue_task(k::Kernel; wait_for=nothing)
     n_evts  = 0
     evt_ids = C_NULL
     #TODO: this should be split out into its own function
@@ -372,54 +366,48 @@ function enqueue_task(q::CmdQueue, k::Kernel; wait_for=nothing)
         end
     end
     ret_event = Ref{cl_event}()
-    clEnqueueTask(q.id, k.id, n_evts, evt_ids, ret_event)
+    clEnqueueTask(queue(), k, n_evts, evt_ids, ret_event)
     return ret_event[]
 end
 
 function info(k::Kernel, kinfo::Symbol)
     name(k::Kernel) = begin
         size = Ref{Csize_t}()
-        clGetKernelInfo(k.id, CL_KERNEL_FUNCTION_NAME,
-                                   0, C_NULL, size)
+        clGetKernelInfo(k, CL_KERNEL_FUNCTION_NAME, 0, C_NULL, size)
         result = Vector{Cchar}(undef, size[])
-        clGetKernelInfo(k.id, CL_KERNEL_FUNCTION_NAME,
-                                   size[], result, size)
+        clGetKernelInfo(k, CL_KERNEL_FUNCTION_NAME, size[], result, size)
         return CLString(result)
     end
 
     num_args(k::Kernel) = begin
         ret = Ref{Cuint}()
-        clGetKernelInfo(k.id, CL_KERNEL_NUM_ARGS,
-                                   sizeof(Cuint), ret, C_NULL)
+        clGetKernelInfo(k, CL_KERNEL_NUM_ARGS, sizeof(Cuint), ret, C_NULL)
         return ret[]
     end
 
     reference_count(k::Kernel) = begin
         ret = Ref{Cuint}()
-        clGetKernelInfo(k.id, CL_KERNEL_REFERENCE_COUNT,
-                                   sizeof(Cuint), ret, C_NULL)
+        clGetKernelInfo(k, CL_KERNEL_REFERENCE_COUNT, sizeof(Cuint), ret, C_NULL)
         return ret[]
     end
 
     program(k::Kernel) = begin
         ret = Ref{cl_program}()
-        clGetKernelInfo(k.id, CL_KERNEL_PROGRAM,
-                                   sizeof(cl_program), ret, C_NULL)
+        clGetKernelInfo(k, CL_KERNEL_PROGRAM, sizeof(cl_program), ret, C_NULL)
         return Program(ret[], retain=true)
     end
 
     # Only supported for version 1.2 and above
     attributes(k::Kernel) = begin
         size = Ref{Csize_t}()
-        rcode = unchecked_clGetKernelInfo(k.id, CL_KERNEL_ATTRIBUTES,
-                                              0, C_NULL, size)
+        rcode = unchecked_clGetKernelInfo(k, CL_KERNEL_ATTRIBUTES,
+                                          0, C_NULL, size)
         # Version 1.1 mostly MESA drivers will pass through the below condition
         if rcode == CL_INVALID_VALUE || size[] <= 1
             return ""
         end
         result = Vector{Cchar}(undef, size[])
-        clGetKernelInfo(k.id, CL_KERNEL_ATTRIBUTES,
-                                   size[], result, size)
+        clGetKernelInfo(k, CL_KERNEL_ATTRIBUTES, size[], result, size)
         return CLString(result)
     end
 

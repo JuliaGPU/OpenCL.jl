@@ -1,11 +1,4 @@
-export create_compute_context, opencl_version
-
-function create_compute_context()
-    ctx    = create_some_context()
-    device = first(devices(ctx))
-    queue  = cl.CmdQueue(ctx)
-    return (device, ctx, queue)
-end
+export opencl_version
 
 function parse_version(version_string)
     mg = match(r"^OpenCL ([0-9]+)\.([0-9]+) .*$", version_string)
@@ -38,7 +31,7 @@ end
 function build_kernel(ctx::cl.Context, program::String,
                       kernel_name::String; vars...)
     src = format(program; vars...)
-    p = cl.Program(ctx, source=src)
+    p = cl.Program(source=src)
     cl.build!(p)
     return cl.Kernel(p, kernel_name)
 end

@@ -4,6 +4,8 @@ struct Platform <: CLObject
     id::cl_platform_id
 end
 
+Base.unsafe_convert(::Type{cl_platform_id}, p::Platform) = p.id
+
 Base.pointer(p::Platform) = p.id
 
 function info(p::Platform, pinfo::Symbol)
@@ -54,46 +56,37 @@ end
 
 function info(p::Platform, pinfo)
     size = Ref{Csize_t}()
-    clGetPlatformInfo(p.id, pinfo, 0, C_NULL, size)
+    clGetPlatformInfo(p, pinfo, 0, C_NULL, size)
     result = Vector{Cchar}(undef, size[])
-    clGetPlatformInfo(p.id, pinfo, size[], result, C_NULL)
+    clGetPlatformInfo(p, pinfo, size[], result, C_NULL)
     return CLString(result)
 end
 
 function devices(p::Platform, dtype)
     ndevices = Ref{Cuint}()
-    ret = unchecked_clGetDeviceIDs(p.id, dtype, 0, C_NULL, ndevices)
+    ret = unchecked_clGetDeviceIDs(p, dtype, 0, C_NULL, ndevices)
     if ret == CL_DEVICE_NOT_FOUND || ndevices[] == 0
         return Device[]
     elseif ret != CL_SUCCESS
         throw(CLError(ret))
     end
     result = Vector{cl_device_id}(undef, ndevices[])
-    clGetDeviceIDs(p.id, dtype, ndevices[], result, C_NULL)
+    clGetDeviceIDs(p, dtype, ndevices[], result, C_NULL)
     return Device[Device(id) for id in result]
+end
+
+function default_device(p::Platform)
+    devs = devices(p, CL_DEVICE_TYPE_DEFAULT)
+    isempty(devs) && return nothing
+    # XXX: clGetDeviceIDs documents CL_DEVICE_TYPE_DEFAULT should only return one device,
+    #      but it's been observed to return multiple devices on some platforms...
+    return first(devs)
 end
 
 devices(p::Platform) = devices(p, CL_DEVICE_TYPE_ALL)
 
 function devices(p::Platform, dtype::Symbol)
     devices(p, cl_device_type(dtype))
-end
-
-function devices(dtype)
-    devs = Device[]
-    for platform in platforms()
-        append!(devs, devices(platform, dtype))
-    end
-    return devs
-end
-devices(dtype::Symbol) = devices(cl_device_type(dtype))
-
-function devices()
-    devs = Device[]
-    for platform in platforms()
-        append!(devs, devices(platform))
-    end
-    return devs
 end
 
 has_device_type(p::Platform, dtype) = length(devices(p, dtype)) > 0

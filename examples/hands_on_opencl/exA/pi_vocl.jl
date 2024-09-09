@@ -50,17 +50,10 @@ in_nsteps = INSTEPS
 niters = ITERS
 work_group_size = WGS
 
-# Create context, queue and build program
-
-#---------------------------------------------
-# Uncomment to switch between gpu/cpu devices
-#---------------------------------------------
-#device = first(cl.devices(:gpu))
-#device = first(cl.devices(:cpu))
-device, ctx, queue = cl.create_compute_context()
+# Build program
 
 kernelsource = read(joinpath(src_dir, "pi_vocl.cl"), String)
-program = cl.Program(ctx, source=kernelsource) |> cl.build!
+program = cl.Program(source=kernelsource) |> cl.build!
 
 if vector_size == 1
     pi_kernel = cl.Kernel(program, "pi")
@@ -76,11 +69,11 @@ nwork_groups = in_nsteps ÷ (work_group_size * niters)
 
 # get the max work group size for the kernel on our device
 if vector_size == 1
-    max_size = cl.work_group_info(pi_kernel, :size, device)
+    max_size = cl.work_group_info(pi_kernel, :size, cl.device())
 elseif vector_size == 4
-    max_size = cl.work_group_info(pi_kernel, :size, device)
+    max_size = cl.work_group_info(pi_kernel, :size, cl.device())
 elseif vector_size == 8
-    max_size = cl.work_group_info(pi_kernel, :size, device)
+    max_size = cl.work_group_info(pi_kernel, :size, cl.device())
 end
 
 if max_size > work_group_size
@@ -89,7 +82,7 @@ if max_size > work_group_size
 end
 
 if nwork_groups < 1
-    nwork_groups = device[:max_compute_units]
+    nwork_groups = cl.device()[:max_compute_units]
     work_group_size = in_nsteps ÷ (nwork_groups * niters)
 end
 
@@ -102,7 +95,7 @@ h_psum = Vector{Float32}(undef, nwork_groups)
 println("$nwork_groups work groups of size $work_group_size.")
 println("$nsteps integration steps")
 
-d_partial_sums = cl.Buffer(Float32, ctx, length(h_psum), :w)
+d_partial_sums = cl.Buffer(Float32, length(h_psum), :w)
 
 # start timer
 rtime = time()
@@ -114,10 +107,10 @@ global_size = (nwork_groups * work_group_size,)
 local_size  = (work_group_size,)
 localmem    = cl.LocalMem(Float32, work_group_size)
 
-queue(pi_kernel, global_size, local_size,
-      Int32(niters), Float32(step_size), localmem, d_partial_sums)
+cl.launch(pi_kernel, global_size, local_size,
+          Int32(niters), Float32(step_size), localmem, d_partial_sums)
 
-cl.copy!(queue, h_psum, d_partial_sums)
+cl.copy!(h_psum, d_partial_sums)
 
 # complete the sum and compute final integral value
 pi_res = sum(h_psum) * step_size

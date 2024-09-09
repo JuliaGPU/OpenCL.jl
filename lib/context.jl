@@ -71,6 +71,8 @@ function release_ctx_id(ctx_id::cl_context)
     return
 end
 
+Base.unsafe_convert(::Type{cl_context}, ctx::Context) = ctx.id
+
 Base.pointer(ctx::Context) = ctx.id
 
 function Base.show(io::IO, ctx::Context)
@@ -178,9 +180,9 @@ function Context(dev_type::Symbol;
 end
 
 
-function properties(ctx_id::cl_context)
+function properties(ctx::Context)
     nbytes = Ref{Csize_t}(0)
-    clGetContextInfo(ctx_id, CL_CONTEXT_PROPERTIES, 0, C_NULL, nbytes)
+    clGetContextInfo(ctx, CL_CONTEXT_PROPERTIES, 0, C_NULL, nbytes)
 
     # Calculate length of storage array
     # At nbytes[] the size of the properties array in bytes is stored
@@ -189,8 +191,7 @@ function properties(ctx_id::cl_context)
     nprops = div(nbytes[], sizeof(cl_context_properties))
 
     props = Vector{cl_context_properties}(undef, nprops)
-    clGetContextInfo(ctx_id, CL_CONTEXT_PROPERTIES,
-                         nbytes[], props, C_NULL)
+    clGetContextInfo(ctx, CL_CONTEXT_PROPERTIES, nbytes[], props, C_NULL)
     #properties array of [key,value..., C_NULL]
     result = Any[]
     for i in 1:2:nprops
@@ -215,10 +216,6 @@ function properties(ctx_id::cl_context)
         end
     end
     return result
-end
-
-function properties(ctx::Context)
-    properties(ctx.id)
 end
 
 #Note: properties list needs to be terminated with a NULL value!
@@ -255,8 +252,7 @@ end
 
 function num_devices(ctx::Context)
     ndevices = Ref{Cuint}()
-    clGetContextInfo(ctx.id, CL_CONTEXT_NUM_DEVICES,
-                                sizeof(Cuint), ndevices, C_NULL)
+    clGetContextInfo(ctx, CL_CONTEXT_NUM_DEVICES, sizeof(Cuint), ndevices, C_NULL)
     return ndevices[]
 end
 
@@ -266,44 +262,6 @@ function devices(ctx::Context)
         return []
     end
     dev_ids = Vector{cl_device_id}(undef, n)
-    clGetContextInfo(ctx.id, CL_CONTEXT_DEVICES,
-                                n * sizeof(cl_device_id), dev_ids, C_NULL)
+    clGetContextInfo(ctx, CL_CONTEXT_DEVICES, n * sizeof(cl_device_id), dev_ids, C_NULL)
     return [Device(id) for id in dev_ids]
-end
-
-function create_some_context()
-    if isempty(platforms())
-        throw(OpenCLException("No OpenCL.Platform available"))
-    end
-    gpu_devices = devices(:gpu)
-    if !isempty(gpu_devices)
-        for dev in gpu_devices
-            local ctx::Context
-            try
-                ctx = Context(dev)
-            catch err
-                @warn "Could not create context for GPU device $dev" exception=(err,catch_backtrace())
-                continue
-            end
-            return ctx
-        end
-    end
-    cpu_devices = devices(:cpu)
-    if !isempty(cpu_devices)
-        for dev in cpu_devices
-            local ctx::Context
-            try
-                ctx = Context(dev)
-            catch err
-                @warn "Could not create context for CPU device $dev" exception=(err,catch_backtrace())
-                continue
-            end
-            return ctx
-        end
-    end
-    if isempty(gpu_devices) && isempty(cpu_devices)
-        throw(OpenCLException("Unable to create any OpenCL.Context, no available devices"))
-    else
-        throw(OpenCLException("Unable to create any OpenCL.Context, no devices worked"))
-    end
 end

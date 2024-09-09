@@ -1,30 +1,14 @@
 using Test
 using OpenCL
 
-backend = get(ENV, "JULIA_OPENCL_BACKEND", "POCL")
-if backend == "POCL"
+backend = lowercase(get(ENV, "JULIA_OPENCL_BACKEND", "pocl"))
+if backend == "pocl"
     using pocl_jll
-    platform = filter(cl.platforms()) do platform
-        cl.info(platform, :name) == "Portable Computing Language"
-    end |> first
-    device = first(cl.devices(platform, :cpu))
-elseif backend in ["NVIDIA", "Intel"]
-    platforms = filter(cl.platforms()) do platform
-        contains(cl.info(platform, :name), backend)
-    end
-    platform = first(platforms)
-    device = first(cl.devices(platform))
-else
-    # we're strict about the possible values for 'backend'
-    # so that we can more easily match in the tests.
-    error("""Unknown OpenCL backend: $backend.
-
-             Supported built-in backends: POCL.
-             Supported system back-ends: Intel, NVIDIA.""")
 end
+cl.platform!(backend)
 @info """Testing using $backend back-end
-         - platform: $(cl.info(platform, :name))
-         - device: $(cl.info(device, :name))
+         - platform: $(cl.info(cl.platform(), :name))
+         - device: $(cl.info(cl.device(), :name))
 
          To test with a different back-end, define JULIA_OPENCL_BACKEND."""
 
@@ -51,10 +35,5 @@ include("behaviour.jl")
 include("memory.jl")
 include("buffer.jl")
 include("array.jl")
-
-@testset "context jl reference counting" begin
-    GC.gc()
-    @test isempty(cl._ctx_reference_count)
-end
 
 end

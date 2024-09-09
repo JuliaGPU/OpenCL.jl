@@ -1,23 +1,20 @@
 function create_test_buffer()
-    ctx = cl.Context(device)
-    queue = cl.CmdQueue(ctx)
     testarray = zeros(Float32, 1000)
-    buf = cl.Buffer(Float32, ctx, length(testarray), (:rw, :copy), hostbuf=testarray)
-    return (queue, buf, testarray, ctx)
+    cl.Buffer(Float32, length(testarray), (:rw, :copy), hostbuf=testarray)
 end
 
 @testset "Memory" begin
     @testset "context" begin
-        _, buf, _, expected = create_test_buffer()
+        buf = create_test_buffer()
 
         ctx = cl.context(buf)
 
         @test ctx != nothing
-        @test isequal(ctx, expected) != nothing
+        @test isequal(ctx, cl.context()) != nothing
     end
 
     @testset "properties" begin
-        _, buf, _, _ = create_test_buffer()
+        buf = create_test_buffer()
 
         expectations = [
             (:mem_type, cl.CL_MEM_OBJECT_BUFFER),

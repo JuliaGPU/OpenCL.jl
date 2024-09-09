@@ -38,11 +38,8 @@ __kernel void vadd(
         r[i] = a[i] + b[i] + c[i];
 }"
 
-# create a compute context
-device, ctx, queue = cl.create_compute_context()
-
 # create the compute program and build it
-program = cl.Program(ctx, source=kernelsource) |> cl.build!
+program = cl.Program(source=kernelsource) |> cl.build!
 
 # create a, b and c vectors and fill with random float values
 # (the result array will be created when reading back from the device)
@@ -50,24 +47,24 @@ h_a = rand(Float32, LENGTH)
 h_b = rand(Float32, LENGTH)
 h_c = rand(Float32, LENGTH)
 
-d_a = cl.Buffer(Float32, ctx, length(h_a), (:r, :copy), hostbuf=h_a)
-d_b = cl.Buffer(Float32, ctx, length(h_b), (:r, :copy), hostbuf=h_b)
-d_c = cl.Buffer(Float32, ctx, length(h_c), (:r, :copy), hostbuf=h_c)
+d_a = cl.Buffer(Float32, length(h_a), (:r, :copy), hostbuf=h_a)
+d_b = cl.Buffer(Float32, length(h_b), (:r, :copy), hostbuf=h_b)
+d_c = cl.Buffer(Float32, length(h_c), (:r, :copy), hostbuf=h_c)
 
 # create the output (r) buffer in device memory
-d_r = cl.Buffer(Float32, ctx, LENGTH, :w)
+d_r = cl.Buffer(Float32, LENGTH, :w)
 
 # create the kernel
 vadd = cl.Kernel(program, "vadd")
 
 # execute the kernel over the entire range of the input
-vadd[queue, size(h_a)](d_a, d_b, d_c, d_r, UInt32(LENGTH))
+vadd[size(h_a)](d_a, d_b, d_c, d_r, UInt32(LENGTH))
 
 # read the results back from the compute device
 # by convention..
 # cl.(action) calls are blocking
 # cl.enqueue_(action) calll are async/non-blocking
-h_r = cl.read(queue, d_r)
+h_r = cl.read(d_r)
 
 # test the results
 correct = 0

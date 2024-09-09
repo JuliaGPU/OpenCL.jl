@@ -4,7 +4,6 @@ export CLArray, CLMatrix, CLVector, to_host
 
 mutable struct CLArray{T, N} <: CLObject
     ctx::cl.Context
-    queue::cl.CmdQueue
     buffer::cl.Buffer{T}
     size::NTuple{N, Int}
 end
@@ -14,51 +13,47 @@ const CLVector{T} = CLArray{T,1}
 
 ## constructors
 
-function CLArray(buf::cl.Buffer{T}, queue::cl.CmdQueue, sz::Tuple{Vararg{Int}}) where T
-    ctx = cl.context(buf)
-    CLArray(ctx, queue, buf, sz)
+function CLArray(buf::cl.Buffer{T}, sz::Tuple{Vararg{Int}}) where T
+    CLArray(cl.context(), buf, sz)
 end
 
-function CLArray(queue::cl.CmdQueue,
-                 flags::Tuple{Vararg{Symbol}},
+function CLArray(flags::Tuple{Vararg{Symbol}},
                  hostarray::AbstractArray{T,N}) where {T, N}
-    ctx = cl.context(queue)
-    buf = cl.Buffer(T, ctx, length(hostarray), flags, hostbuf=hostarray)
+    buf = cl.Buffer(T, length(hostarray), flags, hostbuf=hostarray)
     sz = size(hostarray)
-    CLArray(ctx, queue, buf, sz)
+    CLArray(cl.context(), buf, sz)
 end
 
-CLArray(queue::cl.CmdQueue, hostarray::AbstractArray{T,N};
-        flags=(:rw, :copy)) where {T, N} = CLArray(queue, (:rw, :copy), hostarray)
+CLArray(hostarray::AbstractArray{T,N};
+        flags=(:rw, :copy)) where {T, N} = CLArray((:rw, :copy), hostarray)
 
-Base.copy(A::CLArray; ctx=A.ctx, queue=A.queue,
-          buffer=A.buffer, size=A.size) = CLArray(ctx, queue, buffer, size)
+Base.copy(A::CLArray; ctx=A.ctx,
+          buffer=A.buffer, size=A.size) = CLArray(ctx, buffer, size)
 
 function Base.deepcopy(A::CLArray{T,N}) where {T, N}
     new_buf = cl.Buffer(T, A.ctx, prod(A.size))
-    copy!(A.queue, new_buf, A.buffer)
-    return CLArray(A.ctx, A.queue, new_buf, A.size)
+    copy!(new_buf, A.buffer)
+    return CLArray(A.ctx, new_buf, A.size)
 end
 
 """
 Create in device memory array of type `t` and size `dims` filled by value `x`.
 """
-function Base.fill(::Type{T}, q::cl.CmdQueue, x::T, dims...) where T
-    ctx = cl.info(q, :context)
-    v = opencl_version(ctx)
+function fill(::Type{T}, x::T, dims...) where T
+    v = opencl_version(cl.context())
     if v.major == 1 && v.minor >= 2
-        buf = cl.Buffer(T, ctx, prod(dims))
+        buf = cl.Buffer(T, prod(dims))
         fill!(q, buf, x)
     else
-        buf = cl.Buffer(T, ctx, prod(dims), (:rw, :copy), hostbuf=fill(x, dims))
+        buf = cl.Buffer(T, prod(dims), (:rw, :copy), hostbuf=Base.fill(x, dims))
     end
-    return CLArray(buf, q, dims)
+    return CLArray(buf, dims)
 end
 
-Base.zeros(::Type{T}, q::cl.CmdQueue, dims...) where {T} = fill(T, q, T(0), dims...)
-Base.zeros(q::cl.CmdQueue, dims...) = fill(Float64, q, Float64(0), dims...)
-Base.ones(::Type{T}, q::cl.CmdQueue, dims...) where {T} = fill(T, q, T(1), dims...)
-Base.ones(q::cl.CmdQueue, dims...) = fill(Float64, q, Float64(1), dims...)
+zeros(::Type{T}, dims...) where {T} = fill(T, T(0), dims...)
+zeros(dims...) = fill(Float64, Float64(0), dims...)
+ones(::Type{T}, dims...) where {T} = fill(T, T(1), dims...)
+ones(dims...) = fill(Float64, Float64(1), dims...)
 
 
 ## core functions
@@ -66,7 +61,6 @@ Base.ones(q::cl.CmdQueue, dims...) = fill(Float64, q, Float64(1), dims...)
 buffer(A::CLArray) = A.buffer
 Base.pointer(A::CLArray) = A.buffer.id
 context(A::CLArray) = cl.context(A.buffer)
-queue(A::CLArray) = A.queue
 Base.eltype(A::CLArray{T, N}) where {T, N} = T
 Base.size(A::CLArray) = A.size
 Base.size(A::CLArray, dim::Integer) = A.size[dim]
@@ -86,9 +80,9 @@ Base.show(io::IO, A::CLArray{T,N}) where {T, N} =
 
 ## to_host
 
-function to_host(A::CLArray{T,N}; queue=A.queue) where {T, N}
+function to_host(A::CLArray{T,N}) where {T, N}
     hA = Array{T}(undef, size(A)...)
-    copy!(queue, hA, buffer(A))
+    copy!(hA, buffer(A))
     return hA
 end
 
@@ -97,10 +91,9 @@ end
 const TRANSPOSE_FLOAT_PROGRAM_PATH = joinpath(@__DIR__, "kernels", "transpose_float.cl")
 const TRANSPOSE_DOUBLE_PROGRAM_PATH = joinpath(@__DIR__, "kernels", "transpose_double.cl")
 
-function max_block_size(queue::cl.CmdQueue, h::Int, w::Int)
-    dev = cl.info(queue, :device)
-    dim1, dim2 = cl.info(dev, :max_work_item_size)[1:2]
-    wgsize = cl.info(dev, :max_work_group_size)
+function max_block_size(h::Int, w::Int)
+    dim1, dim2 = cl.info(device(), :max_work_item_size)[1:2]
+    wgsize = cl.info(device(), :max_work_group_size)
     wglimit = floor(Int, sqrt(wgsize))
     return gcd(dim1, dim2, h, w, wglimit)
 end
@@ -108,35 +101,31 @@ end
 """
 Transpose CLMatrix A, write result to a preallicated CLMatrix B
 """
-function LinearAlgebra.transpose!(B::CLMatrix{Float32}, A::CLMatrix{Float32};
-                                  queue=A.queue)
-    block_size = max_block_size(queue, size(A, 1), size(A, 2))
+function LinearAlgebra.transpose!(B::CLMatrix{Float32}, A::CLMatrix{Float32})
+    block_size = max_block_size(size(A, 1), size(A, 2))
     ctx = context(A)
     kernel = get_kernel(ctx, TRANSPOSE_FLOAT_PROGRAM_PATH, "transpose",
                         block_size=block_size)
     h, w = size(A)
     lmem = cl.LocalMem(Float32, block_size * (block_size + 1))
     cl.set_args!(kernel, buffer(B), buffer(A), UInt32(h), UInt32(w), lmem)
-    return cl.enqueue_kernel(queue, kernel, (h, w), (block_size, block_size))
+    return cl.enqueue_kernel(kernel, (h, w), (block_size, block_size))
 end
 
 """Transpose CLMatrix A"""
-function LinearAlgebra.transpose(A::CLMatrix{Float32};
-                        queue=A.queue)
-    B = zeros(Float32, queue, reverse(size(A))...)
-    ev = LinearAlgebra.transpose!(B, A, queue=queue)
+function LinearAlgebra.transpose(A::CLMatrix{Float32})
+    B = zeros(Float32, reverse(size(A))...)
+    ev = LinearAlgebra.transpose!(B, A)
     wait(ev)
     return B
 end
 
 """Transpose CLMatrix A, write result to a preallicated CLMatrix B"""
-function LinearAlgebra.transpose!(B::CLMatrix{Float64}, A::CLMatrix{Float64};
-                         queue=A.queue)
-    dev = cl.info(queue, :device)
-    if !in("cl_khr_fp64", cl.info(dev, :extensions))
+function LinearAlgebra.transpose!(B::CLMatrix{Float64}, A::CLMatrix{Float64})
+    if !in("cl_khr_fp64", cl.info(device(), :extensions))
         throw(ArgumentError("Double precision not supported by device"))
     end
-    block_size = max_block_size(queue, size(A, 1), size(A, 2))
+    block_size = max_block_size(size(A, 1), size(A, 2))
     ctx = context(A)
     kernel = get_kernel(ctx, TRANSPOSE_DOUBLE_PROGRAM_PATH, "transpose",
                           block_size=block_size)
@@ -144,13 +133,13 @@ function LinearAlgebra.transpose!(B::CLMatrix{Float64}, A::CLMatrix{Float64};
     # lmem = cl.LocalMem(Float64, block_size * (block_size + 1))
     lmem = cl.LocalMem(Float64, block_size * block_size)
     cl.set_args!(kernel, buffer(B), buffer(A), UInt32(h), UInt32(w), lmem)
-    return cl.enqueue_kernel(queue, kernel, (h, w), (block_size, block_size))
+    return cl.enqueue_kernel(kernel, (h, w), (block_size, block_size))
 end
 
 """Transpose CLMatrix A"""
-function LinearAlgebra.transpose(A::CLMatrix{Float64}; queue=A.queue)
-    B = zeros(Float64, queue, reverse(size(A))...)
-    ev = LinearAlgebra.transpose!(B, A, queue=queue)
+function LinearAlgebra.transpose(A::CLMatrix{Float64})
+    B = zeros(Float64, reverse(size(A))...)
+    ev = LinearAlgebra.transpose!(B, A)
     cl.wait(ev)
     return B
 end

@@ -4,10 +4,10 @@
                            cl.CL_DEVICE_TYPE_ACCELERATOR, cl.CL_DEVICE_TYPE_ALL),
                           (:gpu, :cpu, :accelerator, :all))
 
-            #for (dk, dt) in zip(cl.devices(platform, k), cl.devices(platform, t))
+            #for (dk, dt) in zip(cl.devices(cl.platform(), k), cl.devices(cl.platform(), t))
             #    @fact dk == dt --> true
             #end
-            #devices = cl.devices(platform, k)
+            #devices = cl.devices(cl.platform(), k)
             #for device in devices
             #    @fact device[:device_type] == t --> true
             #end
@@ -15,7 +15,7 @@
     end
 
     @testset "Equality" begin
-        devices = cl.devices(platform)
+        devices = cl.devices(cl.platform())
 
         if length(devices) > 1
             d1 = devices[1]
@@ -61,9 +61,10 @@
                 :max_image2d_shape,
                 :max_image3d_shape,
             ]
-        @test isa(platform, cl.Platform)
-        @test_throws ArgumentError platform[:zjdlkf]
+        @test isa(cl.platform(), cl.Platform)
+        @test_throws ArgumentError cl.platform()[:zjdlkf]
 
+        device = cl.device()
         @test isa(device, cl.Device)
         @test_throws ArgumentError device[:zjdlkf]
         for k in device_info_keys
@@ -74,7 +75,7 @@
                     @test isa(device[k], Array{String, 1})
                 end
             elseif k == :platform
-                @test device[k] == platform
+                @test device[k] == cl.platform()
             elseif k == :max_work_item_sizes
                 @test length(device[k]) == 3
             elseif k == :max_image2d_shape

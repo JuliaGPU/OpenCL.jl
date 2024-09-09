@@ -85,37 +85,32 @@ for i in 1:COUNT
     results(Mdim, Ndim, Pdim, h_C, t2 - t1)
 end
 
-# set up OpenCL
-ctx = cl.create_some_context()
-
-# You can enable profiling events on the queue
-# by calling the constructor with the :profile flag
-queue = cl.CmdQueue(ctx, :profile)
-
 # create OpenCL Buffers
-d_a = cl.Buffer(Float32, ctx, length(h_A), (:r,:copy), hostbuf=h_A)
-d_b = cl.Buffer(Float32, ctx, length(h_B), (:r,:copy), hostbuf=h_B)
-d_c = cl.Buffer(Float32, ctx, length(h_C), :w)
+d_a = cl.Buffer(Float32, length(h_A), (:r,:copy), hostbuf=h_A)
+d_b = cl.Buffer(Float32, length(h_B), (:r,:copy), hostbuf=h_B)
+d_c = cl.Buffer(Float32, length(h_C), :w)
 
 #--------------------------------------------------------------------------------
 # OpenCL matrix multiplication ... Naive
 #--------------------------------------------------------------------------------
 
 kernel_source = read(joinpath(src_dir, "C_elem.cl"), String)
-prg  = cl.Program(ctx, source=kernel_source) |> cl.build!
+prg  = cl.Program(source=kernel_source) |> cl.build!
 mmul = cl.Kernel(prg, "mmul")
 
 @info("=== OpenCL, matrix mult, C(i, j) per work item, order $Ndim ====")
 
 for i in 1:COUNT
     fill!(h_C, 0.0)
-    evt = queue(mmul, (Ndim, Mdim), nothing,
-                Int32(Mdim), Int32(Ndim), Int32(Pdim),
-                d_a, d_b, d_c)
-    # profiling events are measured in ns
-    run_time = evt[:profile_duration] / 1e9
-    cl.copy!(queue, h_C, d_c)
-    results(Mdim, Ndim, Pdim, h_C, run_time)
+    cl.queue!(:profile) do
+        evt = cl.launch(mmul, (Ndim, Mdim), nothing,
+                        Int32(Mdim), Int32(Ndim), Int32(Pdim),
+                        d_a, d_b, d_c)
+        # profiling events are measured in ns
+        run_time = evt[:profile_duration] / 1e9
+        cl.copy!(h_C, d_c)
+        results(Mdim, Ndim, Pdim, h_C, run_time)
+    end
 end
 
 #--------------------------------------------------------------------------------
@@ -123,30 +118,32 @@ end
 #--------------------------------------------------------------------------------
 
 kernel_source = read(joinpath(src_dir, "C_row.cl"), String)
-prg  = cl.Program(ctx, source=kernel_source) |> cl.build!
+prg  = cl.Program(source=kernel_source) |> cl.build!
 mmul = cl.Kernel(prg, "mmul")
 
 @info("=== OpenCL, matrix mult, C row per work item, order $Ndim ====")
 
 for i in 1:COUNT
     fill!(h_C, 0.0)
-    mmul_ocl = mmul[queue, (Ndim,), (div(ORDER, 16),)]
+    mmul_ocl = mmul[(Ndim,), (div(ORDER, 16),)]
 
-    evt = mmul_ocl(Int32(Mdim), Int32(Ndim), Int32(Pdim), d_a, d_b, d_c)
+    cl.queue!(:profile) do
+        evt = mmul_ocl(Int32(Mdim), Int32(Ndim), Int32(Pdim), d_a, d_b, d_c)
 
-    # profiling events are measured in ns
-    run_time = evt[:profile_duration] / 1e9
-    cl.copy!(queue, h_C, d_c)
-    results(Mdim, Ndim, Pdim, h_C, run_time)
+        # profiling events are measured in ns
+        run_time = evt[:profile_duration] / 1e9
+        cl.copy!(h_C, d_c)
+        results(Mdim, Ndim, Pdim, h_C, run_time)
+    end
 end
 
 #--------------------------------------------------------------------------------
 # OpenCL matrix multiplication ... C row per work item, A row in pivate memory
 #--------------------------------------------------------------------------------
 kernel_source = read(joinpath(src_dir, "C_row_priv.cl"), String)
-prg  = cl.Program(ctx, source=kernel_source) |> cl.build!
+prg  = cl.Program(source=kernel_source) |> cl.build!
 mmul = cl.Kernel(prg, "mmul")
-wk_size = cl.info(first(cl.devices(ctx)), :max_work_group_size)
+wk_size = cl.info(cl.device(), :max_work_group_size)
 if Ndim * (ORDER ÷ 16) >= wk_size
     @warn("Specified work_size $(Ndim * (ORDER ÷ 16)) is bigger than $wk_size")
 else
@@ -155,12 +152,12 @@ else
 
 for i in 1:COUNT
     fill!(h_C, 0.0)
-    evt = queue(mmul, (Ndim,), (ORDER,),
-                Int32(Mdim), Int32(Ndim), Int32(Pdim),
-                d_a, d_b, d_c)
+    evt = cl.launch(mmul, (Ndim,), (ORDER,),
+                    Int32(Mdim), Int32(Ndim), Int32(Pdim),
+                    d_a, d_b, d_c)
     # profiling events are measured in ns
     run_time = evt[:profile_duration] / 1e9
-    cl.copy!(queue, h_C, d_c)
+    cl.copy!(h_C, d_c)
     results(Mdim, Ndim, Pdim, h_C, run_time)
 end
 end
