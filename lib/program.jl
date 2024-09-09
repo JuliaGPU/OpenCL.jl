@@ -128,7 +128,7 @@ function Base.getproperty(p::Program, s::Symbol)
         src_len[] <= 1 && return nothing
         src = Vector{Cchar}(undef, src_len[])
         clGetProgramInfo(p, CL_PROGRAM_SOURCE, src_len[], src, C_NULL)
-        return unsafe_string(pointer(src))
+        return GC.@preserve src unsafe_string(pointer(src))
     elseif s == :binary_sizes
         sizes = Vector{Csize_t}(undef, p.num_devices)
         clGetProgramInfo(p, CL_PROGRAM_BINARY_SIZES, sizeof(sizes), sizes, C_NULL)
@@ -180,7 +180,7 @@ function Base.getproperty(p::Program, s::Symbol)
             clGetProgramBuildInfo(p, device, CL_PROGRAM_BUILD_LOG, 0, C_NULL, size)
             log = Vector{Cchar}(undef, size[])
             clGetProgramBuildInfo(p, device, CL_PROGRAM_BUILD_LOG, size[], log, C_NULL)
-            log_dict[device] = unsafe_string(pointer(log))
+            log_dict[device] = GC.@preserve log unsafe_string(pointer(log))
         end
         return log_dict
     else

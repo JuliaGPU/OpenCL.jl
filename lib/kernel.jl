@@ -337,7 +337,7 @@ function Base.getproperty(k::Kernel, s::Symbol)
         clGetKernelInfo(k, CL_KERNEL_FUNCTION_NAME, 0, C_NULL, size)
         result = Vector{Cchar}(undef, size[])
         clGetKernelInfo(k, CL_KERNEL_FUNCTION_NAME, size[], result, C_NULL)
-        return unsafe_string(pointer(result))
+        return GC.@preserve result unsafe_string(pointer(result))
     elseif s == :num_args
         result = Ref{Cuint}()
         clGetKernelInfo(k, CL_KERNEL_NUM_ARGS, sizeof(Cuint), result, C_NULL)
@@ -360,7 +360,7 @@ function Base.getproperty(k::Kernel, s::Symbol)
         if err == CL_SUCCESS && size[] > 1
             result = Vector{Cchar}(undef, size[])
             clGetKernelInfo(k, CL_KERNEL_ATTRIBUTES, size[], result, C_NULL)
-            return unsafe_string(pointer(result))
+            return GC.@preserve result unsafe_string(pointer(result))
         else
             return ""
         end
