@@ -82,7 +82,12 @@ const initialized = Ref{Bool}(false)
         return
     end
 
-    withenv("OCL_ICD_FILENAMES"=>join(OpenCL_jll.drivers, ':')) do
+    ocd_filenames = join(OpenCL_jll.drivers, ':')
+    if haskey(ENV, "OCL_ICD_FILENAMES")
+        ocd_filenames *= ":" * ENV["OCL_ICD_FILENAMES"]
+    end
+
+    withenv("OCL_ICD_FILENAMES"=>ocd_filenames) do
         num_platforms = Ref{Cuint}()
         @ccall libopencl.clGetPlatformIDs(
             0::cl_uint, C_NULL::Ptr{cl_platform_id},

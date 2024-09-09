@@ -33,6 +33,28 @@ using Pkg
 Pkg.add("OpenCL")
 ```
 
+3. Test your installation:
+
+```julia-repl
+julia> OpenCL.versioninfo()
+OpenCL.jl version 0.10.0
+
+Toolchain:
+ - Julia v1.10.5
+ - OpenCL_jll v2024.5.8+1
+
+Available platforms: 3
+ - Portable Computing Language
+   version: OpenCL 3.0 PoCL 6.0  Linux, Release, RELOC, SPIR-V, LLVM 15.0.7jl, SLEEF, DISTRO, POCL_DEBUG
+   · cpu-haswell-AMD Ryzen 9 5950X 16-Core Processor (fp64, il)
+ - NVIDIA CUDA
+   version: OpenCL 3.0 CUDA 12.6.65
+   · NVIDIA RTX 6000 Ada Generation (fp64)
+ - Intel(R) OpenCL Graphics
+   version: OpenCL 3.0
+   · Intel(R) Arc(TM) A770 Graphics (fp16, il)
+```
+
 
 ## Basic example: vector add
 

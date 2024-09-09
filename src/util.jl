@@ -46,3 +46,49 @@ function get_kernel(program_file::String, kernel_name::String; vars...)
         return kernel
     end
 end
+
+function versioninfo(io::IO=stdout)
+    println(io, "OpenCL.jl version $(pkgversion(@__MODULE__))")
+    println(io)
+
+    println(io, "Toolchain:")
+    println(io, " - Julia v$(VERSION)")
+    for pkg in [cl.OpenCL_jll]
+        println(io, " - $(string(pkg)) v$(pkgversion(pkg))")
+    end
+    println(io)
+
+    env = filter(var->startswith(var, "JULIA_OPENCL"), keys(ENV))
+    if !isempty(env)
+        println(io, "Environment:")
+        for var in env
+            println(io, "- $var: $(ENV[var])")
+        end
+        println(io)
+    end
+
+    println(io, "Available platforms: ", length(cl.platforms()))
+    for platform in cl.platforms()
+        println(io, " - $(platform.name)")
+        println(io, "   version: $(platform.version)")
+        for device in cl.devices(platform)
+            print(io, "   · $(device.name)")
+
+            ## list some relevant extensions
+            extensions = []
+            if in("cl_khr_fp16", device.extensions)
+                push!(extensions, "fp16")
+            end
+            if in("cl_khr_fp64", device.extensions)
+                push!(extensions, "fp64")
+            end
+            if in("cl_khr_il_program", device.extensions)
+                push!(extensions, "il")
+            end
+            if !isempty(extensions)
+                print(io, " (", join(extensions, ", "), ")")
+            end
+            println(io)
+        end
+    end
+end

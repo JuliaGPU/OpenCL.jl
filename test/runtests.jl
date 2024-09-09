@@ -2,6 +2,8 @@ using Test
 using OpenCL
 using pocl_jll
 
+@info "System information:\n" * sprint(io->OpenCL.versioninfo(io))
+
 @testset "OpenCL.jl" begin
 
 @testset "$(platform.name): $(device.name)" for platform in cl.platforms(),
