@@ -17,89 +17,105 @@ function Base.show(io::IO, d::Device)
     print(io, "OpenCL.Device($device_name on $platform_name @$ptr_address)")
 end
 
-function Base.getproperty(d::Device, s::Symbol)
+@inline function Base.getproperty(d::Device, s::Symbol)
     # simple string properties
-    string_properties = Dict(
-        :profile        => CL_DEVICE_PROFILE,
-        :version        => CL_DEVICE_VERSION,
-        :driver_version => CL_DRIVER_VERSION,
-        :name           => CL_DEVICE_NAME,
-    )
-    if haskey(string_properties, s)
-        size = Ref{Csize_t}()
-        clGetDeviceInfo(d, string_properties[s], 0, C_NULL, size)
-        result = Vector{Cchar}(undef, size[])
-        clGetDeviceInfo(d, string_properties[s], size[], result, C_NULL)
-        return CLString(result)
+    @inline function get_string(prop)
+        sz = Ref{Csize_t}()
+        clGetDeviceInfo(d, prop, 0, C_NULL, sz)
+        chars = Vector{Cchar}(undef, sz[])
+        clGetDeviceInfo(d, prop, sz[], chars, C_NULL)
+        return CLString(chars)
+    end
+    if s === :profile
+        return get_string(CL_DEVICE_PROFILE)
+    elseif s === :version
+        return get_string(CL_DEVICE_VERSION)
+    elseif s === :driver_version
+        return get_string(CL_DRIVER_VERSION)
+    elseif s === :name
+        return get_string(CL_DEVICE_NAME)
     end
 
     # scalar values
-    int_properties = Dict(
-        :vendor_id                  => (CL_DEVICE_VENDOR_ID,                 Cuint),
-        :max_compute_units          => (CL_DEVICE_MAX_COMPUTE_UNITS,         Cuint),
-        :max_work_item_dims         => (CL_DEVICE_MAX_WORK_ITEM_DIMENSIONS,  Cuint),
-        :max_clock_frequency        => (CL_DEVICE_MAX_CLOCK_FREQUENCY,       Cuint),
-        :address_bits               => (CL_DEVICE_ADDRESS_BITS,              Cuint),
-        :max_read_image_args        => (CL_DEVICE_MAX_READ_IMAGE_ARGS,       Cuint),
-        :max_write_image_args       => (CL_DEVICE_MAX_WRITE_IMAGE_ARGS,      Cuint),
-        :global_mem_size            => (CL_DEVICE_GLOBAL_MEM_SIZE,           Culong),
-        :max_mem_alloc_size         => (CL_DEVICE_MAX_MEM_ALLOC_SIZE,        Culong),
-        :max_const_buffer_size      => (CL_DEVICE_MAX_CONSTANT_BUFFER_SIZE,  Culong),
-        :local_mem_size             => (CL_DEVICE_LOCAL_MEM_SIZE,            Culong),
-        :max_work_group_size        => (CL_DEVICE_MAX_WORK_GROUP_SIZE,       Csize_t),
-        :max_parameter_size         => (CL_DEVICE_MAX_PARAMETER_SIZE,        Csize_t),
-        :profiling_timer_resolution => (CL_DEVICE_PROFILING_TIMER_RESOLUTION, Csize_t),
-    )
-    if haskey(int_properties, s)
-        prop, typ = int_properties[s]
-        result = Ref{typ}()
-        clGetDeviceInfo(d, prop, sizeof(typ), result, C_NULL)
-        return Int(result[])
+    @inline function get_scalar(prop, typ)
+        scalar = Ref{typ}()
+        clGetDeviceInfo(d, prop, sizeof(typ), scalar, C_NULL)
+        return Int(scalar[])
+    end
+    if s === :vendor_id
+        return get_scalar(CL_DEVICE_VENDOR_ID, Cuint)
+    elseif s === :max_compute_units
+        return get_scalar(CL_DEVICE_MAX_COMPUTE_UNITS, Cuint)
+    elseif s === :max_work_item_dims
+        return get_scalar(CL_DEVICE_MAX_WORK_ITEM_DIMENSIONS, Cuint)
+    elseif s === :max_clock_frequency
+        return get_scalar(CL_DEVICE_MAX_CLOCK_FREQUENCY, Cuint)
+    elseif s === :address_bits
+        return get_scalar(CL_DEVICE_ADDRESS_BITS, Cuint)
+    elseif s === :max_read_image_args
+        return get_scalar(CL_DEVICE_MAX_READ_IMAGE_ARGS, Cuint)
+    elseif s === :max_write_image_args
+        return get_scalar(CL_DEVICE_MAX_WRITE_IMAGE_ARGS, Cuint)
+    elseif s === :global_mem_size
+        return get_scalar(CL_DEVICE_GLOBAL_MEM_SIZE, Culong)
+    elseif s === :max_mem_alloc_size
+        return get_scalar(CL_DEVICE_MAX_MEM_ALLOC_SIZE, Culong)
+    elseif s === :max_const_buffer_size
+        return get_scalar(CL_DEVICE_MAX_CONSTANT_BUFFER_SIZE, Culong)
+    elseif s === :local_mem_size
+        return get_scalar(CL_DEVICE_LOCAL_MEM_SIZE, Culong)
+    elseif s === :max_work_group_size
+        return get_scalar(CL_DEVICE_MAX_WORK_GROUP_SIZE, Csize_t)
+    elseif s === :max_parameter_size
+        return get_scalar(CL_DEVICE_MAX_PARAMETER_SIZE, Csize_t)
+    elseif s === :profiling_timer_resolution
+        return get_scalar(CL_DEVICE_PROFILING_TIMER_RESOLUTION, Csize_t)
     end
 
     # boolean properties
-    bool_properties = Dict(
-        :has_image_support           => CL_DEVICE_IMAGE_SUPPORT,
-        :has_local_mem               => CL_DEVICE_LOCAL_MEM_TYPE,
-        :host_unified_memory         => CL_DEVICE_HOST_UNIFIED_MEMORY,
-        :available                   => CL_DEVICE_AVAILABLE,
-        :compiler_available          => CL_DEVICE_COMPILER_AVAILABLE
-    )
-    if haskey(bool_properties, s)
-        result = Ref{cl_bool}()
-        clGetDeviceInfo(d, bool_properties[s], sizeof(cl_bool), result, C_NULL)
-        return result[] == CL_TRUE
+    @inline function get_bool(prop)
+        bool = Ref{cl_bool}()
+        clGetDeviceInfo(d, prop, sizeof(cl_bool), bool, C_NULL)
+        return bool[] == CL_TRUE
+    end
+    if s === :has_image_support
+        return get_bool(CL_DEVICE_IMAGE_SUPPORT)
+    elseif s === :has_local_mem
+        return get_bool(CL_DEVICE_LOCAL_MEM_TYPE)
+    elseif s === :host_unified_memory
+        return get_bool(CL_DEVICE_HOST_UNIFIED_MEMORY)
+    elseif s === :available
+        return get_bool(CL_DEVICE_AVAILABLE)
+    elseif s === :compiler_available
+        return get_bool(CL_DEVICE_COMPILER_AVAILABLE)
     end
 
     # boolean queue properties
     # TODO: move this to `queue_info`?
-    queue_properties = Dict(
-        :has_queue_out_of_order_exec => CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE,
-        :has_queue_profiling         => CL_QUEUE_PROFILING_ENABLE,
-    )
     if s == :queue_properties
-        result = Ref{cl_command_queue_properties}()
+        queue_props = Ref{cl_command_queue_properties}()
         clGetDeviceInfo(d, CL_DEVICE_QUEUE_PROPERTIES,
-                        sizeof(cl_command_queue_properties), result, C_NULL)
-        return result[]
+                        sizeof(cl_command_queue_properties), queue_props, C_NULL)
+        return queue_props[]
     end
-    if haskey(queue_properties, s)
-        return d.queue_properties & queue_properties[s] != 0
+    @inline get_queue_property(prop) = d.queue_properties & prop != 0
+    if s === :has_queue_out_of_order_exec
+        return get_queue_property(CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE)
+    elseif s === :has_queue_profiling
+        return get_queue_property(CL_QUEUE_PROFILING_ENABLE)
     end
 
     # boolean execution properties
     # TODO: move this to `execution_info`?
-    exec_properties = Dict(
-        :has_native_kernel => CL_EXEC_NATIVE_KERNEL,
-    )
-    if s == :exec_capabilities
+    if s === :exec_capabilities
         result = Ref{cl_device_exec_capabilities}()
         clGetDeviceInfo(d, CL_DEVICE_EXECUTION_CAPABILITIES,
                         sizeof(cl_device_exec_capabilities), result, C_NULL)
         return result[]
     end
-    if haskey(exec_properties, s)
-        return d.exec_capabilities & exec_properties[s] != 0
+    @inline get_exec_property(prop) = d.exec_capabilities & prop != 0
+    if s === :has_native_kernel
+        return get_exec_property(CL_EXEC_NATIVE_KERNEL)
     end
 
     if s == :extensions
