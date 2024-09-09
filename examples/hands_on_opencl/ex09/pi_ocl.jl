@@ -35,16 +35,15 @@ program = cl.Program(source=kernelsource) |> cl.build!
 pi_kernel = cl.Kernel(program, "pi")
 
 # get the max work group size for the kernel pi on the device
-work_group_size = cl.device()[:max_work_group_size]
+work_group_size = cl.device().max_work_group_size
 
 # now that we know the size of the work_groups, we can set the number
 # of work groups, the actual number of steps, and the step size
 nwork_groups = in_nsteps ÷ (work_group_size * niters)
 
 if nwork_groups < 1
-    # you can get opencl object info through the obj[:symbol] syntax
-    # or cl.info(obj, :symbol)
-    nwork_groups = cl.device()[:max_compute_units]
+    # you can get opencl object info through the getproperty syntax
+    nwork_groups = cl.device().max_compute_units
     work_group_size = in_nsteps ÷ (nwork_groups * niters)
 end
 

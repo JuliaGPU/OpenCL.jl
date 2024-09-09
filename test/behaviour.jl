@@ -1,9 +1,3 @@
-#=
-info(
-"======================================================================
-                              Running Behavior Tests
-      ======================================================================")
-=#
 @testset "Hello World Test" begin
     hello_world_kernel = "
         #pragma OPENCL EXTENSION cl_khr_byte_addressable_store : enable

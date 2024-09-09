@@ -6,10 +6,10 @@ else
 @testset "Event" begin
     @testset "status" begin
         evt = cl.UserEvent()
-        evt[:status]
-        @test evt[:status] == :submitted
+        evt.status
+        @test evt.status == :submitted
         cl.complete(evt)
-        @test evt[:status] == :complete
+        @test evt.status == :complete
         finalize(evt)
     end
 
@@ -21,14 +21,14 @@ else
         # create marker event
         mkr_evt = cl.enqueue_marker()
 
-        @test usr_evt[:status] == :submitted
-        @test mkr_evt[:status] in (:queued, :submitted)
+        @test usr_evt.status == :submitted
+        @test mkr_evt.status in (:queued, :submitted)
 
         cl.complete(usr_evt)
-        @test usr_evt[:status] == :complete
+        @test usr_evt.status == :complete
 
         cl.wait(mkr_evt)
-        @test mkr_evt[:status] == :complete
+        @test mkr_evt.status == :complete
 
         @test cl.cl_event_status(:running) == cl.CL_RUNNING
         @test cl.cl_event_status(:submitted) == cl.CL_SUBMITTED
@@ -50,12 +50,12 @@ else
         mkr_evt = cl.enqueue_marker()
         cl.add_callback(mkr_evt, test_callback)
 
-        @test usr_evt[:status] == :submitted
-        @test mkr_evt[:status] in (:queued, :submitted)
+        @test usr_evt.status == :submitted
+        @test mkr_evt.status in (:queued, :submitted)
         @test !callback_called[]
 
         cl.complete(usr_evt)
-        @test usr_evt[:status] == :complete
+        @test usr_evt.status == :complete
 
         cl.wait(mkr_evt)
 
@@ -63,7 +63,7 @@ else
         yield()
         sleep(0.5)
 
-        @test mkr_evt[:status] == :complete
+        @test mkr_evt.status == :complete
         @test callback_called[]
     end
 end

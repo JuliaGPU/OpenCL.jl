@@ -69,11 +69,11 @@ nwork_groups = in_nsteps ÷ (work_group_size * niters)
 
 # get the max work group size for the kernel on our device
 if vector_size == 1
-    max_size = cl.work_group_info(pi_kernel, :size, cl.device())
+    max_size = cl.work_group_info(pi_kernel, cl.device()).size
 elseif vector_size == 4
-    max_size = cl.work_group_info(pi_kernel, :size, cl.device())
+    max_size = cl.work_group_info(pi_kernel, cl.device()).size
 elseif vector_size == 8
-    max_size = cl.work_group_info(pi_kernel, :size, cl.device())
+    max_size = cl.work_group_info(pi_kernel, cl.device()).size
 end
 
 if max_size > work_group_size
@@ -82,7 +82,7 @@ if max_size > work_group_size
 end
 
 if nwork_groups < 1
-    nwork_groups = cl.device()[:max_compute_units]
+    nwork_groups = cl.device().max_compute_units
     work_group_size = in_nsteps ÷ (nwork_groups * niters)
 end
 

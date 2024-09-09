@@ -127,7 +127,7 @@ for i in 1:COUNT
                                d_a, d_b, d_c)
 
         # profiling events are measured in ns
-        run_time = evt[:profile_duration] / 1e9
+        run_time = evt.profile_duration / 1e9
         cl.copy!(h_C, d_c)
         results(Mdim, Ndim, Pdim, h_C, run_time)
     end

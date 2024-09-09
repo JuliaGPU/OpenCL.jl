@@ -77,8 +77,6 @@ function Base.show(io::IO, evt::Event)
     print(io, "OpenCL.Event(@$ptr_address)")
 end
 
-Base.getindex(evt::CLEvent, evt_info::Symbol) = info(evt, evt_info)
-
 mutable struct UserEvent <: CLEvent
     id::cl_event
 
@@ -237,62 +235,44 @@ cl_event_status(s::Symbol) = begin
     end
 end
 
-macro profile_info(func, profile_info)
-    quote
-        function $(esc(func))(evt::CLEvent)
-            time = Ref{Clong}(0)
-            err_code = unchecked_clGetEventProfilingInfo(evt, $(esc(profile_info)),
-                                                         sizeof(Culong), time, C_NULL)
-            if err_code == CL_PROFILING_INFO_NOT_AVAILABLE
-                if evt[:status] != :complete
-                    #TODO: evt must have status complete before it can be profiled
-                    throw(CLError(err_code))
+function Base.getproperty(evt::CLEvent, s::Symbol)
+    function profiling_info(evt::CLEvent, profile_info)
+        time = Ref{Clong}(0)
+        try
+            clGetEventProfilingInfo(evt, profile_info, sizeof(Culong), time, C_NULL)
+        catch err
+            if isa(err, CLError) && err.code == CL_PROFILING_INFO_NOT_AVAILABLE
+                if evt.status != :complete
+                    throw(ArgumentError("Event is not complete; cannot access profiling info yet"))
                 else
-                    #TODO: queue must be created with :profile argument
-                    throw(CLError(err_code))
+                    throw(ArgumentError("Command queue does not support profiling; consider running under `cl.queue!(:profiling)`"))
                 end
             end
-            if err_code != CL_SUCCESS
-                throw(CLError(err_code))
-            end
-            return time[]
+            rethrow()
         end
-    end
-end
-
-function info(evt::CLEvent, evt_info::Symbol)
-    command_queue(evt::CLEvent) = begin
-        cmd_q = Ref{cl_command_queue}()
-        clGetEventInfo(evt, CL_EVENT_COMMAND_QUEUE,
-                       sizeof(cl_command_queue), cmd_q, C_NULL)
-        return CmdQueue(cmd_q[])
+        return time[]
     end
 
-    command_type(evt::CLEvent) = begin
-        cmd_t = Ref{Cint}()
-        clGetEventInfo(evt, CL_EVENT_COMMAND_TYPE,
-                       sizeof(Cint), cmd_t, C_NULL)
-        return cmd_t[]
-    end
-
-    reference_count(evt::CLEvent) = begin
-        cnt = Ref{Cuint}()
-        clGetEventInfo(evt, CL_EVENT_REFERENCE_COUNT,
-                       sizeof(Cuint), cnt, C_NULL)
-        return cnt[]
-    end
-
-    context(evt::CLEvent) = begin
+    # regular properties
+    if s == :context
         ctx = Ref{cl_context}()
-        clGetEventInfo(evt, CL_EVENT_CONTEXT,
-                       sizeof(cl_context), cl_context, C_NULL)
-        Context(ctx[])
-    end
-
-    status(evt::CLEvent) = begin
+        clGetEventInfo(evt, CL_EVENT_CONTEXT, sizeof(cl_context), ctx, C_NULL)
+        return Context(ctx[], retain=true)
+    elseif s == :command_queue
+        cmd_q = Ref{cl_command_queue}()
+        clGetEventInfo(evt, CL_EVENT_COMMAND_QUEUE, sizeof(cl_command_queue), cmd_q, C_NULL)
+        return CmdQueue(cmd_q[], retain=true)
+    elseif s == :command_type
+        cmd_t = Ref{Cint}()
+        clGetEventInfo(evt, CL_EVENT_COMMAND_TYPE, sizeof(Cint), cmd_t, C_NULL)
+        return cmd_t[]
+    elseif s == :reference_count
+        cnt = Ref{Cuint}()
+        clGetEventInfo(evt, CL_EVENT_REFERENCE_COUNT, sizeof(Cuint), cnt, C_NULL)
+        return Int(cnt[])
+    elseif s == :status
         st = Ref{Cint}()
-        clGetEventInfo(evt, CL_EVENT_COMMAND_EXECUTION_STATUS,
-                       sizeof(Cint), st, C_NULL)
+        clGetEventInfo(evt, CL_EVENT_COMMAND_EXECUTION_STATUS, sizeof(Cint), st, C_NULL)
         status = st[]
         if status == CL_QUEUED
             return :queued
@@ -305,38 +285,20 @@ function info(evt::CLEvent, evt_info::Symbol)
         else
             throw(ArgumentError("Unknown status value: $status"))
         end
-    end
 
-    @profile_info(profile_start,  CL_PROFILING_COMMAND_START)
-    @profile_info(profile_end,    CL_PROFILING_COMMAND_END)
-    @profile_info(profile_queued, CL_PROFILING_COMMAND_QUEUED)
-    @profile_info(profile_submit, CL_PROFILING_COMMAND_SUBMIT)
+    # profiling properties
+    elseif s == :profile_start
+        return profiling_info(evt, CL_PROFILING_COMMAND_START)
+    elseif s == :profile_end
+        return profiling_info(evt, CL_PROFILING_COMMAND_END)
+    elseif s == :profile_queued
+        return profiling_info(evt, CL_PROFILING_COMMAND_QUEUED)
+    elseif s == :profile_submit
+        return profiling_info(evt, CL_PROFILING_COMMAND_SUBMIT)
+    elseif s == :profile_duration
+        return evt.profile_end - evt.profile_start
 
-    profile_duration(evt::Event) = begin
-        return evt[:profile_end] - evt[:profile_start]
-    end
-
-    info_map = Dict{Symbol, Function}(
-        :context => context,
-        :command_queue => command_queue,
-        :reference_count => reference_count,
-        :command_type => command_type,
-        :status => status,
-        :profile_start => profile_start,
-        :profile_end => profile_end,
-        :profile_queued => profile_queued,
-        :profile_submit => profile_submit,
-        :profile_duration => profile_duration,
-    )
-
-    try
-        func = info_map[evt_info]
-        func(evt)
-    catch err
-        if isa(err, KeyError)
-            throw(ArgumentError("OpenCL.Event has no info for: $evt_info"))
-        else
-            throw(err)
-        end
+    else
+        return getfield(evt, s)
     end
 end

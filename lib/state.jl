@@ -12,7 +12,7 @@ function platform()
 
         # prefer platforms that implement the full profile
         full_platform = findfirst(platforms) do platform
-            info(platform, :profile) == "FULL_PROFILE"
+            platform.profile == "FULL_PROFILE"
         end
         isnothing(full_platform) || return platforms[full_platform]
 
@@ -35,12 +35,12 @@ function platform!(name::String)
     platforms = cl.platforms()
 
     name_match = findfirst(platforms) do platform
-        contains(lowercase(info(platform, :name)), lowercase(name))
+        contains(lowercase(platform.name), lowercase(name))
     end
     isnothing(name_match) || return platform!(platforms[name_match])
 
     vendor_match = findfirst(platforms) do platform
-        contains(lowercase(info(platform, :vendor)), lowercase(name))
+        contains(lowercase(platform.vendor), lowercase(name))
     end
     isnothing(vendor_match) || return platform!(platforms[vendor_match])
 

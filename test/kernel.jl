@@ -31,11 +31,11 @@ end
         prg = cl.Program(source=test_source)
         cl.build!(prg)
         k = cl.Kernel(prg, "sum")
-        @test k[:name] == "sum"
-        @test k[:num_args] == 4
-        @test k[:reference_count] > 0
-        @test k[:program] == prg
-        @test typeof(k[:attributes]) == String
+        @test k.function_name == "sum"
+        @test k.num_args == 4
+        @test k.reference_count > 0
+        @test k.program == prg
+        @test typeof(k.attributes) == String
     end
 
     @testset "mem/workgroup size" begin
@@ -122,7 +122,7 @@ end
         @test_throws ArgumentError cl.launch(k, (1,1), (1,), d_buff)
 
         # dimensions are bounded
-        max_work_dim = cl.device()[:max_work_item_dims]
+        max_work_dim = cl.device().max_work_item_dims
         bad = tuple([1 for _ in 1:(max_work_dim + 1)])
         @test_throws MethodError cl.launch(k, bad, d_buff)
 

@@ -92,8 +92,8 @@ const TRANSPOSE_FLOAT_PROGRAM_PATH = joinpath(@__DIR__, "kernels", "transpose_fl
 const TRANSPOSE_DOUBLE_PROGRAM_PATH = joinpath(@__DIR__, "kernels", "transpose_double.cl")
 
 function max_block_size(h::Int, w::Int)
-    dim1, dim2 = cl.info(device(), :max_work_item_size)[1:2]
-    wgsize = cl.info(device(), :max_work_group_size)
+    dim1, dim2 = cl.device().max_work_item_size[1:2]
+    wgsize = cl.device().max_work_group_size
     wglimit = floor(Int, sqrt(wgsize))
     return gcd(dim1, dim2, h, w, wglimit)
 end
@@ -122,7 +122,7 @@ end
 
 """Transpose CLMatrix A, write result to a preallicated CLMatrix B"""
 function LinearAlgebra.transpose!(B::CLMatrix{Float64}, A::CLMatrix{Float64})
-    if !in("cl_khr_fp64", cl.info(device(), :extensions))
+    if !in("cl_khr_fp64", cl.device().extensions)
         throw(ArgumentError("Double precision not supported by device"))
     end
     block_size = max_block_size(size(A, 1), size(A, 2))

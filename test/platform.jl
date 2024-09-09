@@ -4,9 +4,6 @@
 
         @test cl.platform() != nothing
         @test pointer(cl.platform()) != C_NULL
-        for k in [:profile, :version, :name, :vendor, :extensions]
-            @test cl.platform()[k] == cl.info(cl.platform(), k)
-        end
         v = opencl_version(cl.platform())
         @test 1 <= v.major <= 3
         @test 0 <= v.minor <= 2

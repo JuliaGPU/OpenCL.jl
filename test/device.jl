@@ -9,7 +9,7 @@
             #end
             #devices = cl.devices(cl.platform(), k)
             #for device in devices
-            #    @fact device[:device_type] == t --> true
+            #    @fact device.device_type == t --> true
             #end
         end
     end
@@ -62,26 +62,26 @@
                 :max_image3d_shape,
             ]
         @test isa(cl.platform(), cl.Platform)
-        @test_throws ArgumentError cl.platform()[:zjdlkf]
+        @test_throws ErrorException cl.platform().zjdlkf
 
         device = cl.device()
         @test isa(device, cl.Device)
-        @test_throws ArgumentError device[:zjdlkf]
+        @test_throws ErrorException device.zjdlkf
         for k in device_info_keys
-            @test device[k] == cl.info(device, k)
+            v = getproperty(device, k)
             if k == :extensions
-                @test isa(device[k], Array)
-                if length(device[k]) > 0
-                    @test isa(device[k], Array{String, 1})
+                @test isa(v, Array)
+                if length(v) > 0
+                    @test isa(v, Array{String, 1})
                 end
             elseif k == :platform
-                @test device[k] == cl.platform()
+                @test v == cl.platform()
             elseif k == :max_work_item_sizes
-                @test length(device[k]) == 3
+                @test length(v) == 3
             elseif k == :max_image2d_shape
-                @test length(device[k]) == 2
+                @test length(v) == 2
             elseif k == :max_image3d_shape
-                @test length(device[k]) == 3
+                @test length(v) == 3
             end
         end
     end
