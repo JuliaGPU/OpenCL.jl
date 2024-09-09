@@ -9,9 +9,9 @@ function parse_version(version_string)
                                  parse(Int, mg.captures[2]))
 end
 
-opencl_version(obj::CLObject) = parse_version(obj[:version])
-opencl_version(c::cl.Context)  = opencl_version(first(cl.devices(c)))
-opencl_version(q::cl.CmdQueue) = opencl_version(q[:device])
+opencl_version(obj::CLObject) = parse_version(obj.version)
+opencl_version(c::cl.Context)  = opencl_version(first(c.devices))
+opencl_version(q::cl.CmdQueue) = opencl_version(q.device)
 
 """
 Format string using dict-like variables, replacing all accurancies of

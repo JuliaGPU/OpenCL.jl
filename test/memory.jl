@@ -26,7 +26,7 @@ end
 
         for expectation in expectations
             prop, value = expectation
-            @test cl.info(buf, prop) == value
+            @test getproperty(buf, prop) == value
         end
     end
 end

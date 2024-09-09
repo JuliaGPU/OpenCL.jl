@@ -25,30 +25,30 @@
     @testset "info" begin
         prg = cl.Program(source=test_source)
 
-        @test prg[:context] == cl.context()
+        @test prg.context == cl.context()
 
-        @test typeof(prg[:devices]) == Vector{cl.Device}
-        @test length(prg[:devices]) > 0
-        @test cl.device() in prg[:devices]
+        @test typeof(prg.devices) == Vector{cl.Device}
+        @test length(prg.devices) > 0
+        @test cl.device() in prg.devices
 
-        @test typeof(prg[:source]) == String
-        @test prg[:source] == test_source
+        @test typeof(prg.source) == String
+        @test prg.source == test_source
 
-        @test prg[:reference_count] > 0
-        @test isempty(strip(prg[:build_log][cl.device()]))
+        @test prg.reference_count > 0
+        @test isempty(strip(prg.build_log[cl.device()]))
     end
 
     @testset "build" begin
         prg = cl.Program(source=test_source)
         @test cl.build!(prg) != nothing
 
-        @test prg[:build_status][cl.device()] == cl.CL_BUILD_SUCCESS
-        @test prg[:build_log][cl.device()] isa String
+        @test prg.build_status[cl.device()] == cl.CL_BUILD_SUCCESS
+        @test prg.build_log[cl.device()] isa String
     end
 
     @testset "source code" begin
        prg = cl.Program(source=test_source)
-       @test prg[:source] == test_source
+       @test prg.source == test_source
     end
 
     if backend == "pocl"
@@ -57,14 +57,14 @@
         @testset "binaries" begin
             prg = cl.Program(source=test_source) |> cl.build!
 
-            @test cl.device() in collect(keys(prg[:binaries]))
-            binaries = prg[:binaries]
+            @test cl.device() in collect(keys(prg.binaries))
+            binaries = prg.binaries
             @test cl.device() in collect(keys(binaries))
             @test binaries[cl.device()] != nothing
             @test length(binaries[cl.device()]) > 0
             prg2 = cl.Program(binaries=binaries)
-            @test prg2[:binaries] == binaries
-            @test prg2[:source] === nothing
+            @test prg2.binaries == binaries
+            @test prg2.source === nothing
         end
     end
 end

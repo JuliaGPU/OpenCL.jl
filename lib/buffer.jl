@@ -189,11 +189,7 @@ function enqueue_copy_buffer(src::Buffer{T},
     evt_ids = wait_for === nothing ? C_NULL  : [evt.id for evt in wait_for]
     ret_evt = Ref{cl_event}()
     if byte_count < 0
-        byte_count_src = Ref{Csize_t}()
-        byte_count_dst = Ref{Csize_t}()
-        clGetMemObjectInfo(src, CL_MEM_SIZE, sizeof(Csize_t), byte_count_src, C_NULL)
-        clGetMemObjectInfo(src, CL_MEM_SIZE, sizeof(Csize_t), byte_count_dst, C_NULL)
-        byte_count = min(byte_count_src[], byte_count_dst[])
+        byte_count = min(sizeof(src), sizeof(dst))
     end
     @assert byte_count > 0
     clEnqueueCopyBuffer(queue(), src, dst,
@@ -385,7 +381,7 @@ end
 # create an empty buffer similar to the passed in buffer
 function empty_like(b::Buffer{T}) where T
     len = length(b)
-    mf = info(b, :mem_flags)
+    mf = b.mem_flags
     if :r in mf
         return Buffer(T, len, :r)
     elseif :w in mf

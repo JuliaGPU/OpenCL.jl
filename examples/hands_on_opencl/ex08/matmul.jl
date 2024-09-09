@@ -107,7 +107,7 @@ for i in 1:COUNT
                         Int32(Mdim), Int32(Ndim), Int32(Pdim),
                         d_a, d_b, d_c)
         # profiling events are measured in ns
-        run_time = evt[:profile_duration] / 1e9
+        run_time = evt.profile_duration / 1e9
         cl.copy!(h_C, d_c)
         results(Mdim, Ndim, Pdim, h_C, run_time)
     end
@@ -130,7 +130,7 @@ for i in 1:COUNT
                         Int32(Mdim), Int32(Ndim), Int32(Pdim),
                         d_a, d_b, d_c)
         # profiling events are measured in ns
-        run_time = evt[:profile_duration] / 1e9
+        run_time = evt.profile_duration / 1e9
         cl.copy!(h_C, d_c)
         results(Mdim, Ndim, Pdim, h_C, run_time)
     end
@@ -142,7 +142,7 @@ end
 kernel_source = read(joinpath(src_dir, "C_row_priv_block.cl"), String)
 prg  = cl.Program(source=kernel_source) |> cl.build!
 mmul = cl.Kernel(prg, "mmul")
-wk_size = cl.info(cl.device(), :max_work_group_size)
+wk_size = cl.device().max_work_group_size
 if Ndim * (ORDER ÷ 16) >= wk_size
     @warn("Specified work_size is bigger than $wk_size")
 else
@@ -160,7 +160,7 @@ for i in 1:COUNT
                        d_a, d_b, d_c, localmem)
 
         # profiling events are measured in ns
-        run_time = evt[:profile_duration] / 1e9
+        run_time = evt.profile_duration / 1e9
         cl.copy!(h_C, d_c)
         results(Mdim, Ndim, Pdim, h_C, run_time)
     end
@@ -173,7 +173,7 @@ end
 kernel_source = read(joinpath(src_dir, "C_block_form.cl"), String)
 prg  = cl.Program(source=kernel_source) |> cl.build!
 mmul = cl.Kernel(prg, "mmul")
-wk_size = cl.info(cl.device(), :max_work_group_size)
+wk_size = cl.device().max_work_group_size
 if Ndim * (ORDER ÷ 16) >= wk_size
     @warn("Specified work_size is bigger than $wk_size")
 else
@@ -190,7 +190,7 @@ for i in 1:COUNT
                         Int32(Mdim), Int32(Ndim), Int32(Pdim),
                         d_a, d_b, d_c, localmem1, localmem2)
         # profiling events are measured in ns
-        run_time = evt[:profile_duration] / 1e9
+        run_time = evt.profile_duration / 1e9
         cl.copy!(h_C, d_c)
         results(Mdim, Ndim, Pdim, h_C, run_time)
     end

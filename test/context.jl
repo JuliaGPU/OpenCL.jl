@@ -70,15 +70,15 @@ end
             @test cl.Context(sym_dev_type, properties=properties) != nothing
             @test cl.Context(cl_dev_type, properties=properties) != nothing
             ctx = cl.Context(cl_dev_type, properties=properties)
-            @test isempty(cl.properties(ctx)) == false
-            test_properties = cl.properties(ctx)
+            @test !isempty(ctx.properties)
+            test_properties = ctx.properties
 
             @test test_properties == properties
 
             platform_in_properties = false
             for (t, v) in test_properties
                 if t == cl.CL_CONTEXT_PLATFORM
-                    @test v[:name] == cl.platform()[:name]
+                    @test v.name == cl.platform().name
                     @test v == cl.platform()
                     platform_in_properties = true
                     break

@@ -31,27 +31,20 @@ end
         prg = cl.Program(source=test_source)
         cl.build!(prg)
         k = cl.Kernel(prg, "sum")
-        @test k[:name] == "sum"
-        @test k[:num_args] == 4
-        @test k[:reference_count] > 0
-        @test k[:program] == prg
-        @test typeof(k[:attributes]) == String
+        @test k.function_name == "sum"
+        @test k.num_args == 4
+        @test k.reference_count > 0
+        @test k.program == prg
+        @test typeof(k.attributes) == String
     end
 
     @testset "mem/workgroup size" begin
         prg = cl.Program(source=test_source)
         cl.build!(prg)
         k = cl.Kernel(prg, "sum")
-        for (sf, clf) in [(:size, cl.CL_KERNEL_WORK_GROUP_SIZE),
-                          (:compile_size, cl.CL_KERNEL_COMPILE_WORK_GROUP_SIZE),
-                          (:local_mem_size, cl.CL_KERNEL_LOCAL_MEM_SIZE),
-                          (:private_mem_size, cl.CL_KERNEL_PRIVATE_MEM_SIZE),
-                          (:prefered_size_multiple, cl.CL_KERNEL_PREFERRED_WORK_GROUP_SIZE_MULTIPLE)]
-            @test cl.work_group_info(k, sf, cl.device()) != nothing
-            @test cl.work_group_info(k, clf, cl.device()) != nothing
-            if sf != :compile_size
-                @test cl.work_group_info(k, sf, cl.device()) == cl.work_group_info(k, clf, cl.device())
-            end
+        wginfo = cl.work_group_info(k, cl.device())
+        for sf in [:size, :compile_size, :local_mem_size, :private_mem_size, :prefered_size_multiple]
+            @test getproperty(wginfo, sf) != nothing
         end
     end
 
@@ -122,7 +115,7 @@ end
         @test_throws ArgumentError cl.launch(k, (1,1), (1,), d_buff)
 
         # dimensions are bounded
-        max_work_dim = cl.device()[:max_work_item_dims]
+        max_work_dim = cl.device().max_work_item_dims
         bad = tuple([1 for _ in 1:(max_work_dim + 1)])
         @test_throws MethodError cl.launch(k, bad, d_buff)
 

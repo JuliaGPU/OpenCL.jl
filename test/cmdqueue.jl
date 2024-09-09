@@ -6,7 +6,7 @@
             cl.CmdQueue(:out_of_order)
             cl.CmdQueue((:profile, :out_of_order))
         catch err
-            @warn("Platform $(cl.device()[:platform][:name]) does not seem to " *
+            @warn("Platform $(cl.device().platform.name) does not seem to " *
                   "suport out of order queues: \n$err",maxlog=1,
                   exception=(err, catch_backtrace()))
         end
@@ -19,9 +19,9 @@
 
     @testset "info" begin
         q = cl.CmdQueue()
-        @test q[:context] == cl.context()
-        @test q[:device] == cl.device()
-        @test q[:reference_count] > 0
-        @test typeof(q[:properties]) == cl.cl_command_queue_properties
+        @test q.context == cl.context()
+        @test q.device == cl.device()
+        @test q.reference_count > 0
+        @test typeof(q.properties) == cl.cl_command_queue_properties
     end
 end

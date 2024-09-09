@@ -76,9 +76,9 @@ Base.unsafe_convert(::Type{cl_context}, ctx::Context) = ctx.id
 Base.pointer(ctx::Context) = ctx.id
 
 function Base.show(io::IO, ctx::Context)
-    dev_strs = [replace(d[:name], r"\s+" => " ") for d in devices(ctx)]
+    dev_strs = [replace(d.name, r"\s+" => " ") for d in ctx.devices]
     devs_str = join(dev_strs, ",")
-    ptr_val = convert(UInt, Base.pointer(ctx))
+    ptr_val = convert(UInt, pointer(ctx))
     ptr_address = "0x$(string(ptr_val, base = 16, pad = Sys.WORD_SIZE>>2))"
     print(io, "OpenCL.Context(@$ptr_address on $devs_str)")
 end
@@ -179,43 +179,62 @@ function Context(dev_type::Symbol;
             properties=properties, callback=callback)
 end
 
-
-function properties(ctx::Context)
-    nbytes = Ref{Csize_t}(0)
-    clGetContextInfo(ctx, CL_CONTEXT_PROPERTIES, 0, C_NULL, nbytes)
-
-    # Calculate length of storage array
-    # At nbytes[] the size of the properties array in bytes is stored
-    # The length of the property array is then nbytes[] / sizeof(cl_context_properties)
-    # Note: nprops should be odd since it requires a C_NULL terminated array
-    nprops = div(nbytes[], sizeof(cl_context_properties))
-
-    props = Vector{cl_context_properties}(undef, nprops)
-    clGetContextInfo(ctx, CL_CONTEXT_PROPERTIES, nbytes[], props, C_NULL)
-    #properties array of [key,value..., C_NULL]
-    result = Any[]
-    for i in 1:2:nprops
-        key = props[i]
-        value = i < nprops ? props[i+1] : nothing
-
-        if key == CL_CONTEXT_PLATFORM
-            push!(result, (key, Platform(cl_platform_id(value))))
-        elseif key == CL_GL_CONTEXT_KHR ||
-           key == CL_EGL_DISPLAY_KHR ||
-           key == CL_GLX_DISPLAY_KHR ||
-           key == CL_WGL_HDC_KHR ||
-           key == CL_CGL_SHAREGROUP_KHR
-            push!(result, (key, value))
-        elseif key == 0
-            if i != nprops
-                @warn("Encountered OpenCL.Context property key == 0 at position $i")
-            end
-            break
-        else
-            @warn("Unknown OpenCL.Context property key encountered $key")
+function Base.getproperty(ctx::Context, s::Symbol)
+    if s == :num_devices
+        ndevices = Ref{Cuint}()
+        clGetContextInfo(ctx, CL_CONTEXT_NUM_DEVICES, sizeof(Cuint), ndevices, C_NULL)
+        return Int(ndevices[])
+    elseif s == :devices
+        n = ctx.num_devices
+        if n == 0
+            return Device[]
         end
+        dev_ids = Vector{cl_device_id}(undef, n)
+        clGetContextInfo(ctx, CL_CONTEXT_DEVICES, sizeof(dev_ids), dev_ids, C_NULL)
+        return [Device(id) for id in dev_ids]
+    elseif s == :properties
+        nbytes = Ref{Csize_t}(0)
+        clGetContextInfo(ctx, CL_CONTEXT_PROPERTIES, 0, C_NULL, nbytes)
+
+        # Calculate length of storage array
+        # At nbytes[] the size of the properties array in bytes is stored
+        # The length of the property array is then nbytes[] / sizeof(cl_context_properties)
+        # Note: nprops should be odd since it requires a C_NULL terminated array
+        nprops = div(nbytes[], sizeof(cl_context_properties))
+
+        props = Vector{cl_context_properties}(undef, nprops)
+        clGetContextInfo(ctx, CL_CONTEXT_PROPERTIES, nbytes[], props, C_NULL)
+        #properties array of [key,value..., C_NULL]
+        result = Any[]
+        for i in 1:2:nprops
+            key = props[i]
+            value = i < nprops ? props[i+1] : nothing
+
+            if key == CL_CONTEXT_PLATFORM
+                push!(result, (key, Platform(cl_platform_id(value))))
+            elseif key == CL_GL_CONTEXT_KHR ||
+               key == CL_EGL_DISPLAY_KHR ||
+               key == CL_GLX_DISPLAY_KHR ||
+               key == CL_WGL_HDC_KHR ||
+               key == CL_CGL_SHAREGROUP_KHR
+                push!(result, (key, value))
+            elseif key == 0
+                if i != nprops
+                    @warn("Encountered OpenCL.Context property key == 0 at position $i")
+                end
+                break
+            else
+                @warn("Unknown OpenCL.Context property key encountered $key")
+            end
+        end
+        return result
+    elseif s == :reference_count
+        refcount = Ref{Cuint}()
+        clGetContextInfo(ctx, CL_CONTEXT_REFERENCE_COUNT, sizeof(Cuint), refcount, C_NULL)
+        return Int(refcount[])
+    else
+        return getfield(ctx, s)
     end
-    return result
 end
 
 #Note: properties list needs to be terminated with a NULL value!
@@ -250,18 +269,3 @@ function _parse_properties(props)
     return cl_props
 end
 
-function num_devices(ctx::Context)
-    ndevices = Ref{Cuint}()
-    clGetContextInfo(ctx, CL_CONTEXT_NUM_DEVICES, sizeof(Cuint), ndevices, C_NULL)
-    return ndevices[]
-end
-
-function devices(ctx::Context)
-    n = num_devices(ctx)
-    if n == 0
-        return []
-    end
-    dev_ids = Vector{cl_device_id}(undef, n)
-    clGetContextInfo(ctx, CL_CONTEXT_DEVICES, n * sizeof(cl_device_id), dev_ids, C_NULL)
-    return [Device(id) for id in dev_ids]
-end

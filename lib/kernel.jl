@@ -24,13 +24,11 @@ Base.unsafe_convert(::Type{cl_kernel}, k::Kernel) = k.id
 Base.pointer(k::Kernel) = k.id
 
 Base.show(io::IO, k::Kernel) = begin
-    print(io, "OpenCL.Kernel(\"$(k[:name])\" nargs=$(k[:num_args]))")
+    print(io, "OpenCL.Kernel(\"$(k.function_name)\" nargs=$(k.num_args))")
 end
 
-Base.getindex(k::Kernel, kinfo::Symbol) = info(k, kinfo)
-
 function Kernel(p::Program, kernel_name::String)
-    for (dev, status) in info(p, :build_status)
+    for (dev, status) in p.build_status
         if status != CL_BUILD_SUCCESS
             msg = "OpenCL.Program has to be built before Kernel constructor invoked"
             throw(ArgumentError(msg))
@@ -221,43 +219,6 @@ function set_args!(k::Kernel, args...)
     end
 end
 
-function work_group_info(k::Kernel, winfo, d::Device)
-    if (winfo == CL_KERNEL_LOCAL_MEM_SIZE ||
-        winfo == CL_KERNEL_PRIVATE_MEM_SIZE)
-        result1 = Ref{Culong}(0)
-        clGetKernelWorkGroupInfo(k, d, winfo, sizeof(Culong), result1, C_NULL)
-        return Int(result1[])
-    elseif winfo == CL_KERNEL_COMPILE_WORK_GROUP_SIZE
-        # Intel driver has a bug so we can't query the required size.
-        # As specified by [1] the return value in this case is size_t[3].
-        # [1] https://www.khronos.org/registry/OpenCL/sdk/1.2/docs/man/xhtml/clGetKernelWorkGroupInfo.html
-        @assert sizeof(Csize_t) == sizeof(Int)
-        result2 = Vector{Int}(undef, 3)
-        clGetKernelWorkGroupInfo(k, d, winfo, 3*sizeof(Int), result2, C_NULL)
-        return result2
-    else
-        result = Ref{Csize_t}(0)
-        clGetKernelWorkGroupInfo(k, d, winfo, sizeof(Culong), result, C_NULL)
-        return Int(result[])
-    end
-end
-
-function work_group_info(k::Kernel, winfo::Symbol, d::Device)
-    if winfo == :size
-        work_group_info(k, CL_KERNEL_WORK_GROUP_SIZE, d)
-    elseif winfo == :compile_size
-        work_group_info(k, CL_KERNEL_COMPILE_WORK_GROUP_SIZE, d)
-    elseif winfo == :local_mem_size
-        work_group_info(k, CL_KERNEL_LOCAL_MEM_SIZE, d)
-    elseif winfo == :private_mem_size
-        work_group_info(k, CL_KERNEL_PRIVATE_MEM_SIZE, d)
-    elseif winfo == :prefered_size_multiple
-        work_group_info(k, CL_KERNEL_PREFERRED_WORK_GROUP_SIZE_MULTIPLE, d)
-    else
-        throw(ArgumentError(("Unknown work_group_info flag: :$winfo")))
-    end
-end
-
 # produce a cl.call thunk with kernel queue, global/local sizes
 Base.getindex(k::Kernel, args...) = begin
     if length(args) < 1 || length(args) > 2
@@ -299,7 +260,7 @@ function enqueue_kernel(k::Kernel,
                         local_work_size;
                         global_work_offset=nothing,
                         wait_on::Union{Nothing,Vector{Event}}=nothing)
-    max_work_dim = device()[:max_work_item_dims]
+    max_work_dim = device().max_work_item_dims
     work_dim     = length(global_work_size)
     if work_dim > max_work_dim
         throw(ArgumentError("global_work_size has max dim of $max_work_dim"))
@@ -370,61 +331,72 @@ function enqueue_task(k::Kernel; wait_for=nothing)
     return ret_event[]
 end
 
-function info(k::Kernel, kinfo::Symbol)
-    name(k::Kernel) = begin
+function Base.getproperty(k::Kernel, s::Symbol)
+    if s == :function_name
         size = Ref{Csize_t}()
         clGetKernelInfo(k, CL_KERNEL_FUNCTION_NAME, 0, C_NULL, size)
         result = Vector{Cchar}(undef, size[])
-        clGetKernelInfo(k, CL_KERNEL_FUNCTION_NAME, size[], result, size)
-        return CLString(result)
-    end
-
-    num_args(k::Kernel) = begin
-        ret = Ref{Cuint}()
-        clGetKernelInfo(k, CL_KERNEL_NUM_ARGS, sizeof(Cuint), ret, C_NULL)
-        return ret[]
-    end
-
-    reference_count(k::Kernel) = begin
-        ret = Ref{Cuint}()
-        clGetKernelInfo(k, CL_KERNEL_REFERENCE_COUNT, sizeof(Cuint), ret, C_NULL)
-        return ret[]
-    end
-
-    program(k::Kernel) = begin
-        ret = Ref{cl_program}()
-        clGetKernelInfo(k, CL_KERNEL_PROGRAM, sizeof(cl_program), ret, C_NULL)
-        return Program(ret[], retain=true)
-    end
-
-    # Only supported for version 1.2 and above
-    attributes(k::Kernel) = begin
+        clGetKernelInfo(k, CL_KERNEL_FUNCTION_NAME, size[], result, C_NULL)
+        return unsafe_string(pointer(result))
+    elseif s == :num_args
+        result = Ref{Cuint}()
+        clGetKernelInfo(k, CL_KERNEL_NUM_ARGS, sizeof(Cuint), result, C_NULL)
+        return Int(result[])
+    elseif s == :reference_count
+        result = Ref{Cuint}()
+        clGetKernelInfo(k, CL_KERNEL_REFERENCE_COUNT, sizeof(Cuint), result, C_NULL)
+        return Int(result[])
+    elseif s == :context
+        result = Ref{cl_context}()
+        clGetKernelInfo(k, CL_KERNEL_CONTEXT, sizeof(cl_context), result, C_NULL)
+        return Context(result[], retain=true)
+    elseif s == :program
+        result = Ref{cl_program}()
+        clGetKernelInfo(k, CL_KERNEL_PROGRAM, sizeof(cl_program), result, C_NULL)
+        return Program(result[], retain=true)
+    elseif s == :attributes
         size = Ref{Csize_t}()
-        rcode = unchecked_clGetKernelInfo(k, CL_KERNEL_ATTRIBUTES,
-                                          0, C_NULL, size)
-        # Version 1.1 mostly MESA drivers will pass through the below condition
-        if rcode == CL_INVALID_VALUE || size[] <= 1
+        err = unchecked_clGetKernelInfo(k, CL_KERNEL_ATTRIBUTES, 0, C_NULL, size)
+        if err == CL_SUCCESS && size[] > 1
+            result = Vector{Cchar}(undef, size[])
+            clGetKernelInfo(k, CL_KERNEL_ATTRIBUTES, size[], result, C_NULL)
+            return unsafe_string(pointer(result))
+        else
             return ""
         end
-        result = Vector{Cchar}(undef, size[])
-        clGetKernelInfo(k, CL_KERNEL_ATTRIBUTES, size[], result, size)
-        return CLString(result)
+    else
+        return getfield(k, s)
+    end
+end
+
+struct KernelWorkGroupInfo
+    kernel::Kernel
+    device::Device
+end
+work_group_info(k::Kernel, d::Device) = KernelWorkGroupInfo(k, d)
+
+function Base.getproperty(ki::KernelWorkGroupInfo, s::Symbol)
+    k = getfield(ki, :kernel)
+    d = getfield(ki, :device)
+
+    function get(val, typ)
+        result = Ref{typ}()
+        clGetKernelWorkGroupInfo(k, d, val, sizeof(typ), result, C_NULL)
+        return result[]
     end
 
-    info_map = Dict{Symbol, Function}(
-        :name => name,
-        :num_args => num_args,
-        :reference_count => reference_count,
-        :program => program,
-        :attributes => attributes
-    )
-
-    try
-        func = info_map[kinfo]
-        func(k)
-    catch err
-        isa(err, KeyError) && error("OpenCL.Kernel has no info for: $kinfo")
-        throw(err)
+    if s == :size
+        Int(get(CL_KERNEL_WORK_GROUP_SIZE, Csize_t))
+    elseif s == :compile_size
+        Int.(get(CL_KERNEL_COMPILE_WORK_GROUP_SIZE, NTuple{3, Csize_t}))
+    elseif s == :local_mem_size
+        Int(get(CL_KERNEL_LOCAL_MEM_SIZE, Culong))
+    elseif s == :private_mem_size
+        Int(get(CL_KERNEL_PRIVATE_MEM_SIZE, Culong))
+    elseif s == :prefered_size_multiple
+        Int(get(CL_KERNEL_PREFERRED_WORK_GROUP_SIZE_MULTIPLE, Csize_t))
+    else
+        getfield(ki, s)
     end
 end
 

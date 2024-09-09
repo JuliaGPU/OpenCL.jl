@@ -7,8 +7,8 @@ if backend == "pocl"
 end
 cl.platform!(backend)
 @info """Testing using $backend back-end
-         - platform: $(cl.info(cl.platform(), :name))
-         - device: $(cl.info(cl.device(), :name))
+         - platform: $(cl.platform().name)
+         - device: $(cl.device().name)
 
          To test with a different back-end, define JULIA_OPENCL_BACKEND."""
 
