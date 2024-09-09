@@ -94,7 +94,7 @@ function build!(p::Program; options = "", raise = true)
     device_ids = C_NULL
     err = unchecked_clBuildProgram(p, cl_uint(ndevices), device_ids, opts, C_NULL, C_NULL)
     for (dev, status) in p.build_status
-        if status == cl.CL_BUILD_ERROR
+        if status == CL_BUILD_ERROR
             println(stderr, "Couldn't compile kernel: ")
             source = p.source
             print_with_linenumbers(source, "    ", stderr)

@@ -1,28 +1,25 @@
-export platform, device, context, queue
-
-
 ## platform selection
 
 function platform()
     get!(task_local_storage(), :CLPlatform) do
-        platforms = cl.platforms()
-        if isempty(platforms)
+        ps = platforms()
+        if isempty(ps)
             throw(ArgumentError("No OpenCL platforms found"))
         end
 
         # prefer platforms that implement the full profile
-        full_platform = findfirst(platforms) do platform
-            platform.profile == "FULL_PROFILE"
+        idx = findfirst(ps) do p
+            p.profile == "FULL_PROFILE"
         end
-        isnothing(full_platform) || return platforms[full_platform]
+        isnothing(idx) || return ps[idx]
 
         # otherwise, just return the first platform
-        return first(cl.platforms())
-    end::cl.Platform
+        return first(ps)
+    end::Platform
 end
 
 # allow overriding with a specific platform
-function platform!(p::cl.Platform)
+function platform!(p::Platform)
     task_local_storage(:CLPlatform, p)
     delete!(task_local_storage(), :CLDevice)
     delete!(task_local_storage(), :CLContext)
@@ -32,17 +29,19 @@ end
 
 # allow selecting a platform by name or vendor
 function platform!(name::String)
-    platforms = cl.platforms()
+    ps = platforms()
 
-    name_match = findfirst(platforms) do platform
-        contains(lowercase(platform.name), lowercase(name))
+    # check the name
+    idx = findfirst(ps) do p
+        contains(lowercase(p.name), lowercase(name))
     end
-    isnothing(name_match) || return platform!(platforms[name_match])
+    isnothing(idx) || return platform!(ps[idx])
 
-    vendor_match = findfirst(platforms) do platform
-        contains(lowercase(platform.vendor), lowercase(name))
+    # check the vendor
+    idx = findfirst(ps) do p
+        contains(lowercase(p.vendor), lowercase(name))
     end
-    isnothing(vendor_match) || return platform!(platforms[vendor_match])
+    isnothing(idx) || return platform!(ps[idx])
 
     throw(ArgumentError("No OpenCL platform found with name or vendor $name"))
 end
@@ -55,11 +54,11 @@ function device()
         dev = default_device(platform())
         isnothing(dev) && throw(ArgumentError("No OpenCL devices found"))
         dev
-    end::cl.Device
+    end::Device
 end
 
 # allow overriding with a specific device
-function device!(dev::cl.Device)
+function device!(dev::Device)
     task_local_storage(:CLDevice, dev)
     delete!(task_local_storage(), :CLContext)
     delete!(task_local_storage(), :CLQueue)
@@ -68,7 +67,7 @@ end
 
 # allow selecting a device by type
 function device!(dtype::Symbol)
-    dev = cl.devices(platform(), dtype)
+    dev = devices(platform(), dtype)
     isempty(dev) && throw(ArgumentError("No OpenCL devices found of type $dtype"))
     device!(first(dev))
 end
@@ -78,18 +77,18 @@ end
 
 # we use a single context per device
 const context_lock = ReentrantLock()
-const device_contexts = Dict{cl.Device, cl.Context}()
+const device_contexts = Dict{Device, Context}()
 function context()
     get!(task_local_storage(), :CLContext) do
         @lock context_lock begin
             dev = device()
             get!(device_contexts, dev) do
-                ctx = cl.Context(dev)
+                ctx = Context(dev)
                 device_contexts[dev] = ctx
                 ctx
             end
         end
-    end::cl.Context
+    end::Context
 end
 
 
@@ -97,21 +96,21 @@ end
 
 function queue()
     get!(task_local_storage(), :CLQueue) do
-        q = cl.CmdQueue()
+        q = CmdQueue()
         task_local_storage(:CLQueue, q)
         q
-    end::cl.CmdQueue
+    end::CmdQueue
 end
 
 # switch the current task to a different queue
-function queue!(q::cl.CmdQueue)
+function queue!(q::CmdQueue)
     task_local_storage(:CLQueue, q)
     return q
 end
 
 # allow selecting a queue by properties
 function queue!(args...)
-    q = cl.CmdQueue(args...)
+    q = CmdQueue(args...)
     task_local_storage(:CLQueue, q)
     return q
 end
