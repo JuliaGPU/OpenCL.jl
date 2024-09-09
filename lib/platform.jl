@@ -21,7 +21,7 @@ function Base.getproperty(p::Platform, s::Symbol)
         clGetPlatformInfo(p, string_properties[s], 0, C_NULL, size)
         result = Vector{Cchar}(undef, size[])
         clGetPlatformInfo(p, string_properties[s], size[], result, C_NULL)
-        return CLString(result)
+        return unsafe_string(pointer(result))
     end
 
     if s == :extensions
@@ -29,7 +29,7 @@ function Base.getproperty(p::Platform, s::Symbol)
         clGetPlatformInfo(p, CL_PLATFORM_EXTENSIONS, 0, C_NULL, size)
         result = Vector{Cchar}(undef, size[])
         clGetPlatformInfo(p, CL_PLATFORM_EXTENSIONS, size[], result, C_NULL)
-        return split(CLString(result))
+        return split(unsafe_string(pointer(result)))
     end
 
     return getfield(p, s)

@@ -21,7 +21,7 @@
     cl.launch(kern, str_len, nothing, out_buf)
     h = cl.read(out_buf)
 
-    @test cl.CLString(h) == hello_world_str
+    @test unsafe_string(pointer(h)) == hello_world_str
 end
 
 @testset "Low Level API Test" begin
