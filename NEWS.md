@@ -20,6 +20,9 @@ Breaking changes:
   (e.g., `cl.info(dev, :name)` and `dev[:name]` are now simply `dev.name`).
 - The blocking `cl.launch` has been replaced by a nonblocking `cl.call`, while also removing
   the `getindex`-overloading shorthand.
+- Argument conversion has been removed; the user should make sure Julia arguments passed to
+  kernels match the OpenCL argument types (i.e., no empty types, 4-element tuples for
+  a 3-element `float3` arguments).
 
 
 New features:
