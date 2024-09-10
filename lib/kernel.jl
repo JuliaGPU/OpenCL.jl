@@ -83,131 +83,22 @@ function set_arg!(k::Kernel, idx::Integer, arg::LocalMem)
     return k
 end
 
-function _contains_different_layout(::Type{T}) where T
-    sizeof(T) == 0 && return true
-    nfields(T) == 0 && return false
-    for fname in fieldnames(T)
-        contains_different_layout(fieldtype(T, fname)) && return true
-    end
-    return false
-end
-
-contains_different_layout(::Type{NTuple{3, T}}) where {T <: Union{Float32, Float64, Int8, Int32,
-                                                                  Int64, UInt8, UInt32, UInt64}} = true
-
-"""
-    contains_different_layout(T)
-
-Empty types and NTuple{3, CLNumber} have different layouts and need to be replaced
-(Where `CLNumber <: Union{Float32, Float64, Int8, Int32, Int64, UInt8, UInt32, UInt64}`)
-TODO: Float16 + Int16 should also be in CLNumbers
-"""
-@generated function contains_different_layout(::Type{T}) where T
-    :($(_contains_different_layout(T)))
-end
-
-function struct2tuple(x::T) where T
-    ntuple(nfields(x)) do i
-        getfield(x, i)
-    end
-end
-
-"""
-    replace_different_layout(x::T) where T
-
-Replaces types with a layout different from OpenCL.
-See [contains_different_layout(T)](@ref) for information what types those are!
-"""
-function replace_different_layout(x::T) where T
-    !contains_different_layout(T) && return x
-    if sizeof(x) === 0
-        return Int32(0) # zero size not possible in opencl
-    elseif nfields(x) == 0
-        replace_different_layout((), (x,))
-    elseif T <: Tuple
-        replace_different_layout((), x)
-    else
-        replace_different_layout((), struct2tuple(x))
-    end
-end
-
-replace_different_layout(red::NTuple{N, Any}, rest::Tuple{}) where N = red
-function replace_different_layout(red::NTuple{N, Any}, rest) where N
-    elem1 = first(rest)
-    T = typeof(elem1)
-    repl = if sizeof(T) == 0 && nfields(elem1) == 0
-        Int32(0)
-    elseif contains_different_layout(T)
-        replace_different_layout(elem1)
-    else
-        elem1
-    end
-    replace_different_layout((red..., repl), Base.tail(rest))
-end
-
-# TODO UInt16/Float16?
-# Handle different sizes of OpenCL Vec3, which doesn't agree with julia
-function replace_different_layout(arg::NTuple{3, T}) where T <: Union{Float32, Float64, Int8, Int32, Int64, UInt8, UInt32, UInt64}
-    pad = T(0)
-    (arg..., pad)
-end
-
-function to_cl_ref(arg::T) where T
-    if !Base.datatype_pointerfree(T)
-        error("Types should not contain pointers: $T")
-    end
-    if contains_different_layout(T)
-        x = replace_different_layout(arg)
-        return Base.RefValue(x), sizeof(x)
-    end
-    Base.RefValue(arg), sizeof(arg)
-end
-
-
-Base.@pure datatype_align(x::T) where {T} = datatype_align(T)
-Base.@pure function datatype_align(::Type{T}) where {T}
-    # typedef struct {
-    #     uint32_t nfields;
-    #     uint32_t alignment : 9;
-    #     uint32_t haspadding : 1;
-    #     uint32_t npointers : 20;
-    #     uint32_t fielddesc_type : 2;
-    # } jl_datatype_layout_t;
-    field = T.layout + sizeof(UInt32)
-    unsafe_load(convert(Ptr{UInt16}, field)) & convert(Int16, 2^9-1)
-end
-
-
 function set_arg!(k::Kernel, idx::Integer, arg::T) where T
     @assert idx > 0 "Kernel idx must be bigger 0"
-    ref, tsize = to_cl_ref(arg)
+    ref = Ref(arg)
+    tsize = sizeof(ref)
     err = unchecked_clSetKernelArg(k, cl_uint(idx - 1), tsize, ref)
     if err == CL_INVALID_ARG_SIZE
-        error("""
-            Julia and OpenCL type don't match at kernel argument $idx: Found $T.
-            Please make sure to define OpenCL structs correctly!
-            You should be generally fine by using `__attribute__((packed))`, but sometimes the alignment of fields is different from Julia.
-            Consider the following example:
-                ```
-                //packed
-                // Tuple{NTuple{3, Float32}, Nothing, Float32}
-                struct __attribute__((packed)) Test{
-                    float3 f1;
-                    int f2; // empty type gets replaced with Int32 (no empty types allowed in OpenCL)
-                    // you might need to define the alignement of fields to match julia's layout
-                    float f3; // for the types used here the alignement matches though!
-                };
-                // this is a case where Julia and OpenCL packed alignment would differ, so we need to specify it explicitely
-                // Tuple{Int64, Int32}
-                struct __attribute__((packed)) Test2{
-                    long f1;
-                    int __attribute__((aligned (8))) f2; // opencl would align this to 4 in packed layout, while Julia uses 8!
-                };
-                ```
-            You can use `c.datatype_align(T)` to figure out the alignment of a Julia type!
-        """)
-    end
-    if err != CL_SUCCESS
+        error("""Mismatch between Julia and OpenCL type for kernel argument $idx.
+
+                 Possible reasons:
+                 - OpenCL does not support empty types.
+                 - Vectors of length 3 (e.g., `float3`) are packed as 4-element vectors;
+                   consider padding your tuples.
+                 - The alignment of fields in your struct may not match the OpenCL layout.
+                   Make sure your Julia definition matches the OpenCL layout, e.g., by
+                   using `__attribute__((packed))` in your OpenCL struct definition.""")
+    elseif err != CL_SUCCESS
         throw(CLError(err))
     end
     return k

@@ -145,48 +145,27 @@
         @test r  == [1f0, 4f0]
     end
 
-    @testset "empty types" begin
+    @testset "vector arguments" begin
         test_source = "
-        //packed
-        struct __attribute__((packed)) Test{
-            float3 f1;
-            int f2; // empty type gets replaced with Int32 (no empty types allowed in OpenCL)
-            // you might need to define the alignement of fields to match julia's layout
-            float f3; // for the types used here the alignement matches though!
-        };
-        __kernel void structest(__global float *out, struct Test a){
-            out[0] = a.f1.x;
-            out[1] = a.f1.y;
-            out[2] = a.f1.z;
-            out[3] = a.f3;
+        __kernel void vec3_unpack(__global float *out, float3 a, float3 b) {
+            out[0] = a.x;
+            out[1] = a.y;
+            out[2] = a.z;
+            out[3] = b.x;
+            out[4] = b.y;
+            out[5] = b.z;
         }
         "
-
-        CLTestStruct = @eval(module $(gensym("KernelTest"))
-                struct CLTestStruct
-                    f1::NTuple{3, Float32}
-                    f2::Nothing
-                    f3::Float32
-                end
-            end).CLTestStruct
-
         prg = cl.Program(source = test_source)
         cl.build!(prg)
-        structkernel = cl.Kernel(prg, "structest")
-        out = cl.Buffer(Float32, 4, :w)
-        astruct = CLTestStruct((1f0, 2f0, 3f0), nothing, 22f0)
-        cl.call(structkernel, out, astruct)
+        vec3kernel = cl.Kernel(prg, "vec3_unpack")
+        out = cl.Buffer(Float32, 6, :w)
+        # NOTE: the user is responsible for padding the vector to 4 elements
+        #       (only on some platforms)
+        vec3_a = (1f0, 2f0, 3f0, 0f0)
+        vec3_b = (4f0, 5f0, 6f0, 0f0)
+        cl.call(vec3kernel, out, vec3_a, vec3_b)
         r = cl.read(out)
-        @test r == [1f0, 2f0, 3f0, 22f0]
-    end
-
-    @testset "layout" begin
-        x = ((10f0, 1f0, 2f0), (10f0, 1f0, 2f0), (10f0, 1f0, 2f0))
-        clx = cl.replace_different_layout(x)
-
-        @test clx == ((10f0, 1f0, 2f0, 0f0), (10f0, 1f0, 2f0, 0f0), (10f0, 1f0, 2f0, 0f0))
-        x = (nothing, nothing, nothing)
-        clx = cl.replace_different_layout(x)
-        @test clx == 0 # TODO should it be like this?
+        @test r == [1f0, 2f0, 3f0, 4f0, 5f0, 6f0]
     end
 end
