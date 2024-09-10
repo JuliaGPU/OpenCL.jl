@@ -36,7 +36,7 @@
         #        try
         #            p = cl.Program(source = empty_kernel) |> cl.build!
         #            k = cl.Kernel(p, "test")
-        #            cl.launch(k, 1, 10000000)
+        #            cl.call(k; global_size=1, local_size=10000000)
         #        catch
         #        end
         #    end

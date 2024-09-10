@@ -105,33 +105,23 @@
         k = cl.Kernel(p, "test")
 
         # dimensions must be the same size
-        @test_throws ArgumentError cl.launch(k, (1,), (1,1), d_buff)
-        @test_throws ArgumentError cl.launch(k, (1,1), (1,), d_buff)
+        @test_throws ArgumentError cl.call(k, d_buff; global_size=(1,), local_size=(1,1))
+        @test_throws ArgumentError cl.call(k, d_buff; global_size=(1,1), local_size=(1,))
 
         # dimensions are bounded
         max_work_dim = cl.device().max_work_item_dims
         bad = tuple([1 for _ in 1:(max_work_dim + 1)])
-        @test_throws MethodError cl.launch(k, bad, d_buff)
 
-        # devices have finite work sizes
-        @test_throws MethodError cl.launch(k, (typemax(Int),), d_buff)
-
-        # blocking call to kernel finishes cmd queue
-        cl.launch(k, 1, 1, d_buff)
-
+        # calls are asynchronous, but cl.read blocks
+        cl.call(k, d_buff)
         r = cl.read(d_buff)
         @test r[1] == 2
-
-        # alternative kernel call syntax
-        k[(1,), (1,)](d_buff)
-        r = cl.read(d_buff)
-        @test r[1] == 3
 
         # enqueue task is an alias for calling
         # a kernel with a global/local size of 1
         evt = cl.enqueue_task(k)
         r = cl.read(d_buff)
-        @test r[1] == 4
+        @test r[1] == 3
     end
 
     @testset "packed structures" begin
@@ -150,7 +140,7 @@
         structkernel = cl.Kernel(prg, "structest")
         out = cl.Buffer(Float32, 2, :w)
         bstruct = (1, Int32(4))
-        structkernel[(1,)](out, bstruct)
+        cl.call(structkernel, out, bstruct)
         r = cl.read(out)
         @test r  == [1f0, 4f0]
     end
@@ -185,7 +175,7 @@
         structkernel = cl.Kernel(prg, "structest")
         out = cl.Buffer(Float32, 4, :w)
         astruct = CLTestStruct((1f0, 2f0, 3f0), nothing, 22f0)
-        structkernel[(1,)](out, astruct)
+        cl.call(structkernel, out, astruct)
         r = cl.read(out)
         @test r == [1f0, 2f0, 3f0, 22f0]
     end

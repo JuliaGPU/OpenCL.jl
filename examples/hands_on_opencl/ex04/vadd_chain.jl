@@ -75,20 +75,15 @@ d_f = cl.Buffer(Float32, LENGTH, :w)
 vadd = cl.Kernel(program, "vadd")
 
 # execute the kernel over the entire range of 1d input
-# calling `queue` is blocking, it accepts the kernel, global / local work sizes,
+# calling `queue` is asynchronous, it accepts the kernel, global / local work sizes,
 # the the kernel's arguments.
 
-# here we call the kernel with work size set to the number of elements and a local
-# work size of nothing. This enables the opencl runtime to optimize the local size
-# for simple kernels
-cl.launch(vadd, size(h_a), nothing, d_a, d_b, d_c, UInt32(LENGTH))
-
-# an alternative syntax is to create an partial function to call
-# by julia's getindex syntax for Kernel types.
-# here the queue, global_size, and (optional) local_size are passed in which
-# returns a partial function with these parameters set.
-vadd[size(h_e)](d_e, d_c, d_d, UInt32(LENGTH))
-vadd[size(h_g)](d_g, d_d, d_f, UInt32(LENGTH))
+# here we call the kernel with work size set to the number of elements and no local
+# work size. This enables the opencl runtime to optimize the local size for simple
+# kernels
+cl.call(vadd, d_a, d_b, d_c, UInt32(LENGTH); global_size=size(h_a))
+cl.call(vadd, d_e, d_c, d_d, UInt32(LENGTH); global_size=size(h_e))
+cl.call(vadd, d_g, d_d, d_f, UInt32(LENGTH); global_size=size(h_g))
 
 # copy back the results from the compute device
 # copy!(queue, dst, src) follows same interface as julia's built in copy!

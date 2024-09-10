@@ -81,7 +81,7 @@ c_buff = cl.Buffer(Float32, length(a), :w)
 p = cl.Program(source=sum_kernel) |> cl.build!
 k = cl.Kernel(p, "sum")
 
-cl.launch(k, size(a), nothing, a_buff, b_buff, c_buff)
+cl.call(k, a_buff, b_buff, c_buff; global_size=size(a))
 
 r = cl.read(c_buff)
 

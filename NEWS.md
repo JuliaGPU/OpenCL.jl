@@ -18,6 +18,8 @@ Breaking changes:
 - The `cl.info` method, and the `getindex` overloading to access properties of OpenCL
   objects, have been replaced by `getproperty` overloading on the objects themselves
   (e.g., `cl.info(dev, :name)` and `dev[:name]` are now simply `dev.name`).
+- The blocking `cl.launch` has been replaced by a nonblocking `cl.call`, while also removing
+  the `getindex`-overloading shorthand.
 
 
 New features:
