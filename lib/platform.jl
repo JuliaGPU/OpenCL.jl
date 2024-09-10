@@ -45,7 +45,12 @@ end
 
 function platforms()
     nplatforms = Ref{Cuint}()
-    clGetPlatformIDs(0, C_NULL, nplatforms)
+    res = unchecked_clGetPlatformIDs(0, C_NULL, nplatforms)
+    if res == CL_PLATFORM_NOT_FOUND_KHR || nplatforms[] == 0
+        return Platform[]
+    elseif res != CL_SUCCESS
+        throw(CLError(res))
+    end
     cl_platform_ids = Vector{cl_platform_id}(undef, nplatforms[])
     clGetPlatformIDs(nplatforms[], cl_platform_ids, C_NULL)
     return [Platform(id) for id in cl_platform_ids]
