@@ -4,6 +4,11 @@ output_file_path = "../lib/libopencl.jl"
 prologue_file_path = "./opencl_prologue.jl"
 print_using_CEnum = false
 
+output_ignorelist = [
+    "CL_PARTITION_BY_NAMES_LIST_END_EXT",
+    "CL_IMPORT_MEMORY_WHOLE_ALLOCATION_ARM"
+]
+
 
 [codegen]
 use_ccall_macro = true

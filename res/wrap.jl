@@ -98,7 +98,7 @@ end
 using OpenCL_Headers_jll
 
 function main()
-    headers = ["cl.h", "cl_gl.h"]
+    headers = ["cl.h", "cl_gl.h", "cl_ext.h"]
     include_dir = joinpath(OpenCL_Headers_jll.artifact_dir, "include")
     paths = map(headers) do header
         joinpath(include_dir, "CL", header)
