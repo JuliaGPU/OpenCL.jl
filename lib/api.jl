@@ -1,6 +1,9 @@
-import OpenCL_jll
-
-const libopencl = OpenCL_jll.libopencl
+const libopencl = if Sys.isapple()
+    "/System/Library/Frameworks/OpenCL.framework/OpenCL"
+else
+    import OpenCL_jll
+    OpenCL_jll.libopencl
+end
 
 """
     @checked function foo(...)
@@ -76,6 +79,8 @@ const initialized = Ref{Bool}(false)
 @noinline function initialize()
     initialized[] = true
 
+    Sys.isapple() && return
+
     if isempty(OpenCL_jll.drivers)
         @warn """No OpenCL driver JLLs were detected at the time of the first call into OpenCL.jl.
                  Only system drivers will be available."""
@@ -96,7 +101,9 @@ const initialized = Ref{Bool}(false)
 end
 
 function __init__()
-    if !OpenCL_jll.is_available()
+    if Sys.isapple()
+        @warn "on macOS, OpenCL.jl uses the system OpenCL framework, which is deprecated."
+    elseif !OpenCL_jll.is_available()
         @error "OpenCL_jll is not available for your platform, OpenCL.jl. will not work."
     end
 end
