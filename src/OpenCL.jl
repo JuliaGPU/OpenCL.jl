@@ -7,7 +7,7 @@ using Adapt
 using Reexport
 
 # library wrappers
-include("../lib/CL.jl")
+include("../lib/cl/CL.jl")
 @reexport using .cl
 export cl
 
