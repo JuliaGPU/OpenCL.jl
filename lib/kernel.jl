@@ -219,47 +219,8 @@ function set_args!(k::Kernel, args...)
     end
 end
 
-# produce a cl.call thunk with kernel queue, global/local sizes
-Base.getindex(k::Kernel, args...) = begin
-    if length(args) < 1 || length(args) > 2
-        throw(ArgumentError("kernel must be called with a global size as arguments"))
-    end
-    if !(isa(args[1], Dims)) || length(args[1]) > 3
-        throw(ArgumentError("kernel global size must be of Dims type (dim <= 3)"))
-    end
-    if length(args) == 2 && (!(isa(args[2], Dims)) || length(args[2]) > 3)
-        throw(ArgumentError("kernel local size must be of Dims type (dim <= 3)"))
-    end
-    global_size = args[1]
-    local_size  = length(args) == 2 ? args[2] : nothing
-    # TODO: we cannot pass keywords in anon functions yet, return kernel call thunk
-    return (args...) -> launch(k, global_size, local_size, args...)
-end
-
-# blocking kernel call that finishes queue
-# XXX: shouldn't be blocking!
-function launch(k::Kernel, global_work_size, local_work_size,
-                args...; global_work_offset=nothing,
-                wait_on::Union{Nothing,Vector{Event}}=nothing)
-    set_args!(k, args...)
-    evt = enqueue_kernel(k,
-                         global_work_size,
-                         local_work_size,
-                         global_work_offset=global_work_offset,
-                         wait_on=wait_on)
-    finish(queue())
-    return evt
-end
-
-function enqueue_kernel(k::Kernel, global_work_size)
-    enqueue_kernel(k, global_work_size, nothing)
-end
-
-function enqueue_kernel(k::Kernel,
-                        global_work_size,
-                        local_work_size;
-                        global_work_offset=nothing,
-                        wait_on::Union{Nothing,Vector{Event}}=nothing)
+function enqueue_kernel(k::Kernel, global_work_size, local_work_size=nothing;
+                        global_work_offset=nothing, wait_on::Vector{Event}=Event[])
     max_work_dim = device().max_work_item_dims
     work_dim     = length(global_work_size)
     if work_dim > max_work_dim
@@ -282,6 +243,8 @@ function enqueue_kernel(k::Kernel,
         for (i, o) in enumerate(global_work_offset)
             goffset[i] = o
         end
+    else
+        # null global offset means (0, 0, 0)
     end
 
     lsize = C_NULL
@@ -296,9 +259,11 @@ function enqueue_kernel(k::Kernel,
         for (i, s) in enumerate(local_work_size)
             lsize[i] = s
         end
+    else
+        # null local size means OpenCL decides
     end
 
-    if wait_on !== nothing
+    if !isempty(wait_on)
         n_events = cl_uint(length(wait_on))
         wait_event_ids = [evt.id for evt in wait_on]
     else
@@ -310,6 +275,12 @@ function enqueue_kernel(k::Kernel,
     clEnqueueNDRangeKernel(queue(), k, cl_uint(work_dim), goffset, gsize, lsize,
                            n_events, wait_event_ids, ret_event)
     return Event(ret_event[], retain=false)
+end
+
+function call(k::Kernel, args...; global_size=(1,), local_size=nothing,
+              global_work_offset=nothing, wait_on::Vector{Event}=Event[])
+    set_args!(k, args...)
+    enqueue_kernel(k, global_size, local_size; global_work_offset, wait_on)
 end
 
 function enqueue_task(k::Kernel; wait_for=nothing)

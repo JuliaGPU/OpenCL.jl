@@ -103,9 +103,8 @@ mmul = cl.Kernel(prg, "mmul")
 for i in 1:COUNT
     fill!(h_C, 0.0)
     cl.queue!(:profile) do
-        evt = cl.launch(mmul, (Ndim, Mdim), nothing,
-                        Int32(Mdim), Int32(Ndim), Int32(Pdim),
-                        d_a, d_b, d_c)
+        evt = cl.call(mmul, Int32(Mdim), Int32(Ndim), Int32(Pdim),
+                      d_a, d_b, d_c; global_size=(Ndim, Mdim))
         # profiling events are measured in ns
         run_time = evt.profile_duration / 1e9
         cl.copy!(h_C, d_c)
@@ -152,9 +151,8 @@ else
 
 for i in 1:COUNT
     fill!(h_C, 0.0)
-    evt = cl.launch(mmul, (Ndim,), (ORDER,),
-                    Int32(Mdim), Int32(Ndim), Int32(Pdim),
-                    d_a, d_b, d_c)
+    evt = cl.call(mmul,  Int32(Mdim), Int32(Ndim), Int32(Pdim),
+                  d_a, d_b, d_c; global_size=Ndim, local_size=ORDER)
     # profiling events are measured in ns
     run_time = evt.profile_duration / 1e9
     cl.copy!(h_C, d_c)

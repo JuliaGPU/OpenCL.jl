@@ -107,8 +107,8 @@ global_size = (nwork_groups * work_group_size,)
 local_size  = (work_group_size,)
 localmem    = cl.LocalMem(Float32, work_group_size)
 
-cl.launch(pi_kernel, global_size, local_size,
-          Int32(niters), Float32(step_size), localmem, d_partial_sums)
+cl.call(pi_kernel, Int32(niters), Float32(step_size), localmem, d_partial_sums;
+        global_size, local_size)
 
 cl.copy!(h_psum, d_partial_sums)
 

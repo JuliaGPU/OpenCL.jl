@@ -18,7 +18,7 @@
     prg   = cl.Program(source=hello_world_kernel) |> cl.build!
     kern  = cl.Kernel(prg, "hello")
 
-    cl.launch(kern, str_len, nothing, out_buf)
+    cl.call(kern, out_buf; global_size=str_len)
     h = cl.read(out_buf)
 
     @test hello_world_str == GC.@preserve h unsafe_string(pointer(h))
@@ -213,7 +213,7 @@ end
     R_buf = cl.Buffer(Float32, length(X), :w)
 
     global_size = size(X)
-    cl.launch(part3, global_size, nothing, X_buf, Y_buf, R_buf, P_buf)
+    cl.call(part3, X_buf, Y_buf, R_buf, P_buf; global_size, local_size=nothing)
 
     r = cl.read(R_buf)
     @test all(x -> x == 13.5, r)
@@ -251,7 +251,7 @@ end
 
     P = MutableParams(0.5, 10.0)
     P_buf = cl.Buffer(Float32, 2, :w)
-    cl.launch(part3, 1, nothing, P_buf, P)
+    cl.call(part3, P_buf, P)
 
     r = cl.read(P_buf)
 
