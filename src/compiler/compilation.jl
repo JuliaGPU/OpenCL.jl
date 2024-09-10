@@ -6,6 +6,16 @@ const OpenCLCompilerJob = CompilerJob{SPIRVCompilerTarget,OpenCLCompilerParams}
 
 GPUCompiler.runtime_module(::CompilerJob{<:Any,OpenCLCompilerParams}) = OpenCL
 
+GPUCompiler.method_table(::OpenCLCompilerJob) = method_table
+
+# filter out OpenCL built-ins
+# TODO: eagerly lower these using the translator API
+GPUCompiler.isintrinsic(job::OpenCLCompilerJob, fn::String) =
+    invoke(GPUCompiler.isintrinsic,
+           Tuple{CompilerJob{SPIRVCompilerTarget}, typeof(fn)},
+           job, fn) ||
+    in(fn, opencl_builtins)
+
 
 ## compiler implementation (cache, configure, compile, and link)
 
