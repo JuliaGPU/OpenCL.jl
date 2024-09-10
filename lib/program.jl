@@ -81,30 +81,33 @@ function Program(; source=nothing, binaries=nothing, il=nothing)
     Program(program_id)
 end
 
-function print_with_linenumbers(text, pad = "", io = STDOUT)
-    for (i,line) in enumerate(split(text, "\n"))
-        println(io, @sprintf("%s%-4d: %s", pad, i, line))
-    end
-end
-
 #TODO: build callback...
-function build!(p::Program; options = "", raise = true)
+function build!(p::Program; options="")
     opts = String(options)
     ndevices = 0
     device_ids = C_NULL
-    err = unchecked_clBuildProgram(p, cl_uint(ndevices), device_ids, opts, C_NULL, C_NULL)
-    for (dev, status) in p.build_status
-        if status == CL_BUILD_ERROR
-            println(stderr, "Couldn't compile kernel: ")
-            source = p.source
-            print_with_linenumbers(source, "    ", stderr)
-            println(stderr, "With following build error:")
-            println(stderr, p.build_log[dev])
-            raise && err # throw the build error when raise!
+    try
+        clBuildProgram(p, cl_uint(ndevices), device_ids, opts, C_NULL, C_NULL)
+    catch err
+        isa(err, CLError) || throw(err)
+
+        for (dev, status) in p.build_status
+            if status == CL_BUILD_ERROR
+                io = IOBuffer()
+                println(io, "Failed to compile program")
+                if p.source !== nothing
+                    println(io)
+                    println(io, "Source code:")
+                    for (i,line) in enumerate(split(p.source, "\n"))
+                        println(io, @sprintf("%s%-2d: %s", " ", i, line))
+                    end
+                end
+                println(io)
+                println(io, "Build log:")
+                println(io, strip(p.build_log[dev]))
+                error(String(take!(io)))
+            end
         end
-    end
-    if err != CL_SUCCESS
-       throw(CLError(err))
     end
     return p
 end
