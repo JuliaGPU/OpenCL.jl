@@ -19,5 +19,6 @@ include("util.jl")
 include("array.jl")
 include("compiler/compilation.jl")
 include("compiler/execution.jl")
+include("compiler/reflection.jl")
 
 end
