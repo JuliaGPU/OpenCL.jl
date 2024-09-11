@@ -36,10 +36,6 @@
                 :name,
                 :device_type,
                 :has_image_support,
-                :queue_properties,
-                :has_queue_out_of_order_exec,
-                :has_queue_profiling,
-                :has_native_kernel,
                 :vendor_id,
                 :max_compute_units,
                 :max_work_item_size,
@@ -84,5 +80,12 @@
                 @test length(v) == 3
             end
         end
+
+        @test cl.queue_properties(cl.device()).profiling isa Bool
+        @test cl.queue_properties(cl.device()).out_of_order_exec isa Bool
+
+        @test cl.exec_capabilities(cl.device()).native_kernel isa Bool
+
+        @test cl.svm_capabilities(cl.device()).fine_grain_buffer isa Bool
     end
 end

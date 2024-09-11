@@ -24,6 +24,8 @@ Breaking changes:
   kernels match the OpenCL argument types (i.e., no empty types, 4-element tuples for
   a 3-element `float3` arguments).
 - The `to_host` function has been replaced by simply calling `Array` on the `CLArray`.
+- Queue and execution capabilities of a device are now to be queried using dedicated
+  functions, `cl.queue_properties` and `cl.exec_capabilities`.
 
 New features:
 

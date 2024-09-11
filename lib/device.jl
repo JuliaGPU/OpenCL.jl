@@ -90,34 +90,6 @@ end
         return get_bool(CL_DEVICE_COMPILER_AVAILABLE)
     end
 
-    # boolean queue properties
-    # TODO: move this to `queue_info`?
-    if s == :queue_properties
-        queue_props = Ref{cl_command_queue_properties}()
-        clGetDeviceInfo(d, CL_DEVICE_QUEUE_PROPERTIES,
-                        sizeof(cl_command_queue_properties), queue_props, C_NULL)
-        return queue_props[]
-    end
-    @inline get_queue_property(prop) = d.queue_properties & prop != 0
-    if s === :has_queue_out_of_order_exec
-        return get_queue_property(CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE)
-    elseif s === :has_queue_profiling
-        return get_queue_property(CL_QUEUE_PROFILING_ENABLE)
-    end
-
-    # boolean execution properties
-    # TODO: move this to `execution_info`?
-    if s === :exec_capabilities
-        result = Ref{cl_device_exec_capabilities}()
-        clGetDeviceInfo(d, CL_DEVICE_EXECUTION_CAPABILITIES,
-                        sizeof(cl_device_exec_capabilities), result, C_NULL)
-        return result[]
-    end
-    @inline get_exec_property(prop) = d.exec_capabilities & prop != 0
-    if s === :has_native_kernel
-        return get_exec_property(CL_EXEC_NATIVE_KERNEL)
-    end
-
     if s == :extensions
         size = Ref{Csize_t}()
         clGetDeviceInfo(d, CL_DEVICE_EXTENSIONS, 0, C_NULL, size)
@@ -175,6 +147,49 @@ end
     end
 
     return getfield(d, s)
+end
+
+function queue_properties(d::Device, type=:host)
+    result = Ref{cl_command_queue_properties}()
+    if type === :host
+        clGetDeviceInfo(d, CL_DEVICE_QUEUE_ON_HOST_PROPERTIES,
+                        sizeof(cl_command_queue_properties), result, C_NULL)
+    elseif type === :device
+        clGetDeviceInfo(d, CL_DEVICE_QUEUE_ON_DEVICE_PROPERTIES,
+                        sizeof(cl_command_queue_properties), result, C_NULL)
+    else
+        throw(ArgumentError("Unknown queue type: $type"))
+    end
+    mask = result[]
+
+    return (;
+        out_of_order_exec = mask & CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE != 0,
+        profiling = mask & CL_QUEUE_PROFILING_ENABLE != 0
+    )
+end
+
+function exec_capabilities(d::Device)
+    result = Ref{cl_device_exec_capabilities}()
+    clGetDeviceInfo(d, CL_DEVICE_EXECUTION_CAPABILITIES,
+                    sizeof(cl_device_exec_capabilities), result, C_NULL)
+    mask = result[]
+
+    return (;
+        native_kernel = mask & CL_EXEC_NATIVE_KERNEL != 0,
+    )
+end
+
+function svm_capabilities(d::Device)
+    result = Ref{cl_device_svm_capabilities}()
+    clGetDeviceInfo(d, CL_DEVICE_SVM_CAPABILITIES,
+                    sizeof(cl_device_svm_capabilities), result, C_NULL)
+    mask = result[]
+
+    return (;
+        coarse_grain_buffer = mask & CL_DEVICE_SVM_COARSE_GRAIN_BUFFER != 0,
+        fine_grain_buffer = mask & CL_DEVICE_SVM_FINE_GRAIN_BUFFER != 0,
+        fine_grain_system = mask & CL_DEVICE_SVM_FINE_GRAIN_SYSTEM != 0,
+    )
 end
 
 function cl_device_type(dtype::Symbol)
