@@ -1,6 +1,6 @@
 import LinearAlgebra
 
-export CLArray, CLMatrix, CLVector, to_host
+export CLArray, CLMatrix, CLVector
 
 mutable struct CLArray{T, N} <: CLObject
     ctx::cl.Context
@@ -66,25 +66,23 @@ Base.size(A::CLArray) = A.size
 Base.size(A::CLArray, dim::Integer) = A.size[dim]
 Base.ndims(A::CLArray) = length(size(A))
 Base.length(A::CLArray) = prod(size(A))
-Base.:(==)(A:: CLArray, B:: CLArray) =
-    buffer(A) == buffer(B) && size(A) == size(B)
+Base.:(==)(A:: CLArray, B:: CLArray) = buffer(A) == buffer(B) && size(A) == size(B)
+
 function Base.reshape(A::CLArray, dims...)
     @assert prod(dims) == prod(size(A))
     return copy(A, size=dims)
+end
+
+function Base.Array(A::CLArray{T,N}) where {T, N}
+    hA = Array{T}(undef, size(A)...)
+    copy!(hA, buffer(A))
+    return hA
 end
 
 ## show
 
 Base.show(io::IO, A::CLArray{T,N}) where {T, N} =
     print(io, "CLArray{$T,$N}($(buffer(A)),$(size(A)))")
-
-## to_host
-
-function to_host(A::CLArray{T,N}) where {T, N}
-    hA = Array{T}(undef, size(A)...)
-    copy!(hA, buffer(A))
-    return hA
-end
 
 ## other array operations
 
@@ -107,8 +105,8 @@ function LinearAlgebra.transpose!(B::CLMatrix{Float32}, A::CLMatrix{Float32})
                         block_size=block_size)
     h, w = size(A)
     lmem = cl.LocalMem(Float32, block_size * (block_size + 1))
-    cl.set_args!(kernel, buffer(B), buffer(A), UInt32(h), UInt32(w), lmem)
-    return cl.enqueue_kernel(kernel, (h, w), (block_size, block_size))
+    return cl.call(kernel, buffer(B), buffer(A), UInt32(h), UInt32(w), lmem;
+                   global_size=(h, w), local_size=(block_size, block_size))
 end
 
 """Transpose CLMatrix A"""
@@ -128,10 +126,9 @@ function LinearAlgebra.transpose!(B::CLMatrix{Float64}, A::CLMatrix{Float64})
     kernel = get_kernel(TRANSPOSE_DOUBLE_PROGRAM_PATH, "transpose",
                         block_size=block_size)
     h, w = size(A)
-    # lmem = cl.LocalMem(Float64, block_size * (block_size + 1))
-    lmem = cl.LocalMem(Float64, block_size * block_size)
-    cl.set_args!(kernel, buffer(B), buffer(A), UInt32(h), UInt32(w), lmem)
-    return cl.enqueue_kernel(kernel, (h, w), (block_size, block_size))
+    lmem = cl.LocalMem(Float32, block_size * (block_size + 1))
+    return cl.call(kernel, buffer(B), buffer(A), UInt32(h), UInt32(w), lmem;
+                   global_size=(h, w), local_size=(block_size, block_size))
 end
 
 """Transpose CLMatrix A"""
