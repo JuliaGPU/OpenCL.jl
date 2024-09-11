@@ -53,7 +53,11 @@ function versioninfo(io::IO=stdout)
 
     println(io, "Toolchain:")
     println(io, " - Julia v$(VERSION)")
-    for pkg in [cl.OpenCL_jll]
+    pkgs = []
+    if !Sys.isapple()
+        push!(pkgs, OpenCL_jll)
+    end
+    for pkg in pkgs
         println(io, " - $(string(pkg)) v$(pkgversion(pkg))")
     end
     println(io)
