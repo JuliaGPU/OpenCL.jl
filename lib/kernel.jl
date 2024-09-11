@@ -71,20 +71,17 @@ function set_arg!(k::Kernel, idx::Integer, arg::Ptr{Nothing})
 end
 
 function set_arg!(k::Kernel, idx::Integer, arg::CLMemObject)
-    @assert idx > 0
-    arg_boxed = Ref{typeof(arg.id)}(arg.id)
+    arg_boxed = Ref(arg.id)
     clSetKernelArg(k, cl_uint(idx-1), sizeof(cl_mem), arg_boxed)
     return k
 end
 
 function set_arg!(k::Kernel, idx::Integer, arg::LocalMem)
-    @assert idx > 0 "Kernel idx must be bigger 0"
     clSetKernelArg(k, cl_uint(idx-1), arg.nbytes, C_NULL)
     return k
 end
 
 function set_arg!(k::Kernel, idx::Integer, arg::T) where T
-    @assert idx > 0 "Kernel idx must be bigger 0"
     ref = Ref(arg)
     tsize = sizeof(ref)
     err = unchecked_clSetKernelArg(k, cl_uint(idx - 1), tsize, ref)
