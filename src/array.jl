@@ -40,13 +40,7 @@ end
 Create in device memory array of type `t` and size `dims` filled by value `x`.
 """
 function fill(::Type{T}, x::T, dims...) where T
-    v = opencl_version(cl.context())
-    if v.major == 1 && v.minor >= 2
-        buf = cl.Buffer(T, prod(dims))
-        fill!(q, buf, x)
-    else
-        buf = cl.Buffer(T, prod(dims), (:rw, :copy), hostbuf=Base.fill(x, dims))
-    end
+    buf = cl.Buffer(T, prod(dims), (:rw, :copy), hostbuf=Base.fill(x, dims))
     return CLArray(buf, dims)
 end
 

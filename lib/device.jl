@@ -19,6 +19,7 @@ end
 
 @inline function Base.getproperty(d::Device, s::Symbol)
     # simple string properties
+    version_re = r"OpenCL (?<major>\d+)\.(?<minor>\d+)(?<vendor>.+)"
     @inline function get_string(prop)
         sz = Ref{Csize_t}()
         clGetDeviceInfo(d, prop, 0, C_NULL, sz)
@@ -29,7 +30,19 @@ end
     if s === :profile
         return get_string(CL_DEVICE_PROFILE)
     elseif s === :version
-        return get_string(CL_DEVICE_VERSION)
+        str = get_string(CL_DEVICE_VERSION)
+        m = match(version_re, str)
+        if m === nothing
+            error("Could not parse OpenCL version string: $str")
+        end
+        return strip(m["vendor"])
+    elseif s === :opencl_version
+        str = get_string(CL_DEVICE_VERSION)
+        m = match(version_re, str)
+        if m === nothing
+            error("Could not parse OpenCL version string: $str")
+        end
+        return VersionNumber(parse(Int, m["major"]), parse(Int, m["minor"]))
     elseif s === :driver_version
         return get_string(CL_DRIVER_VERSION)
     elseif s === :name

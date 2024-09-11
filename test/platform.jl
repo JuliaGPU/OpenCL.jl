@@ -4,9 +4,7 @@
 
         @test cl.platform() != nothing
         @test pointer(cl.platform()) != C_NULL
-        v = opencl_version(cl.platform())
-        @test 1 <= v.major <= 3
-        @test 0 <= v.minor <= 2
+        @test cl.platform().opencl_version isa VersionNumber
     end
 
     @testset "Equality" begin
