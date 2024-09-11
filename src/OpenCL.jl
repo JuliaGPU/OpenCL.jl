@@ -6,6 +6,8 @@ using SPIRV_LLVM_Translator_unified_jll
 using Adapt
 using Reexport
 
+using Core: LLVMPtr
+
 # library wrappers
 include("../lib/cl/CL.jl")
 @reexport using .cl
@@ -31,6 +33,7 @@ let
         end
     end
 end
+include("device/array.jl")
 
 # compiler implementation
 include("compiler/compilation.jl")
