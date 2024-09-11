@@ -1,8 +1,8 @@
 # OpenCL.Event
 
-abstract type CLEvent <: CLObject end
+abstract type AbstractEvent <: CLObject end
 
-mutable struct Event <: CLEvent
+mutable struct Event <: AbstractEvent
     id::cl_event
 
     function Event(evt_id; retain=false)
@@ -16,7 +16,7 @@ mutable struct Event <: CLEvent
 end
 
 # wait for completion before running finalizer
-mutable struct NannyEvent <: CLEvent
+mutable struct NannyEvent <: AbstractEvent
     id::cl_event
     obj::Any
 
@@ -34,7 +34,7 @@ mutable struct NannyEvent <: CLEvent
     end
 end
 
-function _finalize(evt::CLEvent)
+function _finalize(evt::AbstractEvent)
     if evt.id != C_NULL
         clReleaseEvent(evt)
         evt.id = C_NULL
@@ -67,9 +67,9 @@ macro return_nanny_event(evt, obj)
     end
 end
 
-Base.unsafe_convert(::Type{cl_event}, evt::CLEvent) = evt.id
+Base.unsafe_convert(::Type{cl_event}, evt::AbstractEvent) = evt.id
 
-Base.pointer(evt::CLEvent) = evt.id
+Base.pointer(evt::AbstractEvent) = evt.id
 
 function Base.show(io::IO, evt::Event)
     ptr_val = convert(UInt, Base.pointer(evt))
@@ -77,7 +77,7 @@ function Base.show(io::IO, evt::Event)
     print(io, "OpenCL.Event(@$ptr_address)")
 end
 
-mutable struct UserEvent <: CLEvent
+mutable struct UserEvent <: AbstractEvent
     id::cl_event
 
     function UserEvent(evt_id::cl_event, retain=false)
@@ -133,7 +133,7 @@ function event_notify(evt_id::cl_event, status::Cint, payload::Ptr{Nothing})
     nothing
 end
 
-function add_callback(evt::CLEvent, callback::Function)
+function add_callback(evt::AbstractEvent, callback::Function)
     event_notify_ptr = @cfunction(event_notify, Nothing,
                                   (cl_event, Cint, Ptr{Cvoid}))
 
@@ -162,13 +162,13 @@ function add_callback(evt::CLEvent, callback::Function)
     end
 end
 
-function wait(evt::CLEvent)
+function Base.wait(evt::AbstractEvent)
     evt_id = [evt.id]
     clWaitForEvents(cl_uint(1), pointer(evt_id))
     return evt
 end
 
-function wait(evts::Vector{CLEvent})
+function Base.wait(evts::Vector{AbstractEvent})
     evt_ids = [evt.id for evt in evts]
     if !isempty(evt_ids)
         nevents = cl_uint(length(evt_ids))
@@ -177,7 +177,7 @@ function wait(evts::Vector{CLEvent})
     return evts
 end
 
-function enqueue_marker_with_wait_list(wait_for::Vector{CLEvent})
+function enqueue_marker_with_wait_list(wait_for::Vector{AbstractEvent})
     n_wait_events = cl_uint(length(wait_for))
     wait_evt_ids = [evt.id for evt in wait_for]
     ret_evt = Ref{cl_event}()
@@ -187,7 +187,7 @@ function enqueue_marker_with_wait_list(wait_for::Vector{CLEvent})
     @return_event ret_evt[]
 end
 
-function enqueue_barrier_with_wait_list(wait_for::Vector{CLEvent})
+function enqueue_barrier_with_wait_list(wait_for::Vector{AbstractEvent})
     n_wait_events = cl_uint(length(wait_for))
     wait_evt_ids = [evt.id for evt in wait_for]
     ret_evt = Ref{cl_event}()
@@ -204,14 +204,14 @@ function enqueue_marker()
 end
 @deprecate enqueue_marker enqueue_marker_with_wait_list
 
-function enqueue_wait_for_events(wait_for::Vector{T}) where {T<:CLEvent}
+function enqueue_wait_for_events(wait_for::Vector{T}) where {T<:AbstractEvent}
     n_wait_events = cl_uint(length(wait_for))
     wait_evt_ids = [evt.id for evt in wait_for]
     clEnqueueWaitForEvents(queue(), n_wait_events,
                            isempty(wait_evt_ids) ? C_NULL : pointer(wait_evt_ids))
 end
 
-function enqueue_wait_for_events(wait_for::CLEvent)
+function enqueue_wait_for_events(wait_for::AbstractEvent)
     enqueue_wait_for_events([wait_for])
 end
 
@@ -235,8 +235,8 @@ cl_event_status(s::Symbol) = begin
     end
 end
 
-function Base.getproperty(evt::CLEvent, s::Symbol)
-    function profiling_info(evt::CLEvent, profile_info)
+function Base.getproperty(evt::AbstractEvent, s::Symbol)
+    function profiling_info(evt::AbstractEvent, profile_info)
         time = Ref{Clong}(0)
         try
             clGetEventProfilingInfo(evt, profile_info, sizeof(Culong), time, C_NULL)

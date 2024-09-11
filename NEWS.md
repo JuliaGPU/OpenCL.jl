@@ -13,8 +13,9 @@ Breaking changes:
   and set (`cl.platform!(platform)`, `cl.device!(device)`, etc) as needed.
 - As part of the above change, questionable APIs like `cl.create_some_context()` and
   `cl.devices()` have been removed.
-- The `Buffer` constructor has switched the `length` and `flags` around, for ambiguity
-  reasons. The `length` argument is now also mandatory.
+- The `Buffer` API has been completely reworked. It now only provides low-level
+  functionality, such as `unsafe_copyto!` or `unsafe_map!`, while high-level functionality
+  like `copy!` is implemented for the `CLArray` type.
 - The `cl.info` method, and the `getindex` overloading to access properties of OpenCL
   objects, have been replaced by `getproperty` overloading on the objects themselves
   (e.g., `cl.info(dev, :name)` and `dev[:name]` are now simply `dev.name`).

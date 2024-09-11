@@ -27,7 +27,7 @@ else
         cl.complete(usr_evt)
         @test usr_evt.status == :complete
 
-        cl.wait(mkr_evt)
+        wait(mkr_evt)
         @test mkr_evt.status == :complete
 
         @test cl.cl_event_status(:running) == cl.CL_RUNNING
@@ -57,7 +57,7 @@ else
         cl.complete(usr_evt)
         @test usr_evt.status == :complete
 
-        cl.wait(mkr_evt)
+        wait(mkr_evt)
 
         # Give callback some time to finish
         yield()

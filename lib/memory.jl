@@ -1,34 +1,29 @@
 # OpenCL Memory Object
 
-abstract type CLMemObject <: CLObject end
+abstract type AbstractMemory <: CLObject end
 
 #This should be implemented by all subtypes
-# type CLMemType <: CLMemObject
-#     valid::Bool
+# type MemoryType <: AbstractMemory
 #     id::cl_mem
 #     ...
 # end
 
-Base.unsafe_convert(::Type{cl_mem}, mem::CLMemObject) = mem.id
+Base.unsafe_convert(::Type{cl_mem}, mem::AbstractMemory) = mem.id
 
-Base.pointer(mem::CLMemObject) = mem.id
+Base.pointer(mem::AbstractMemory) = mem.id
 
-Base.sizeof(mem::CLMemObject) = mem.size
+Base.sizeof(mem::AbstractMemory) = mem.size
 
-function _finalize(mem::CLMemObject)
-    if !mem.valid
-        throw(CLMemoryError("attempted to double free mem object $mem"))
-    end
+function _finalize(mem::AbstractMemory)
     if mem.id != C_NULL
         clReleaseMemObject(mem.id)
         mem.id = C_NULL
     end
-    mem.valid = false
 end
 
-context(mem::CLMemObject) = mem.context
+context(mem::AbstractMemory) = mem.context
 
-function Base.getproperty(mem::CLMemObject, s::Symbol)
+function Base.getproperty(mem::AbstractMemory, s::Symbol)
     if s == :context
         param = Ref{cl_context}()
         clGetMemObjectInfo(mem, CL_MEM_CONTEXT, sizeof(cl_context), param, C_NULL)

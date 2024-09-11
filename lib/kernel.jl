@@ -70,7 +70,7 @@ function set_arg!(k::Kernel, idx::Integer, arg::Ptr{Nothing})
     set_arg!(k, idx, nothing)
 end
 
-function set_arg!(k::Kernel, idx::Integer, arg::CLMemObject)
+function set_arg!(k::Kernel, idx::Integer, arg::AbstractMemory)
     arg_boxed = Ref(arg.id)
     clSetKernelArg(k, cl_uint(idx-1), sizeof(cl_mem), arg_boxed)
     return k
