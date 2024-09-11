@@ -18,10 +18,10 @@ using LinearAlgebra
     end
 
     @testset "fill" begin
-        @test to_host(OpenCL.fill(Float32, Float32(0.5),
-                                  32, 64)) == fill(Float32(0.5), 32, 64)
-        @test to_host(OpenCL.zeros(Float32, 64)) == zeros(Float32, 64)
-        @test to_host(OpenCL.ones(Float32, 64)) == ones(Float32, 64)
+        @test Array(OpenCL.fill(Float32, Float32(0.5),
+                                32, 64)) == fill(Float32(0.5), 32, 64)
+        @test Array(OpenCL.zeros(Float32, 64)) == zeros(Float32, 64)
+        @test Array(OpenCL.ones(Float32, 64)) == ones(Float32, 64)
     end
 
     @testset "core functions" begin
@@ -35,10 +35,8 @@ using LinearAlgebra
         @test reshape(B, 128, 64) == A
 
         # transpose
-        X = CLArray(rand(Float32, 32, 32))
         B = OpenCL.zeros(Float32, 64, 128)
         ev = transpose!(B, A)
-        cl.wait(ev)
-        #@test to_host(copy(A')) == to_host(B)
+        @test Array(A)' == Array(B)
     end
 end
