@@ -75,7 +75,7 @@ function Base.reshape(A::CLArray{T}, dims::NTuple{N,Int}) where {T,N}
 end
 
 
-## interop with other arrays
+## conversions
 
 function CLArray(hostarray::AbstractArray{T,N}; kwargs...) where {T, N}
     buf = cl.Buffer(hostarray; kwargs...)
@@ -87,6 +87,10 @@ function Base.Array(A::CLArray{T,N}) where {T, N}
     hA = Array{T}(undef, size(A)...)
     copyto!(hA, A)
     return hA
+end
+
+function Base.cconvert(::Type{Ptr{T}}, A::CLArray{T}) where T
+    buffer(A)
 end
 
 

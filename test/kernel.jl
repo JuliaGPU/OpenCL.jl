@@ -97,15 +97,17 @@
         k = cl.Kernel(p, "test")
 
         # dimensions must be the same size
-        @test_throws ArgumentError cl.call(k, buffer(d_arr); global_size=(1,), local_size=(1,1))
-        @test_throws ArgumentError cl.call(k, buffer(d_arr); global_size=(1,1), local_size=(1,))
+        @test_throws ArgumentError cl.clcall(k, Tuple{Ptr{Float32}}, d_arr;
+                                             global_size=(1,), local_size=(1,1))
+        @test_throws ArgumentError cl.clcall(k, Tuple{Ptr{Float32}}, d_arr;
+                                             global_size=(1,1), local_size=(1,))
 
         # dimensions are bounded
         max_work_dim = cl.device().max_work_item_dims
         bad = tuple([1 for _ in 1:(max_work_dim + 1)])
 
         # calls are asynchronous, but cl.read blocks
-        cl.call(k, buffer(d_arr))
+        cl.clcall(k, Tuple{Ptr{Float32}}, d_arr)
         @test Array(d_arr) == [2f0]
 
         # enqueue task is an alias for calling
@@ -130,7 +132,7 @@
         structkernel = cl.Kernel(prg, "structest")
         out = CLArray{Float32}(undef, 2)
         bstruct = (1, Int32(4))
-        cl.call(structkernel, buffer(out), bstruct)
+        cl.clcall(structkernel, Tuple{Ptr{Float32}, Tuple{Clong, Cint}}, out, bstruct)
         @test Array(out) == [1f0, 4f0]
     end
 
@@ -153,7 +155,8 @@
         #       (only on some platforms)
         vec3_a = (1f0, 2f0, 3f0, 0f0)
         vec3_b = (4f0, 5f0, 6f0, 0f0)
-        cl.call(vec3kernel, buffer(out), vec3_a, vec3_b)
+        cl.clcall(vec3kernel, Tuple{Ptr{Float32}, NTuple{4,Float32}, NTuple{4,Float32}},
+                              out, vec3_a, vec3_b)
         @test Array(out) == [1f0, 2f0, 3f0, 4f0, 5f0, 6f0]
     end
 end
