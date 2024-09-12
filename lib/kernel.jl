@@ -171,6 +171,61 @@ function call(k::Kernel, args...; global_size=(1,), local_size=nothing,
     enqueue_kernel(k, global_size, local_size; global_work_offset, wait_on)
 end
 
+# convert the argument values to match the kernel's signature (specified by the user)
+# (this mimics `lower-ccall` in julia-syntax.scm)
+@inline @generated function convert_arguments(f::Function, ::Type{tt}, args...) where {tt}
+    types = tt.parameters
+
+    ex = quote end
+
+    converted_args = Vector{Symbol}(undef, length(args))
+    arg_ptrs = Vector{Symbol}(undef, length(args))
+    for i in 1:length(args)
+        converted_args[i] = gensym()
+        arg_ptrs[i] = gensym()
+        push!(ex.args, :($(converted_args[i]) = Base.cconvert($(types[i]), args[$i])))
+        push!(ex.args, :($(arg_ptrs[i]) = Base.unsafe_convert($(types[i]), $(converted_args[i]))))
+    end
+
+    append!(ex.args, (quote
+        GC.@preserve $(converted_args...) begin
+            f($(arg_ptrs...))
+        end
+    end).args)
+
+    return ex
+end
+
+clcall(f::F, types::Tuple, args::Vararg{Any,N}; kwargs...) where {N,F} =
+    clcall(f, _to_tuple_type(types), args...; kwargs...)
+
+function clcall(k::Kernel, types::Type{T}, args::Vararg{Any,N}; kwargs...) where {T,N}
+    call_closure = function (pointers::Vararg{Any,N})
+        call(k, pointers...; kwargs...)
+    end
+    convert_arguments(call_closure, types, args...)
+end
+
+# From `julia/base/reflection.jl`, adjusted to add specialization on `t`.
+function _to_tuple_type(t)
+    if isa(t, Tuple) || isa(t, AbstractArray) || isa(t, SimpleVector)
+        t = Tuple{t...}
+    end
+    if isa(t, Type) && t <: Tuple
+        for p in (Base.unwrap_unionall(t)::DataType).parameters
+            if isa(p, Core.TypeofVararg)
+                p = Base.unwrapva(p)
+            end
+            if !(isa(p, Type) || isa(p, TypeVar))
+                error("argument tuple type must contain only types")
+            end
+        end
+    else
+        error("expected tuple type")
+    end
+    t
+end
+
 function enqueue_task(k::Kernel; wait_for=nothing)
     n_evts  = 0
     evt_ids = C_NULL

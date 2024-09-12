@@ -20,7 +20,10 @@ Breaking changes:
   objects, have been replaced by `getproperty` overloading on the objects themselves
   (e.g., `cl.info(dev, :name)` and `dev[:name]` are now simply `dev.name`).
 - The blocking `cl.launch` has been replaced by a nonblocking `cl.call`, while also removing
-  the `getindex`-overloading shorthand.
+  the `getindex`-overloading shorthand. However, it's recommended to use the newly-added
+  `cl.clcall` function, which takes an additional tuple type argument and performs automatic
+  conversions of arguments to those types. This makes it possible to pass a `CLArray` to an
+  OpenCL C function expecting Buffer-backed pointers, for example.
 - Argument conversion has been removed; the user should make sure Julia arguments passed to
   kernels match the OpenCL argument types (i.e., no empty types, 4-element tuples for
   a 3-element `float3` arguments).
