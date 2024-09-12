@@ -170,7 +170,7 @@ end
         __kernel void part3(__global const float *a,
                             __global const float *b,
                             __global float *c,
-                            __constant struct Params* test)
+                            __global struct Params* test)
         {
             int gid = get_global_id(0);
             c[gid] = test->A * a[gid] + test->B * b[gid] + test->C;
@@ -205,11 +205,11 @@ end
     P = [Params(0.5, 10.0, [0.0, 0.0], 3)]
 
     #TODO: constructor for single immutable types.., check if passed parameter isbits
-    P_arr = CLArray(P; device=:r)
+    P_arr = CLArray(P; access=:r)
 
-    X_arr = CLArray(X; device=:r)
-    Y_arr = CLArray(Y; device=:r)
-    R_arr = CLArray{Float32}(undef, 10; device=:w)
+    X_arr = CLArray(X; access=:r)
+    Y_arr = CLArray(Y; access=:r)
+    R_arr = CLArray{Float32}(undef, 10; access=:w)
 
     global_size = size(X)
     cl.clcall(part3, Tuple{Ptr{Float32}, Ptr{Float32}, Ptr{Float32}, Ptr{Params}},

@@ -4,16 +4,15 @@ export CLArray, CLMatrix, CLVector, buffer
 
 mutable struct CLArray{T, N} <: AbstractArray{T, N}
     ctx::cl.Context
-    buffer::cl.Buffer{T}
+    buffer::cl.SVMBuffer{T} # XXX: support regular buffers too?
     size::NTuple{N, Int}
 
-    function CLArray{T,N}(::UndefInitializer, dims::Dims{N};
-                          host=:rw, device=:rw) where {T,N}
-        buf = cl.Buffer{T}(prod(dims); host, device)
+    function CLArray{T,N}(::UndefInitializer, dims::Dims{N}; access=:rw) where {T,N}
+        buf = cl.SVMBuffer{T}(prod(dims), access)
         new(cl.context(), buf, dims)
     end
 
-    function CLArray{T,N}(buf::cl.Buffer, dims::Dims) where {T,N}
+    function CLArray{T,N}(buf::cl.SVMBuffer, dims::Dims) where {T,N}
         new(cl.context(), buf, dims)
     end
 end
@@ -59,9 +58,10 @@ end
 
 ## array interface
 
+context(A::CLArray) = A.ctx
 buffer(A::CLArray) = A.buffer
-Base.pointer(A::CLArray) = A.buffer.id
-context(A::CLArray) = cl.context(A.buffer)
+
+Base.pointer(A::CLArray, i::Integer=1) = pointer(buffer(A), i)
 Base.eltype(A::CLArray{T, N}) where {T, N} = T
 Base.size(A::CLArray) = A.size
 Base.size(A::CLArray, dim::Integer) = A.size[dim]
@@ -78,9 +78,9 @@ end
 ## conversions
 
 function CLArray(hostarray::AbstractArray{T,N}; kwargs...) where {T, N}
-    buf = cl.Buffer(hostarray; kwargs...)
-    sz = size(hostarray)
-    CLArray{T,N}(buf, sz)
+    arr = CLArray{T,N}(undef, size(hostarray); kwargs...)
+    copyto!(arr, hostarray)
+    return arr
 end
 
 function Base.Array(A::CLArray{T,N}) where {T, N}

@@ -51,9 +51,9 @@
 
         h_ones = ones(Float32, count)
 
-        A = CLArray(h_ones; device=:r)
-        B = CLArray(h_ones; device=:r)
-        C = CLArray{Float32}(undef, count; device=:w)
+        A = CLArray(h_ones; access=:r)
+        B = CLArray(h_ones; access=:r)
+        C = CLArray{Float32}(undef, count; access=:w)
 
         # we use julia's index by one convention
         @test cl.set_arg!(k, 1, buffer(A)) != nothing
