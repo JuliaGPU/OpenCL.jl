@@ -104,10 +104,10 @@ for i in 1:COUNT
     results(Mdim, Ndim, Pdim, h_C, t2 - t1)
 end
 
-# create OpenCL Buffers
-d_a = cl.Buffer(Float32, length(h_A), (:r,:copy), hostbuf=h_A)
-d_b = cl.Buffer(Float32, length(h_B), (:r,:copy), hostbuf=h_B)
-d_c = cl.Buffer(Float32, length(h_C), :w)
+# create OpenCL arrays
+d_a = CLArray(h_A; access=:r)
+d_b = CLArray(h_B; access=:r)
+d_c = CLArray{Float32}(undef, length(h_C); access=:w)
 
 prg  = cl.Program(source=kernel_source) |> cl.build!
 mmul = cl.Kernel(prg, "mmul")
@@ -117,14 +117,14 @@ mmul = cl.Kernel(prg, "mmul")
 for i in 1:COUNT
     fill!(h_C, 0.0)
 
-    global_range = (Ndim, Mdim)
-    mmul_ocl = mmul[global_range]
+    global_size = (Ndim, Mdim)
 
     # You can enable profiling events on the queue
     # by calling the constructor with the :profile flag
     cl.queue!(:profile) do
-        evt = mmul_ocl(Int32(Mdim), Int32(Ndim), Int32(Pdim),
-                               d_a, d_b, d_c)
+        evt = clcall(mmul, Tuple{Int32, Int32, Int32, Ptr{Float32}, Ptr{Float32}, Ptr{Float32}},
+                     Mdim, Ndim, Pdim, d_a, d_b, d_c; global_size)
+        wait(evt)
 
         # profiling events are measured in ns
         run_time = evt.profile_duration / 1e9

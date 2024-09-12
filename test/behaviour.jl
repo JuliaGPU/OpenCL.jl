@@ -18,7 +18,7 @@
     prg   = cl.Program(source=hello_world_kernel) |> cl.build!
     kern  = cl.Kernel(prg, "hello")
 
-    cl.clcall(kern, Tuple{Ptr{Cchar}}, out_arr; global_size=str_len)
+    clcall(kern, Tuple{Ptr{Cchar}}, out_arr; global_size=str_len)
     h = Array(out_arr)
 
     @test hello_world_str == GC.@preserve h unsafe_string(pointer(h))
@@ -212,8 +212,8 @@ end
     R_arr = CLArray{Float32}(undef, 10; access=:w)
 
     global_size = size(X)
-    cl.clcall(part3, Tuple{Ptr{Float32}, Ptr{Float32}, Ptr{Float32}, Ptr{Params}},
-                     X_arr, Y_arr, R_arr, P_arr; global_size)
+    clcall(part3, Tuple{Ptr{Float32}, Ptr{Float32}, Ptr{Float32}, Ptr{Params}},
+                  X_arr, Y_arr, R_arr, P_arr; global_size)
 
     r = Array(R_arr)
     @test all(x -> x == 13.5, r)
@@ -251,7 +251,7 @@ end
 
     P = MutableParams(0.5, 10.0)
     P_arr = CLArray{Float32}(undef, 2)
-    cl.clcall(part3, Tuple{Ptr{Float32}, MutableParams}, P_arr, P)
+    clcall(part3, Tuple{Ptr{Float32}, MutableParams}, P_arr, P)
 
     r = Array(P_arr)
 

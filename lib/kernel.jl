@@ -1,4 +1,7 @@
 # OpenCL.Kernel
+
+export clcall
+
 mutable struct Kernel <: CLObject
     id::cl_kernel
 
@@ -57,6 +60,10 @@ Base.eltype(l::LocalMem{T}) where {T} = T
 Base.sizeof(l::LocalMem{T}) where {T} = l.nbytes
 Base.length(l::LocalMem{T}) where {T} = Int(l.nbytes ÷ sizeof(T))
 
+# preserve the LocalMem; it will be handled by set_arg!
+# XXX: do we want set_arg!(C_NULL::Ptr) to just call clSetKernelArg?
+Base.unsafe_convert(::Type{Ptr{T}}, l::LocalMem{T}) where {T} = l
+
 function set_arg!(k::Kernel, idx::Integer, arg::Nothing)
     @assert idx > 0
     clSetKernelArg(k, cl_uint(idx-1), sizeof(cl_mem), C_NULL)
@@ -69,7 +76,7 @@ function set_arg!(k::Kernel, idx::Integer, arg::SVMBuffer)
     clSetKernelArgSVMPointer(k, cl_uint(idx-1), arg.ptr)
     return k
 end
-## when passing with `cl.clcall`, which has pre-converted the buffer
+## when passing with `clcall`, which has pre-converted the buffer
 function set_arg!(k::Kernel, idx::Integer, arg::Ptr)
     if arg != C_NULL
         clSetKernelArgSVMPointer(k, cl_uint(idx-1), arg)

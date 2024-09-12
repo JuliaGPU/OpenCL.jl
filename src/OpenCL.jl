@@ -1,8 +1,10 @@
 module OpenCL
 
+using Reexport
+
 # library wrappers
 include("../lib/CL.jl")
-using .cl
+@reexport using .cl
 export cl
 
 # high-level functionality
