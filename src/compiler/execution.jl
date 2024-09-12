@@ -1,4 +1,4 @@
-export @opencl, clfunction
+export @opencl, clfunction, clconvert
 
 
 ## high-level @opencl interface
@@ -81,12 +81,45 @@ end
 
 ## argument conversion
 
-struct KernelAdaptor end
+struct KernelAdaptor
+    svm_pointers::Vector{Ptr{Cvoid}}
+end
 
-# TODO
+# assume directly-passed pointers are SVM pointers
+function Adapt.adapt_storage(to::KernelAdaptor, ptr::Ptr{T}) where {T}
+    push!(to.svm_pointers, ptr)
+    return ptr
+end
+
+# convert SVM buffers to their GPU address
+function Adapt.adapt_storage(to::KernelAdaptor, buf::cl.SVMBuffer)
+    ptr = pointer(buf)
+    push!(to.svm_pointers, ptr)
+    return ptr
+end
+
+# Base.RefValue isn't GPU compatible, so provide a compatible alternative
+# TODO: port improvements from CUDA.jl
+struct CLRefValue{T} <: Ref{T}
+  x::T
+end
+Base.getindex(r::CLRefValue) = r.x
+Adapt.adapt_structure(to::KernelAdaptor, r::Base.RefValue) = CLRefValue(adapt(to, r[]))
+
+# broadcast sometimes passes a ref(type), resulting in a GPU-incompatible DataType box.
+# avoid that by using a special kind of ref that knows about the boxed type.
+struct CLRefType{T} <: Ref{DataType} end
+Base.getindex(r::CLRefType{T}) where T = T
+Adapt.adapt_structure(to::KernelAdaptor, r::Base.RefValue{<:Union{DataType,Type}}) =
+    CLRefType{r[]}()
+
+# case where type is the function being broadcasted
+Adapt.adapt_structure(to::KernelAdaptor,
+                      bc::Broadcast.Broadcasted{Style, <:Any, Type{T}}) where {Style, T} =
+    Broadcast.Broadcasted{Style}((x...) -> T(x...), adapt(to, bc.args), bc.axes)
 
 """
-    clconvert(x)
+    clconvert(x, [pointers])
 
 This function is called for every argument to be passed to a kernel, allowing it to be
 converted to a GPU-friendly format. By default, the function does nothing and returns the
@@ -94,8 +127,13 @@ input object `x` as-is.
 
 Do not add methods to this function, but instead extend the underlying Adapt.jl package and
 register methods for the the `OpenCL.KernelAdaptor` type.
+
+The `pointers` argument is used to collect pointers to indirect SVM buffers, which need to
+be registered with OpenCL before invoking the kernel.
 """
-clconvert(arg) = adapt(KernelAdaptor(), arg)
+function clconvert(arg, pointers::Vector{Ptr{Cvoid}}=Ptr{Cvoid}[])
+    adapt(KernelAdaptor(pointers), arg)
+end
 
 
 
@@ -106,7 +144,7 @@ abstract type AbstractKernel{F,TT} end
 @inline @generated function (kernel::AbstractKernel{F,TT})(args...;
                                                            call_kwargs...) where {F,TT}
     sig = Tuple{F, TT.parameters...}    # Base.signature_type with a function type
-    args = (:(kernel.f), (:( args[$i] ) for i in 1:length(args))...)
+    args = (:(kernel.f), (:( clconvert(args[$i], svm_pointers) ) for i in 1:length(args))...)
 
     # filter out ghost arguments that shouldn't be passed
     predicate = dt -> isghosttype(dt) || Core.Compiler.isconstType(dt)
@@ -126,7 +164,8 @@ abstract type AbstractKernel{F,TT} end
     call_tt = Base.to_tuple_type(call_t)
 
     quote
-        cl.call(kernel.fun, $(call_args...); call_kwargs...)
+        svm_pointers = Ptr{Cvoid}[]
+        cl.clcall(kernel.fun, $call_tt, $(call_args...); svm_pointers, call_kwargs...)
     end
 end
 

@@ -181,8 +181,13 @@ function enqueue_kernel(k::Kernel, global_work_size, local_work_size=nothing;
 end
 
 function call(k::Kernel, args...; global_size=(1,), local_size=nothing,
-              global_work_offset=nothing, wait_on::Vector{Event}=Event[])
+              global_work_offset=nothing, wait_on::Vector{Event}=Event[],
+              svm_pointers::Vector{Ptr{Cvoid}}=Ptr{Cvoid}[])
     set_args!(k, args...)
+    if !isempty(svm_pointers)
+        clSetKernelExecInfo(k, CL_KERNEL_EXEC_INFO_SVM_PTRS,
+                            sizeof(svm_pointers), svm_pointers)
+    end
     enqueue_kernel(k, global_size, local_size; global_work_offset, wait_on)
 end
 
