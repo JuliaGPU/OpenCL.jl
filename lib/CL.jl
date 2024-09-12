@@ -2,7 +2,7 @@ module cl
 
 export CLObject
 
-abstract type CLObject end
+abstract type CLObject end  # XXX: remove this
 
 Base.hash(x::CLObject) = hash(pointer(x))
 Base.isequal(x::T, y::T) where {T <: CLObject} = Base.hash(x) == Base.hash(y)

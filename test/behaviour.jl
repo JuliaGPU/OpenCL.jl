@@ -13,13 +13,13 @@
 
 
     str_len  = length(hello_world_str) + 1
-    out_buf  = cl.Buffer(Cchar, sizeof(Cchar) * str_len, :w)
+    out_arr = CLArray{Cchar}(undef, str_len)
 
     prg   = cl.Program(source=hello_world_kernel) |> cl.build!
     kern  = cl.Kernel(prg, "hello")
 
-    cl.call(kern, out_buf; global_size=str_len)
-    h = cl.read(out_buf)
+    cl.call(kern, buffer(out_arr); global_size=str_len)
+    h = Array(out_arr)
 
     @test hello_world_str == GC.@preserve h unsafe_string(pointer(h))
 end
@@ -205,17 +205,16 @@ end
     P = [Params(0.5, 10.0, [0.0, 0.0], 3)]
 
     #TODO: constructor for single immutable types.., check if passed parameter isbits
-    P_buf = cl.Buffer(Params, length(P), :r)
-    cl.write!(P_buf, P)
+    P_arr = CLArray(P; device=:r)
 
-    X_buf = cl.Buffer(Float32, length(X), (:r, :copy), hostbuf=X)
-    Y_buf = cl.Buffer(Float32, length(Y), (:r, :copy), hostbuf=Y)
-    R_buf = cl.Buffer(Float32, length(X), :w)
+    X_arr = CLArray(X; device=:r)
+    Y_arr = CLArray(Y; device=:r)
+    R_arr = CLArray{Float32}(undef, 10; device=:w)
 
     global_size = size(X)
-    cl.call(part3, X_buf, Y_buf, R_buf, P_buf; global_size, local_size=nothing)
+    cl.call(part3, buffer(X_arr), buffer(Y_arr), buffer(R_arr), buffer(P_arr); global_size, local_size=nothing)
 
-    r = cl.read(R_buf)
+    r = Array(R_arr)
     @test all(x -> x == 13.5, r)
 end
 
@@ -250,10 +249,10 @@ end
     part3 = cl.Kernel(p, "part3")
 
     P = MutableParams(0.5, 10.0)
-    P_buf = cl.Buffer(Float32, 2, :w)
-    cl.call(part3, P_buf, P)
+    P_arr = CLArray{Float32}(undef, 2)
+    cl.call(part3, buffer(P_arr), P)
 
-    r = cl.read(P_buf)
+    r = Array(P_arr)
 
     @test r[1] == 0.5
     @test r[2] == 10.0

@@ -9,19 +9,35 @@ Base.unsafe_convert(::Type{cl_platform_id}, p::Platform) = p.id
 Base.pointer(p::Platform) = p.id
 
 function Base.getproperty(p::Platform, s::Symbol)
-    # string properties
-    string_properties = Dict(
-        :profile    => CL_PLATFORM_PROFILE,
-        :version    => CL_PLATFORM_VERSION,
-        :name       => CL_PLATFORM_NAME,
-        :vendor     => CL_PLATFORM_VENDOR,
-    )
-    if haskey(string_properties, s)
-        size = Ref{Csize_t}()
-        clGetPlatformInfo(p, string_properties[s], 0, C_NULL, size)
-        result = Vector{Cchar}(undef, size[])
-        clGetPlatformInfo(p, string_properties[s], size[], result, C_NULL)
-        return GC.@preserve result unsafe_string(pointer(result))
+    # simple string properties
+    version_re = r"OpenCL (?<major>\d+)\.(?<minor>\d+)(?<vendor>.+)"
+    @inline function get_string(prop)
+        sz = Ref{Csize_t}()
+        clGetPlatformInfo(p, prop, 0, C_NULL, sz)
+        chars = Vector{Cchar}(undef, sz[])
+        clGetPlatformInfo(p, prop, sz[], chars, C_NULL)
+        return GC.@preserve chars unsafe_string(pointer(chars))
+    end
+    if s === :profile
+        return get_string(CL_PLATFORM_PROFILE)
+    elseif s === :version
+        str = get_string(CL_PLATFORM_VERSION)
+        m = match(version_re, str)
+        if m === nothing
+            error("Could not parse OpenCL version string: $str")
+        end
+        return strip(m["vendor"])
+    elseif s === :opencl_version
+        str = get_string(CL_PLATFORM_VERSION)
+        m = match(version_re, str)
+        if m === nothing
+            error("Could not parse OpenCL version string: $str")
+        end
+        return VersionNumber(parse(Int, m["major"]), parse(Int, m["minor"]))
+    elseif s === :name
+        return get_string(CL_PLATFORM_NAME)
+    elseif s === :vendor
+        return get_string(CL_PLATFORM_VENDOR)
     end
 
     if s == :extensions

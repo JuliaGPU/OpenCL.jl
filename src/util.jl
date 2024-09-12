@@ -1,18 +1,3 @@
-export opencl_version
-
-function parse_version(version_string)
-    mg = match(r"^OpenCL ([0-9]+)\.([0-9]+) .*$", version_string)
-    if mg === nothing
-        error("Non conforming version string: $(ver)")
-    end
-    return VersionNumber(parse(Int, mg.captures[1]),
-                                 parse(Int, mg.captures[2]))
-end
-
-opencl_version(obj::CLObject) = parse_version(obj.version)
-opencl_version(c::cl.Context)  = opencl_version(first(c.devices))
-opencl_version(q::cl.CmdQueue) = opencl_version(q.device)
-
 """
 Format string using dict-like variables, replacing all accurancies of
 `%(key)` with `value`.
@@ -70,7 +55,12 @@ function versioninfo(io::IO=stdout)
     println(io, "Available platforms: ", length(cl.platforms()))
     for platform in cl.platforms()
         println(io, " - $(platform.name)")
-        println(io, "   version: $(platform.version)")
+        print(io, "   OpenCL $(platform.opencl_version.major).$(platform.opencl_version.minor)")
+        if !isempty(platform.version)
+            print(io, ", $(platform.version)")
+        end
+        println(io)
+
         for device in cl.devices(platform)
             print(io, "   · $(device.name)")
 

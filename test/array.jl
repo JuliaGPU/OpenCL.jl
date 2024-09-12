@@ -2,24 +2,32 @@ using LinearAlgebra
 
 @testset "CLArray" begin
     @testset "constructors" begin
-        hostarray = zeros(Float32, 128*64)
+        @test CLArray{Float32,1}(undef, 1) isa CLArray{Float32,1}
+        @test CLArray{Float32,1}(undef, 1; device=:r) isa CLArray{Float32,1}
+        @test CLArray{Float32,1}(undef, 1; host=:r) isa CLArray{Float32,1}
+
+        @test CLArray{Float32}(undef, 1, 2) isa CLArray{Float32,2}
+        @test CLArray{Float32}(undef, 1, 2; device=:r) isa CLArray{Float32,2}
+        @test CLArray{Float32}(undef, 1, 2; host=:r) isa CLArray{Float32,2}
+
+        @test CLArray{Float32}(undef, (1, 2)) isa CLArray{Float32,2}
+        @test CLArray{Float32}(undef, (1, 2); device=:r) isa CLArray{Float32,2}
+        @test CLArray{Float32}(undef, (1, 2); host=:r) isa CLArray{Float32,2}
+
+        hostarray = rand(Float32, 128*64)
         A = CLArray(hostarray)
+        @test A isa CLArray{Float32,1}
+        @test Array(A) == hostarray
 
-        @test CLArray((:rw, :copy), hostarray) != nothing
+        B = CLArray(hostarray; device=:r, host=:rw)
+        @test B isa CLArray{Float32,1}
+        @test Array(B) == hostarray
 
-        @test CLArray(hostarray, flags=(:rw, :copy)) != nothing
-
-        @test CLArray(hostarray) != nothing
-
-        @test CLArray(cl.Buffer(Float32, length(hostarray), (:r, :copy), hostbuf=hostarray),
-                      (128, 64)) != nothing
-
-        @test copy(A) == A
+        @test Array(copy(A)) == Array(A)
     end
 
     @testset "fill" begin
-        @test Array(OpenCL.fill(Float32, Float32(0.5),
-                                32, 64)) == fill(Float32(0.5), 32, 64)
+        @test Array(OpenCL.fill(Float32(0.5), 32, 64)) == fill(Float32(0.5), 32, 64)
         @test Array(OpenCL.zeros(Float32, 64)) == zeros(Float32, 64)
         @test Array(OpenCL.ones(Float32, 64)) == ones(Float32, 64)
     end
