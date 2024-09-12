@@ -3,23 +3,20 @@ using LinearAlgebra
 @testset "CLArray" begin
     @testset "constructors" begin
         @test CLArray{Float32,1}(undef, 1) isa CLArray{Float32,1}
-        @test CLArray{Float32,1}(undef, 1; device=:r) isa CLArray{Float32,1}
-        @test CLArray{Float32,1}(undef, 1; host=:r) isa CLArray{Float32,1}
+        @test CLArray{Float32,1}(undef, 1; access=:r) isa CLArray{Float32,1}
 
         @test CLArray{Float32}(undef, 1, 2) isa CLArray{Float32,2}
-        @test CLArray{Float32}(undef, 1, 2; device=:r) isa CLArray{Float32,2}
-        @test CLArray{Float32}(undef, 1, 2; host=:r) isa CLArray{Float32,2}
+        @test CLArray{Float32}(undef, 1, 2; access=:r) isa CLArray{Float32,2}
 
         @test CLArray{Float32}(undef, (1, 2)) isa CLArray{Float32,2}
-        @test CLArray{Float32}(undef, (1, 2); device=:r) isa CLArray{Float32,2}
-        @test CLArray{Float32}(undef, (1, 2); host=:r) isa CLArray{Float32,2}
+        @test CLArray{Float32}(undef, (1, 2); access=:r) isa CLArray{Float32,2}
 
         hostarray = rand(Float32, 128*64)
         A = CLArray(hostarray)
         @test A isa CLArray{Float32,1}
         @test Array(A) == hostarray
 
-        B = CLArray(hostarray; device=:r, host=:rw)
+        B = CLArray(hostarray; access=:r)
         @test B isa CLArray{Float32,1}
         @test Array(B) == hostarray
 
