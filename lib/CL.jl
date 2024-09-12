@@ -19,6 +19,7 @@ include("cmdqueue.jl")
 include("event.jl")
 include("memory.jl")
 include("buffer.jl")
+include("svm.jl")
 include("program.jl")
 include("kernel.jl")
 

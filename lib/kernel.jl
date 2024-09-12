@@ -63,13 +63,21 @@ function set_arg!(k::Kernel, idx::Integer, arg::Nothing)
     return k
 end
 
-function set_arg!(k::Kernel, idx::Integer, arg::Ptr{Nothing})
+# SVMBuffers
+## when passing using `cl.call`
+function set_arg!(k::Kernel, idx::Integer, arg::SVMBuffer)
+    clSetKernelArgSVMPointer(k, cl_uint(idx-1), arg.ptr)
+    return k
+end
+## when passing with `cl.clcall`, which has pre-converted the buffer
+function set_arg!(k::Kernel, idx::Integer, arg::Ptr)
     if arg != C_NULL
-        throw(AttributeError("set_arg! for void pointer $arg is undefined"))
+        clSetKernelArgSVMPointer(k, cl_uint(idx-1), arg)
     end
-    set_arg!(k, idx, nothing)
+    return k
 end
 
+# regular buffers
 function set_arg!(k::Kernel, idx::Integer, arg::AbstractMemory)
     arg_boxed = Ref(arg.id)
     clSetKernelArg(k, cl_uint(idx-1), sizeof(cl_mem), arg_boxed)

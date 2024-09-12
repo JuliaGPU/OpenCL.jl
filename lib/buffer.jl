@@ -119,13 +119,9 @@ end
 Base.unsafe_copyto!(dst::Buffer, src::Buffer, N; kwargs...) =
     unsafe_copyto!(dst, 1, src, 1, N; kwargs...)
 
-# map a a buffer into the host address space and return a (pinned) array and an event
-function unsafe_map!(b::Buffer{T}, dims::Dims, flags=:rw; offset::Integer=0,
+# map a buffer into the host address space and return a (pinned) array and an event
+function unsafe_map!(b::Buffer{T}, dims::Dims, flags=:rw; offset::Integer=1,
                      blocking::Bool=false, wait_for::Vector{Event}=Event[]) where {T}
-    if length(b) < prod(dims) + offset
-        throw(ArgumentError("Buffer length must be greater than or
-                             equal to prod(dims) + offset"))
-    end
     n_evts  = length(wait_for)
     evt_ids = isempty(wait_for) ? C_NULL : [pointer(evt) for evt in wait_for]
     flags = if flags == :rw
@@ -140,8 +136,9 @@ function unsafe_map!(b::Buffer{T}, dims::Dims, flags=:rw; offset::Integer=0,
     nbytes  = prod(dims) * sizeof(T)
     ret_evt = Ref{cl_event}()
     status  = Ref{Cint}()
+    byteoffset = (offset - 1) * sizeof(T)
     mapped  = clEnqueueMapBuffer(queue(), b, blocking,
-                                 flags, offset, nbytes,
+                                 flags, byteoffset, nbytes,
                                  n_evts, evt_ids, ret_evt, status)
     if status[] != CL_SUCCESS
         throw(CLError(status[]))
@@ -155,7 +152,7 @@ function unsafe_unmap!(b::Buffer{T}, a::Array{T}; wait_for::Vector{Event}=Event[
     n_evts  = length(wait_for)
     evt_ids = isempty(wait_for) ? C_NULL : [pointer(evt) for evt in wait_for]
     ret_evt = Ref{cl_event}()
-    clEnqueueUnmapMemObject(queue(), b, a, n_evts, evt_ids, ret_evt)
+    clEnqueueUnmapMemObject(queue(), b, pointer(a), n_evts, evt_ids, ret_evt)
     return Event(ret_evt[])
 end
 
@@ -167,10 +164,11 @@ function unsafe_fill!(b::Buffer{T}, pattern::T, offset::Integer, N::Integer;
     ret_evt = Ref{cl_event}()
     nbytes = N * sizeof(T)
     nbytes_pattern = sizeof(T)
+    byteoffset = (offset - 1) * sizeof(T)
     @assert nbytes_pattern > 0
     clEnqueueFillBuffer(queue(), b, [pattern],
-                        nbytes_pattern, offset, nbytes,
+                        nbytes_pattern, byteoffset, nbytes,
                         n_evts, evt_ids, ret_evt)
     @return_event ret_evt[]
 end
-unsafe_fill!(b::Buffer, pattern, N::Integer) = unsafe_fill!(b, pattern, 0, N)
+unsafe_fill!(b::Buffer, pattern, N::Integer) = unsafe_fill!(b, pattern, 1, N)

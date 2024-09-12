@@ -60,3 +60,46 @@
         @test arr == [42,42,42]
     end
 end
+
+
+@testset "SVMBuffer" begin
+    # simple buffer
+    let buf = cl.SVMBuffer{Int}(1)
+        @test ndims(buf) == 1
+        @test eltype(buf) == Int
+        @test length(buf) == 1
+        @test sizeof(buf) == sizeof(Int)
+    end
+
+    # memory copy
+    let buf = cl.SVMBuffer{Int}(1)
+        unsafe_copyto!(buf, [42], 1; blocking=true)
+
+        arr = [0]
+        cl.unsafe_copyto!(arr, buf, 1; blocking=true)
+        @test arr == [42]
+    end
+
+    # memory map
+    let buf = cl.SVMBuffer{Int}(1)
+        unsafe_copyto!(buf, [42], 1; blocking=true)
+
+        arr, evt = cl.unsafe_map!(buf, (1,), :rw)
+        wait(evt)
+        @test arr[] == 42
+        arr[] = 100
+        cl.unsafe_unmap!(buf, arr) |> wait
+
+        res = [0]
+        cl.unsafe_copyto!(res, buf, 1; blocking=true)
+        @test res == [100]
+    end
+
+    # fill
+    let buf = cl.SVMBuffer{Int}(3)
+        cl.unsafe_fill!(buf, 42, 3)
+        arr = Vector{Int}(undef, 3)
+        unsafe_copyto!(arr, buf, 3; blocking=true)
+        @test arr == [42,42,42]
+    end
+end
