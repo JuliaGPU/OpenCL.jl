@@ -165,7 +165,7 @@ abstract type AbstractKernel{F,TT} end
 
     quote
         svm_pointers = Ptr{Cvoid}[]
-        cl.clcall(kernel.fun, $call_tt, $(call_args...); svm_pointers, call_kwargs...)
+        clcall(kernel.fun, $call_tt, $(call_args...); svm_pointers, call_kwargs...)
     end
 end
 

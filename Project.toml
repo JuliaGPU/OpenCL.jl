@@ -14,6 +14,6 @@ SPIRVIntrinsics = "71d1d633-e7e8-4a92-83a1-de8814b09ba8"
 SPIRV_LLVM_Translator_unified_jll = "85f0d8ed-5b39-5caa-b1ae-7472de402361"
 
 [compat]
+LLVM = "9.1"
 OpenCL_jll = "2024.5.8"
 julia = "1.10"
-LLVM = "9.1"

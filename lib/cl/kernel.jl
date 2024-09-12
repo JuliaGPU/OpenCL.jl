@@ -220,8 +220,8 @@ clcall(f::F, types::Tuple, args::Vararg{Any,N}; kwargs...) where {N,F} =
     clcall(f, _to_tuple_type(types), args...; kwargs...)
 
 function clcall(k::Kernel, types::Type{T}, args::Vararg{Any,N}; kwargs...) where {T,N}
-    call_closure = function (pointers::Vararg{Any,N})
-        call(k, pointers...; kwargs...)
+    call_closure = function (converted_args::Vararg{Any,N})
+        call(k, converted_args...; kwargs...)
     end
     convert_arguments(call_closure, types, args...)
 end
