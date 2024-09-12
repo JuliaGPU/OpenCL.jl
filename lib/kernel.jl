@@ -1,4 +1,7 @@
 # OpenCL.Kernel
+
+export clcall
+
 mutable struct Kernel <: CLObject
     id::cl_kernel
 
@@ -69,7 +72,7 @@ function set_arg!(k::Kernel, idx::Integer, arg::SVMBuffer)
     clSetKernelArgSVMPointer(k, cl_uint(idx-1), arg.ptr)
     return k
 end
-## when passing with `cl.clcall`, which has pre-converted the buffer
+## when passing with `clcall`, which has pre-converted the buffer
 function set_arg!(k::Kernel, idx::Integer, arg::Ptr)
     if arg != C_NULL
         clSetKernelArgSVMPointer(k, cl_uint(idx-1), arg)
