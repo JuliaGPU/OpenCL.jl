@@ -47,24 +47,22 @@ h_a = rand(Float32, LENGTH)
 h_b = rand(Float32, LENGTH)
 h_c = rand(Float32, LENGTH)
 
-d_a = cl.Buffer(Float32, length(h_a), (:r, :copy), hostbuf=h_a)
-d_b = cl.Buffer(Float32, length(h_b), (:r, :copy), hostbuf=h_b)
-d_c = cl.Buffer(Float32, length(h_c), (:r, :copy), hostbuf=h_c)
+d_a = CLArray(h_a; access=:r)
+d_b = CLArray(h_b; access=:r)
+d_c = CLArray(h_c; access=:r)
 
 # create the output (r) buffer in device memory
-d_r = cl.Buffer(Float32, LENGTH, :w)
+d_r = CLArray{Float32}(undef, LENGTH; access=:w)
 
 # create the kernel
 vadd = cl.Kernel(program, "vadd")
 
 # execute the kernel over the entire range of the input
-vadd[size(h_a)](d_a, d_b, d_c, d_r, UInt32(LENGTH))
+clcall(vadd, Tuple{Ptr{Float32}, Ptr{Float32}, Ptr{Float32}, Ptr{Float32}, Cuint},
+       d_a, d_b, d_c, d_r, UInt32(LENGTH); global_size=size(h_a))
 
 # read the results back from the compute device
-# by convention..
-# cl.(action) calls are blocking
-# cl.enqueue_(action) calll are async/non-blocking
-h_r = cl.read(d_r)
+h_r = Array(d_r)
 
 # test the results
 correct = 0

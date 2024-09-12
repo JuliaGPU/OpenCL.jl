@@ -85,10 +85,10 @@ for i in 1:COUNT
     results(Mdim, Ndim, Pdim, h_C, t2 - t1)
 end
 
-# create OpenCL Buffers
-d_a = cl.Buffer(Float32, length(h_A), (:r,:copy), hostbuf=h_A)
-d_b = cl.Buffer(Float32, length(h_B), (:r,:copy), hostbuf=h_B)
-d_c = cl.Buffer(Float32, length(h_C), :w)
+# create OpenCL array
+d_a = CLArray(h_A; access=:r)
+d_b = CLArray(h_B; access=:r)
+d_c = CLArray{Float32}(undef, length(h_C); access=:w)
 
 #--------------------------------------------------------------------------------
 # OpenCL matrix multiplication ... Naive
@@ -103,8 +103,10 @@ mmul = cl.Kernel(prg, "mmul")
 for i in 1:COUNT
     fill!(h_C, 0.0)
     cl.queue!(:profile) do
-        evt = cl.call(mmul, Int32(Mdim), Int32(Ndim), Int32(Pdim),
-                      d_a, d_b, d_c; global_size=(Ndim, Mdim))
+        evt = clcall(mmul, Tuple{Int32, Int32, Int32, Ptr{Float32}, Ptr{Float32}, Ptr{Float32}},
+                     Mdim, Ndim, Pdim, d_a, d_b, d_c; global_size=(Ndim, Mdim))
+        wait(evt)
+
         # profiling events are measured in ns
         run_time = evt.profile_duration / 1e9
         cl.copy!(h_C, d_c)
@@ -125,8 +127,10 @@ mmul = cl.Kernel(prg, "mmul")
 for i in 1:COUNT
     fill!(h_C, 0.0)
     cl.queue!(:profile) do
-        evt = cl.call(mmul,Int32(Mdim), Int32(Ndim), Int32(Pdim),
-                      d_a, d_b, d_c; global_size=Ndim, local_size=(ORDER ÷ 16))
+        evt = clcall(mmul, Tuple{Int32, Int32, Int32, Ptr{Float32}, Ptr{Float32}, Ptr{Float32}},
+                     Mdim, Ndim, Pdim, d_a, d_b, d_c; global_size=Ndim, local_size=(ORDER ÷ 16))
+        wait(evt)
+
         # profiling events are measured in ns
         run_time = evt.profile_duration / 1e9
         cl.copy!(h_C, d_c)
@@ -152,10 +156,12 @@ for i in 1:COUNT
     localmem = cl.LocalMem(Float32, Pdim)
 
     cl.queue!(:profile) do
-        mmul_ocl = mmul[(Ndim,), (div(ORDER, 16),)]
+        global_size = (Ndim,)
+        local_size = (div(ORDER, 16),)
 
-        evt = mmul_ocl(Int32(Mdim), Int32(Ndim), Int32(Pdim),
-                       d_a, d_b, d_c, localmem)
+        evt = clcall(mmul, Tuple{Int32, Int32, Int32, Ptr{Float32}, Ptr{Float32}, Ptr{Float32}, cl.LocalMem{Float32}},
+                     Mdim, Ndim, Pdim, d_a, d_b, d_c, localmem; global_size, local_size)
+        wait(evt)
 
         # profiling events are measured in ns
         run_time = evt.profile_duration / 1e9
@@ -184,9 +190,10 @@ for i in 1:COUNT
     localmem1 = cl.LocalMem(Float32, blocksize^2)
     localmem2 = cl.LocalMem(Float32, blocksize^2)
     cl.queue!(:profile) do
-        evt = cl.call(mmul, Int32(Mdim), Int32(Ndim), Int32(Pdim),
-                      d_a, d_b, d_c, localmem1, localmem2;
-                      global_size=Ndim, local_size=(ORDER ÷ 16))
+        evt = clcall(mmul, Tuple{Int32, Int32, Int32, Ptr{Float32}, Ptr{Float32}, Ptr{Float32}, Ptr{Float32}, Ptr{Float32}},
+                     Mdim, Ndim, Pdim, d_a, d_b, d_c, localmem1, localmem2; global_size=Ndim, local_size=(ORDER ÷ 16))
+        wait(evt)
+
         # profiling events are measured in ns
         run_time = evt.profile_duration / 1e9
         cl.copy!(h_C, d_c)

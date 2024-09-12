@@ -62,14 +62,14 @@ h_g = rand(Float32, LENGTH)
 # {:use (use host buffer), :alloc (alloc pinned memory), :copy (default)}
 
 # Create the input (a, b, e, g) arrays in device memory and copy data from host
-d_a = cl.Buffer(Float32, length(h_a), (:r, :copy), hostbuf=h_a)
-d_b = cl.Buffer(Float32, length(h_b), (:r, :copy), hostbuf=h_b)
-d_e = cl.Buffer(Float32, length(h_e), (:r, :copy), hostbuf=h_e)
-d_g = cl.Buffer(Float32, length(h_g), (:r, :copy), hostbuf=h_g)
+d_a = CLArray(h_a; access=:r)
+d_b = CLArray(h_b; access=:r)
+d_e = CLArray(h_e; access=:r)
+d_g = CLArray(h_g; access=:r)
 # Create the output (c, d, f) array in device memory
-d_c = cl.Buffer(Float32, LENGTH, :w)
-d_d = cl.Buffer(Float32, LENGTH, :w)
-d_f = cl.Buffer(Float32, LENGTH, :w)
+d_c = CLArray{Float32}(undef, LENGTH; access=:w)
+d_d = CLArray{Float32}(undef, LENGTH; access=:w)
+d_f = CLArray{Float32}(undef, LENGTH; access=:w)
 
 # create the kernel
 vadd = cl.Kernel(program, "vadd")
@@ -81,13 +81,16 @@ vadd = cl.Kernel(program, "vadd")
 # here we call the kernel with work size set to the number of elements and no local
 # work size. This enables the opencl runtime to optimize the local size for simple
 # kernels
-cl.call(vadd, d_a, d_b, d_c, UInt32(LENGTH); global_size=size(h_a))
-cl.call(vadd, d_e, d_c, d_d, UInt32(LENGTH); global_size=size(h_e))
-cl.call(vadd, d_g, d_d, d_f, UInt32(LENGTH); global_size=size(h_g))
+clcall(vadd, Tuple{Ptr{Float32}, Ptr{Float32}, Ptr{Float32}, Cuint},
+       d_a, d_b, d_c, LENGTH; global_size=size(h_a))
+clcall(vadd, Tuple{Ptr{Float32}, Ptr{Float32}, Ptr{Float32}, Cuint},
+       d_e, d_c, d_d, LENGTH; global_size=size(h_e))
+clcall(vadd, Tuple{Ptr{Float32}, Ptr{Float32}, Ptr{Float32}, Cuint},
+       d_g, d_d, d_f, LENGTH; global_size=size(h_g))
 
 # copy back the results from the compute device
 # copy!(queue, dst, src) follows same interface as julia's built in copy!
-cl.copy!(h_f, d_f)
+copy!(h_f, d_f)
 
 # test the results
 correct = 0

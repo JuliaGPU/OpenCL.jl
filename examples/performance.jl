@@ -74,9 +74,9 @@ function cl_performance(ndatapts::Integer, nworkers::Integer)
                 continue
             end
 
-            a_buf = cl.Buffer(Float32, length(a), (:r, :copy), hostbuf=a)
-            b_buf = cl.Buffer(Float32, length(b), (:r, :copy), hostbuf=b)
-            c_buf = cl.Buffer(Float32, length(a), :w)
+            da = CLArray(a; access=:r)
+            db = CLArray(b; access=:r)
+            dc = CLArray{Float32}(undef, length(a); access=:w)
 
             prg  = cl.Program(source=bench_kernel) |> cl.build!
             kern = cl.Kernel(prg, "sum")
@@ -87,14 +87,15 @@ function cl_performance(ndatapts::Integer, nworkers::Integer)
 
             cl.queue!(:profile) do
                 # call the kernel
-                evt = kern[global_size, local_size](a_buf, b_buf, c_buf)
+                evt = clcall(kern, Tuple{Ptr{Float32}, Ptr{Float32}, Ptr{Float32}},
+                             da, db, dc; global_size, local_size)
+                wait(evt)
 
                 # duration in ns
                 t = evt.profile_duration * 1e-9
                 @printf("Execution time of test: %.4f seconds\n", t)
 
-                c_device = cl.read(c_buf)
-                @info("Result norm: $(norm(c - c_device))")
+                @info("Result norm: $(norm(c - Array(dc)))")
             end
         end
     end

@@ -56,7 +56,7 @@ h_psum = Vector{Float32}(undef, nwork_groups)
 println("$nwork_groups work groups of size $work_group_size.")
 println("$nsteps integration steps")
 
-d_partial_sums = cl.Buffer(Float32, length(h_psum), :w)
+d_partial_sums = CLArray{Float32}(undef, length(h_psum); access=:w)
 
 # start timer
 rtime = time()
@@ -68,8 +68,8 @@ global_size = (nwork_groups * work_group_size,)
 local_size  = (work_group_size,)
 localmem    = cl.LocalMem(Float32, work_group_size)
 
-cl.call(pi_kernel, Int32(niters), Float32(step_size), localmem,
-        d_partial_sums; global_size, local_size)
+clcall(pi_kernel, Tuple{Int32, Float32, cl.LocalMem{Float32}, Ptr{Float32}},
+       niters, step_size, localmem, d_partial_sums; global_size, local_size)
 
 cl.copy!(h_psum, d_partial_sums)
 
