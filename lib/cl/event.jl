@@ -69,10 +69,8 @@ end
 
 Base.unsafe_convert(::Type{cl_event}, evt::AbstractEvent) = evt.id
 
-Base.pointer(evt::AbstractEvent) = evt.id
-
 function Base.show(io::IO, evt::Event)
-    ptr_val = convert(UInt, Base.pointer(evt))
+    ptr_val = convert(UInt, pointer(evt))
     ptr_address = "0x$(string(ptr_val, base = 16, pad = Sys.WORD_SIZE>>2))"
     print(io, "OpenCL.Event(@$ptr_address)")
 end
@@ -105,7 +103,7 @@ function UserEvent(; retain=false)
 end
 
 function Base.show(io::IO, evt::UserEvent)
-    ptr_val = convert(UInt, Base.pointer(evt))
+    ptr_val = convert(UInt, pointer(evt))
     ptr_address = "0x$(string(ptr_val, base = 16, pad = Sys.WORD_SIZE>>2))"
     print(io, "OpenCL.UserEvent(@$ptr_address)")
 end
@@ -164,15 +162,15 @@ end
 
 function Base.wait(evt::AbstractEvent)
     evt_id = [evt.id]
-    clWaitForEvents(cl_uint(1), pointer(evt_id))
+    clWaitForEvents(cl_uint(1), evt_id)
     return evt
 end
 
 function Base.wait(evts::Vector{AbstractEvent})
-    evt_ids = [evt.id for evt in evts]
-    if !isempty(evt_ids)
-        nevents = cl_uint(length(evt_ids))
-        clWaitForEvents(nevents, pointer(evt_ids))
+    isempty(evts) && return evts
+    evt_ids = [pointer(evt) for evt in evts]
+    GC.@preserve evts begin
+        clWaitForEvents(ength(evt_ids), evt_ids)
     end
     return evts
 end
@@ -205,10 +203,10 @@ end
 @deprecate enqueue_marker enqueue_marker_with_wait_list
 
 function enqueue_wait_for_events(wait_for::Vector{T}) where {T<:AbstractEvent}
-    n_wait_events = cl_uint(length(wait_for))
-    wait_evt_ids = [evt.id for evt in wait_for]
-    clEnqueueWaitForEvents(queue(), n_wait_events,
-                           isempty(wait_evt_ids) ? C_NULL : pointer(wait_evt_ids))
+    wait_evt_ids = isempty(wait_for) ? C_NULL : [pointer(evt) for evt in wait_for]
+    GC.@preserve wait_for begin
+        clEnqueueWaitForEvents(queue(), length(wait_for), wait_evt_ids)
+   end
 end
 
 function enqueue_wait_for_events(wait_for::AbstractEvent)

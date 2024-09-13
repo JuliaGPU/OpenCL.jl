@@ -23,14 +23,12 @@ function _finalize(p::Program)
 end
 
 Base.show(io::IO, p::Program) = begin
-    ptr_val = convert(UInt, Base.pointer(p))
+    ptr_val = convert(UInt, pointer(p))
     ptr_address = "0x$(string(ptr_val, base = 16, pad = Sys.WORD_SIZE>>2))"
     print(io, "OpenCL.Program(@$ptr_address)")
 end
 
 Base.unsafe_convert(::Type{cl_program}, p::Program) = p.id
-
-Base.pointer(p::Program) = p.id
 
 function Program(; source=nothing, binaries=nothing, il=nothing)
     if count(!isnothing, (source, binaries, il)) != 1

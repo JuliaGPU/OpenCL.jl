@@ -14,8 +14,6 @@ Base.unsafe_convert(::Type{cl_mem}, mem::AbstractMemory) = mem.id
 # for passing buffers to kernels: keep the buffer, it's handled by `cl.set_arg!`
 Base.unsafe_convert(::Type{<:Ptr}, mem::AbstractMemory) = mem
 
-Base.pointer(mem::AbstractMemory) = mem.id
-
 Base.sizeof(mem::AbstractMemory) = mem.size
 
 function _finalize(mem::AbstractMemory)

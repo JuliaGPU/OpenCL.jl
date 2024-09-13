@@ -38,7 +38,6 @@ mutable struct Context <: CLObject
         ctx = new(ctx_id)
         create_jl_reference!(ctx_id)
         finalizer(ctx) do c
-            retain || _deletecached!(c);
             if c.id != C_NULL
                 release_ctx_id(c.id)
                 free_jl_reference!(c.id)
@@ -72,8 +71,6 @@ function release_ctx_id(ctx_id::cl_context)
 end
 
 Base.unsafe_convert(::Type{cl_context}, ctx::Context) = ctx.id
-
-Base.pointer(ctx::Context) = ctx.id
 
 function Base.show(io::IO, ctx::Context)
     dev_strs = [replace(d.name, r"\s+" => " ") for d in ctx.devices]

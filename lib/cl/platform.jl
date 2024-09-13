@@ -6,8 +6,6 @@ end
 
 Base.unsafe_convert(::Type{cl_platform_id}, p::Platform) = p.id
 
-Base.pointer(p::Platform) = p.id
-
 function Base.getproperty(p::Platform, s::Symbol)
     # simple string properties
     version_re = r"OpenCL (?<major>\d+)\.(?<minor>\d+)(?<vendor>.+)"
@@ -54,7 +52,7 @@ end
 function Base.show(io::IO, p::Platform)
     strip_extra_whitespace = r"\s+"
     platform_name = replace(p.name, strip_extra_whitespace => " ")
-    ptr_val = convert(UInt, Base.pointer(p))
+    ptr_val = convert(UInt, pointer(p))
     ptr_address = "0x$(string(ptr_val, base = 16, pad = Sys.WORD_SIZE>>2))"
     print(io, "OpenCL.Platform('$platform_name' @$ptr_address)")
 end

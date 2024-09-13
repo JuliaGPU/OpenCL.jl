@@ -24,8 +24,6 @@ end
 
 Base.unsafe_convert(::Type{cl_kernel}, k::Kernel) = k.id
 
-Base.pointer(k::Kernel) = k.id
-
 Base.show(io::IO, k::Kernel) = begin
     print(io, "OpenCL.Kernel(\"$(k.function_name)\" nargs=$(k.num_args))")
 end

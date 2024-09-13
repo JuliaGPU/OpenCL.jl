@@ -100,6 +100,3 @@ function __init__()
         @error "OpenCL_jll is not available for your platform, OpenCL.jl. will not work."
     end
 end
-
-const _versionDict = Dict{Ptr, VersionNumber}()
-_deletecached!(obj::CLObject) = delete!(_versionDict, pointer(obj))

@@ -81,10 +81,12 @@ function Base.unsafe_copyto!(dst::Array{T}, dst_off::Int, src::Buffer{T}, src_of
     nbytes = N * sizeof(T)
     n_evts  = length(wait_for)
     evt_ids = isempty(wait_for) ? C_NULL : [pointer(evt) for evt in wait_for]
-    ret_evt = Ref{cl_event}()
-    clEnqueueReadBuffer(queue(), src, blocking, src_off-1, nbytes, pointer(dst, dst_off),
-                        n_evts, evt_ids, ret_evt)
-    @return_nanny_event(ret_evt[], dst)
+    GC.@preserve wait_for begin
+        ret_evt = Ref{cl_event}()
+        clEnqueueReadBuffer(queue(), src, blocking, src_off-1, nbytes, pointer(dst, dst_off),
+                            n_evts, evt_ids, ret_evt)
+        @return_nanny_event(ret_evt[], dst)
+    end
 end
 Base.unsafe_copyto!(dst::Array, src::Buffer, N; kwargs...) =
     unsafe_copyto!(dst, 1, src, 1, N; kwargs...)
@@ -96,10 +98,12 @@ function Base.unsafe_copyto!(dst::Buffer{T}, dst_off::Int, src::Array{T}, src_of
     nbytes = N * sizeof(T)
     n_evts  = length(wait_for)
     evt_ids = isempty(wait_for) ? C_NULL : [pointer(evt) for evt in wait_for]
-    ret_evt = Ref{cl_event}()
-    clEnqueueWriteBuffer(queue(), dst, blocking, dst_off-1, nbytes, pointer(src, src_off),
-                         n_evts, evt_ids, ret_evt)
-    @return_nanny_event(ret_evt[], dst)
+    GC.@preserve wait_for begin
+        ret_evt = Ref{cl_event}()
+        clEnqueueWriteBuffer(queue(), dst, blocking, dst_off-1, nbytes, pointer(src, src_off),
+                             n_evts, evt_ids, ret_evt)
+        @return_nanny_event(ret_evt[], dst)
+    end
 end
 Base.unsafe_copyto!(dst::Buffer, src::Array, N; kwargs...) =
     unsafe_copyto!(dst, 1, src, 1, N; kwargs...)
@@ -111,10 +115,12 @@ function Base.unsafe_copyto!(dst::Buffer{T}, dst_off::Int, src::Buffer{T}, src_o
     nbytes = N * sizeof(T)
     n_evts  = length(wait_for)
     evt_ids = isempty(wait_for) ? C_NULL : [pointer(evt) for evt in wait_for]
-    ret_evt = Ref{cl_event}()
-    clEnqueueCopyBuffer(queue(), src, dst, src_off-1, dst_off-1, nbytes,
-                        n_evts, evt_ids, ret_evt)
-    @return_event ret_evt[]
+    GC.@preserve wait_for begin
+        ret_evt = Ref{cl_event}()
+        clEnqueueCopyBuffer(queue(), src, dst, src_off-1, dst_off-1, nbytes,
+                            n_evts, evt_ids, ret_evt)
+        @return_event ret_evt[]
+    end
 end
 Base.unsafe_copyto!(dst::Buffer, src::Buffer, N; kwargs...) =
     unsafe_copyto!(dst, 1, src, 1, N; kwargs...)
@@ -122,8 +128,6 @@ Base.unsafe_copyto!(dst::Buffer, src::Buffer, N; kwargs...) =
 # map a buffer into the host address space and return a (pinned) array and an event
 function unsafe_map!(b::Buffer{T}, dims::Dims, flags=:rw; offset::Integer=1,
                      blocking::Bool=false, wait_for::Vector{Event}=Event[]) where {T}
-    n_evts  = length(wait_for)
-    evt_ids = isempty(wait_for) ? C_NULL : [pointer(evt) for evt in wait_for]
     flags = if flags == :rw
         CL_MAP_READ | CL_MAP_WRITE
     elseif flags == :r
@@ -135,40 +139,48 @@ function unsafe_map!(b::Buffer{T}, dims::Dims, flags=:rw; offset::Integer=1,
     end
     nbytes  = prod(dims) * sizeof(T)
     ret_evt = Ref{cl_event}()
-    status  = Ref{Cint}()
     byteoffset = (offset - 1) * sizeof(T)
-    mapped  = clEnqueueMapBuffer(queue(), b, blocking,
-                                 flags, byteoffset, nbytes,
-                                 n_evts, evt_ids, ret_evt, status)
-    if status[] != CL_SUCCESS
-        throw(CLError(status[]))
-    end
+    n_evts  = length(wait_for)
+    evt_ids = isempty(wait_for) ? C_NULL : [pointer(evt) for evt in wait_for]
+    GC.@preserve wait_for begin
+        status  = Ref{Cint}()
+        mapped = clEnqueueMapBuffer(queue(), b, blocking,
+                                    flags, byteoffset, nbytes,
+                                    n_evts, evt_ids, ret_evt, status)
+        if status[] != CL_SUCCESS
+            throw(CLError(status[]))
+        end
 
-    return unsafe_wrap(Array, Ptr{T}(mapped), dims; own=false), Event(ret_evt[])
+        return unsafe_wrap(Array, Ptr{T}(mapped), dims; own=false), Event(ret_evt[])
+    end
 end
 
 # unmap a buffer, return an event
 function unsafe_unmap!(b::Buffer{T}, a::Array{T}; wait_for::Vector{Event}=Event[]) where {T}
     n_evts  = length(wait_for)
     evt_ids = isempty(wait_for) ? C_NULL : [pointer(evt) for evt in wait_for]
-    ret_evt = Ref{cl_event}()
-    clEnqueueUnmapMemObject(queue(), b, pointer(a), n_evts, evt_ids, ret_evt)
-    return Event(ret_evt[])
+    GC.@preserve wait_for begin
+        ret_evt = Ref{cl_event}()
+        clEnqueueUnmapMemObject(queue(), b, a, n_evts, evt_ids, ret_evt)
+        return Event(ret_evt[])
+    end
 end
 
 # fill a buffer with a pattern, returning an event
 function unsafe_fill!(b::Buffer{T}, pattern::T, offset::Integer, N::Integer;
                       wait_for::Vector{Event}=Event[]) where {T}
-    n_evts  = length(wait_for)
-    evt_ids = isempty(wait_for) ? C_NULL : [pointer(evt) for evt in wait_for]
-    ret_evt = Ref{cl_event}()
     nbytes = N * sizeof(T)
     nbytes_pattern = sizeof(T)
     byteoffset = (offset - 1) * sizeof(T)
     @assert nbytes_pattern > 0
-    clEnqueueFillBuffer(queue(), b, [pattern],
-                        nbytes_pattern, byteoffset, nbytes,
-                        n_evts, evt_ids, ret_evt)
-    @return_event ret_evt[]
+    n_evts  = length(wait_for)
+    evt_ids = isempty(wait_for) ? C_NULL : [pointer(evt) for evt in wait_for]
+    GC.@preserve begin
+        ret_evt = Ref{cl_event}()
+        clEnqueueFillBuffer(queue(), b, [pattern],
+                            nbytes_pattern, byteoffset, nbytes,
+                            n_evts, evt_ids, ret_evt)
+        @return_event ret_evt[]
+    end
 end
 unsafe_fill!(b::Buffer, pattern, N::Integer) = unsafe_fill!(b, pattern, 1, N)

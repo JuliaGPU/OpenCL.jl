@@ -6,8 +6,6 @@ end
 
 Base.unsafe_convert(::Type{cl_device_id}, d::Device) = d.id
 
-Base.pointer(d::Device) = d.id
-
 function Base.show(io::IO, d::Device)
     strip_extra_whitespace = r"\s+"
     device_name = replace(d.name, strip_extra_whitespace => " ")

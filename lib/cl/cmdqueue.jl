@@ -9,7 +9,6 @@ mutable struct CmdQueue <: CLObject
         end
         q = new(q_id)
         finalizer(q) do x
-            retain || _deletecached!(q)
             if x.id != C_NULL
                 clReleaseCommandQueue(x)
                 x.id = C_NULL
@@ -21,10 +20,8 @@ end
 
 Base.unsafe_convert(::Type{cl_command_queue}, q::CmdQueue) = q.id
 
-Base.pointer(q::CmdQueue) = q.id
-
 function Base.show(io::IO, q::CmdQueue)
-    ptr_val = convert(UInt, Base.pointer(q))
+    ptr_val = convert(UInt, pointer(q))
     ptr_address = "0x$(string(ptr_val, base = 16, pad = Sys.WORD_SIZE>>2))"
     print(io, "OpenCL.CmdQueue(@$ptr_address)")
 end
