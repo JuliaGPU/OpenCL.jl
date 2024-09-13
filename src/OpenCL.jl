@@ -5,6 +5,7 @@ using LLVM, LLVM.Interop
 using SPIRV_LLVM_Translator_unified_jll
 using Adapt
 using Reexport
+using GPUArrays
 
 using Core: LLVMPtr
 

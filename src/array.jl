@@ -2,7 +2,7 @@ import LinearAlgebra
 
 export CLArray, CLMatrix, CLVector, buffer
 
-mutable struct CLArray{T, N} <: AbstractArray{T, N}
+mutable struct CLArray{T, N} <: AbstractGPUArray{T, N}
     ctx::cl.Context
     buffer::cl.SVMBuffer{T} # XXX: support regular buffers too?
     size::NTuple{N, Int}
