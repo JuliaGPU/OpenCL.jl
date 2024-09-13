@@ -76,10 +76,7 @@ Base.sizeof(x::CLArray) = Base.elsize(x) * length(x)
 Base.unsafe_convert(::Type{Ptr{T}}, x::CLArray{T}) where {T} =
     convert(Ptr{T}, pointer(x.data[])) + x.offset*Base.elsize(x)
 
-# XXX: this is wrong
-Base.:(==)(A:: CLArray, B:: CLArray) = buffer(A) == buffer(B) && size(A) == size(B)
-
-
+Base.:(==)(A::CLArray, B::CLArray) = Array(A) == Array(B)
 
 
 ## derived types
