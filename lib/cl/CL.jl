@@ -1,14 +1,12 @@
 module cl
 
-export CLObject
-
-abstract type CLObject end  # XXX: remove this
-
-Base.hash(x::CLObject) = hash(pointer(x))
-Base.isequal(x::T, y::T) where {T <: CLObject} = Base.hash(x) == Base.hash(y)
-Base.:(==)(x::T, y::T) where {T <: CLObject} = Base.hash(x) == Base.hash(y)
-
 include("api.jl")
+
+# OpenCL wrapper objects are expected to have an `id` field containing a handle pointer
+abstract type CLObject end
+Base.pointer(x::CLObject) = x.id
+Base.:(==)(a::CLObject, b::CLObject) = pointer(a) == pointer(b)
+Base.hash(obj::CLObject, h::UInt) = hash(pointer(obj), h)
 
 # API wrappers
 include("error.jl")

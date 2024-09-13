@@ -5,6 +5,7 @@ using LLVM, LLVM.Interop
 using SPIRV_LLVM_Translator_unified_jll
 using Adapt
 using Reexport
+using GPUArrays
 
 using Core: LLVMPtr
 
@@ -43,5 +44,6 @@ include("compiler/reflection.jl")
 # high-level functionality
 include("util.jl")
 include("array.jl")
+include("gpuarrays.jl")
 
 end

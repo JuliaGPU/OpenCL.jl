@@ -94,10 +94,19 @@ end
 
 ## per-task queues
 
+# XXX: port CUDA.jl's per-array stream tracking, obviating the need for global sync
+const queues = WeakKeyDict{cl.CmdQueue,Nothing}()
+function device_synchronize()
+    for queue in keys(queues)
+        cl.finish(queue)
+    end
+end
+
 function queue()
     get!(task_local_storage(), :CLQueue) do
         q = CmdQueue()
         task_local_storage(:CLQueue, q)
+        queues[q] = nothing
         q
     end::CmdQueue
 end

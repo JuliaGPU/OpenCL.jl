@@ -7,14 +7,26 @@
         @test sizeof(buf) == sizeof(Int)
     end
 
+    # memory copy
+    let buf = cl.Buffer{Int}(1)
+        src = [42]
+        cl.enqueue_write(buf, pointer(src), sizeof(src); blocking=true)
+
+        dst = [0]
+        cl.enqueue_read(pointer(dst), buf, sizeof(dst); blocking=true)
+        @test dst == [42]
+    end
+
     # host accessible, mapped
     let buf = cl.Buffer{Int}(1; host_accessible=true)
-        unsafe_copyto!(buf, [42], 1; blocking=true)
+        src = [42]
+        cl.enqueue_write(buf, pointer(src), sizeof(src); blocking=true)
 
-        arr, evt = cl.unsafe_map!(buf, (1,), :rw)
+        ptr, evt = cl.enqueue_map(buf, sizeof(buf), :rw)
         wait(evt)
-        @test arr[] == 42
-        cl.unsafe_unmap!(buf, arr)
+        mapped = unsafe_wrap(Array, convert(Ptr{Int}, ptr), 1; own=false)
+        @test mapped[] == 42
+        cl.enqueue_unmap(buf, ptr) |> wait
     end
 
     # re-use host buffer, without copy
@@ -22,19 +34,21 @@
         buf = cl.Buffer(arr; copy=false)
 
         dst = similar(arr)
-        unsafe_copyto!(dst, buf, 3; blocking=true)
+        cl.enqueue_read(pointer(dst), buf, sizeof(dst); blocking=true)
         @test dst == arr
 
         # we still need to map, despite copy=false
-        mapped_arr, evt = cl.unsafe_map!(buf, (3,), :rw)
+        ptr, evt = cl.enqueue_map(buf, sizeof(buf), :rw)
         wait(evt)
+        mapped_arr = unsafe_wrap(Array, convert(Ptr{Int}, ptr), 3; own=false)
         mapped_arr .= 42
-        cl.unsafe_unmap!(buf, mapped_arr) |> wait
+        cl.enqueue_unmap(buf, ptr) |> wait
 
         # but our pre-allocated buffer should have been updated too
         @test arr == [42,42,42]
 
-        unsafe_copyto!(dst, buf, 3; blocking=true)
+        # and we can read it back
+        cl.enqueue_read(pointer(dst), buf, sizeof(dst); blocking=true)
         @test dst == arr
     end
 
@@ -43,20 +57,22 @@
         buf = cl.Buffer(arr; copy=true)
 
         dst = similar(arr)
-        unsafe_copyto!(dst, buf, 3; blocking=true)
+        cl.enqueue_read(pointer(dst), buf, sizeof(dst); blocking=true)
         @test dst == arr
 
         arr .= 42
 
-        unsafe_copyto!(dst, buf, 3; blocking=true)
+        # but our pre-allocated buffer should not have been updated
+        cl.enqueue_read(pointer(dst), buf, sizeof(dst); blocking=true)
         @test dst == [1,2,3]
     end
 
     # fill
     let buf = cl.Buffer{Int}(3)
-        cl.unsafe_fill!(buf, 42, 3)
+        cl.enqueue_fill(buf, 42, 3)
+
         arr = Vector{Int}(undef, 3)
-        unsafe_copyto!(arr, buf, 3; blocking=true)
+        cl.enqueue_read(pointer(arr), buf, sizeof(arr); blocking=true)
         @test arr == [42,42,42]
     end
 end
@@ -73,33 +89,43 @@ end
 
     # memory copy
     let buf = cl.SVMBuffer{Int}(1)
-        unsafe_copyto!(buf, [42], 1; blocking=true)
+        ptr = pointer(buf)
 
-        arr = [0]
-        cl.unsafe_copyto!(arr, buf, 1; blocking=true)
-        @test arr == [42]
+        src = [42]
+        cl.enqueue_svm_memcpy(ptr, pointer(src), sizeof(src))
+
+        dst = [0]
+        cl.enqueue_svm_memcpy(pointer(dst), ptr, sizeof(dst); blocking=true)
+        @test dst == [42]
     end
 
     # memory map
     let buf = cl.SVMBuffer{Int}(1)
-        unsafe_copyto!(buf, [42], 1; blocking=true)
+        ptr = pointer(buf)
 
-        arr, evt = cl.unsafe_map!(buf, (1,), :rw)
+        src = [42]
+        cl.enqueue_svm_memcpy(ptr, pointer(src), sizeof(src))
+
+        evt = cl.enqueue_svm_map(ptr, sizeof(src), :rw)
         wait(evt)
-        @test arr[] == 42
-        arr[] = 100
-        cl.unsafe_unmap!(buf, arr) |> wait
+        mapped = unsafe_wrap(Array, ptr, 1; own=false)
+        @test mapped[] == 42
+        mapped[] = 100
+        cl.enqueue_svm_unmap(ptr) |> cl.wait
 
-        res = [0]
-        cl.unsafe_copyto!(res, buf, 1; blocking=true)
-        @test res == [100]
+        dst = [0]
+        cl.enqueue_svm_memcpy(pointer(dst), ptr, sizeof(dst); blocking=true)
+        @test dst == [100]
     end
 
     # fill
     let buf = cl.SVMBuffer{Int}(3)
-        cl.unsafe_fill!(buf, 42, 3)
-        arr = Vector{Int}(undef, 3)
-        unsafe_copyto!(arr, buf, 3; blocking=true)
-        @test arr == [42,42,42]
+        ptr = pointer(buf)
+
+        cl.enqueue_svm_fill(ptr, 42, 3)
+
+        dst = Vector{Int}(undef, 3)
+        cl.enqueue_svm_memcpy(pointer(dst), ptr, sizeof(dst); blocking=true)
+        @test dst == [42,42,42]
     end
 end

@@ -2,18 +2,25 @@ import LinearAlgebra
 
 export CLArray, CLMatrix, CLVector, buffer
 
-mutable struct CLArray{T, N} <: AbstractArray{T, N}
+mutable struct CLArray{T, N} <: AbstractGPUArray{T, N}
     ctx::cl.Context
-    buffer::cl.SVMBuffer{T} # XXX: support regular buffers too?
-    size::NTuple{N, Int}
 
+    data::DataRef{cl.SVMBuffer{UInt8}}
+    offset::Int # offset in number of elements
+
+    dims::NTuple{N, Int}
+
+    # allocating constructor
     function CLArray{T,N}(::UndefInitializer, dims::Dims{N}; access=:rw) where {T,N}
-        buf = cl.SVMBuffer{T}(prod(dims), access)
-        new(cl.context(), buf, dims)
+        buf = cl.SVMBuffer{UInt8}(prod(dims) * sizeof(T), access)
+        ref = DataRef(identity, buf)
+        new(cl.context(), ref, 0, dims)
     end
 
-    function CLArray{T,N}(buf::cl.SVMBuffer, dims::Dims) where {T,N}
-        new(cl.context(), buf, dims)
+    # low-level constructor for wrapping existing data
+    function CLArray{T,N}(ref::DataRef{cl.SVMBuffer{UInt8}}, dims::Dims;
+                          offset::Int=0) where {T,N}
+        new(cl.context(), ref, offset, dims)
     end
 end
 
@@ -59,20 +66,53 @@ end
 ## array interface
 
 context(A::CLArray) = A.ctx
-buffer(A::CLArray) = A.buffer
+buffer(A::CLArray) = A.data[]
 
-Base.pointer(A::CLArray, i::Integer=1) = pointer(buffer(A), i)
-Base.eltype(A::CLArray{T, N}) where {T, N} = T
-Base.size(A::CLArray) = A.size
-Base.size(A::CLArray, dim::Integer) = A.size[dim]
-Base.ndims(A::CLArray) = length(size(A))
-Base.length(A::CLArray) = prod(size(A))
+Base.elsize(::Type{<:CLArray{T}}) where {T} = sizeof(T)
+
+Base.size(x::CLArray) = x.dims
+Base.sizeof(x::CLArray) = Base.elsize(x) * length(x)
+
+Base.unsafe_convert(::Type{Ptr{T}}, x::CLArray{T}) where {T} =
+    convert(Ptr{T}, pointer(x.data[])) + x.offset*Base.elsize(x)
+
+# XXX: this is wrong
 Base.:(==)(A:: CLArray, B:: CLArray) = buffer(A) == buffer(B) && size(A) == size(B)
 
-function Base.reshape(A::CLArray{T}, dims::NTuple{N,Int}) where {T,N}
-    @assert prod(dims) == prod(size(A))
-    CLArray{T,N}(buffer(A), dims)
+
+
+
+## derived types
+
+export DenseCLArray, DenseJLVector, DenseJLMatrix, DenseJLVecOrMat,
+       StridedCLArray, StridedJLVector, StridedJLMatrix, StridedJLVecOrMat,
+       AnyCLArray, AnyJLVector, AnyJLMatrix, AnyJLVecOrMat
+
+# dense arrays: stored contiguously in memory
+DenseCLArray{T,N} = CLArray{T,N}
+DenseJLVector{T} = DenseCLArray{T,1}
+DenseJLMatrix{T} = DenseCLArray{T,2}
+DenseJLVecOrMat{T} = Union{DenseJLVector{T}, DenseJLMatrix{T}}
+
+# strided arrays
+StridedSubCLArray{T,N,I<:Tuple{Vararg{Union{Base.RangeIndex, Base.ReshapedUnitRange,
+                                            Base.AbstractCartesianIndex}}}} =
+  SubArray{T,N,<:CLArray,I}
+StridedCLArray{T,N} = Union{CLArray{T,N}, StridedSubCLArray{T,N}}
+StridedJLVector{T} = StridedCLArray{T,1}
+StridedJLMatrix{T} = StridedCLArray{T,2}
+StridedJLVecOrMat{T} = Union{StridedJLVector{T}, StridedJLMatrix{T}}
+
+Base.pointer(x::StridedCLArray{T}) where {T} = Base.unsafe_convert(Ptr{T}, x)
+@inline function Base.pointer(x::StridedCLArray{T}, i::Integer) where T
+    Base.unsafe_convert(Ptr{T}, x) + Base._memory_offset(x, i)
 end
+
+# anything that's (secretly) backed by a CLArray
+AnyCLArray{T,N} = Union{CLArray{T,N}, WrappedArray{T,N,CLArray,CLArray{T,N}}}
+AnyJLVector{T} = AnyCLArray{T,1}
+AnyJLMatrix{T} = AnyCLArray{T,2}
+AnyJLVecOrMat{T} = Union{AnyJLVector{T}, AnyJLMatrix{T}}
 
 
 ## conversions
@@ -111,7 +151,7 @@ end
 fill(x, dims...) = fill(x, (dims...,))
 
 function Base.fill!(A::CLArray{T}, x::T) where {T}
-    cl.unsafe_fill!(buffer(A), x, length(A))
+    cl.enqueue_svm_fill(pointer(A), x, length(A))
     A
 end
 
@@ -134,7 +174,7 @@ function Base.copyto!(dest::CLArray{T}, doffs::Int, src::Array{T}, soffs::Int,
   @boundscheck checkbounds(dest, doffs+n-1)
   @boundscheck checkbounds(src, soffs)
   @boundscheck checkbounds(src, soffs+n-1)
-  unsafe_copyto!(buffer(dest), doffs, src, soffs, n)
+  unsafe_copyto!(dest, doffs, src, soffs, n)
   return dest
 end
 
@@ -148,7 +188,7 @@ function Base.copyto!(dest::Array{T}, doffs::Int, src::CLArray{T}, soffs::Int,
   @boundscheck checkbounds(dest, doffs+n-1)
   @boundscheck checkbounds(src, soffs)
   @boundscheck checkbounds(src, soffs+n-1)
-  unsafe_copyto!(dest, doffs, buffer(src), soffs, n; blocking=true)
+  unsafe_copyto!(dest, doffs, src, soffs, n; blocking=true)
   return dest
 end
 Base.copyto!(dest::Array{T}, src::CLArray{T}) where {T} =
@@ -162,71 +202,38 @@ function Base.copyto!(dest::CLArray{T}, doffs::Int, src::CLArray{T}, soffs::Int,
   @boundscheck checkbounds(src, soffs)
   @boundscheck checkbounds(src, soffs+n-1)
   @assert context(dest) == context(src)
-  unsafe_copyto!(buffer(dest), doffs, buffer(src), soffs, n)
+  unsafe_copyto!(dest, doffs, src, soffs, n)
   return dest
 end
-
 Base.copyto!(dest::CLArray{T}, src::CLArray{T}) where {T} =
     copyto!(dest, 1, src, 1, length(src))
 
-
-## show
-
-Base.show(io::IO, A::CLArray{T,N}) where {T, N} =
-    print(io, "CLArray{$T,$N}($(buffer(A)),$(size(A)))")
-
-
-## other array operations
-
-const TRANSPOSE_FLOAT_PROGRAM_PATH = joinpath(@__DIR__, "kernels", "transpose_float.cl")
-const TRANSPOSE_DOUBLE_PROGRAM_PATH = joinpath(@__DIR__, "kernels", "transpose_double.cl")
-
-function max_block_size(h::Int, w::Int)
-    dim1, dim2 = cl.device().max_work_item_size[1:2]
-    wgsize = cl.device().max_work_group_size
-    wglimit = floor(Int, sqrt(wgsize))
-    return gcd(dim1, dim2, h, w, wglimit)
-end
-
-"""
-Transpose CLMatrix A, write result to a preallicated CLMatrix B
-"""
-function LinearAlgebra.transpose!(B::CLMatrix{Float32}, A::CLMatrix{Float32})
-    block_size = max_block_size(size(A, 1), size(A, 2))
-    kernel = get_kernel(TRANSPOSE_FLOAT_PROGRAM_PATH, "transpose",
-                        block_size=block_size)
-    h, w = size(A)
-    lmem = cl.LocalMem(Float32, block_size * (block_size + 1))
-    return cl.call(kernel, buffer(B), buffer(A), UInt32(h), UInt32(w), lmem;
-                   global_size=(h, w), local_size=(block_size, block_size))
-end
-
-"""Transpose CLMatrix A"""
-function LinearAlgebra.transpose(A::CLMatrix{Float32})
-    B = zeros(Float32, reverse(size(A))...)
-    ev = LinearAlgebra.transpose!(B, A)
-    wait(ev)
-    return B
-end
-
-"""Transpose CLMatrix A, write result to a preallicated CLMatrix B"""
-function LinearAlgebra.transpose!(B::CLMatrix{Float64}, A::CLMatrix{Float64})
-    if !in("cl_khr_fp64", cl.device().extensions)
-        throw(ArgumentError("Double precision not supported by device"))
+for (srcty, dstty) in [(:Array, :CLArray), (:CLArray, :Array), (:CLArray, :CLArray)]
+    @eval begin
+        function Base.unsafe_copyto!(dst::$dstty{T}, dst_off::Int,
+                                     src::$srcty{T}, src_off::Int,
+                                     N::Int; blocking::Bool=false) where T
+            nbytes = N * sizeof(T)
+            cl.enqueue_svm_memcpy(pointer(dst, dst_off), pointer(src, src_off), nbytes;
+                                  blocking)
+        end
+        Base.unsafe_copyto!(dst::$dstty, src::$srcty, N; kwargs...) =
+            unsafe_copyto!(dst, 1, src, 1, N; kwargs...)
     end
-    block_size = max_block_size(size(A, 1), size(A, 2))
-    kernel = get_kernel(TRANSPOSE_DOUBLE_PROGRAM_PATH, "transpose",
-                        block_size=block_size)
-    h, w = size(A)
-    lmem = cl.LocalMem(Float32, block_size * (block_size + 1))
-    return cl.call(kernel, buffer(B), buffer(A), UInt32(h), UInt32(w), lmem;
-                   global_size=(h, w), local_size=(block_size, block_size))
 end
 
-"""Transpose CLMatrix A"""
-function LinearAlgebra.transpose(A::CLMatrix{Float64})
-    B = zeros(Float64, reverse(size(A))...)
-    ev = LinearAlgebra.transpose!(B, A)
-    wait(ev)
-    return B
-end
+
+## broadcasting
+
+using Base.Broadcast: BroadcastStyle, Broadcasted
+
+struct CLArrayStyle{N} <: AbstractGPUArrayStyle{N} end
+CLArrayStyle{M}(::Val{N}) where {N,M} = CLArrayStyle{N}()
+
+# identify the broadcast style of a (wrapped) array
+BroadcastStyle(::Type{<:CLArray{T,N}}) where {T,N} = CLArrayStyle{N}()
+BroadcastStyle(::Type{<:AnyCLArray{T,N}}) where {T,N} = CLArrayStyle{N}()
+
+# allocation of output arrays
+Base.similar(bc::Broadcasted{CLArrayStyle{N}}, ::Type{T}, dims) where {T,N} =
+    similar(CLArray{T}, dims)

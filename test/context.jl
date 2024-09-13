@@ -1,23 +1,16 @@
 @testset "Context" begin
     @testset "constructor" begin
         @test_throws MethodError (cl.Context([]))
+
         ctx = cl.Context(cl.device())
         @test ctx != nothing
-        ctx_id = ctx.id
-        ctx2 = cl.Context(ctx_id)
-        @test cl.is_ctx_id_alive(ctx_id)
-        @test ctx.id != C_NULL
-        @test ctx2.id != C_NULL
-        finalize(ctx)
-        @test ctx.id == C_NULL
-        @test ctx2.id != C_NULL
-        @test cl.is_ctx_id_alive(ctx_id)
+        @test ctx.reference_count == 1
+        ctx_id = pointer(ctx)
+
+        ctx2 = cl.Context(ctx_id; retain=true)
+        @test ctx.reference_count == 2
         finalize(ctx2)
-        @test ctx.id == C_NULL
-        @test ctx2.id == C_NULL
-        # jeez, this segfaults... WHY? I suspect a driver bug for refcount == 0?
-        # NVIDIA 381.22
-        #@test !cl.is_ctx_id_alive(ctx_id)
+        @test ctx.reference_count == 1
 
         # TODO: support switching contexts
         #@testset "Context callback" begin

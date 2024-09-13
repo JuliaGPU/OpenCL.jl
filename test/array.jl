@@ -38,10 +38,5 @@ using LinearAlgebra
         # reshape
         B = reshape(A, 128*64)
         @test reshape(B, 128, 64) == A
-
-        # transpose
-        B = OpenCL.zeros(Float32, 64, 128)
-        ev = transpose!(B, A)
-        @test Array(A)' == Array(B)
     end
 end
