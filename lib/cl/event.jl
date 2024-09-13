@@ -3,45 +3,30 @@
 abstract type AbstractEvent <: CLObject end
 
 mutable struct Event <: AbstractEvent
-    id::cl_event
+    const id::cl_event
 
-    function Event(evt_id; retain=false)
-        if retain
-            clRetainEvent(evt_id)
-        end
+    function Event(evt_id; retain::Bool=false)
         evt = new(evt_id)
-        finalizer(_finalize, evt)
+        retain && clRetainEvent(evt)
+        finalizer(clReleaseEvent, evt)
         return evt
     end
 end
 
 # wait for completion before running finalizer
 mutable struct NannyEvent <: AbstractEvent
-    id::cl_event
-    obj::Any
+    const id::cl_event
+    const obj::Any
 
-    function NannyEvent(evt_id, obj; retain=false)
-        if retain
-            clRetainEvent(evt_id)
-        end
+    function NannyEvent(evt_id, obj; retain::Bool=false)
         nanny_evt = new(evt_id, obj)
-        finalizer(nanny_evt) do x
-            x.id != C_NULL && wait(x)
-            x.obj = nothing
-            _finalize(x)
-        end
+        retain && clRetainEvent(nanny_evt)
+        finalizer(clReleaseEvent, nanny_evt)
         nanny_evt
     end
 end
 
-function _finalize(evt::AbstractEvent)
-    if evt.id != C_NULL
-        clReleaseEvent(evt)
-        evt.id = C_NULL
-    end
-end
-
-NannyEvent(evt::Event, obj; retain=false) = NannyEvent(evt.id, obj, retain=retain)
+NannyEvent(evt::Event, obj; retain=false) = NannyEvent(evt.id, obj; retain)
 
 macro return_event(evt)
     quote
@@ -76,14 +61,12 @@ function Base.show(io::IO, evt::Event)
 end
 
 mutable struct UserEvent <: AbstractEvent
-    id::cl_event
+    const id::cl_event
 
-    function UserEvent(evt_id::cl_event, retain=false)
-        if retain
-            clRetainEvent(evt_id)
-        end
+    function UserEvent(evt_id::cl_event, retain::Bool=false)
         evt = new(evt_id)
-        finalizer(_finalize, evt)
+        retain && clRetainEvent(evt)
+        finalizer(clReleaseEvent, evt)
         return evt
     end
 end

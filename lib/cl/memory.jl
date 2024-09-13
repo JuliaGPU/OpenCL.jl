@@ -16,13 +16,6 @@ Base.unsafe_convert(::Type{<:Ptr}, mem::AbstractMemory) = mem
 
 Base.sizeof(mem::AbstractMemory) = mem.size
 
-function _finalize(mem::AbstractMemory)
-    if mem.id != C_NULL
-        clReleaseMemObject(mem.id)
-        mem.id = C_NULL
-    end
-end
-
 context(mem::AbstractMemory) = mem.context
 
 function Base.getproperty(mem::AbstractMemory, s::Symbol)

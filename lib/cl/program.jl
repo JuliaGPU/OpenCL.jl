@@ -3,22 +3,13 @@
 using Printf
 
 mutable struct Program <: CLObject
-    id::cl_program
+    const id::cl_program
 
     function Program(program_id::cl_program; retain::Bool=false)
-        if retain
-            clRetainProgram(program_id)
-        end
         p = new(program_id)
-        finalizer(_finalize, p)
+        retain && clRetainProgram(p)
+        finalizer(clReleaseProgram, p)
         return p
-    end
-end
-
-function _finalize(p::Program)
-    if p.id != C_NULL
-        clReleaseProgram(p)
-        p.id = C_NULL
     end
 end
 

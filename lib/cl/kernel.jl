@@ -3,22 +3,13 @@
 export clcall
 
 mutable struct Kernel <: CLObject
-    id::cl_kernel
+    const id::cl_kernel
 
-    function Kernel(k::cl_kernel, retain=false)
-        if retain
-            clRetainKernel(k)
-        end
+    function Kernel(k::cl_kernel, retain::Bool=false)
         kernel = new(k)
-        finalizer(_finalize, kernel)
+        retain && clRetainKernel(kernel)
+        finalizer(clReleaseKernel, kernel)
         return kernel
-    end
-end
-
-function _finalize(k::Kernel)
-    if k.id != C_NULL
-        clReleaseKernel(k.id)
-        k.id = C_NULL
     end
 end
 

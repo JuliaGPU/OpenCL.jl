@@ -1,17 +1,13 @@
 # OpenCL.Buffer
 
 mutable struct Buffer{T} <: AbstractMemory
-    id::cl_mem
-    len::Int
+    const id::cl_mem
+    const len::Int
 
     function Buffer{T}(mem_id::cl_mem, len::Integer; retain::Bool=false) where {T}
-        if retain
-            clRetainMemObject(mem_id)
-        end
         buff = new{T}(mem_id, len)
-        finalizer(buff) do x
-            _finalize(x)
-        end
+        retain && clRetainMemObject(buff)
+        finalizer(clReleaseMemObject, buff)
         return buff
     end
 end

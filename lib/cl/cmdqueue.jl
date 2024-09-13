@@ -1,19 +1,12 @@
 # OpenCL.CmdQueue
 
 mutable struct CmdQueue <: CLObject
-    id::cl_command_queue
+    const id::cl_command_queue
 
-    function CmdQueue(q_id::cl_command_queue; retain=false)
-        if retain
-            clRetainCommandQueue(q_id)
-        end
+    function CmdQueue(q_id::cl_command_queue; retain::Bool=false)
         q = new(q_id)
-        finalizer(q) do x
-            if x.id != C_NULL
-                clReleaseCommandQueue(x)
-                x.id = C_NULL
-            end
-        end
+        retain && clRetainCommandQueue(q)
+        finalizer(clReleaseCommandQueue, q)
         return q
     end
 end
