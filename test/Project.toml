@@ -1,4 +1,5 @@
 [deps]
+IOCapture = "b5f81e59-6552-4d32-b1f0-c071b021bf89"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 pocl_jll = "627d6b7a-bbe6-5189-83e7-98cc0a5aeadd"

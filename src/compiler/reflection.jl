@@ -28,7 +28,7 @@ for method in (:code_typed, :code_warntype, :code_llvm, :code_native)
                          kernel::Bool=false, kwargs...)
             compiler_kwargs, kwargs = split_kwargs_runtime(kwargs, COMPILER_KWARGS)
             source = methodinstance(typeof(func), Base.to_tuple_type(types))
-            config = compiler_config(device(); kernel, compiler_kwargs...)
+            config = compiler_config(cl.device(); kernel, compiler_kwargs...)
             job = CompilerJob(source, config)
             GPUCompiler.$method($(args...); kwargs...)
         end
@@ -66,7 +66,7 @@ Return a type `r` such that `f(args...)::r` where `args::tt`.
 """
 function return_type(@nospecialize(func), @nospecialize(tt))
     source = methodinstance(typeof(func), tt)
-    config = compiler_config(device())
+    config = compiler_config(cl.device())
     job = CompilerJob(source, config)
     interp = GPUCompiler.get_interpreter(job)
     sig = Base.signature_type(func, tt)
