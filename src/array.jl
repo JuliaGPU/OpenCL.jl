@@ -5,12 +5,12 @@ export CLArray, CLMatrix, CLVector, buffer
 mutable struct CLArray{T, N} <: AbstractGPUArray{T, N}
     ctx::cl.Context
 
-    buffer::cl.SVMBuffer{T}
+    buffer::cl.SVMBuffer{UInt8}
 
     dims::NTuple{N, Int}
 
     function CLArray{T,N}(::UndefInitializer, dims::Dims{N}; access=:rw) where {T,N}
-        buf = cl.SVMBuffer{T}(prod(dims), access)
+        buf = cl.SVMBuffer{UInt8}(prod(dims) * sizeof(T), access)
         new(cl.context(), buf, dims)
     end
 
@@ -68,7 +68,8 @@ Base.elsize(::Type{<:CLArray{T}}) where {T} = sizeof(T)
 Base.size(x::CLArray) = x.dims
 Base.sizeof(x::CLArray) = Base.elsize(x) * length(x)
 
-Base.pointer(A::CLArray, i::Integer=1) = pointer(buffer(A), i)
+Base.pointer(A::CLArray{T}, i::Integer=1) where {T} =
+  convert(Ptr{T}, pointer(buffer(A), i))
 
 # XXX: this is wrong
 Base.:(==)(A:: CLArray, B:: CLArray) = buffer(A) == buffer(B) && size(A) == size(B)
@@ -115,7 +116,7 @@ end
 fill(x, dims...) = fill(x, (dims...,))
 
 function Base.fill!(A::CLArray{T}, x::T) where {T}
-    cl.unsafe_fill!(buffer(A), x, length(A))
+    cl.enqueue_svm_fill(pointer(A), x, length(A))
     A
 end
 
@@ -138,7 +139,7 @@ function Base.copyto!(dest::CLArray{T}, doffs::Int, src::Array{T}, soffs::Int,
   @boundscheck checkbounds(dest, doffs+n-1)
   @boundscheck checkbounds(src, soffs)
   @boundscheck checkbounds(src, soffs+n-1)
-  unsafe_copyto!(buffer(dest), doffs, src, soffs, n)
+  unsafe_copyto!(dest, doffs, src, soffs, n)
   return dest
 end
 
@@ -152,7 +153,7 @@ function Base.copyto!(dest::Array{T}, doffs::Int, src::CLArray{T}, soffs::Int,
   @boundscheck checkbounds(dest, doffs+n-1)
   @boundscheck checkbounds(src, soffs)
   @boundscheck checkbounds(src, soffs+n-1)
-  unsafe_copyto!(dest, doffs, buffer(src), soffs, n; blocking=true)
+  unsafe_copyto!(dest, doffs, src, soffs, n; blocking=true)
   return dest
 end
 Base.copyto!(dest::Array{T}, src::CLArray{T}) where {T} =
@@ -166,12 +167,25 @@ function Base.copyto!(dest::CLArray{T}, doffs::Int, src::CLArray{T}, soffs::Int,
   @boundscheck checkbounds(src, soffs)
   @boundscheck checkbounds(src, soffs+n-1)
   @assert context(dest) == context(src)
-  unsafe_copyto!(buffer(dest), doffs, buffer(src), soffs, n)
+  unsafe_copyto!(dest, doffs, src, soffs, n)
   return dest
 end
-
 Base.copyto!(dest::CLArray{T}, src::CLArray{T}) where {T} =
     copyto!(dest, 1, src, 1, length(src))
+
+for (srcty, dstty) in [(:Array, :CLArray), (:CLArray, :Array), (:CLArray, :CLArray)]
+    @eval begin
+        function Base.unsafe_copyto!(dst::$dstty{T}, dst_off::Int,
+                                     src::$srcty{T}, src_off::Int,
+                                     N::Int; blocking::Bool=false) where T
+            nbytes = N * sizeof(T)
+            cl.enqueue_svm_memcpy(pointer(dst, dst_off), pointer(src, src_off), nbytes;
+                                  blocking)
+        end
+        Base.unsafe_copyto!(dst::$dstty, src::$srcty, N; kwargs...) =
+            unsafe_copyto!(dst, 1, src, 1, N; kwargs...)
+    end
+end
 
 
 ## show
