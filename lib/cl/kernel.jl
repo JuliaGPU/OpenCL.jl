@@ -181,8 +181,13 @@ function enqueue_kernel(k::Kernel, global_work_size, local_work_size=nothing;
 end
 
 function call(k::Kernel, args...; global_size=(1,), local_size=nothing,
-              global_work_offset=nothing, wait_on::Vector{Event}=Event[])
+              global_work_offset=nothing, wait_on::Vector{Event}=Event[],
+              svm_pointers::Vector{Ptr{Cvoid}}=Ptr{Cvoid}[])
     set_args!(k, args...)
+    if !isempty(svm_pointers)
+        clSetKernelExecInfo(k, CL_KERNEL_EXEC_INFO_SVM_PTRS,
+                            sizeof(svm_pointers), svm_pointers)
+    end
     enqueue_kernel(k, global_size, local_size; global_work_offset, wait_on)
 end
 
@@ -215,8 +220,8 @@ clcall(f::F, types::Tuple, args::Vararg{Any,N}; kwargs...) where {N,F} =
     clcall(f, _to_tuple_type(types), args...; kwargs...)
 
 function clcall(k::Kernel, types::Type{T}, args::Vararg{Any,N}; kwargs...) where {T,N}
-    call_closure = function (pointers::Vararg{Any,N})
-        call(k, pointers...; kwargs...)
+    call_closure = function (converted_args::Vararg{Any,N})
+        call(k, converted_args...; kwargs...)
     end
     convert_arguments(call_closure, types, args...)
 end

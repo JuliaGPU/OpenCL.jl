@@ -69,7 +69,7 @@ function retry_reclaim(f, isfailed)
     ret
 end
 
-include("../lib/libopencl.jl")
+include("libopencl.jl")
 
 # lazy initialization
 const initialized = Ref{Bool}(false)

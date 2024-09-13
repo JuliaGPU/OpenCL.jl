@@ -3,9 +3,19 @@ steps:
     plugins:
       - JuliaCI/julia#v1:
           version: "1.10"
-      - JuliaCI/julia-test#v1: ~
       - JuliaCI/julia-coverage#v1:
           codecov: true
+    commands: |
+      julia --project -e '
+        using Pkg
+
+        println("--- :julia: Instantiating project")
+        Pkg.develop(path="lib/intrinsics")
+        Pkg.instantiate()
+
+
+        println("+++ :julia: Running tests")
+        Pkg.test(; coverage=true)'
     agents:
       queue: "juliagpu"
       cuda: "*"

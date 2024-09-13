@@ -58,38 +58,64 @@ Available platforms: 3
 
 ## Basic example: vector add
 
+The traditional way of using OpenCL is by writing kernel source code in OpenCL C. For
+example, a simple vector addition:
+
 ```julia
-using LinearAlgebra
 using OpenCL, pocl_jll
 
-const sum_kernel = "
-   __kernel void sum(__global const float *a,
-                     __global const float *b,
-                     __global float *c)
-    {
+const source = """
+   __kernel void vadd(__global const float *a,
+                      __global const float *b,
+                      __global float *c) {
       int gid = get_global_id(0);
       c[gid] = a[gid] + b[gid];
-    }
-"
+    }"""
+
 a = rand(Float32, 50_000)
 b = rand(Float32, 50_000)
 
-a_buff = cl.Buffer(Float32, length(a), (:r, :copy), hostbuf=a)
-b_buff = cl.Buffer(Float32, length(b), (:r, :copy), hostbuf=b)
-c_buff = cl.Buffer(Float32, length(a), :w)
+d_a = CLArray(a; access=:r)
+d_b = CLArray(b; access=:r)
+d_c = similar(d_a; access=:w)
 
-p = cl.Program(source=sum_kernel) |> cl.build!
-k = cl.Kernel(p, "sum")
+p = cl.Program(; source) |> cl.build!
+k = cl.Kernel(p, "vadd")
 
-cl.call(k, a_buff, b_buff, c_buff; global_size=size(a))
+clcall(k, Tuple{Ptr{Float32}, Ptr{Float32}, Ptr{Float32}},
+       d_a, d_b, d_c; global_size=size(a))
 
-r = cl.read(c_buff)
+c = Array(d_c)
 
-if isapprox(norm(r - (a+b)), zero(Float32))
-    @info "Success!"
-else
-    @error "Norm should be 0.0f"
+@assert a + b ≈ c
+```
+
+
+## Native example: vector add
+
+If your platform supports SPIR-V, it's possible to use Julia functions as kernels:
+
+```julia
+using OpenCL, pocl_jll
+
+function vadd(a, b, c)
+    gid = get_global_id(1)
+    @inbounds c[gid] = a[gid] + b[gid]
+    return
 end
+
+a = rand(Float32, 50_000)
+b = rand(Float32, 50_000)
+
+d_a = CLArray(a; access=:r)
+d_b = CLArray(b; access=:r)
+d_c = similar(d_a; access=:w)
+
+@opencl global_size=size(a) vadd(d_a, d_b, d_c)
+
+c = Array(d_c)
+
+@assert a + b ≈ c
 ```
 
 
