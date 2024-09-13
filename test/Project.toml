@@ -1,5 +1,9 @@
 [deps]
+Adapt = "79e6a3ab-5dfb-504d-930d-738a2a938a0e"
 IOCapture = "b5f81e59-6552-4d32-b1f0-c071b021bf89"
+KernelAbstractions = "63c18a36-062a-441e-b654-da1e3ab1ce7c"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+SpecialFunctions = "276daf66-3868-5448-9aa4-cd146d93841b"
+StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 pocl_jll = "627d6b7a-bbe6-5189-83e7-98cc0a5aeadd"

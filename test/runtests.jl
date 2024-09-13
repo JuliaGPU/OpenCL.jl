@@ -28,6 +28,7 @@ include("buffer.jl")
 
 include("array.jl")
 include("execution.jl")
+include("kernelabstractions.jl")
 
 end
 
