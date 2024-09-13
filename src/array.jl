@@ -5,17 +5,22 @@ export CLArray, CLMatrix, CLVector, buffer
 mutable struct CLArray{T, N} <: AbstractGPUArray{T, N}
     ctx::cl.Context
 
-    buffer::cl.SVMBuffer{UInt8}
+    data::DataRef{cl.SVMBuffer{UInt8}}
+    offset::Int # offset in number of elements
 
     dims::NTuple{N, Int}
 
+    # allocating constructor
     function CLArray{T,N}(::UndefInitializer, dims::Dims{N}; access=:rw) where {T,N}
         buf = cl.SVMBuffer{UInt8}(prod(dims) * sizeof(T), access)
-        new(cl.context(), buf, dims)
+        ref = DataRef(identity, buf)
+        new(cl.context(), ref, 0, dims)
     end
 
-    function CLArray{T,N}(buf::cl.SVMBuffer, dims::Dims) where {T,N}
-        new(cl.context(), buf, dims)
+    # low-level constructor for wrapping existing data
+    function CLArray{T,N}(ref::DataRef{cl.SVMBuffer{UInt8}}, dims::Dims;
+                          offset::Int=0) where {T,N}
+        new(cl.context(), ref, offset, dims)
     end
 end
 
@@ -61,23 +66,53 @@ end
 ## array interface
 
 context(A::CLArray) = A.ctx
-buffer(A::CLArray) = A.buffer
+buffer(A::CLArray) = A.data[]
 
 Base.elsize(::Type{<:CLArray{T}}) where {T} = sizeof(T)
 
 Base.size(x::CLArray) = x.dims
 Base.sizeof(x::CLArray) = Base.elsize(x) * length(x)
 
-Base.pointer(A::CLArray{T}, i::Integer=1) where {T} =
-  convert(Ptr{T}, pointer(buffer(A), i))
+Base.unsafe_convert(::Type{Ptr{T}}, x::CLArray{T}) where {T} =
+    convert(Ptr{T}, pointer(x.data[])) + x.offset*Base.elsize(x)
 
 # XXX: this is wrong
 Base.:(==)(A:: CLArray, B:: CLArray) = buffer(A) == buffer(B) && size(A) == size(B)
 
-function Base.reshape(A::CLArray{T}, dims::NTuple{N,Int}) where {T,N}
-    @assert prod(dims) == prod(size(A))
-    CLArray{T,N}(buffer(A), dims)
+
+
+
+## derived types
+
+export DenseCLArray, DenseJLVector, DenseJLMatrix, DenseJLVecOrMat,
+       StridedCLArray, StridedJLVector, StridedJLMatrix, StridedJLVecOrMat,
+       AnyCLArray, AnyJLVector, AnyJLMatrix, AnyJLVecOrMat
+
+# dense arrays: stored contiguously in memory
+DenseCLArray{T,N} = CLArray{T,N}
+DenseJLVector{T} = DenseCLArray{T,1}
+DenseJLMatrix{T} = DenseCLArray{T,2}
+DenseJLVecOrMat{T} = Union{DenseJLVector{T}, DenseJLMatrix{T}}
+
+# strided arrays
+StridedSubCLArray{T,N,I<:Tuple{Vararg{Union{Base.RangeIndex, Base.ReshapedUnitRange,
+                                            Base.AbstractCartesianIndex}}}} =
+  SubArray{T,N,<:CLArray,I}
+StridedCLArray{T,N} = Union{CLArray{T,N}, StridedSubCLArray{T,N}}
+StridedJLVector{T} = StridedCLArray{T,1}
+StridedJLMatrix{T} = StridedCLArray{T,2}
+StridedJLVecOrMat{T} = Union{StridedJLVector{T}, StridedJLMatrix{T}}
+
+Base.pointer(x::StridedCLArray{T}) where {T} = Base.unsafe_convert(Ptr{T}, x)
+@inline function Base.pointer(x::StridedCLArray{T}, i::Integer) where T
+    Base.unsafe_convert(Ptr{T}, x) + Base._memory_offset(x, i)
 end
+
+# anything that's (secretly) backed by a CLArray
+AnyCLArray{T,N} = Union{CLArray{T,N}, WrappedArray{T,N,CLArray,CLArray{T,N}}}
+AnyJLVector{T} = AnyCLArray{T,1}
+AnyJLMatrix{T} = AnyCLArray{T,2}
+AnyJLVecOrMat{T} = Union{AnyJLVector{T}, AnyJLMatrix{T}}
 
 
 ## conversions
@@ -188,7 +223,17 @@ for (srcty, dstty) in [(:Array, :CLArray), (:CLArray, :Array), (:CLArray, :CLArr
 end
 
 
-## show
+## broadcasting
 
-Base.show(io::IO, A::CLArray{T,N}) where {T, N} =
-    print(io, "CLArray{$T,$N}($(buffer(A)),$(size(A)))")
+using Base.Broadcast: BroadcastStyle, Broadcasted
+
+struct CLArrayStyle{N} <: AbstractGPUArrayStyle{N} end
+CLArrayStyle{M}(::Val{N}) where {N,M} = CLArrayStyle{N}()
+
+# identify the broadcast style of a (wrapped) array
+BroadcastStyle(::Type{<:CLArray{T,N}}) where {T,N} = CLArrayStyle{N}()
+BroadcastStyle(::Type{<:AnyCLArray{T,N}}) where {T,N} = CLArrayStyle{N}()
+
+# allocation of output arrays
+Base.similar(bc::Broadcasted{CLArrayStyle{N}}, ::Type{T}, dims) where {T,N} =
+    similar(CLArray{T}, dims)

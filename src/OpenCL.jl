@@ -44,5 +44,6 @@ include("compiler/reflection.jl")
 # high-level functionality
 include("util.jl")
 include("array.jl")
+include("gpuarrays.jl")
 
 end
