@@ -4,8 +4,10 @@ export CLArray, CLMatrix, CLVector, buffer
 
 mutable struct CLArray{T, N} <: AbstractGPUArray{T, N}
     ctx::cl.Context
-    buffer::cl.SVMBuffer{T} # XXX: support regular buffers too?
-    size::NTuple{N, Int}
+
+    buffer::cl.SVMBuffer{T}
+
+    dims::NTuple{N, Int}
 
     function CLArray{T,N}(::UndefInitializer, dims::Dims{N}; access=:rw) where {T,N}
         buf = cl.SVMBuffer{T}(prod(dims), access)
@@ -61,12 +63,14 @@ end
 context(A::CLArray) = A.ctx
 buffer(A::CLArray) = A.buffer
 
+Base.elsize(::Type{<:CLArray{T}}) where {T} = sizeof(T)
+
+Base.size(x::CLArray) = x.dims
+Base.sizeof(x::CLArray) = Base.elsize(x) * length(x)
+
 Base.pointer(A::CLArray, i::Integer=1) = pointer(buffer(A), i)
-Base.eltype(A::CLArray{T, N}) where {T, N} = T
-Base.size(A::CLArray) = A.size
-Base.size(A::CLArray, dim::Integer) = A.size[dim]
-Base.ndims(A::CLArray) = length(size(A))
-Base.length(A::CLArray) = prod(size(A))
+
+# XXX: this is wrong
 Base.:(==)(A:: CLArray, B:: CLArray) = buffer(A) == buffer(B) && size(A) == size(B)
 
 function Base.reshape(A::CLArray{T}, dims::NTuple{N,Int}) where {T,N}
