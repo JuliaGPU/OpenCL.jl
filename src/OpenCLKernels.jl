@@ -153,7 +153,7 @@ end
 
 @device_override @inline function KA.SharedMemory(::Type{T}, ::Val{Dims}, ::Val{Id}) where {T, Dims, Id}
     ptr = SPIRVIntrinsics.emit_localmemory(T, Val(prod(Dims)))
-    oneDeviceArray(Dims, ptr)
+    CLDeviceArray(Dims, ptr)
 end
 
 @device_override @inline function KA.Scratchpad(ctx, ::Type{T}, ::Val{Dims}) where {T, Dims}
@@ -174,6 +174,6 @@ end
 
 ## Other
 
-KA.argconvert(::KA.Kernel{OpenCLBackend}, arg) = kernel_convert(arg)
+KA.argconvert(::KA.Kernel{OpenCLBackend}, arg) = clconvert(arg)
 
 end
