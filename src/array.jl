@@ -234,3 +234,18 @@ BroadcastStyle(::Type{<:AnyCLArray{T,N}}) where {T,N} = CLArrayStyle{N}()
 # allocation of output arrays
 Base.similar(bc::Broadcasted{CLArrayStyle{N}}, ::Type{T}, dims) where {T,N} =
     similar(CLArray{T}, dims)
+
+
+## regular gpu array adaptor
+
+# We don't convert isbits types in `adapt`, since they are already
+# considered GPU-compatible.
+
+Adapt.adapt_storage(::Type{CLArray}, xs::AT) where {AT<:AbstractArray} =
+  isbitstype(AT) ? xs : convert(CLArray, xs)
+
+# if specific type parameters are specified, preserve those
+Adapt.adapt_storage(::Type{<:CLArray{T}}, xs::AT) where {T, AT<:AbstractArray} =
+  isbitstype(AT) ? xs : convert(CLArray{T}, xs)
+Adapt.adapt_storage(::Type{<:CLArray{T, N}}, xs::AT) where {T, N, AT<:AbstractArray} =
+  isbitstype(AT) ? xs : convert(CLArray{T,N}, xs)
