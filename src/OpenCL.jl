@@ -46,4 +46,8 @@ include("util.jl")
 include("array.jl")
 include("gpuarrays.jl")
 
+include("OpenCLKernels.jl")
+import .OpenCLKernels: OpenCLBackend
+export OpenCLBackend
+
 end

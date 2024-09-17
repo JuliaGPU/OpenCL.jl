@@ -76,10 +76,7 @@ Base.sizeof(x::CLArray) = Base.elsize(x) * length(x)
 Base.unsafe_convert(::Type{Ptr{T}}, x::CLArray{T}) where {T} =
     convert(Ptr{T}, pointer(x.data[])) + x.offset*Base.elsize(x)
 
-# XXX: this is wrong
-Base.:(==)(A:: CLArray, B:: CLArray) = buffer(A) == buffer(B) && size(A) == size(B)
-
-
+Base.:(==)(A::CLArray, B::CLArray) = Array(A) == Array(B)
 
 
 ## derived types
@@ -151,7 +148,7 @@ end
 fill(x, dims...) = fill(x, (dims...,))
 
 function Base.fill!(A::CLArray{T}, x::T) where {T}
-    cl.enqueue_svm_fill(pointer(A), x, length(A))
+    isempty(A) || cl.enqueue_svm_fill(pointer(A), x, length(A))
     A
 end
 
@@ -237,3 +234,18 @@ BroadcastStyle(::Type{<:AnyCLArray{T,N}}) where {T,N} = CLArrayStyle{N}()
 # allocation of output arrays
 Base.similar(bc::Broadcasted{CLArrayStyle{N}}, ::Type{T}, dims) where {T,N} =
     similar(CLArray{T}, dims)
+
+
+## regular gpu array adaptor
+
+# We don't convert isbits types in `adapt`, since they are already
+# considered GPU-compatible.
+
+Adapt.adapt_storage(::Type{CLArray}, xs::AT) where {AT<:AbstractArray} =
+  isbitstype(AT) ? xs : convert(CLArray, xs)
+
+# if specific type parameters are specified, preserve those
+Adapt.adapt_storage(::Type{<:CLArray{T}}, xs::AT) where {T, AT<:AbstractArray} =
+  isbitstype(AT) ? xs : convert(CLArray{T}, xs)
+Adapt.adapt_storage(::Type{<:CLArray{T, N}}, xs::AT) where {T, N, AT<:AbstractArray} =
+  isbitstype(AT) ? xs : convert(CLArray{T,N}, xs)
