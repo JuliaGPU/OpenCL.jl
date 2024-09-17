@@ -148,7 +148,7 @@ end
 fill(x, dims...) = fill(x, (dims...,))
 
 function Base.fill!(A::CLArray{T}, x::T) where {T}
-    cl.enqueue_svm_fill(pointer(A), x, length(A))
+    isempty(A) || cl.enqueue_svm_fill(pointer(A), x, length(A))
     A
 end
 
