@@ -34,6 +34,9 @@ function runtests(f, name)
             wait(@spawnat 1 print_testworker_started(name, id))
         end
 
+        # some tests require native execution capabilities
+        requires_il = name in ["execution", "kernelabstractions"]
+
         ex = quote
             GC.gc(true)
             Random.seed!(1)
@@ -46,7 +49,9 @@ function runtests(f, name)
                     cl.platform!(platform)
                     cl.device!(device)
 
-                    $f()
+                    if !$requires_il || "cl_khr_il_program" in device.extensions
+                        $f()
+                    end
                 end
             end
         end
