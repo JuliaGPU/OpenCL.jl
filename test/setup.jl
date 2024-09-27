@@ -15,6 +15,38 @@ const KATestSuite = let
     mod.Testsuite
 end
 
+# GPUArrays has a testsuite that isn't part of the main package.
+# Include it directly.
+const GPUArraysTestSuite = let
+    mod = @eval module $(gensym())
+        using ..Test
+        import GPUArrays
+        gpuarrays = pathof(GPUArrays)
+        gpuarrays_root = dirname(dirname(gpuarrays))
+        include(joinpath(gpuarrays_root, "test", "testsuite.jl"))
+    end
+    mod.TestSuite
+end
+testf(f, xs...; kwargs...) = GPUArraysTestSuite.compare(f, CLArray, xs...; kwargs...)
+
+const device_eltypes = Dict()
+function GPUArraysTestSuite.supported_eltypes(::Type{<:CLArray})
+    get!(device_eltypes, cl.device()) do
+        types = [Int16, Int32, Int64,
+                 Complex{Int16}, Complex{Int32}, Complex{Int64},
+                 Float32, ComplexF32]
+        if "cl_khr_fp64" in cl.device().extensions
+            push!(types, Float64)
+            push!(types, ComplexF64)
+        end
+        if "cl_khr_fp16" in cl.device().extensions
+            push!(types, Float16)
+            push!(types, ComplexF16)
+        end
+        return types
+    end
+end
+
 using Random
 
 
@@ -35,7 +67,8 @@ function runtests(f, name)
         end
 
         # some tests require native execution capabilities
-        requires_il = name in ["execution", "kernelabstractions"]
+        requires_il = name in ["execution", "kernelabstractions"] ||
+                      startswith(name, "gpuarrays/")
 
         ex = quote
             GC.gc(true)
