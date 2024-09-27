@@ -1,7 +1,3 @@
-if !in("cl_khr_il_program", cl.device().extensions)
-@warn "Skipping execution tests on $(cl.platform().name)"
-else
-
 @testset "execution" begin
 
 @testset "@opencl" begin
@@ -116,8 +112,6 @@ end
 a = CLArray{Int}(undef, 10)
 @opencl global_size=length(a) memset(a, 42)
 @test all(Array(a) .== 42)
-
-end
 
 end
 
