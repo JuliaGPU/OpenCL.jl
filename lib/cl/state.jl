@@ -91,6 +91,17 @@ function context()
     end::Context
 end
 
+# temporarily switch the current device to a different device
+function device!(f::Base.Callable, args...)
+    old = device()
+    device!(args...)
+    try
+        f()
+    finally
+        device!(old)
+    end
+end
+
 
 ## per-task queues
 
