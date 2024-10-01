@@ -167,7 +167,7 @@ typetagdata(a::CLArray, i=1) =
 
 function Base.copyto!(dest::CLArray{T}, doffs::Int, src::Array{T}, soffs::Int,
                       n::Int) where T
-  n==0 && return dest
+  (n == 0 || sizeof(T) == 0) && return dest
   @boundscheck checkbounds(dest, doffs)
   @boundscheck checkbounds(dest, doffs+n-1)
   @boundscheck checkbounds(src, soffs)
@@ -181,7 +181,7 @@ Base.copyto!(dest::CLArray{T}, src::Array{T}) where {T} =
 
 function Base.copyto!(dest::Array{T}, doffs::Int, src::CLArray{T}, soffs::Int,
                       n::Int) where T
-  n==0 && return dest
+  (n == 0 || sizeof(T) == 0) && return dest
   @boundscheck checkbounds(dest, doffs)
   @boundscheck checkbounds(dest, doffs+n-1)
   @boundscheck checkbounds(src, soffs)
@@ -194,7 +194,7 @@ Base.copyto!(dest::Array{T}, src::CLArray{T}) where {T} =
 
 function Base.copyto!(dest::CLArray{T}, doffs::Int, src::CLArray{T}, soffs::Int,
                       n::Int) where T
-  n==0 && return dest
+  (n == 0 || sizeof(T) == 0) && return dest
   @boundscheck checkbounds(dest, doffs)
   @boundscheck checkbounds(dest, doffs+n-1)
   @boundscheck checkbounds(src, soffs)
