@@ -133,8 +133,7 @@ function Base.cconvert(::Type{Ptr{T}}, A::CLArray{T}) where T
 end
 
 function Adapt.adapt_storage(to::KernelAdaptor, xs::CLArray{T,N}) where {T,N}
-    ptr = adapt(to, buffer(xs))
-    CLDeviceArray{T,N,AS.Global}(size(xs), reinterpret(LLVMPtr{T,AS.Global}, ptr))
+    CLDeviceArray{T,N,AS.Global}(size(xs), reinterpret(LLVMPtr{T,AS.Global}, pointer(xs)))
 end
 
 
