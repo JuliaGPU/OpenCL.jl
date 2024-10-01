@@ -6,6 +6,7 @@ using SPIRV_LLVM_Translator_unified_jll
 using Adapt
 using Reexport
 using GPUArrays
+using Random
 
 using Core: LLVMPtr
 
