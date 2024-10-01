@@ -250,3 +250,36 @@ Adapt.adapt_storage(::Type{<:CLArray{T}}, xs::AT) where {T, AT<:AbstractArray} =
   isbitstype(AT) ? xs : convert(CLArray{T}, xs)
 Adapt.adapt_storage(::Type{<:CLArray{T, N}}, xs::AT) where {T, N, AT<:AbstractArray} =
   isbitstype(AT) ? xs : convert(CLArray{T,N}, xs)
+
+
+## resizing
+
+"""
+  resize!(a::MtlVector, n::Integer)
+
+Resize `a` to contain `n` elements. If `n` is smaller than the current collection length,
+the first `n` elements will be retained. If `n` is larger, the new elements are not
+guaranteed to be initialized.
+"""
+function Base.resize!(A::CLArray{T}, n::Integer) where T
+    # TODO: add additional space to allow for quicker resizing
+    nbytes = n * sizeof(T)
+
+    # replace the data with a new one. this 'unshares' the array.
+    # as a result, we can safely support resizing unowned buffers.
+    buf = cl.device!(only(A.ctx.devices)) do
+        # XXX: preserve original access mode
+        cl.SVMBuffer{UInt8}(nbytes, :rw)
+    end
+    m = min(length(A), n)
+    if m > 0
+        cl.enqueue_svm_memcpy(pointer(buf), pointer(A), m*sizeof(T); blocking=false)
+    end
+    new_data = DataRef(identity, buf)
+
+    A.data = new_data
+    A.dims = (n,)
+    A.offset = 0
+
+    A
+end
