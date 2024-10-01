@@ -36,6 +36,7 @@ let
     end
 end
 include("device/array.jl")
+include("device/quirks.jl")
 
 # compiler implementation
 include("compiler/compilation.jl")
