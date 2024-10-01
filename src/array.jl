@@ -114,13 +114,15 @@ AnyJLVecOrMat{T} = Union{AnyJLVector{T}, AnyJLMatrix{T}}
 
 ## conversions
 
-function CLArray(hostarray::AbstractArray{T,N}; kwargs...) where {T, N}
+function CLArray{T,N}(hostarray::AbstractArray; kwargs...) where {T, N}
     arr = CLArray{T,N}(undef, size(hostarray); kwargs...)
-    copyto!(arr, hostarray)
+    copyto!(arr, convert(Array{T}, hostarray))
     return arr
 end
+CLArray{T}(xs::AbstractArray{<:Any,N}; kwargs...) where {T,N} = CLArray{T,N}(xs; kwargs...)
+CLArray(A::AbstractArray{T,N}; kwargs...) where {T,N} = CLArray{T,N}(A; kwargs...)
 
-function Base.Array(A::CLArray{T,N}) where {T, N}
+function Base.Array{T,N}(A::CLArray{T,N}) where {T,N}
     hA = Array{T}(undef, size(A)...)
     copyto!(hA, A)
     return hA
