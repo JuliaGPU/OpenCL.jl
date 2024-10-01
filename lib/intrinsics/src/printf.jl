@@ -181,7 +181,7 @@ end
 @doc (@doc @print) ->
 macro println(parts...)
     esc(quote
-        oneAPI.@print($(parts...), "\n")
+        $SPIRVIntrinsics.@print($(parts...), "\n")
     end)
 end
 
@@ -197,8 +197,8 @@ GPU analog of `Base.@show`. It comes with the same type restrictions as [`@print
 macro show(exs...)
     blk = Expr(:block)
     for ex in exs
-        push!(blk.args, :(oneAPI.@println($(sprint(Base.show_unquoted,ex)*" = "),
-                                          begin local value = $(esc(ex)) end)))
+        push!(blk.args, :($SPIRVIntrinsics.@println($(sprint(Base.show_unquoted,ex)*" = "),
+                                                    begin local value = $(esc(ex)) end)))
     end
     isempty(exs) || push!(blk.args, :value)
     blk

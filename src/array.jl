@@ -114,13 +114,15 @@ AnyJLVecOrMat{T} = Union{AnyJLVector{T}, AnyJLMatrix{T}}
 
 ## conversions
 
-function CLArray(hostarray::AbstractArray{T,N}; kwargs...) where {T, N}
+function CLArray{T,N}(hostarray::AbstractArray; kwargs...) where {T, N}
     arr = CLArray{T,N}(undef, size(hostarray); kwargs...)
-    copyto!(arr, hostarray)
+    copyto!(arr, convert(Array{T}, hostarray))
     return arr
 end
+CLArray{T}(xs::AbstractArray{<:Any,N}; kwargs...) where {T,N} = CLArray{T,N}(xs; kwargs...)
+CLArray(A::AbstractArray{T,N}; kwargs...) where {T,N} = CLArray{T,N}(A; kwargs...)
 
-function Base.Array(A::CLArray{T,N}) where {T, N}
+function Base.Array{T,N}(A::CLArray{T,N}) where {T,N}
     hA = Array{T}(undef, size(A)...)
     copyto!(hA, A)
     return hA
@@ -131,8 +133,7 @@ function Base.cconvert(::Type{Ptr{T}}, A::CLArray{T}) where T
 end
 
 function Adapt.adapt_storage(to::KernelAdaptor, xs::CLArray{T,N}) where {T,N}
-    ptr = adapt(to, buffer(xs))
-    CLDeviceArray{T,N,AS.Global}(size(xs), reinterpret(LLVMPtr{T,AS.Global}, ptr))
+    CLDeviceArray{T,N,AS.Global}(size(xs), reinterpret(LLVMPtr{T,AS.Global}, pointer(xs)))
 end
 
 
@@ -166,7 +167,7 @@ typetagdata(a::CLArray, i=1) =
 
 function Base.copyto!(dest::CLArray{T}, doffs::Int, src::Array{T}, soffs::Int,
                       n::Int) where T
-  n==0 && return dest
+  (n == 0 || sizeof(T) == 0) && return dest
   @boundscheck checkbounds(dest, doffs)
   @boundscheck checkbounds(dest, doffs+n-1)
   @boundscheck checkbounds(src, soffs)
@@ -180,7 +181,7 @@ Base.copyto!(dest::CLArray{T}, src::Array{T}) where {T} =
 
 function Base.copyto!(dest::Array{T}, doffs::Int, src::CLArray{T}, soffs::Int,
                       n::Int) where T
-  n==0 && return dest
+  (n == 0 || sizeof(T) == 0) && return dest
   @boundscheck checkbounds(dest, doffs)
   @boundscheck checkbounds(dest, doffs+n-1)
   @boundscheck checkbounds(src, soffs)
@@ -193,7 +194,7 @@ Base.copyto!(dest::Array{T}, src::CLArray{T}) where {T} =
 
 function Base.copyto!(dest::CLArray{T}, doffs::Int, src::CLArray{T}, soffs::Int,
                       n::Int) where T
-  n==0 && return dest
+  (n == 0 || sizeof(T) == 0) && return dest
   @boundscheck checkbounds(dest, doffs)
   @boundscheck checkbounds(dest, doffs+n-1)
   @boundscheck checkbounds(src, soffs)
@@ -249,3 +250,36 @@ Adapt.adapt_storage(::Type{<:CLArray{T}}, xs::AT) where {T, AT<:AbstractArray} =
   isbitstype(AT) ? xs : convert(CLArray{T}, xs)
 Adapt.adapt_storage(::Type{<:CLArray{T, N}}, xs::AT) where {T, N, AT<:AbstractArray} =
   isbitstype(AT) ? xs : convert(CLArray{T,N}, xs)
+
+
+## resizing
+
+"""
+  resize!(a::MtlVector, n::Integer)
+
+Resize `a` to contain `n` elements. If `n` is smaller than the current collection length,
+the first `n` elements will be retained. If `n` is larger, the new elements are not
+guaranteed to be initialized.
+"""
+function Base.resize!(A::CLArray{T}, n::Integer) where T
+    # TODO: add additional space to allow for quicker resizing
+    nbytes = n * sizeof(T)
+
+    # replace the data with a new one. this 'unshares' the array.
+    # as a result, we can safely support resizing unowned buffers.
+    buf = cl.device!(only(A.ctx.devices)) do
+        # XXX: preserve original access mode
+        cl.SVMBuffer{UInt8}(nbytes, :rw)
+    end
+    m = min(length(A), n)
+    if m > 0
+        cl.enqueue_svm_memcpy(pointer(buf), pointer(A), m*sizeof(T); blocking=false)
+    end
+    new_data = DataRef(identity, buf)
+
+    A.data = new_data
+    A.dims = (n,)
+    A.offset = 0
+
+    A
+end
