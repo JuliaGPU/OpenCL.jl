@@ -259,15 +259,6 @@ try
                         p = recycle_worker(p)
                     else
                         print_testworker_stats(test, wrkr, resp)
-
-                        cpu_rss = resp[6]
-                        if haskey(ENV, "CI") && cpu_rss > 3*2^30
-                            # XXX: collecting garbage
-                            #      after each test, we are leaking CPU memory somewhere.
-                            #      this is a problem on CI, where2 we don't have much RAM.
-                            #      work around this by periodically recycling the worker.
-                            p = recycle_worker(p)
-                        end
                     end
                 end
 
@@ -379,4 +370,3 @@ else
     Test.print_test_errors(o_ts)
     throw(Test.FallbackTestSetException("Test run finished with errors"))
 end
-
