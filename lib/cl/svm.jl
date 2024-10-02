@@ -21,7 +21,10 @@ mutable struct SVMBuffer{T}
         ptr = clSVMAlloc(context(), flags, len * sizeof(T), something(alignment, 0))
         obj = new{T}(ptr, len)
         finalizer(obj) do x
-            # TODO: asynchronous free using clEnqueueSVMFree?
+            # TODO: asynchronous/queue-orsered free using clEnqueueSVMFree?
+            #       this probably needs accurate queue tracking of buffers
+            #       or otherwise we'd still need to synchronize from finalizers.
+            device_synchronize()
             clSVMFree(context(), x)
         end
 
