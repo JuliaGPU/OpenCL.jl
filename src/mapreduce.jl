@@ -148,7 +148,7 @@ function GPUArrays.mapreducedim!(f::F, op::OP, R::AnyCLArray{T},
     kernel_tt = Tuple{Core.Typeof.(kernel_args)...}
     kernel = clfunction(partial_mapreduce_device, kernel_tt)
     wg_info = cl.work_group_info(kernel.fun, cl.device())
-    reduce_items = wg_info.size
+    reduce_items = compute_items(wg_info.size)
 
     # how many groups should we launch?
     #
