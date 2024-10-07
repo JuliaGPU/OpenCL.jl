@@ -81,6 +81,11 @@ for (rootpath, dirs, files) in walkdir(@__DIR__)
   end
 end
 sort!(tests; by=(file)->stat("$(@__DIR__)/$file.jl").size, rev=true)
+## GPUArrays testsuite
+for name in keys(GPUArraysTestSuite.tests)
+    push!(tests, "gpuarrays/$name")
+    test_runners["gpuarrays/$name"] = ()->GPUArraysTestSuite.tests[name](CLArray)
+end
 ## finalize
 unique!(tests)
 
