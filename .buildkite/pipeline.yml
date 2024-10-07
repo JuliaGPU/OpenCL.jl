@@ -10,9 +10,12 @@ steps:
         using Pkg
 
         println("--- :julia: Instantiating project")
-        Pkg.develop(path="lib/intrinsics")
-        Pkg.instantiate()
-
+        try
+          Pkg.instantiate()
+        catch
+          # if we fail to instantiate, assume that we need newer dependencies
+          Pkg.develop(path="lib/intrinsics")
+        end
 
         println("+++ :julia: Running tests")
         Pkg.test(; coverage=true)'
