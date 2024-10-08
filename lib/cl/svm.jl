@@ -28,6 +28,11 @@ mutable struct SVMBuffer{T}
             clSVMFree(context(), x)
         end
 
+        # JuliaGPU/OpenCL.jl#252: uninitialized SVM memory doesn't work on Intel
+        if platform().name == "Intel(R) OpenCL Graphics"
+            len > 0 && enqueue_svm_fill(ptr, zero(T), len)
+        end
+
         return obj
     end
 end
@@ -50,7 +55,7 @@ Base.sizeof(b::SVMBuffer{T}) where {T} = b.len * sizeof(T)
 
 # copy from and to SVM buffers
 function enqueue_svm_memcpy(dst::Ptr, src::Ptr, nbytes::Integer; blocking::Bool=false,
-                             wait_for::Vector{Event}=Event[])
+                            wait_for::Vector{Event}=Event[])
     n_evts  = length(wait_for)
     evt_ids = isempty(wait_for) ? C_NULL : [pointer(evt) for evt in wait_for]
     GC.@preserve wait_for begin
@@ -96,7 +101,7 @@ end
 
 # fill a buffer with a pattern, returning an event
 function enqueue_svm_fill(ptr::Ptr, pattern::T, N::Integer;
-                           wait_for::Vector{Event}=Event[]) where {T}
+                          wait_for::Vector{Event}=Event[]) where {T}
     nbytes = N * sizeof(T)
     nbytes_pattern = sizeof(T)
     @assert nbytes_pattern > 0
