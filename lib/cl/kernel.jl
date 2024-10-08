@@ -66,8 +66,14 @@ function set_arg!(k::Kernel, idx::Integer, arg::SVMBuffer)
     return k
 end
 ## when passing with `clcall`, which has pre-converted the buffer
-function set_arg!(k::Kernel, idx::Integer, arg::Ptr)
+function set_arg!(k::Kernel, idx::Integer, arg::Union{Ptr,Core.LLVMPtr})
+    arg = reinterpret(Ptr{Cvoid}, arg)
     if arg != C_NULL
+        # XXX: this assumes that the receiving argument is pointer-typed, which is not the
+        #      case with Julia's `Ptr` ABI. Instead, one should reinterpret the pointer as a
+        #      `Core.LLVMPtr`, which _is_ pointer-valued. We retain this handling for `Ptr`
+        #      for users passing pointers to OpenCL C, and because `Ptr` is pointer-valued
+        #      starting with Julia 1.12.
         clSetKernelArgSVMPointer(k, cl_uint(idx-1), arg)
     end
     return k
