@@ -1,12 +1,91 @@
 # OpenCL.jl release notes
 
 
-## In development: OpenCL.jl v1.0
+## OpenCL.jl v1.0
 
 This version is a major rewrite of the package, with a focus on unifying the package with
 the rest of the JuliaGPU ecosystem.
 
-Breaking changes:
+### `CLArray` and `clcall`
+
+One major change is that memory management should now be done using `CLArray` objects, which
+are automatically converted to pointers when invoking kernels using the new `clcall`
+function:
+
+```julia-repl
+julia> using OpenCL, pocl_jll
+
+julia> const source = """
+          __kernel void memset(__global float *arr, float val, int len) {
+             int i = get_global_id(0);
+             if (i < len) {
+                arr[i] = val;
+             }
+           }""";
+
+julia> arr = CLArray{Float32}(undef, 4)
+4-element CLArray{Float32, 1}:
+ 0.0
+ 0.0
+ 0.0
+ 0.0
+
+julia> prog = cl.Program(; source) |> cl.build!;
+
+julia> kern = cl.Kernel(prog, "memset");
+
+julia> clcall(kern, Tuple{Ptr{Float32}, Float32, Int32},
+              arr, 42.0, length(arr); global_size=(length(arr),));
+
+julia> arr
+4-element CLArray{Float32, 1}:
+ 42.0
+ 42.0
+ 42.0
+ 42.0
+```
+
+### Julia kernel compilation
+
+On devices that support SPIR-V IL, Julia kernels can be automatically compiled and
+executed using the `@opencl` macro:
+
+```julia-repl
+julia> using OpenCL, pocl_jll
+
+julia> function memset(arr, val)
+           i = get_global_id(1)
+           if i <= length(arr)
+              arr[i] = val
+           end
+           return
+       end;
+
+julia> arr = CLArray{Float32}(undef, 4)
+4-element CLArray{Float32, 1}:
+ 0.0
+ 0.0
+ 0.0
+ 0.0
+
+julia> @opencl global_size=length(arr) memset(arr, 42.0);
+
+julia> arr
+4-element CLArray{Float32, 1}:
+ 42.0
+ 42.0
+ 42.0
+ 42.0
+```
+
+Not many back-ends support SPIR-V IL, so the pocl_jll is provided for users to play with
+this functionality. Currently, our build of pocl only supports CPUs, but that may be
+extended to GPUs in the future. At the same time, it may become possible to cross-compile
+the generated SPIR-V IL back to OpenCL C code for execution on other devices.
+
+### Low-level changes
+
+To make the above possible, many changes have been made to the low-level APIs:
 
 - Context, device and queue arguments have been removed from most APIs, and are now stored
   in task-local storage. These values can be queried (`cl.platform()`, `cl.device()`, etc)
@@ -31,8 +110,8 @@ Breaking changes:
 - Queue and execution capabilities of a device are now to be queried using dedicated
   functions, `cl.queue_properties` and `cl.exec_capabilities`.
 
-New features:
+### Future work
 
-- Loading SPIR-V IL programs is now supported: `cl.Program(il=...)`.
-- Support for POCL has been added. Together with a rework of `OpenCL_jll`, this makes it
-  possible to do `using OpenCL, pocl_jll` and have the POCL platform available.
+More breaking changes are expected in the future, and this release is mostly intended to
+make it possible to experiment with the new features, in order to determine whether
+OpenCL.jl could be used to power the next generation of KernelAbstraction.jl's CPU back-end.
