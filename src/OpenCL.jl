@@ -18,23 +18,8 @@ export cl
 # device functionality
 include("device/runtime.jl")
 import SPIRVIntrinsics
-let
-    # re-export functionality from SPIRVIntrinsics
-    for name in names(SPIRVIntrinsics)
-        name == :SPIRVIntrinsics && continue
-        @eval export $name
-    end
-
-    # import all the others so that the user can refer to them through the OpenCL module
-    for name in names(SPIRVIntrinsics; all=true)
-        # bring all the names of this module in scope
-        name in (:SPIRVIntrinsics, :eval, :include) && continue
-        startswith(string(name), "#") && continue
-        @eval begin
-            using .SPIRVIntrinsics: $name
-        end
-    end
-end
+SPIRVIntrinsics.@import_all
+SPIRVIntrinsics.@reexport_public
 include("device/array.jl")
 include("device/quirks.jl")
 
