@@ -24,6 +24,8 @@ mutable struct CLArray{T, N} <: AbstractGPUArray{T, N}
     end
 end
 
+GPUArrays.storage(a::CLArray) = a.data
+
 
 ## convenience constructors
 
