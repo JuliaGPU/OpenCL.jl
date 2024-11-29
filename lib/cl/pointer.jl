@@ -208,3 +208,4 @@ Base.convert(::Type{RefOrCLRef{T}}, x::AbstractArray{T}) where {T} = convert(CLR
 Base.unsafe_convert(P::Type{RefOrCLRef{T}}, b::CLRefArray{T}) where T =
     Base.bitcast(RefOrCLRef{T}, Base.unsafe_convert(CLRef{T}, b))
 
+
