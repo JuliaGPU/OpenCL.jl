@@ -52,9 +52,32 @@ using Random
 
 ## entry point
 
-function runtests(f, name)
+const targets = []
+
+function runtests(f, name, platform_filter)
     old_print_setting = Test.TESTSET_PRINT_ENABLE[]
     Test.TESTSET_PRINT_ENABLE[] = false
+
+    if isempty(targets)
+        for platform in cl.platforms(),
+            device in cl.devices(platform)
+            if platform_filter !== nothing
+                # filter on the name or vendor
+                names = lowercase.([platform.name, platform.vendor])
+                if !any(contains(platform_filter), names)
+                    continue
+                end
+            end
+            push!(targets, (; platform, device))
+        end
+        if isempty(targets)
+            if platform_filter === nothing
+                throw(ArgumentError("No OpenCL platforms found"))
+            else
+                throw(ArgumentError("No OpenCL platforms found matching $platform_filter"))
+            end
+        end
+    end
 
     try
         # generate a temporary module to execute the tests in
@@ -76,9 +99,7 @@ function runtests(f, name)
             OpenCL.allowscalar(false)
 
             @timed @testset $"$name" begin
-                @testset "\$(device.name)" for platform in cl.platforms(),
-                                               device in cl.devices(platform)
-
+                @testset "\$(device.name)" for (; platform, device) in $targets
                     cl.platform!(platform)
                     cl.device!(device)
 
