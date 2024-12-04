@@ -18,7 +18,7 @@ steps:
         end
 
         println("+++ :julia: Running tests")
-        Pkg.test(; coverage=true)'
+        Pkg.test(; coverage=true, test_args=`--platform cuda`)'
     agents:
       queue: "juliagpu"
       cuda: "*"
