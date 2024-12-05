@@ -10,29 +10,25 @@ macro builtin_ccall(name, ret, argtypes, args...)
     argtypes = argtypes.args
 
     function mangle(T::Type)
-        if T == Cint
+        if T == Int32
             "i"
-        elseif T == Cuint
+        elseif T == UInt32
             "j"
-        elseif T == Clong
+        elseif T == UInt64
             "l"
-        elseif T == Culong
+        elseif T == Int64
             "m"
-        elseif T == Clonglong
-            "x"
-        elseif T == Culonglong
-            "y"
-        elseif T == Cshort
+        elseif T == Int16
             "s"
-        elseif T == Cushort
+        elseif T == UInt16
             "t"
-        elseif T == Cchar
+        elseif T == Int8
             "c"
-        elseif T == Cuchar
+        elseif T == UInt8
             "h"
-        elseif T == Cfloat
+        elseif T == Float32
             "f"
-        elseif T == Cdouble
+        elseif T == Float64
             "d"
         elseif T <: LLVMPtr
             elt, as = T.parameters
