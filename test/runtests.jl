@@ -34,6 +34,7 @@ if do_help
                --list             List all available tests.
                --quickfail        Fail the entire run as soon as a single test errored.
                --jobs=N           Launch `N` processes to perform tests (default: Sys.CPU_THREADS).
+               --platform=NAME    Run tests on the platform named `NAME` (default: all platforms).
 
                Remaining arguments filter the tests that will be executed.""")
     exit(0)
@@ -99,6 +100,8 @@ if do_list
     end
     exit(0)
 end
+## --platform selector
+do_platform, platform = extract_flag!(ARGS, "--platform", nothing)
 ## no options should remain
 optlike_args = filter(startswith("-"), ARGS)
 if !isempty(optlike_args)
@@ -245,8 +248,9 @@ try
                     # run the test
                     running_tests[test] = now()
                     try
-
-                        resp = remotecall_fetch(runtests, wrkr, test_runners[test], test)
+                        resp = remotecall_fetch(runtests, wrkr,
+                                                test_runners[test], test,
+                                                platform)
                     catch e
                         isa(e, InterruptException) && return
                         resp = Any[e]

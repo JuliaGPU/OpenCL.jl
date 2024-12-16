@@ -54,27 +54,27 @@ end
         return Int(scalar[])
     end
     if s === :vendor_id
-        return get_scalar(CL_DEVICE_VENDOR_ID, Cuint)
+        return get_scalar(CL_DEVICE_VENDOR_ID, cl_uint)
     elseif s === :max_compute_units
-        return get_scalar(CL_DEVICE_MAX_COMPUTE_UNITS, Cuint)
+        return get_scalar(CL_DEVICE_MAX_COMPUTE_UNITS, cl_uint)
     elseif s === :max_work_item_dims
-        return get_scalar(CL_DEVICE_MAX_WORK_ITEM_DIMENSIONS, Cuint)
+        return get_scalar(CL_DEVICE_MAX_WORK_ITEM_DIMENSIONS, cl_uint)
     elseif s === :max_clock_frequency
-        return get_scalar(CL_DEVICE_MAX_CLOCK_FREQUENCY, Cuint)
+        return get_scalar(CL_DEVICE_MAX_CLOCK_FREQUENCY, cl_uint)
     elseif s === :address_bits
-        return get_scalar(CL_DEVICE_ADDRESS_BITS, Cuint)
+        return get_scalar(CL_DEVICE_ADDRESS_BITS, cl_uint)
     elseif s === :max_read_image_args
-        return get_scalar(CL_DEVICE_MAX_READ_IMAGE_ARGS, Cuint)
+        return get_scalar(CL_DEVICE_MAX_READ_IMAGE_ARGS, cl_uint)
     elseif s === :max_write_image_args
-        return get_scalar(CL_DEVICE_MAX_WRITE_IMAGE_ARGS, Cuint)
+        return get_scalar(CL_DEVICE_MAX_WRITE_IMAGE_ARGS, cl_uint)
     elseif s === :global_mem_size
-        return get_scalar(CL_DEVICE_GLOBAL_MEM_SIZE, Culong)
+        return get_scalar(CL_DEVICE_GLOBAL_MEM_SIZE, cl_ulong)
     elseif s === :max_mem_alloc_size
-        return get_scalar(CL_DEVICE_MAX_MEM_ALLOC_SIZE, Culong)
+        return get_scalar(CL_DEVICE_MAX_MEM_ALLOC_SIZE, cl_ulong)
     elseif s === :max_const_buffer_size
-        return get_scalar(CL_DEVICE_MAX_CONSTANT_BUFFER_SIZE, Culong)
+        return get_scalar(CL_DEVICE_MAX_CONSTANT_BUFFER_SIZE, cl_ulong)
     elseif s === :local_mem_size
-        return get_scalar(CL_DEVICE_LOCAL_MEM_SIZE, Culong)
+        return get_scalar(CL_DEVICE_LOCAL_MEM_SIZE, cl_ulong)
     elseif s === :max_work_group_size
         return get_scalar(CL_DEVICE_MAX_WORK_GROUP_SIZE, Csize_t)
     elseif s === :max_parameter_size

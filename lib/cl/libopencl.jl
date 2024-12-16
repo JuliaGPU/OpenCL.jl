@@ -17,9 +17,12 @@ function check(f)
     return
 end
 
-const __darwin_intptr_t = Clong
-
-const intptr_t = __darwin_intptr_t
+# TODO: add this to the generator
+const intptr_t = if sizeof(Ptr{Cvoid}) == 8
+    Int64
+else
+    Int32
+end
 
 const cl_int = Int32
 

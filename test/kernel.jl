@@ -132,7 +132,7 @@
         structkernel = cl.Kernel(prg, "structest")
         out = CLArray{Float32}(undef, 2)
         bstruct = (1, Int32(4))
-        clcall(structkernel, Tuple{Ptr{Float32}, Tuple{Clong, Cint}}, out, bstruct)
+        clcall(structkernel, Tuple{Ptr{Float32}, Tuple{Int64, Cint}}, out, bstruct)
         @test Array(out) == [1f0, 4f0]
     end
 

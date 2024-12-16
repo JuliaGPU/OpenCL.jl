@@ -220,7 +220,7 @@ function Base.getproperty(evt::AbstractEvent, s::Symbol)
     function profiling_info(evt::AbstractEvent, profile_info)
         time = Ref{Clong}(0)
         try
-            clGetEventProfilingInfo(evt, profile_info, sizeof(Culong), time, C_NULL)
+            clGetEventProfilingInfo(evt, profile_info, sizeof(cl_ulong), time, C_NULL)
         catch err
             if isa(err, CLError) && err.code == CL_PROFILING_INFO_NOT_AVAILABLE
                 if evt.status != :complete
