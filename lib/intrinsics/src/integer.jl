@@ -45,9 +45,9 @@ end
 
 # specifically typed
 
-@device_function upsample(hi::Cchar, lo::Cuchar) = @builtin_ccall("upsample", Cshort, (Cchar, Cuchar), hi, lo)
-upsample(hi::Cuchar, lo::Cuchar) = @builtin_ccall("upsample", Cushort, (Cuchar, Cuchar), hi, lo)
-upsample(hi::Cshort, lo::Cushort) = @builtin_ccall("upsample", Cint, (Cshort, Cushort), hi, lo)
-upsample(hi::Cushort, lo::Cushort) = @builtin_ccall("upsample", Cuint, (Cushort, Cushort), hi, lo)
-upsample(hi::Cint, lo::Cuint) = @builtin_ccall("upsample", Clong, (Cint, Cuint), hi, lo)
-upsample(hi::Cuint, lo::Cuint) = @builtin_ccall("upsample", Culong, (Cuint, Cuint), hi, lo)
+@device_function upsample(hi::Int8, lo::UInt8) = @builtin_ccall("upsample", Int16, (Int8, UInt8), hi, lo)
+@device_function upsample(hi::UInt8, lo::UInt8) = @builtin_ccall("upsample", UInt16, (UInt8, UInt8), hi, lo)
+@device_function upsample(hi::Int16, lo::UInt16) = @builtin_ccall("upsample", Int32, (Int16, UInt16), hi, lo)
+@device_function upsample(hi::UInt16, lo::UInt16) = @builtin_ccall("upsample", UInt32, (UInt16, UInt16), hi, lo)
+@device_function upsample(hi::Int32, lo::UInt32) = @builtin_ccall("upsample", Int64, (Int32, UInt32), hi, lo)
+@device_function upsample(hi::UInt32, lo::UInt32) = @builtin_ccall("upsample", UInt64, (UInt32, UInt32), hi, lo)
