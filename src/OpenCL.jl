@@ -20,8 +20,12 @@ include("device/runtime.jl")
 import SPIRVIntrinsics
 SPIRVIntrinsics.@import_all
 SPIRVIntrinsics.@reexport_public
+
 include("device/array.jl")
 include("device/quirks.jl")
+include("util.jl")
+include("pool.jl")
+include("array.jl")
 
 #=
 # compiler implementation

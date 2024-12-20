@@ -25,7 +25,7 @@ function free(buf::AbstractBuffer; blocking = false)
         clMemFreeINTEL
     end
     success = freefun(ctx, Ptr{Nothing}(UInt(buf.ptr)))
-	@assert success == cl.CL_SUCCESS
+	@assert success == CL_SUCCESS
 	return success
 end
 
@@ -40,35 +40,35 @@ the device that owns it.
 struct DeviceBuffer <: AbstractBuffer
     ptr::CLPtr{Cvoid}
     bytesize::Int
-    context::cl.Context
-    device::cl.Device
+    context::Context
+    device::Device
 end
 
-function device_alloc(ctx::cl.Context, dev::cl.Device, bytesize::Integer;
+function device_alloc(ctx::Context, dev::Device, bytesize::Integer;
                       alignment::Integer=0, error_code::Ref{Int32}=Ref{Int32}(), properties::Tuple{Vararg{Symbol}}=())
 	flags = 0
 	if !isempty(properties)
 		for i in properties
 			if i == :wc
-				flags |= cl.CL_MEM_ALLOC_WRITE_COMBINED_INTEL
+				flags |= CL_MEM_ALLOC_WRITE_COMBINED_INTEL
 			else
 				@warn "$i not recognized, ignoring flag. Valid optinos include `:wc`, `:ipd`, and `:iph`"
 			end
 		end
 	end
 	
-	ptr = clDeviceMemAllocINTEL(ctx, dev,cl.cl_mem_properties_intel[cl.CL_MEM_ALLOC_FLAGS_INTEL, flags, 0], bytesize, alignment, error_code)
+	ptr = clDeviceMemAllocINTEL(ctx, dev, cl_mem_properties_intel[CL_MEM_ALLOC_FLAGS_INTEL, flags, 0], bytesize, alignment, error_code)
 	
-	@assert error_code[] == cl.CL_SUCCESS
+	@assert error_code[] == CL_SUCCESS
 	#=
 	@info ptr error_code[]
 	result = Ref{UInt64}()
 	@warn result
-	success = clGetMemAllocInfoINTEL(ctx, ptr, cl.CL_MEM_ALLOC_BASE_PTR_INTEL, 
+	success = clGetMemAllocInfoINTEL(ctx, ptr, CL_MEM_ALLOC_BASE_PTR_INTEL, 
         sizeof(UInt64), result, C_NULL)
 	
 	@error success result
-	@assert success == cl.CL_SUCCESS
+	@assert success == CL_SUCCESS
     =#
 	return DeviceBuffer(reinterpret(CLPtr{Cvoid}, ptr), bytesize, ctx, dev)
 end
@@ -92,42 +92,38 @@ Base.convert(::Type{CLPtr{T}}, buf::DeviceBuffer) where {T} =
 
 A buffer of memory on the host. May be accessed by the host, and all devices within the
 host driver. Frequently used as staging areas to transfer data to or from devices.
-
-Note that these buffers need to be made resident to the device, e.g., by using the
-ZE_KERNEL_FLAG_FORCE_RESIDENCY module flag, the ZE_KERNEL_SET_ATTR_INDIRECT_HOST_ACCESS
-kernel attribute, or by calling zeDeviceMakeMemoryResident.
 """
 struct HostBuffer <: AbstractBuffer
     ptr::Ptr{Cvoid}
     bytesize::Int
-    context::cl.Context
+    context::Context
 end
 
-function host_alloc(ctx::cl.Context, bytesize::Integer;
+function host_alloc(ctx::Context, bytesize::Integer;
                       alignment::Integer=0, error_code::Ref{Int32}=Ref{Int32}(), properties::Tuple{Vararg{Symbol}}=())
 	flags = 0
 	if !isempty(properties)
 		for i in properties
 			if i == :wc
-				flags |= cl.CL_MEM_ALLOC_WRITE_COMBINED_INTEL
+				flags |= CL_MEM_ALLOC_WRITE_COMBINED_INTEL
 			else
 				@warn "$i not recognized, ignoring flag. Valid optinos include `:wc`"
 			end
 		end
 	end
 	
-	ptr = clDeviceMemAllocINTEL(ctx, cl.cl_mem_properties_intel[cl.CL_MEM_ALLOC_FLAGS_INTEL, flags, 0], bytesize, alignment, error_code)
+	ptr = clHostMemAllocINTEL(ctx, cl_mem_properties_intel[CL_MEM_ALLOC_FLAGS_INTEL, flags, 0], bytesize, alignment, error_code)
 	
-	@assert error_code[] == cl.CL_SUCCESS
+	@assert error_code[] == CL_SUCCESS
 	#=
 	@info ptr error_code[]
 	result = Ref{UInt64}()
 	@warn result
-	success = clGetMemAllocInfoINTEL(ctx, ptr, cl.CL_MEM_ALLOC_BASE_PTR_INTEL, 
+	success = clGetMemAllocInfoINTEL(ctx, ptr, CL_MEM_ALLOC_BASE_PTR_INTEL, 
         sizeof(UInt64), result, C_NULL)
 	
 	@error success result
-	@assert success == cl.CL_SUCCESS
+	@assert success == CL_SUCCESS
     =#
 	return HostBuffer(ptr, bytesize, ctx)
 end
@@ -169,11 +165,11 @@ A managed buffer that is shared between the host and one or more devices.
 struct SharedBuffer <: AbstractBuffer
     ptr::CLPtr{Cvoid}
     bytesize::Int
-    context::cl.Context
-    device::Union{Nothing,cl.Device}
+    context::Context
+    device::Union{Nothing,Device}
 end
 
-function shared_alloc(ctx::cl.Context, dev::cl.Device, bytesize::Integer;
+function shared_alloc(ctx::Context, dev::Device, bytesize::Integer;
                       alignment::Integer=0, error_code::Ref{Int32}=Ref{Int32}(), properties::Tuple{Vararg{Symbol}}=())
 	flags = 0
 	if !isempty(properties)
@@ -182,29 +178,29 @@ function shared_alloc(ctx::cl.Context, dev::cl.Device, bytesize::Integer;
 		end
 		for i in properties
 			if i == :wc
-				flags |= cl.CL_MEM_ALLOC_WRITE_COMBINED_INTEL
+				flags |= CL_MEM_ALLOC_WRITE_COMBINED_INTEL
 			elseif i == :ipd
-				flags |= cl.CL_MEM_ALLOC_INITIAL_PLACEMENT_DEVICE_INTEL
+				flags |= CL_MEM_ALLOC_INITIAL_PLACEMENT_DEVICE_INTEL
 			elseif i == :iph
-				flags |= cl.CL_MEM_ALLOC_INITIAL_PLACEMENT_HOST_INTEL
+				flags |= CL_MEM_ALLOC_INITIAL_PLACEMENT_HOST_INTEL
 			else
 				@warn "$i not recognized, ignoring flag. Valid optinos include `:wc`, `:ipd`, and `:iph`"
 			end
 		end
 	end
 	
-	ptr = clSharedMemAllocINTEL(ctx, dev, cl.cl_mem_properties_intel[cl.CL_MEM_ALLOC_FLAGS_INTEL, flags, 0], bytesize, alignment, error_code)
+	ptr = clSharedMemAllocINTEL(ctx, dev, cl_mem_properties_intel[CL_MEM_ALLOC_FLAGS_INTEL, flags, 0], bytesize, alignment, error_code)
 	
-	@assert error_code[] == cl.CL_SUCCESS
+	@assert error_code[] == CL_SUCCESS
 	#=
 	@info ptr error_code[]
 	result = Ref{UInt64}()
 	@warn result
-	success = clGetMemAllocInfoINTEL(ctx, ptr, cl.CL_MEM_ALLOC_BASE_PTR_INTEL, 
+	success = clGetMemAllocInfoINTEL(ctx, ptr, CL_MEM_ALLOC_BASE_PTR_INTEL, 
         sizeof(UInt64), result, C_NULL)
 	
 	@error success result
-	@assert success == cl.CL_SUCCESS
+	@assert success == CL_SUCCESS
     =#
 	return SharedBuffer(reinterpret(CLPtr{Cvoid}, ptr), bytesize, ctx, dev)
 end
@@ -257,13 +253,13 @@ function properties(buf::AbstractBuffer)
     zeMemGetAllocProperties(buf.context, pointer(buf), props_ref, dev_ref)
 
 	result = Ref{}()
-	success = clGetMemAllocInfoINTEL(ctx, ptr, cl.CL_MEM_ALLOC_BASE_PTR_INTEL, 
+	success = clGetMemAllocInfoINTEL(ctx, ptr, CL_MEM_ALLOC_BASE_PTR_INTEL, 
         sizeof(UInt64), result, C_NULL)
 
     
     props = props_ref[]
     return (
-        device=cl.Device(dev_ref[], buf.context.driver),
+        device=Device(dev_ref[], buf.context.driver),
         type=props.type,
         id=props.id,
     )
@@ -272,7 +268,7 @@ end
 struct UnknownBuffer <: AbstractBuffer
     ptr::Ptr{Cvoid}
     bytesize::Int
-    context::cl.Context
+    context::Context
 end
 
 Base.pointer(buf::UnknownBuffer) = buf.ptr
@@ -283,7 +279,7 @@ Base.show(io::IO, buf::UnknownBuffer) =
     @printf(io, "UnknownBuffer(%s at %p)", Base.format_bytes(sizeof(buf)), Int(pointer(buf)))
 
 #=
-function lookup_alloc(ctx::cl.Context, ptr::Union{Ptr,CLPtr})
+function lookup_alloc(ctx::Context, ptr::Union{Ptr,CLPtr})
     base_ref = Ref{Ptr{Cvoid}}()
     bytesize_ref = Ref{Csize_t}()
     

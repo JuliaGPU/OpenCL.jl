@@ -11,6 +11,7 @@ Base.:(==)(a::CLObject, b::CLObject) = pointer(a) == pointer(b)
 Base.hash(obj::CLObject, h::UInt) = hash(pointer(obj), h)
 
 # API wrappers
+include("intelfns.jl")
 include("error.jl")
 include("platform.jl")
 include("device.jl")
