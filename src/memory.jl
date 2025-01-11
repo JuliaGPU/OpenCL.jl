@@ -103,18 +103,19 @@ function Base.convert(::Type{Ptr{T}}, managed::Managed{M}) where {T,M}
 end
 
 function Base.unsafe_copyto!(ctx::cl.Context, dev::cl.Device, dst::Union{Ptr{T},cl.CLPtr{T}},
-                             src::Union{Ptr{T},cl.CLPtr{T}}, N::Integer; queu::cl.CmdQueue=cl.queue(), blocking=false, signal_event::Union{cl.Event, Nothing} = nothing, wait_event_list::Vector{cl.Event}) where T
+                             src::Union{Ptr{T},cl.CLPtr{T}}, N::Integer, queu::cl.CmdQueue=cl.queue(), blocking=false, signal_event::Union{cl.Event, Nothing} = nothing, wait_event_list::cl.Event...) where T
     bytes = N*sizeof(T)
     bytes == 0 && return
+    
 
     cl.clEnqueueMemcpyINTEL(
             queu,
             blocking,
-            dst.id,
-            src.id,
+            dst,
+            src,
             bytes,
             length(wait_event_list),
-            wait_event_list,
+            [wait_event_list...],
             signal_event
       )
     

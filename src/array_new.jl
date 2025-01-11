@@ -53,7 +53,7 @@ mutable struct CLArray{T,N,M} <: AbstractGPUArray{T,N}
     end
 
     GPUArrays.cached_alloc((CLArray, cl.device(), T, bufsize, M)) do
-        data = DataRef(release, allocate(M, cl.context(), cl.device(), bufsize, Base.datatype_alignment(T)))
+        data = DataRef(managed -> release(managed.mem), Managed(allocate(M, cl.context(), cl.device(), bufsize, Base.datatype_alignment(T))))
         obj = new{T,N,M}(data, maxsize, 0, dims)
         finalizer(unsafe_free!, obj)
         return obj
@@ -310,8 +310,8 @@ Base.elsize(::Type{<:CLArray{T}}) where {T} = sizeof(T)
 Base.size(x::CLArray) = x.dims
 Base.sizeof(x::CLArray) = Base.elsize(x) * length(x)
 
-context(A::CLArray) = cl.context(A.data[])
-device(A::CLArray) = cl.device(A.data[])
+context(A::CLArray) = cl.context(A.data[].mem)
+device(A::CLArray) = cl.device(A.data[].mem)
 
 buftype(x::CLArray) = buftype(typeof(x))
 buftype(::Type{<:CLArray{<:Any,<:Any,M}}) where {M} = @isdefined(M) ? M : Any
