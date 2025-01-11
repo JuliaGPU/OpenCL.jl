@@ -398,14 +398,14 @@ cl.CLRef{T}() where {T} = cl.CLRefArray(CLArray{T}(undef, 1))
 ## conversions
 
 Base.convert(::Type{T}, x::T) where T <: CLArray = x
-
+#=
 # defer the conversion to Managed, where we handle memory consistency
 # XXX: conversion to Buffer or Managed memory by cconvert?
 Base.unsafe_convert(typ::Type{Ptr{T}}, x::CLArray{T}) where {T} =
   convert(typ, x.data[]) + x.offset * Base.elsize(x)
 Base.unsafe_convert(typ::Type{CLPtr{T}}, x::CLArray{T}) where {T} =
   convert(typ, x.data[]) + x.offset * Base.elsize(x)
-
+=#
 
 ## indexing
 
@@ -486,20 +486,6 @@ function Base.copyto!(dest::DenseCLArray{T}, doffs::Integer, src::DenseCLArray{T
   @boundscheck checkbounds(src, soffs+n-1)
   @assert context(dest) == context(src)
   unsafe_copyto!(context(dest), cl.device(), dest, doffs, src, soffs, n)
-  return dest
-end
-
-Base.copyto!(dest::DenseCLArray{T}, src::DenseCLArray{T}) where {T} =
-    copyto!(dest, 1, src, 1, length(src))
-
-function Base.copyto!(dest::DenseCLArray{T}, doffs::Integer, src::DenseCLArray{T}, soffs::Integer,
-                      n::Integer) where T
-  n==0 && return dest
-  @boundscheck checkbounds(dest, doffs)
-  @boundscheck checkbounds(dest, doffs+n-1)
-  @boundscheck checkbounds(src, soffs)
-  @boundscheck checkbounds(src, soffs+n-1)
-  unsafe_copyto!(dest, doffs, src, soffs, n)
   return dest
 end
 

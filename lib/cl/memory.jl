@@ -20,9 +20,9 @@ Base.unsafe_convert(P::Type{<:Union{Ptr,CLPtr}}, buf::AbstractBuffer) = convert(
 function free(buf::AbstractBuffer; blocking = false)
     ctx = context(buf)
     freefun = if blocking
-        clMemBlockingFreeINTEL
+        ext_clMemBlockingFreeINTEL
     else 
-        clMemFreeINTEL
+        ext_clMemFreeINTEL
     end
     success = freefun(ctx, Ptr{Nothing}(UInt(buf.ptr)))
 	@assert success == CL_SUCCESS
@@ -57,7 +57,7 @@ function device_alloc(ctx::Context, dev::Device, bytesize::Integer;
 		end
 	end
 	
-	ptr = clDeviceMemAllocINTEL(ctx, dev, cl_mem_properties_intel[CL_MEM_ALLOC_FLAGS_INTEL, flags, 0], bytesize, alignment, error_code)
+	ptr = ext_clDeviceMemAllocINTEL(ctx, dev, cl_mem_properties_intel[CL_MEM_ALLOC_FLAGS_INTEL, flags, 0], bytesize, alignment, error_code)
 	
 	@assert error_code[] == CL_SUCCESS
 	#=
@@ -112,7 +112,7 @@ function host_alloc(ctx::Context, bytesize::Integer;
 		end
 	end
 	
-	ptr = clHostMemAllocINTEL(ctx, cl_mem_properties_intel[CL_MEM_ALLOC_FLAGS_INTEL, flags, 0], bytesize, alignment, error_code)
+	ptr = ext_clHostMemAllocINTEL(ctx, cl_mem_properties_intel[CL_MEM_ALLOC_FLAGS_INTEL, flags, 0], bytesize, alignment, error_code)
 	
 	@assert error_code[] == CL_SUCCESS
 	#=
@@ -189,7 +189,7 @@ function shared_alloc(ctx::Context, dev::Device, bytesize::Integer;
 		end
 	end
 	
-	ptr = clSharedMemAllocINTEL(ctx, dev, cl_mem_properties_intel[CL_MEM_ALLOC_FLAGS_INTEL, flags, 0], bytesize, alignment, error_code)
+	ptr = ext_clSharedMemAllocINTEL(ctx, dev, cl_mem_properties_intel[CL_MEM_ALLOC_FLAGS_INTEL, flags, 0], bytesize, alignment, error_code)
 	
 	@assert error_code[] == CL_SUCCESS
 	#=

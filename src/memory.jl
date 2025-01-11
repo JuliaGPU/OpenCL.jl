@@ -27,7 +27,7 @@ end
 
 # wait for the current owner of memory to finish processing
 function synchronize(managed::Managed)
-  synchronize(managed.queue)
+  cl.finish(managed.queue)
   managed.dirty = false
 end
 
@@ -107,18 +107,16 @@ function Base.unsafe_copyto!(ctx::cl.Context, dev::cl.Device, dst::Union{Ptr{T},
     bytes = N*sizeof(T)
     bytes == 0 && return
     
-
-    cl.clEnqueueMemcpyINTEL(
+    cl.ext_clEnqueueMemcpyINTEL(
             queu,
             blocking,
-            dst,
-            src,
+            reinterpret(Ptr{Nothing}, dst),
+            reinterpret(Ptr{Nothing}, src),
             bytes,
             length(wait_event_list),
             [wait_event_list...],
-            signal_event
+            C_NULL
       )
-    
     cl.finish(queu)
     return dst
 end
