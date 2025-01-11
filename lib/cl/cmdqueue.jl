@@ -44,9 +44,9 @@ function CmdQueue(props::NTuple{2,Symbol})
     return CmdQueue(flags)
 end
 
-function CmdQueue(flags=cl_command_queue_properties(0))
+function CmdQueue(ctx, dev, flags=cl_command_queue_properties(0))
     err_code = Ref{Cint}()
-    queue_id = clCreateCommandQueue(context(), device(), flags, err_code)
+    queue_id = clCreateCommandQueue(ctx, dev, flags, err_code)
     if err_code[] != CL_SUCCESS
         if queue_id != C_NULL
             clReleaseCommandQueue(queue_id)
@@ -54,6 +54,10 @@ function CmdQueue(flags=cl_command_queue_properties(0))
         throw(CLError(err_code[]))
     end
     return CmdQueue(queue_id)
+end
+
+function CmdQueue(flags=cl_command_queue_properties(0))
+    return CmdQueue(context(), device(), flags)
 end
 
 function flush(q::CmdQueue)
@@ -89,4 +93,13 @@ function Base.getproperty(q::CmdQueue, s::Symbol)
     end
 end
 
+function global_queue(ctx::Context, dev::Device)
+    # NOTE: dev purposefully does not default to context() or device() to stress that
+    #       objects should track ownership, and not rely on implicit global state.
+    get!(task_local_storage(), (:CLCommandQueue, ctx, dev)) do
+        CmdQueue(ctx, dev)
+    end
+end
 context(queue::CmdQueue) = queue.context
+synchronize(queue::CmdQueue) = cl.finish(queue)
+synchronize() = synchronize(global_queue(context(), device()))

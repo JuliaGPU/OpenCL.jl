@@ -23,9 +23,10 @@ SPIRVIntrinsics.@reexport_public
 
 include("device/array.jl")
 include("device/quirks.jl")
-include("util.jl")
+# include("util.jl")
 include("pool.jl")
-include("array.jl")
+include("memory.jl")
+include("array_new.jl")
 
 #=
 # compiler implementation

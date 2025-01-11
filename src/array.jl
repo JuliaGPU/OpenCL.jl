@@ -35,14 +35,15 @@ function check_eltype(T)
   !("cl_khr_fp64" in cl.device().extensions) && contains_eltype(T, Float64) && error("Float16 is not supported on this device")
 end
 
-mutable struct CLArray{T,N,B} <: AbstractGPUArray{T,N}
-  data::DataRef{B}
+mutable struct CLArray{T,N,M} <: AbstractGPUArray{T,N}
+  data::DataRef{Managed{M}}
 
   maxsize::Int  # maximum data size; excluding any selector bytes
-  offset::Int   # offset of the data in the buffer, in number of elements
+  offset::Int   # offset of the data in memory, in number of elements
+
   dims::Dims{N}
 
-  function CLArray{T,N,B}(::UndefInitializer, dims::Dims{N}) where {T,N,B}
+  function CLArray{T,N,M}(::UndefInitializer, dims::Dims{N}) where {T,N,M}
     check_eltype(T)
     maxsize = prod(dims) * sizeof(T)
     bufsize = if Base.isbitsunion(T)
@@ -52,26 +53,35 @@ mutable struct CLArray{T,N,B} <: AbstractGPUArray{T,N}
       maxsize
     end
 
-    ctx = cl.context()
-    dev = cl.device()
-    buf = cl.allocate(B, ctx, dev, bufsize, Base.datatype_alignment(T))
-    data = DataRef(buf) do buf
-      release(buf)
-    end
-    obj = new{T,N,B}(data, maxsize, 0, dims)
-    finalizer(unsafe_free!, obj)
+    GPUArrays.cached_alloc((CLArray, cl.device(), T, bufsize, M)) do
+        data = DataRef(release, allocate(M, cl.context(), cl.device(), bufsize, 0))
+        obj = new{T,N,M}(data, maxsize, 0, dims)
+        finalizer(unsafe_free!, obj)
+        return obj
+    end::CLArray{T, N, M}
   end
 
-  function CLArray{T,N}(data::DataRef{B}, dims::Dims{N};
-                         maxsize::Int=prod(dims) * sizeof(T), offset::Int=0) where {T,N,B}
+  function CLArray{T,N}(data::DataRef{Managed{M}}, dims::Dims{N};
+                        maxsize::Int=prod(dims) * sizeof(T), offset::Int=0) where {T,N,M}
     check_eltype(T)
-    if sizeof(T) == 0
-      offset == 0 || error("Singleton arrays cannot have a nonzero offset")
-      maxsize == 0 || error("Singleton arrays cannot have a size")
-    end
-    obj = new{T,N,B}(copy(data), maxsize, offset, dims)
+    obj = new{T,N,M}(data, maxsize, offset, dims)
     finalizer(unsafe_free!, obj)
   end
+end
+
+GPUArrays.storage(a::CLArray) = a.data
+
+
+## alias detection
+
+Base.dataids(A::CLArray) = (UInt(pointer(A)),)
+
+Base.unaliascopy(A::CLArray) = copy(A)
+
+function Base.mightalias(A::CLArray, B::CLArray)
+  rA = pointer(A):pointer(A)+sizeof(A)
+  rB = pointer(B):pointer(B)+sizeof(B)
+  return first(rA) <= first(rB) < last(rA) || first(rB) <= first(rA) < last(rB)
 end
 
 unsafe_free!(a::CLArray) = GPUArrays.unsafe_free!(a.data)
@@ -325,7 +335,7 @@ end
 Base.copyto!(dest::CLDenseArray{T}, src::CLDenseArray{T}) where {T} =
     copyto!(dest, 1, src, 1, length(src))
 
-function Base.unsafe_copyto!(ctx::cl.Context, dev::cl.CLDevice,
+function Base.unsafe_copyto!(ctx::cl.Context, dev::cl.Device,
                              dest::CLDenseArray{T}, doffs, src::Array{T}, soffs, n) where T
   GC.@preserve src dest unsafe_copyto!(ctx, dev, pointer(dest, doffs), pointer(src, soffs), n)
   if Base.isbitsunion(T)
@@ -420,9 +430,9 @@ Adapt.adapt_storage(::Type{<:CLArray{T}}, xs::AT) where {T, AT<:AbstractArray} =
 ## utilities
 
 zeros(T::Type, dims...) = fill!(CLArray{T}(undef, dims...), zero(T))
-CLs(T::Type, dims...) = fill!(CLArray{T}(undef, dims...), CL(T))
+ones(T::Type, dims...) = fill!(CLArray{T}(undef, dims...), one(T))
 zeros(dims...) = zeros(Float64, dims...)
-CLs(dims...) = CLs(Float64, dims...)
+ones(dims...) = ones(Float64, dims...)
 fill(v, dims...) = fill!(CLArray{typeof(v)}(undef, dims...), v)
 fill(v, dims::Dims) = fill!(CLArray{typeof(v)}(undef, dims...), v)
 
@@ -485,6 +495,7 @@ function Base.unsafe_wrap(::Type{Array}, arr::CLArray{T,N,cl.SharedBuffer}) wher
   ptr = reinterpret(Ptr{T}, pointer(arr))
   unsafe_wrap(Array, ptr, size(arr))
 end
+
 
 
 ## resizing

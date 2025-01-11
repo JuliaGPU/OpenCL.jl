@@ -209,4 +209,3 @@ function _parse_properties(props)
     push!(cl_props, cl_context_properties(C_NULL))
     return cl_props
 end
-
