@@ -174,3 +174,11 @@ function Base.unsafe_copyto!(::cl.Context, ::cl.Device, dst::Union{CLPtr{T}, Ptr
     cl.finish(queu)
     return dst
 end
+
+function unsafe_fill!(ctx::cl.Context, dev::cl.Device, ptr::Union{Ptr{T},CLPtr{T}},
+                      pattern::Union{Ptr{T},CLPtr{T}}, N::Integer; queu::cl.CmdQueue=cl.queue()) where T
+    bytes = N*sizeof(T)
+    bytes==0 && return
+    cl.enqueue_usm_memfill(ptr, pattern, sizeof(T), bytes; queu = queu)
+    cl.finish(queu)
+end

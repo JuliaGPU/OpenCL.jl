@@ -83,10 +83,10 @@ end
 
 struct KernelAdaptor end
 
-# convert oneAPI host pointers to device pointers
+# convert OpenCL USM host pointers to device pointers
 Adapt.adapt_storage(to::KernelAdaptor, p::CLPtr{T}) where {T} = reinterpret(Ptr{T}, p)
 
-# convert oneAPI host arrays to device arrays
+# convert OpenCL USM host arrays to device arrays
 Adapt.adapt_storage(::KernelAdaptor, xs::CLArray{T,N}) where {T,N} =
   Base.unsafe_convert(CLDeviceArray{T,N,AS.Global}, xs)
 

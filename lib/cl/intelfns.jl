@@ -42,8 +42,14 @@ function ext_clEnqueueMemcpyINTEL(command_queue, blocking, dst_ptr, src_ptr, siz
     @ccall $ocl_intel(command_queue::cl_command_queue, blocking::cl_bool, dst_ptr::PtrOrCLPtr{Cvoid}, src_ptr::PtrOrCLPtr{Cvoid}, size::Csize_t, num_events_in_wait_list::cl_uint, event_wait_list::Ptr{cl_event}, event::Ptr{cl_event})::cl_int
 end
 
+function ext_clEnqueueMemFillINTEL(command_queue, dst_ptr, pattern, pattern_size, size, num_events_in_wait_list, event_wait_list, event)
+    ocl_intel = ocl_extension("clEnqueueMemFillINTEL")
+
+    @ccall $ocl_intel(command_queue::cl_command_queue, dst_ptr::PtrOrCLPtr{Cvoid}, pattern::Ptr{Cvoid}, pattern_size::Csize_t, size::Csize_t, num_events_in_wait_list::cl_uint, event_wait_list::Ptr{cl_event}, event::Ptr{cl_event})::cl_int
+end
+
 function ext_clSetKernelArgMemPointerINTEL(kernel, arg_index, arg_value)
 	ocl_intel = ocl_extension("clSetKernelArgMemPointerINTEL")
 
-    @ccall $ocl_intel(kernel::cl_kernel, arg_index::cl_uint, arg_value::PtrOrCLPtr{Cvoid})::cl_int
+    @ccall $ocl_intel(kernel::cl_kernel, arg_index::cl_uint, arg_value::Ptr{Cvoid})::cl_int
 end

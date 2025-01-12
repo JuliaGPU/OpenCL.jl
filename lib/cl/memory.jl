@@ -309,3 +309,16 @@ function enqueue_usm_memcpy(dst::Union{CLPtr, Ptr}, src::Union{CLPtr, Ptr}, nbyt
         @return_event ret_evt[]
     end
 end
+
+function enqueue_usm_memfill(dst::Union{CLPtr, Ptr}, pattern::Union{Ptr{T},CLPtr{T}}, pattern_size::Integer, nbytes::Integer; queu::CmdQueue=queue(),
+                            wait_for::Vector{Event}=Event[]) where T
+    n_evts  = length(wait_for)
+    evt_ids = isempty(wait_for) ? C_NULL : [pointer(evt) for evt in wait_for]
+    GC.@preserve wait_for begin
+        ret_evt = Ref{cl_event}()
+        ext_clEnqueueMemFillINTEL(queu, dst, pattern, pattern_size, nbytes, n_evts, evt_ids, ret_evt)
+        @return_event ret_evt[]
+    end
+end
+
+enqueue_usm_memfill(b::AbstractBuffer, pattern, N::Integer) = enqueue_usm_memfill(b, 0, pattern, N)
