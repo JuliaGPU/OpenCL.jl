@@ -16,18 +16,27 @@ include("../lib/cl/CL.jl")
 export cl
 
 # device functionality
-include("device/runtime.jl")
 import SPIRVIntrinsics
 SPIRVIntrinsics.@import_all
 SPIRVIntrinsics.@reexport_public
-
+include("device/runtime.jl")
 include("device/array.jl")
 include("device/quirks.jl")
-# include("util.jl")
-include("pool.jl")
+
+# high level implementation
 include("memory.jl")
+include("pool.jl")
 include("array_new.jl")
 
+# compiler implementation
+include("compiler/compilation.jl")
+include("compiler/execution.jl")
+include("compiler/reflection.jl")
+
+# integrations and specialized functionality
+include("util.jl")
+include("mapreduce.jl")
+include("gpuarrays.jl")
 #=
 # compiler implementation
 # include("compiler/compilation.jl")
@@ -39,9 +48,9 @@ include("util.jl")
 include("array.jl")
 include("mapreduce.jl")
 include("gpuarrays.jl")
+=#
 
 include("OpenCLKernels.jl")
 import .OpenCLKernels: OpenCLBackend
 export OpenCLBackend
-=#
 end

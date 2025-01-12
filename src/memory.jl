@@ -101,11 +101,37 @@ function Base.convert(::Type{Ptr{T}}, managed::Managed{M}) where {T,M}
   maybe_synchronize(managed)
   return ptr
 end
+#=
+function Base.unsafe_copyto!(dst::Ptr, src::Ptr, nbytes::Integer; blocking::Bool=false,
+                            wait_for::Vector{Event}=Event[])
+    n_evts  = length(wait_for)
+    evt_ids = isempty(wait_for) ? C_NULL : [pointer(evt) for evt in wait_for]
+    GC.@preserve wait_for begin
+        ret_evt = Ref{cl_event}()
+        clEnqueueSVMMemcpy(queue(), blocking, dst, src, nbytes, n_evts, evt_ids, ret_evt)
+        @return_event ret_evt[]
+    end
+end
+
+
+function Base.unsafe_copyto!(ctx::cl.Context, dev::cl.Device, dst::Union{Ptr{T},CLPtr{T}},
+                             src::Union{Ptr{T},CLPtr{T}}, N::Integer) where T
+    bytes = N*sizeof(T)
+    bytes==0 && return
+    
+    
+    execute!(global_queue(ctx, dev)) do list
+        append_copy!(list, dst, src, bytes)
+    end
+end
+
 
 function Base.unsafe_copyto!(ctx::cl.Context, dev::cl.Device, dst::Union{Ptr{T},cl.CLPtr{T}},
-                             src::Union{Ptr{T},cl.CLPtr{T}}, N::Integer, queu::cl.CmdQueue=cl.queue(), blocking=false, signal_event::Union{cl.Event, Nothing} = nothing, wait_event_list::cl.Event...) where T
+                             src::Union{Ptr{T},cl.CLPtr{T}}, N::Integer, queu::cl.CmdQueue=cl.queue(), blocking=false, wait_event_list::Vector{cl.Event}=cl.Event[]) where T
     bytes = N*sizeof(T)
     bytes == 0 && return
+
+    evt_ids = isempty(wait_event_list) ? C_NULL : [pointer(evt) for evt in wait_event_list]
     
     cl.ext_clEnqueueMemcpyINTEL(
             queu,
@@ -114,13 +140,13 @@ function Base.unsafe_copyto!(ctx::cl.Context, dev::cl.Device, dst::Union{Ptr{T},
             reinterpret(Ptr{Nothing}, src),
             bytes,
             length(wait_event_list),
-            [wait_event_list...],
-            C_NULL
+            evt_ids,
+            Ref{cl.cl_event}()
       )
     cl.finish(queu)
     return dst
 end
-#=
+#
 function Base.unsafe_copyto!(ctx::cl.Context, dev::cl.Device, dst::Union{Ptr{T},cl.CLPtr{T}},
                              src::Union{Ptr{T},cl.CLPtr{T}}, N::Integer) where T
     bytes = N*sizeof(T)
@@ -139,3 +165,12 @@ function unsafe_fill!(ctx::cl.Context, dev::cl.Device, ptr::Union{Ptr{T},cl.CLPt
     end
 end
 =#
+
+function Base.unsafe_copyto!(::cl.Context, ::cl.Device, dst::Union{CLPtr{T}, Ptr{T}}, src::Union{CLPtr{T}, Ptr{T}}, N::Integer;
+                             queu::cl.CmdQueue=cl.queue()) where T
+    
+    cl.enqueue_usm_memcpy(dst, src, N*sizeof(T); queu=queu)
+    
+    cl.finish(queu)
+    return dst
+end

@@ -298,3 +298,14 @@ function lookup_alloc(ctx::Context, ptr::Union{Ptr,CLPtr})
     end
 end
 =#
+
+function enqueue_usm_memcpy(dst::Union{CLPtr, Ptr}, src::Union{CLPtr, Ptr}, nbytes::Integer; queu::CmdQueue=queue(), blocking::Bool=false,
+                            wait_for::Vector{Event}=Event[])
+    n_evts  = length(wait_for)
+    evt_ids = isempty(wait_for) ? C_NULL : [pointer(evt) for evt in wait_for]
+    GC.@preserve wait_for begin
+        ret_evt = Ref{cl_event}()
+        ext_clEnqueueMemcpyINTEL(queu, blocking, dst, src, nbytes, n_evts, evt_ids, ret_evt)
+        @return_event ret_evt[]
+    end
+end

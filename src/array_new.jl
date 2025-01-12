@@ -492,6 +492,20 @@ end
 Base.copyto!(dest::DenseCLArray{T}, src::DenseCLArray{T}) where {T} =
     copyto!(dest, 1, src, 1, length(src))
 
+for (srcty, dstty) in [(:Array, :CLArray), (:CLArray, :Array), (:CLArray, :CLArray)]
+    @eval begin
+        function Base.unsafe_copyto!(dst::$dstty{T}, dst_off::Int,
+                                     src::$srcty{T}, src_off::Int,
+                                     N::Int; blocking::Bool=true) where T
+            nbytes = N * sizeof(T)
+            cl.enqueue_usm_memcpy(pointer(dst, dst_off), pointer(src, src_off), nbytes;
+                                  blocking)
+        end
+        Base.unsafe_copyto!(dst::$dstty, src::$srcty, N; kwargs...) =
+            unsafe_copyto!(dst, 1, src, 1, N; kwargs...)
+    end
+end
+
 function Base.unsafe_copyto!(ctx::cl.Context, dev::cl.Device,
                              dest::DenseCLArray{T}, doffs, src::Array{T}, soffs, n) where T
   GC.@preserve src dest unsafe_copyto!(ctx, dev, pointer(dest, doffs), pointer(src, soffs), n)

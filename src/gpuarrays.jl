@@ -1,11 +1,3 @@
-# GPUArrays.jl interface
-
-function GPUArrays.derive(::Type{T}, a::CLArray, dims::Dims{N}, offset::Int) where {T,N}
-    ref = copy(a.data)
-    offset = (a.offset * Base.elsize(a)) ÷ sizeof(T) + offset
-    CLArray{T,N}(ref, dims; offset)
-end
-
 const GLOBAL_RNGs = Dict{cl.Device,GPUArrays.RNG}()
 function GPUArrays.default_rng(::Type{<:CLArray})
     dev = cl.device()

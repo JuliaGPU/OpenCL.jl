@@ -22,8 +22,9 @@ KA.zeros(::OpenCLBackend, ::Type{T}, dims::Tuple) where T = OpenCL.zeros(T, dims
 KA.ones(::OpenCLBackend, ::Type{T}, dims::Tuple) where T = OpenCL.ones(T, dims)
 
 KA.get_backend(::CLArray) = OpenCLBackend()
+# TODO should be non-blocking
 KA.synchronize(::OpenCLBackend) = cl.finish(cl.queue())
-KA.supports_float64(::OpenCLBackend) = false  # XXX: this is platform/device dependent
+KA.supports_float64(::OpenCLBackend) = false  # TODO: Check if this is device dependent
 
 Adapt.adapt_storage(::OpenCLBackend, a::Array) = Adapt.adapt(CLArray, a)
 Adapt.adapt_storage(::OpenCLBackend, a::CLArray) = a
@@ -82,18 +83,16 @@ function threads_to_workgroupsize(threads, ndrange)
 end
 
 function (obj::KA.Kernel{OpenCLBackend})(args...; ndrange=nothing, workgroupsize=nothing)
-    ndrange, workgroupsize, iterspace, dynamic =
-        KA.launch_config(obj, ndrange, workgroupsize)
-
+    ndrange, workgroupsize, iterspace, dynamic = KA.launch_config(obj, ndrange, workgroupsize)
     # this might not be the final context, since we may tune the workgroupsize
     ctx = KA.mkcontext(obj, ndrange, iterspace)
     kernel = @opencl launch=false obj.f(ctx, args...)
 
     # figure out the optimal workgroupsize automatically
     if KA.workgroupsize(obj) <: KA.DynamicSize && workgroupsize === nothing
-        wg_info = cl.work_group_info(kernel.fun, cl.device())
-        wg_size_nd = threads_to_workgroupsize(wg_info.size, ndrange)
-        iterspace, dynamic = KA.partition(obj, ndrange, wg_size_nd)
+        items = OpenCL.launch_configuration(kernel)
+        workgroupsize = threads_to_workgroupsize(items, ndrange)
+        iterspace, dynamic = KA.partition(obj, ndrange, workgroupsize)
         ctx = KA.mkcontext(obj, ndrange, iterspace)
     end
 
@@ -105,9 +104,7 @@ function (obj::KA.Kernel{OpenCLBackend})(args...; ndrange=nothing, workgroupsize
     end
 
     # Launch kernel
-    global_size = groups * items
-    local_size = items
-    kernel(ctx, args...; global_size, local_size)
+    kernel(ctx, args...; items, groups)
 
     return nothing
 end
@@ -116,32 +113,32 @@ end
 ## Indexing Functions
 
 @device_override @inline function KA.__index_Local_Linear(ctx)
-    return get_local_id(1)
+    return get_local_id()
 end
 
 @device_override @inline function KA.__index_Group_Linear(ctx)
-    return get_group_id(1)
+    return get_group_id()
 end
 
 @device_override @inline function KA.__index_Global_Linear(ctx)
-    return get_global_id(1)
+    return get_global_id()
 end
 
 @device_override @inline function KA.__index_Local_Cartesian(ctx)
-    @inbounds KA.workitems(KA.__iterspace(ctx))[get_local_id(1)]
+    @inbounds KA.workitems(KA.__iterspace(ctx))[get_local_id()]
 end
 
 @device_override @inline function KA.__index_Group_Cartesian(ctx)
-    @inbounds KA.blocks(KA.__iterspace(ctx))[get_group_id(1)]
+    @inbounds KA.blocks(KA.__iterspace(ctx))[get_group_id()]
 end
 
 @device_override @inline function KA.__index_Global_Cartesian(ctx)
-    return @inbounds KA.expand(KA.__iterspace(ctx), get_group_id(1), get_local_id(1))
+    return @inbounds KA.expand(KA.__iterspace(ctx), get_group_id(), get_local_id())
 end
 
 @device_override @inline function KA.__validindex(ctx)
     if KA.__dynamic_checkbounds(ctx)
-        I = @inbounds KA.expand(KA.__iterspace(ctx), get_group_id(1), get_local_id(1))
+        I = @inbounds KA.expand(KA.__iterspace(ctx), get_group_id(), get_local_id())
         return I in KA.__ndrange(ctx)
     else
         return true
@@ -152,8 +149,8 @@ end
 ## Shared and Scratch Memory
 
 @device_override @inline function KA.SharedMemory(::Type{T}, ::Val{Dims}, ::Val{Id}) where {T, Dims, Id}
-    ptr = SPIRVIntrinsics.emit_localmemory(T, Val(prod(Dims)))
-    CLDeviceArray(Dims, ptr)
+    ptr = OpenCL.emit_localmemory(T, Val(prod(Dims)))
+    oneDeviceArray(Dims, ptr)
 end
 
 @device_override @inline function KA.Scratchpad(ctx, ::Type{T}, ::Val{Dims}) where {T, Dims}
@@ -168,12 +165,12 @@ end
 end
 
 @device_override @inline function KA.__print(args...)
-    SPIRVIntrinsics._print(args...)
+    OpenCL._print(args...)
 end
 
 
 ## Other
 
-KA.argconvert(::KA.Kernel{OpenCLBackend}, arg) = clconvert(arg)
+KA.argconvert(::KA.Kernel{OpenCLBackend}, arg) = kernel_convert(arg)
 
 end
