@@ -10,12 +10,12 @@ function format(s::String; vars...)
     for (k, v) in vars
         s = replace(s, "%($k)" => v)
     end
-    s
+    return s
 end
 
 function build_kernel(program::String, kernel_name::String; vars...)
     src = format(program; vars...)
-    p = cl.Program(source=src)
+    p = cl.Program(source = src)
     cl.build!(p)
     return cl.Kernel(p, kernel_name)
 end
@@ -32,7 +32,7 @@ function get_kernel(program_file::String, kernel_name::String; vars...)
     end
 end
 
-function versioninfo(io::IO=stdout)
+function versioninfo(io::IO = stdout)
     println(io, "OpenCL.jl version $(pkgversion(@__MODULE__))")
     println(io)
 
@@ -43,7 +43,7 @@ function versioninfo(io::IO=stdout)
     end
     println(io)
 
-    env = filter(var->startswith(var, "JULIA_OPENCL"), keys(ENV))
+    env = filter(var -> startswith(var, "JULIA_OPENCL"), keys(ENV))
     if !isempty(env)
         println(io, "Environment:")
         for var in env
@@ -81,6 +81,7 @@ function versioninfo(io::IO=stdout)
             println(io)
         end
     end
+    return
 end
 
 export @enum_without_prefix
@@ -106,7 +107,7 @@ macro enum_without_prefix(enum, prefix)
     for instance in instances(enum)
         name = String(Symbol(instance))
         @assert startswith(name, prefix)
-        push!(ex.args, :(const $(Symbol(name[length(prefix)+1:end])) = $(mod).$(Symbol(name))))
+        push!(ex.args, :(const $(Symbol(name[(length(prefix) + 1):end])) = $(mod).$(Symbol(name))))
     end
 
     return esc(ex)

@@ -17,9 +17,9 @@ export OpenCLBackend
 struct OpenCLBackend <: KA.GPU
 end
 
-KA.allocate(::OpenCLBackend, ::Type{T}, dims::Tuple) where T = CLArray{T}(undef, dims)
-KA.zeros(::OpenCLBackend, ::Type{T}, dims::Tuple) where T = OpenCL.zeros(T, dims)
-KA.ones(::OpenCLBackend, ::Type{T}, dims::Tuple) where T = OpenCL.ones(T, dims)
+KA.allocate(::OpenCLBackend, ::Type{T}, dims::Tuple) where {T} = CLArray{T}(undef, dims)
+KA.zeros(::OpenCLBackend, ::Type{T}, dims::Tuple) where {T} = OpenCL.zeros(T, dims)
+KA.ones(::OpenCLBackend, ::Type{T}, dims::Tuple) where {T} = OpenCL.ones(T, dims)
 
 KA.get_backend(::CLArray) = OpenCLBackend()
 # TODO should be non-blocking
@@ -34,7 +34,7 @@ Adapt.adapt_storage(::KA.CPU, a::CLArray) = convert(Array, a)
 ## Memory Operations
 
 function KA.copyto!(::OpenCLBackend, A, B)
-    copyto!(A, B)
+    return copyto!(A, B)
     # TODO: Address device to host copies in jl being synchronizing
 end
 
@@ -42,11 +42,13 @@ end
 ## Kernel Launch
 
 function KA.mkcontext(kernel::KA.Kernel{OpenCLBackend}, _ndrange, iterspace)
-    KA.CompilerMetadata{KA.ndrange(kernel), KA.DynamicCheck}(_ndrange, iterspace)
+    return KA.CompilerMetadata{KA.ndrange(kernel), KA.DynamicCheck}(_ndrange, iterspace)
 end
-function KA.mkcontext(kernel::KA.Kernel{OpenCLBackend}, I, _ndrange, iterspace,
-                      ::Dynamic) where Dynamic
-    KA.CompilerMetadata{KA.ndrange(kernel), Dynamic}(I, _ndrange, iterspace)
+function KA.mkcontext(
+        kernel::KA.Kernel{OpenCLBackend}, I, _ndrange, iterspace,
+        ::Dynamic
+    ) where {Dynamic}
+    return KA.CompilerMetadata{KA.ndrange(kernel), Dynamic}(I, _ndrange, iterspace)
 end
 
 function KA.launch_config(kernel::KA.Kernel{OpenCLBackend}, ndrange, workgroupsize)
@@ -54,7 +56,7 @@ function KA.launch_config(kernel::KA.Kernel{OpenCLBackend}, ndrange, workgroupsi
         ndrange = (ndrange,)
     end
     if workgroupsize isa Integer
-        workgroupsize = (workgroupsize, )
+        workgroupsize = (workgroupsize,)
     end
 
     # partition checked that the ndrange's agreed
@@ -63,7 +65,7 @@ function KA.launch_config(kernel::KA.Kernel{OpenCLBackend}, ndrange, workgroupsi
     end
 
     iterspace, dynamic = if KA.workgroupsize(kernel) <: KA.DynamicSize &&
-        workgroupsize === nothing
+            workgroupsize === nothing
         # use ndrange as preliminary workgroupsize for autotuning
         KA.partition(kernel, ndrange, ndrange)
     else
@@ -82,13 +84,13 @@ function threads_to_workgroupsize(threads, ndrange)
     end
 end
 
-function (obj::KA.Kernel{OpenCLBackend})(args...; ndrange=nothing, workgroupsize=nothing)
+function (obj::KA.Kernel{OpenCLBackend})(args...; ndrange = nothing, workgroupsize = nothing)
     ndrange, workgroupsize, iterspace, dynamic =
         KA.launch_config(obj, ndrange, workgroupsize)
 
     # this might not be the final context, since we may tune the workgroupsize
     ctx = KA.mkcontext(obj, ndrange, iterspace)
-    kernel = @opencl launch=false obj.f(ctx, args...)
+    kernel = @opencl launch = false obj.f(ctx, args...)
 
     # figure out the optimal workgroupsize automatically
     if KA.workgroupsize(obj) <: KA.DynamicSize && workgroupsize === nothing

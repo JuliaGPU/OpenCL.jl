@@ -6,18 +6,18 @@ export OutOfGPUMemoryError
 An operation allocated too much GPU memory.
 """
 struct OutOfGPUMemoryError <: Exception
-  sz::Int
-  dev::cl.Device
+    sz::Int
+    dev::cl.Device
 
-  function OutOfGPUMemoryError(sz::Integer=0, dev::cl.Device=cl.device())
-    new(sz, dev)
-  end
+    function OutOfGPUMemoryError(sz::Integer = 0, dev::cl.Device = cl.device())
+        return new(sz, dev)
+    end
 end
 
 function Base.showerror(io::IO, err::OutOfGPUMemoryError)
     print(io, "Out of GPU memory")
     if err.sz > 0
-      print(io, " trying to allocate $(Base.format_bytes(err.sz))")
+        print(io, " trying to allocate $(Base.format_bytes(err.sz))")
     end
     print(" on device $((err.dev).name)")
     #=
@@ -32,7 +32,7 @@ end
 function allocate(::Type{cl.DeviceBuffer}, ctx, dev, bytes::Int, alignment::Int)
     bytes == 0 && return cl.DeviceBuffer(cl.CL_NULL, bytes, ctx, dev)
 
-    buf = cl.device_alloc(ctx, dev, bytes, alignment=alignment)
+    buf = cl.device_alloc(ctx, dev, bytes, alignment = alignment)
     # make_resident(ctx, dev, buf)
     return buf
 end
@@ -42,14 +42,14 @@ function allocate(::Type{cl.SharedBuffer}, ctx, dev, bytes::Int, alignment::Int)
 
     # TODO: support cross-device shared buffers (by setting `dev=nothing`)
 
-    buf = cl.shared_alloc(ctx, dev, bytes, alignment=alignment)
+    buf = cl.shared_alloc(ctx, dev, bytes, alignment = alignment)
 
     return buf
 end
 
 function allocate(::Type{cl.HostBuffer}, ctx, dev, bytes::Int, alignment::Int)
     bytes == 0 && return cl.HostBuffer(cl.CL_NULL, bytes, ctx)
-    cl.host_alloc(ctx, bytes, alignment=alignment)
+    return cl.host_alloc(ctx, bytes, alignment = alignment)
 end
 
 function release(buf::cl.AbstractBuffer)
@@ -67,11 +67,10 @@ function release(buf::cl.AbstractBuffer)
     #    evict(ctx, dev, buf)
     #end
 
-    free(buf, blocking=true)
+    free(buf, blocking = true)
 
     # TODO: queue-ordered free from non-finalizer tasks once we have
     #       `zeMemFreeAsync(ptr, queue)`
 
     return
 end
-

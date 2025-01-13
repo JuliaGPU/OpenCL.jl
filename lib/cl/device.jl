@@ -11,8 +11,8 @@ function Base.show(io::IO, d::Device)
     device_name = replace(d.name, strip_extra_whitespace => " ")
     platform_name = replace(d.platform.name, strip_extra_whitespace => " ")
     ptr_val = convert(UInt, pointer(d))
-    ptr_address = "0x$(string(ptr_val, base = 16, pad = Sys.WORD_SIZE>>2))"
-    print(io, "OpenCL.Device($device_name on $platform_name @$ptr_address)")
+    ptr_address = "0x$(string(ptr_val, base = 16, pad = Sys.WORD_SIZE >> 2))"
+    return print(io, "OpenCL.Device($device_name on $platform_name @$ptr_address)")
 end
 
 @inline function Base.getproperty(d::Device, s::Symbol)
@@ -140,17 +140,17 @@ end
     end
 
     if s == :max_image2d_shape
-        width  = Ref{Csize_t}()
+        width = Ref{Csize_t}()
         height = Ref{Csize_t}()
-        clGetDeviceInfo(d, CL_DEVICE_IMAGE2D_MAX_WIDTH, sizeof(Csize_t), width,  C_NULL)
+        clGetDeviceInfo(d, CL_DEVICE_IMAGE2D_MAX_WIDTH, sizeof(Csize_t), width, C_NULL)
         clGetDeviceInfo(d, CL_DEVICE_IMAGE2D_MAX_HEIGHT, sizeof(Csize_t), height, C_NULL)
         return (width[], height[])
     end
 
     if s == :max_image3d_shape
-        width  = Ref{Csize_t}()
+        width = Ref{Csize_t}()
         height = Ref{Csize_t}()
-        depth =  Ref{Csize_t}()
+        depth = Ref{Csize_t}()
         clGetDeviceInfo(d, CL_DEVICE_IMAGE3D_MAX_WIDTH, sizeof(Csize_t), width, C_NULL)
         clGetDeviceInfo(d, CL_DEVICE_IMAGE3D_MAX_HEIGHT, sizeof(Csize_t), height, C_NULL)
         clGetDeviceInfo(d, CL_DEVICE_IMAGE3D_MAX_DEPTH, sizeof(Csize_t), depth, C_NULL)
@@ -160,14 +160,18 @@ end
     return getfield(d, s)
 end
 
-function queue_properties(d::Device, type=:host)
+function queue_properties(d::Device, type = :host)
     result = Ref{cl_command_queue_properties}()
     if type === :host
-        clGetDeviceInfo(d, CL_DEVICE_QUEUE_ON_HOST_PROPERTIES,
-                        sizeof(cl_command_queue_properties), result, C_NULL)
+        clGetDeviceInfo(
+            d, CL_DEVICE_QUEUE_ON_HOST_PROPERTIES,
+            sizeof(cl_command_queue_properties), result, C_NULL
+        )
     elseif type === :device
-        clGetDeviceInfo(d, CL_DEVICE_QUEUE_ON_DEVICE_PROPERTIES,
-                        sizeof(cl_command_queue_properties), result, C_NULL)
+        clGetDeviceInfo(
+            d, CL_DEVICE_QUEUE_ON_DEVICE_PROPERTIES,
+            sizeof(cl_command_queue_properties), result, C_NULL
+        )
     else
         throw(ArgumentError("Unknown queue type: $type"))
     end
@@ -175,14 +179,16 @@ function queue_properties(d::Device, type=:host)
 
     return (;
         out_of_order_exec = mask & CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE != 0,
-        profiling = mask & CL_QUEUE_PROFILING_ENABLE != 0
+        profiling = mask & CL_QUEUE_PROFILING_ENABLE != 0,
     )
 end
 
 function exec_capabilities(d::Device)
     result = Ref{cl_device_exec_capabilities}()
-    clGetDeviceInfo(d, CL_DEVICE_EXECUTION_CAPABILITIES,
-                    sizeof(cl_device_exec_capabilities), result, C_NULL)
+    clGetDeviceInfo(
+        d, CL_DEVICE_EXECUTION_CAPABILITIES,
+        sizeof(cl_device_exec_capabilities), result, C_NULL
+    )
     mask = result[]
 
     return (;
@@ -192,33 +198,43 @@ end
 
 function usm_capabilities(d::Device)
     result1 = Ref{cl_device_unified_shared_memory_capabilities_intel}()
-    clGetDeviceInfo(d, CL_DEVICE_HOST_MEM_CAPABILITIES_INTEL,
-                    sizeof(cl_device_unified_shared_memory_capabilities_intel), result1, C_NULL)
+    clGetDeviceInfo(
+        d, CL_DEVICE_HOST_MEM_CAPABILITIES_INTEL,
+        sizeof(cl_device_unified_shared_memory_capabilities_intel), result1, C_NULL
+    )
 
     result2 = Ref{cl_device_unified_shared_memory_capabilities_intel}()
-    clGetDeviceInfo(d, CL_DEVICE_DEVICE_MEM_CAPABILITIES_INTEL,
-                    sizeof(cl_device_unified_shared_memory_capabilities_intel), result2, C_NULL)
-    
+    clGetDeviceInfo(
+        d, CL_DEVICE_DEVICE_MEM_CAPABILITIES_INTEL,
+        sizeof(cl_device_unified_shared_memory_capabilities_intel), result2, C_NULL
+    )
+
     result3 = Ref{cl_device_unified_shared_memory_capabilities_intel}()
-    clGetDeviceInfo(d, CL_DEVICE_SINGLE_DEVICE_SHARED_MEM_CAPABILITIES_INTEL,
-                    sizeof(cl_device_unified_shared_memory_capabilities_intel), result3, C_NULL)
+    clGetDeviceInfo(
+        d, CL_DEVICE_SINGLE_DEVICE_SHARED_MEM_CAPABILITIES_INTEL,
+        sizeof(cl_device_unified_shared_memory_capabilities_intel), result3, C_NULL
+    )
 
     result4 = Ref{cl_device_unified_shared_memory_capabilities_intel}()
-    clGetDeviceInfo(d, CL_DEVICE_SHARED_SYSTEM_MEM_CAPABILITIES_INTEL,
-                    sizeof(cl_device_unified_shared_memory_capabilities_intel), result4, C_NULL)
+    clGetDeviceInfo(
+        d, CL_DEVICE_SHARED_SYSTEM_MEM_CAPABILITIES_INTEL,
+        sizeof(cl_device_unified_shared_memory_capabilities_intel), result4, C_NULL
+    )
 
     result5 = Ref{cl_device_unified_shared_memory_capabilities_intel}()
-    clGetDeviceInfo(d, CL_DEVICE_CROSS_DEVICE_SHARED_MEM_CAPABILITIES_INTEL,
-                    sizeof(cl_device_unified_shared_memory_capabilities_intel), result5, C_NULL)
+    clGetDeviceInfo(
+        d, CL_DEVICE_CROSS_DEVICE_SHARED_MEM_CAPABILITIES_INTEL,
+        sizeof(cl_device_unified_shared_memory_capabilities_intel), result5, C_NULL
+    )
 
     mask = (result1[], result2[], result3[], result4[], result5[])
-    
+
     function retmask(m)
-        return (;        
+        return (;
             usm_access = m & CL_UNIFIED_SHARED_MEMORY_ACCESS_INTEL != 0,
             usm_atomic_access = m & CL_UNIFIED_SHARED_MEMORY_ATOMIC_ACCESS_INTEL != 0,
-            usm_concurrent_access = m & CL_UNIFIED_SHARED_MEMORY_CONCURRENT_ACCESS_INTEL !=0,
-            usm_concurrent_atomic_acces = m & CL_UNIFIED_SHARED_MEMORY_CONCURRENT_ATOMIC_ACCESS_INTEL !=0,
+            usm_concurrent_access = m & CL_UNIFIED_SHARED_MEMORY_CONCURRENT_ACCESS_INTEL != 0,
+            usm_concurrent_atomic_acces = m & CL_UNIFIED_SHARED_MEMORY_CONCURRENT_ATOMIC_ACCESS_INTEL != 0,
         )
     end
 
@@ -233,8 +249,10 @@ end
 
 function svm_capabilities(d::Device)
     result = Ref{cl_device_svm_capabilities}()
-    clGetDeviceInfo(d, CL_DEVICE_SVM_CAPABILITIES,
-                    sizeof(cl_device_svm_capabilities), result, C_NULL)
+    clGetDeviceInfo(
+        d, CL_DEVICE_SVM_CAPABILITIES,
+        sizeof(cl_device_svm_capabilities), result, C_NULL
+    )
     mask = result[]
 
     return (;
