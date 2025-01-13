@@ -66,7 +66,7 @@ function retry_reclaim(f, isfailed)
         end
     end
 
-    return ret
+    ret
 end
 
 include("libopencl.jl")
@@ -148,7 +148,7 @@ const initialized = Ref{Bool}(false)
         if is_high_integrity_level()
             @warn """Running at high integrity level, preventing OpenCL.jl from loading drivers from JLLs.
 
-            Only system drivers will be available. To enable JLL drivers, do not run Julia as an administrator."""
+                     Only system drivers will be available. To enable JLL drivers, do not run Julia as an administrator."""
         end
     end
 
@@ -157,18 +157,17 @@ const initialized = Ref{Bool}(false)
         ocd_filenames *= ":" * ENV["OCL_ICD_FILENAMES"]
     end
 
-    return withenv("OCL_ICD_FILENAMES" => ocd_filenames) do
+    withenv("OCL_ICD_FILENAMES"=>ocd_filenames) do
         num_platforms = Ref{Cuint}()
         @ccall libopencl.clGetPlatformIDs(
             0::cl_uint, C_NULL::Ptr{cl_platform_id},
-            num_platforms::Ptr{cl_uint}
-        )::cl_int
+            num_platforms::Ptr{cl_uint})::cl_int
 
         if num_platforms[] == 0 && isempty(OpenCL_jll.drivers)
             @error """No OpenCL drivers available, either system-wide or provided by a JLL.
 
-            Please install a system-wide OpenCL driver, or load one together with OpenCL.jl,
-            e.g., by doing `using OpenCL, pocl_jll`."""
+                      Please install a system-wide OpenCL driver, or load one together with OpenCL.jl,
+                      e.g., by doing `using OpenCL, pocl_jll`."""
         end
     end
 end
@@ -180,13 +179,13 @@ function __init__()
 
     # ensure that operations executed by the REPL back-end finish before returning,
     # because displaying values happens on a different task
-    return if isdefined(Base, :active_repl_backend) && !isnothing(Base.active_repl_backend)
+    if isdefined(Base, :active_repl_backend) && !isnothing(Base.active_repl_backend)
         push!(Base.active_repl_backend.ast_transforms, synchronize_opencl_tasks)
     end
 end
 
 function synchronize_opencl_tasks(ex)
-    return quote
+    quote
         try
             $(ex)
         finally

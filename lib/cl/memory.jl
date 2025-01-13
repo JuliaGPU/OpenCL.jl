@@ -1,6 +1,6 @@
 # Raw memory management
 
-export device_alloc, host_alloc, shared_alloc, free #, properties, lookup_alloc
+export device_alloc, host_alloc, shared_alloc, free#, properties, lookup_alloc
 
 #
 # untyped buffers
@@ -8,25 +8,25 @@ export device_alloc, host_alloc, shared_alloc, free #, properties, lookup_alloc
 
 abstract type AbstractBuffer end
 
-Base.convert(T::Type{<:Union{Ptr, CLPtr}}, buf::AbstractBuffer) =
+Base.convert(T::Type{<:Union{Ptr,CLPtr}}, buf::AbstractBuffer) =
     throw(ArgumentError("Illegal conversion of a $(typeof(buf)) to a $T"))
 
 # ccall integration
 #
 # taking the pointer of a buffer means returning the underlying pointer,
 # and not the pointer of the buffer object itself.
-Base.unsafe_convert(P::Type{<:Union{Ptr, CLPtr}}, buf::AbstractBuffer) = convert(P, buf)
+Base.unsafe_convert(P::Type{<:Union{Ptr,CLPtr}}, buf::AbstractBuffer) = convert(P, buf)
 
 function free(buf::AbstractBuffer; blocking = false)
     ctx = context(buf)
     freefun = if blocking
         ext_clMemBlockingFreeINTEL
-    else
+    else 
         ext_clMemFreeINTEL
     end
     success = freefun(ctx, Ptr{Nothing}(UInt(buf.ptr)))
-    @assert success == CL_SUCCESS
-    return success
+	@assert success == CL_SUCCESS
+	return success
 end
 
 ## device buffer
@@ -44,25 +44,23 @@ struct DeviceBuffer <: AbstractBuffer
     device::Device
 end
 
-function device_alloc(
-        ctx::Context, dev::Device, bytesize::Integer;
-        alignment::Integer = 0, error_code::Ref{Int32} = Ref{Int32}(), properties::Tuple{Vararg{Symbol}} = ()
-    )
-    flags = 0
-    if !isempty(properties)
-        for i in properties
-            if i == :wc
-                flags |= CL_MEM_ALLOC_WRITE_COMBINED_INTEL
-            else
-                @warn "$i not recognized, ignoring flag. Valid optinos include `:wc`, `:ipd`, and `:iph`"
-            end
-        end
-    end
-
-    ptr = ext_clDeviceMemAllocINTEL(ctx, dev, cl_mem_properties_intel[CL_MEM_ALLOC_FLAGS_INTEL, flags, 0], bytesize, alignment, error_code)
-
-    @assert error_code[] == CL_SUCCESS
-    #=
+function device_alloc(ctx::Context, dev::Device, bytesize::Integer;
+                      alignment::Integer=0, error_code::Ref{Int32}=Ref{Int32}(), properties::Tuple{Vararg{Symbol}}=())
+	flags = 0
+	if !isempty(properties)
+		for i in properties
+			if i == :wc
+				flags |= CL_MEM_ALLOC_WRITE_COMBINED_INTEL
+			else
+				@warn "$i not recognized, ignoring flag. Valid optinos include `:wc`, `:ipd`, and `:iph`"
+			end
+		end
+	end
+	
+	ptr = ext_clDeviceMemAllocINTEL(ctx, dev, cl_mem_properties_intel[CL_MEM_ALLOC_FLAGS_INTEL, flags, 0], bytesize, alignment, error_code)
+	
+	@assert error_code[] == CL_SUCCESS
+	#=
 	@info ptr error_code[]
 	result = Ref{UInt64}()
 	@warn result
@@ -72,7 +70,7 @@ function device_alloc(
 	@error success result
 	@assert success == CL_SUCCESS
     =#
-    return DeviceBuffer(reinterpret(CLPtr{Cvoid}, ptr), bytesize, ctx, dev)
+	return DeviceBuffer(reinterpret(CLPtr{Cvoid}, ptr), bytesize, ctx, dev)
 end
 
 Base.pointer(buf::DeviceBuffer) = buf.ptr
@@ -101,25 +99,23 @@ struct HostBuffer <: AbstractBuffer
     context::Context
 end
 
-function host_alloc(
-        ctx::Context, bytesize::Integer;
-        alignment::Integer = 0, error_code::Ref{Int32} = Ref{Int32}(), properties::Tuple{Vararg{Symbol}} = ()
-    )
-    flags = 0
-    if !isempty(properties)
-        for i in properties
-            if i == :wc
-                flags |= CL_MEM_ALLOC_WRITE_COMBINED_INTEL
-            else
-                @warn "$i not recognized, ignoring flag. Valid optinos include `:wc`"
-            end
-        end
-    end
-
-    ptr = ext_clHostMemAllocINTEL(ctx, cl_mem_properties_intel[CL_MEM_ALLOC_FLAGS_INTEL, flags, 0], bytesize, alignment, error_code)
-
-    @assert error_code[] == CL_SUCCESS
-    #=
+function host_alloc(ctx::Context, bytesize::Integer;
+                      alignment::Integer=0, error_code::Ref{Int32}=Ref{Int32}(), properties::Tuple{Vararg{Symbol}}=())
+	flags = 0
+	if !isempty(properties)
+		for i in properties
+			if i == :wc
+				flags |= CL_MEM_ALLOC_WRITE_COMBINED_INTEL
+			else
+				@warn "$i not recognized, ignoring flag. Valid optinos include `:wc`"
+			end
+		end
+	end
+	
+	ptr = ext_clHostMemAllocINTEL(ctx, cl_mem_properties_intel[CL_MEM_ALLOC_FLAGS_INTEL, flags, 0], bytesize, alignment, error_code)
+	
+	@assert error_code[] == CL_SUCCESS
+	#=
 	@info ptr error_code[]
 	result = Ref{UInt64}()
 	@warn result
@@ -129,7 +125,7 @@ function host_alloc(
 	@error success result
 	@assert success == CL_SUCCESS
     =#
-    return HostBuffer(ptr, bytesize, ctx)
+	return HostBuffer(ptr, bytesize, ctx)
 end
 
 #=
@@ -170,35 +166,33 @@ struct SharedBuffer <: AbstractBuffer
     ptr::CLPtr{Cvoid}
     bytesize::Int
     context::Context
-    device::Union{Nothing, Device}
+    device::Union{Nothing,Device}
 end
 
-function shared_alloc(
-        ctx::Context, dev::Device, bytesize::Integer;
-        alignment::Integer = 0, error_code::Ref{Int32} = Ref{Int32}(), properties::Tuple{Vararg{Symbol}} = ()
-    )
-    flags = 0
-    if !isempty(properties)
-        if (:ipd in properties) && (:iph in properties)
-            error("`properties` contains both `:ipd` and `:iph`, these flags are mutually exclusive.")
-        end
-        for i in properties
-            if i == :wc
-                flags |= CL_MEM_ALLOC_WRITE_COMBINED_INTEL
-            elseif i == :ipd
-                flags |= CL_MEM_ALLOC_INITIAL_PLACEMENT_DEVICE_INTEL
-            elseif i == :iph
-                flags |= CL_MEM_ALLOC_INITIAL_PLACEMENT_HOST_INTEL
-            else
-                @warn "$i not recognized, ignoring flag. Valid optinos include `:wc`, `:ipd`, and `:iph`"
-            end
-        end
-    end
-
-    ptr = ext_clSharedMemAllocINTEL(ctx, dev, cl_mem_properties_intel[CL_MEM_ALLOC_FLAGS_INTEL, flags, 0], bytesize, alignment, error_code)
-
-    @assert error_code[] == CL_SUCCESS
-    #=
+function shared_alloc(ctx::Context, dev::Device, bytesize::Integer;
+                      alignment::Integer=0, error_code::Ref{Int32}=Ref{Int32}(), properties::Tuple{Vararg{Symbol}}=())
+	flags = 0
+	if !isempty(properties)
+		if (:ipd in properties) && (:iph in properties)
+			error("`properties` contains both `:ipd` and `:iph`, these flags are mutually exclusive.")
+		end
+		for i in properties
+			if i == :wc
+				flags |= CL_MEM_ALLOC_WRITE_COMBINED_INTEL
+			elseif i == :ipd
+				flags |= CL_MEM_ALLOC_INITIAL_PLACEMENT_DEVICE_INTEL
+			elseif i == :iph
+				flags |= CL_MEM_ALLOC_INITIAL_PLACEMENT_HOST_INTEL
+			else
+				@warn "$i not recognized, ignoring flag. Valid optinos include `:wc`, `:ipd`, and `:iph`"
+			end
+		end
+	end
+	
+	ptr = ext_clSharedMemAllocINTEL(ctx, dev, cl_mem_properties_intel[CL_MEM_ALLOC_FLAGS_INTEL, flags, 0], bytesize, alignment, error_code)
+	
+	@assert error_code[] == CL_SUCCESS
+	#=
 	@info ptr error_code[]
 	result = Ref{UInt64}()
 	@warn result
@@ -208,7 +202,7 @@ function shared_alloc(
 	@error success result
 	@assert success == CL_SUCCESS
     =#
-    return SharedBuffer(reinterpret(CLPtr{Cvoid}, ptr), bytesize, ctx, dev)
+	return SharedBuffer(reinterpret(CLPtr{Cvoid}, ptr), bytesize, ctx, dev)
 end
 
 #=
@@ -305,26 +299,22 @@ function lookup_alloc(ctx::Context, ptr::Union{Ptr,CLPtr})
 end
 =#
 
-function enqueue_usm_memcpy(
-        dst::Union{CLPtr, Ptr}, src::Union{CLPtr, Ptr}, nbytes::Integer; queu::CmdQueue = queue(), blocking::Bool = false,
-        wait_for::Vector{Event} = Event[]
-    )
-    n_evts = length(wait_for)
+function enqueue_usm_memcpy(dst::Union{CLPtr, Ptr}, src::Union{CLPtr, Ptr}, nbytes::Integer; queu::CmdQueue=queue(), blocking::Bool=false,
+                            wait_for::Vector{Event}=Event[])
+    n_evts  = length(wait_for)
     evt_ids = isempty(wait_for) ? C_NULL : [pointer(evt) for evt in wait_for]
-    return GC.@preserve wait_for begin
+    GC.@preserve wait_for begin
         ret_evt = Ref{cl_event}()
         ext_clEnqueueMemcpyINTEL(queu, blocking, dst, src, nbytes, n_evts, evt_ids, ret_evt)
         @return_event ret_evt[]
     end
 end
 
-function enqueue_usm_memfill(
-        dst::Union{CLPtr, Ptr}, pattern::Union{Ptr{T}, CLPtr{T}}, pattern_size::Integer, nbytes::Integer; queu::CmdQueue = queue(),
-        wait_for::Vector{Event} = Event[]
-    ) where {T}
-    n_evts = length(wait_for)
+function enqueue_usm_memfill(dst::Union{CLPtr, Ptr}, pattern::Union{Ptr{T},CLPtr{T}}, pattern_size::Integer, nbytes::Integer; queu::CmdQueue=queue(),
+                            wait_for::Vector{Event}=Event[]) where T
+    n_evts  = length(wait_for)
     evt_ids = isempty(wait_for) ? C_NULL : [pointer(evt) for evt in wait_for]
-    return GC.@preserve wait_for begin
+    GC.@preserve wait_for begin
         ret_evt = Ref{cl_event}()
         ext_clEnqueueMemFillINTEL(queu, dst, pattern, pattern_size, nbytes, n_evts, evt_ids, ret_evt)
         @return_event ret_evt[]

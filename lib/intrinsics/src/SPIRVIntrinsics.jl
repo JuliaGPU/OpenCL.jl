@@ -26,7 +26,7 @@ include("atomic.jl")
 macro import_all()
     code = quote end
 
-    for name in names(SPIRVIntrinsics; all = true)
+    for name in names(SPIRVIntrinsics; all=true)
         # bring all the names of this module in scope
         name in (:SPIRVIntrinsics, :eval, :include) && continue
         startswith(string(name), "#") && continue

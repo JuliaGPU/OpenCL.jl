@@ -2,22 +2,22 @@ using LinearAlgebra
 
 @testset "CLArray" begin
     @testset "constructors" begin
-        @test CLArray{Float32, 1}(undef, 1) isa CLArray{Float32, 1}
-        @test CLArray{Float32, 1}(undef, 1; access = :r) isa CLArray{Float32, 1}
+        @test CLArray{Float32,1}(undef, 1) isa CLArray{Float32,1}
+        @test CLArray{Float32,1}(undef, 1; access=:r) isa CLArray{Float32,1}
 
-        @test CLArray{Float32}(undef, 1, 2) isa CLArray{Float32, 2}
-        @test CLArray{Float32}(undef, 1, 2; access = :r) isa CLArray{Float32, 2}
+        @test CLArray{Float32}(undef, 1, 2) isa CLArray{Float32,2}
+        @test CLArray{Float32}(undef, 1, 2; access=:r) isa CLArray{Float32,2}
 
-        @test CLArray{Float32}(undef, (1, 2)) isa CLArray{Float32, 2}
-        @test CLArray{Float32}(undef, (1, 2); access = :r) isa CLArray{Float32, 2}
+        @test CLArray{Float32}(undef, (1, 2)) isa CLArray{Float32,2}
+        @test CLArray{Float32}(undef, (1, 2); access=:r) isa CLArray{Float32,2}
 
-        hostarray = rand(Float32, 128 * 64)
+        hostarray = rand(Float32, 128*64)
         A = CLArray(hostarray)
-        @test A isa CLArray{Float32, 1}
+        @test A isa CLArray{Float32,1}
         @test Array(A) == hostarray
 
-        B = CLArray(hostarray; access = :r)
-        @test B isa CLArray{Float32, 1}
+        B = CLArray(hostarray; access=:r)
+        @test B isa CLArray{Float32,1}
         @test Array(B) == hostarray
 
         @test Array(copy(A)) == Array(A)
@@ -33,10 +33,10 @@ using LinearAlgebra
         A = CLArray(rand(Float32, 128, 64))
         @test size(A) == (128, 64)
         @test ndims(A) == 2
-        @test length(A) == 128 * 64
+        @test length(A) == 128*64
 
         # reshape
-        B = reshape(A, 128 * 64)
+        B = reshape(A, 128*64)
         @test reshape(B, 128, 64) == A
     end
 end

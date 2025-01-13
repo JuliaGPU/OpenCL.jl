@@ -19,4 +19,5 @@ rand(dim1::Integer, dims::Integer...) = Random.rand!(CLArray{Float32}(undef, dim
 randn(dim1::Integer, dims::Integer...; kwargs...) = Random.randn!(CLArray{Float32}(undef, dim1, dims...); kwargs...)
 
 # seeding
-seed!(seed = Base.rand(UInt64)) = Random.seed!(gpuarrays_rng(), seed)
+seed!(seed=Base.rand(UInt64)) = Random.seed!(gpuarrays_rng(), seed)
+

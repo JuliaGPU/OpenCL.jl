@@ -8,8 +8,8 @@
     end
 
     @testset "Equality" begin
-        platform = cl.platforms()[1]
-        platform_copy = cl.platforms()[1]
+        platform       = cl.platforms()[1]
+        platform_copy  = cl.platforms()[1]
 
         @test pointer(platform) == pointer(platform_copy)
         @test hash(platform) == hash(platform_copy)

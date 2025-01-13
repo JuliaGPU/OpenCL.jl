@@ -24,15 +24,13 @@ for method in (:code_typed, :code_warntype, :code_llvm, :code_native)
     args = method == :code_typed ? (:job,) : (:io, :job)
 
     @eval begin
-        function $method(
-                io::IO, @nospecialize(func), @nospecialize(types);
-                kernel::Bool = false, kwargs...
-            )
+        function $method(io::IO, @nospecialize(func), @nospecialize(types);
+                         kernel::Bool=false, kwargs...)
             compiler_kwargs, kwargs = split_kwargs_runtime(kwargs, COMPILER_KWARGS)
             source = methodinstance(typeof(func), Base.to_tuple_type(types))
             config = compiler_config(cl.device(); kernel, compiler_kwargs...)
             job = CompilerJob(source, config)
-            return GPUCompiler.$method($(args...); kwargs...)
+            GPUCompiler.$method($(args...); kwargs...)
         end
         $method(@nospecialize(func), @nospecialize(types); kwargs...) =
             $method(stdout, func, types; kwargs...)
@@ -40,12 +38,13 @@ for method in (:code_typed, :code_warntype, :code_llvm, :code_native)
 end
 
 
+
 #
 # @device_code_* functions
 #
 
 export @device_code_lowered, @device_code_typed, @device_code_warntype, @device_code_llvm,
-    @device_code_native, @device_code
+       @device_code_native, @device_code
 
 # forward to GPUCompiler
 @eval $(Symbol("@device_code_lowered")) = $(getfield(GPUCompiler, Symbol("@device_code_lowered")))
@@ -71,5 +70,5 @@ function return_type(@nospecialize(func), @nospecialize(tt))
     job = CompilerJob(source, config)
     interp = GPUCompiler.get_interpreter(job)
     sig = Base.signature_type(func, tt)
-    return Core.Compiler.return_type(interp, sig)
+    Core.Compiler.return_type(interp, sig)
 end

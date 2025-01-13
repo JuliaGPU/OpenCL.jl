@@ -14,93 +14,72 @@ const atomic_memory_types = [AS.Local, AS.Global]
 # generically typed
 
 for gentype in atomic_integer_types, as in atomic_memory_types
-    @eval begin
+@eval begin
 
-        @device_function atomic_add!(p::LLVMPtr{$gentype, $as}, val::$gentype) =
-            @builtin_ccall(
-            "atomic_add", $gentype,
-            (LLVMPtr{$gentype, $as}, $gentype), p, val
-        )
+@device_function atomic_add!(p::LLVMPtr{$gentype,$as}, val::$gentype) =
+    @builtin_ccall("atomic_add", $gentype,
+                   (LLVMPtr{$gentype,$as}, $gentype), p, val)
 
-        @device_function atomic_sub!(p::LLVMPtr{$gentype, $as}, val::$gentype) =
-            @builtin_ccall(
-            "atomic_sub", $gentype,
-            (LLVMPtr{$gentype, $as}, $gentype), p, val
-        )
+@device_function atomic_sub!(p::LLVMPtr{$gentype,$as}, val::$gentype) =
+    @builtin_ccall("atomic_sub", $gentype,
+                   (LLVMPtr{$gentype,$as}, $gentype), p, val)
 
-        @device_function atomic_inc!(p::LLVMPtr{$gentype, $as}) =
-            @builtin_ccall("atomic_inc", $gentype, (LLVMPtr{$gentype, $as},), p)
+@device_function atomic_inc!(p::LLVMPtr{$gentype,$as}) =
+    @builtin_ccall("atomic_inc", $gentype, (LLVMPtr{$gentype,$as},), p)
 
-        @device_function atomic_dec!(p::LLVMPtr{$gentype, $as}) =
-            @builtin_ccall("atomic_dec", $gentype, (LLVMPtr{$gentype, $as},), p)
+@device_function atomic_dec!(p::LLVMPtr{$gentype,$as}) =
+    @builtin_ccall("atomic_dec", $gentype, (LLVMPtr{$gentype,$as},), p)
 
-        @device_function atomic_min!(p::LLVMPtr{$gentype, $as}, val::$gentype) =
-            @builtin_ccall(
-            "atomic_min", $gentype,
-            (LLVMPtr{$gentype, $as}, $gentype), p, val
-        )
+@device_function atomic_min!(p::LLVMPtr{$gentype,$as}, val::$gentype) =
+    @builtin_ccall("atomic_min", $gentype,
+                   (LLVMPtr{$gentype,$as}, $gentype), p, val)
 
-        @device_function atomic_max!(p::LLVMPtr{$gentype, $as}, val::$gentype) =
-            @builtin_ccall(
-            "atomic_max", $gentype,
-            (LLVMPtr{$gentype, $as}, $gentype), p, val
-        )
+@device_function atomic_max!(p::LLVMPtr{$gentype,$as}, val::$gentype) =
+    @builtin_ccall("atomic_max", $gentype,
+                   (LLVMPtr{$gentype,$as}, $gentype), p, val)
 
-        @device_function atomic_and!(p::LLVMPtr{$gentype, $as}, val::$gentype) =
-            @builtin_ccall(
-            "atomic_and", $gentype,
-            (LLVMPtr{$gentype, $as}, $gentype), p, val
-        )
+@device_function atomic_and!(p::LLVMPtr{$gentype,$as}, val::$gentype) =
+    @builtin_ccall("atomic_and", $gentype,
+                   (LLVMPtr{$gentype,$as}, $gentype), p, val)
 
-        @device_function atomic_or!(p::LLVMPtr{$gentype, $as}, val::$gentype) =
-            @builtin_ccall(
-            "atomic_or", $gentype,
-            (LLVMPtr{$gentype, $as}, $gentype), p, val
-        )
+@device_function atomic_or!(p::LLVMPtr{$gentype,$as}, val::$gentype) =
+    @builtin_ccall("atomic_or", $gentype,
+                   (LLVMPtr{$gentype,$as}, $gentype), p, val)
 
-        @device_function atomic_xor!(p::LLVMPtr{$gentype, $as}, val::$gentype) =
-            @builtin_ccall(
-            "atomic_xor", $gentype,
-            (LLVMPtr{$gentype, $as}, $gentype), p, val
-        )
+@device_function atomic_xor!(p::LLVMPtr{$gentype,$as}, val::$gentype) =
+    @builtin_ccall("atomic_xor", $gentype,
+                   (LLVMPtr{$gentype,$as}, $gentype), p, val)
 
-        @device_function atomic_xchg!(p::LLVMPtr{$gentype, $as}, val::$gentype) =
-            @builtin_ccall(
-            "atomic_xchg", $gentype,
-            (LLVMPtr{$gentype, $as}, $gentype), p, val
-        )
+@device_function atomic_xchg!(p::LLVMPtr{$gentype,$as}, val::$gentype) =
+    @builtin_ccall("atomic_xchg", $gentype,
+                   (LLVMPtr{$gentype,$as}, $gentype), p, val)
 
-        @device_function atomic_cmpxchg!(p::LLVMPtr{$gentype, $as}, cmp::$gentype, val::$gentype) =
-            @builtin_ccall(
-            "atomic_cmpxchg", $gentype,
-            (LLVMPtr{$gentype, $as}, $gentype, $gentype), p, cmp, val
-        )
+@device_function atomic_cmpxchg!(p::LLVMPtr{$gentype,$as}, cmp::$gentype, val::$gentype) =
+    @builtin_ccall("atomic_cmpxchg", $gentype,
+                   (LLVMPtr{$gentype,$as}, $gentype, $gentype), p, cmp, val)
 
-    end
+end
 end
 
 
 # specifically typed
 
 for as in atomic_memory_types
-    @eval begin
+@eval begin
 
-        @device_function atomic_xchg!(p::LLVMPtr{Float32, $as}, val::Float32) =
-            @builtin_ccall("atomic_xchg", Float32, (LLVMPtr{Float32, $as}, Float32), p, val)
+@device_function atomic_xchg!(p::LLVMPtr{Float32,$as}, val::Float32) =
+    @builtin_ccall("atomic_xchg", Float32, (LLVMPtr{Float32,$as}, Float32,), p, val)
 
-        # XXX: why is only xchg supported on floats? isn't it safe for cmpxchg too,
-        #      which should only perform bitwise comparisons?
-        @device_function atomic_cmpxchg!(p::LLVMPtr{Float32, $as}, cmp::Float32, val::Float32) =
-            reinterpret(
-            Float32, atomic_cmpxchg!(
-                reinterpret(LLVMPtr{UInt32, $as}, p),
-                reinterpret(UInt32, cmp),
-                reinterpret(UInt32, val)
-            )
-        )
+# XXX: why is only xchg supported on floats? isn't it safe for cmpxchg too,
+#      which should only perform bitwise comparisons?
+@device_function atomic_cmpxchg!(p::LLVMPtr{Float32,$as}, cmp::Float32, val::Float32) =
+    reinterpret(Float32, atomic_cmpxchg!(reinterpret(LLVMPtr{UInt32,$as}, p),
+                                         reinterpret(UInt32, cmp),
+                                         reinterpret(UInt32, val)))
 
-    end
 end
+end
+
 
 
 # documentation
@@ -182,6 +161,7 @@ returns `old`.
 atomic_xor!
 
 
+
 #
 # High-level interface
 #
@@ -249,11 +229,9 @@ macro atomic(ex)
     array = ref.args[1]
     indices = Expr(:tuple, ref.args[2:end]...)
 
-    return esc(
-        quote
-            $atomic_arrayset($array, $indices, $op, $val)
-        end
-    )
+    esc(quote
+        $atomic_arrayset($array, $indices, $op, $val)
+    end)
 end
 
 # FIXME: make this respect the indexing style
@@ -261,19 +239,15 @@ end
     atomic_arrayset(A, Base._to_linear_index(A, Is...), op, convert(T, val))
 
 # native atomics
-for (op, impl) in [
-        (+) => atomic_add!,
-        (-) => atomic_sub!,
-        (&) => atomic_and!,
-        (|) => atomic_or!,
-        (⊻) => atomic_xor!,
-        Base.max => atomic_max!,
-        Base.min => atomic_min!,
-    ]
-    @eval @inline atomic_arrayset(
-        A::AbstractArray{T}, I::Integer, ::typeof($op),
-        val::T
-    ) where {T <: Union{Int32, UInt32}} =
+for (op,impl) in [(+)      => atomic_add!,
+                  (-)      => atomic_sub!,
+                  (&)      => atomic_and!,
+                  (|)      => atomic_or!,
+                  (⊻)      => atomic_xor!,
+                  Base.max => atomic_max!,
+                  Base.min => atomic_min!]
+    @eval @inline atomic_arrayset(A::AbstractArray{T}, I::Integer, ::typeof($op),
+                                  val::T) where {T <: Union{Int32,UInt32}} =
         $impl(pointer(A, I), val)
 end
 
@@ -287,5 +261,4 @@ function atomic_arrayset(A::AbstractArray{T}, I::Integer, op::Function, val) whe
         old = atomic_cmpxchg!(ptr, cmp, new)
         (old == cmp) && return new
     end
-    return
 end

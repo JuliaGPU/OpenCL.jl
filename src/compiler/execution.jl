@@ -9,7 +9,7 @@ const LAUNCH_KWARGS = [:global_size, :local_size, :queue]
 
 macro opencl(ex...)
     call = ex[end]
-    kwargs = map(ex[1:(end - 1)]) do kwarg
+    kwargs = map(ex[1:end-1]) do kwarg
         if kwarg isa Symbol
             :($kwarg = $kwarg)
         elseif Meta.isexpr(kwarg, :(=))
@@ -31,14 +31,14 @@ macro opencl(ex...)
     macro_kwargs, compiler_kwargs, call_kwargs, other_kwargs =
         split_kwargs(kwargs, MACRO_KWARGS, COMPILER_KWARGS, LAUNCH_KWARGS)
     if !isempty(other_kwargs)
-        key, val = first(other_kwargs).args
+        key,val = first(other_kwargs).args
         throw(ArgumentError("Unsupported keyword argument '$key'"))
     end
 
     # handle keyword arguments that influence the macro's behavior
     launch = true
     for kwarg in macro_kwargs
-        key, val = kwarg.args
+        key,val = kwarg.args
         if key == :launch
             isa(val, Bool) || throw(ArgumentError("`launch` keyword argument to @opencl should be a constant value"))
             launch = val::Bool
@@ -56,8 +56,7 @@ macro opencl(ex...)
 
     # convert the arguments, call the compiler and launch the kernel
     # while keeping the original arguments alive
-    push!(
-        code.args,
+    push!(code.args,
         quote
             $f_var = $f
             GC.@preserve $(vars...) $f_var begin
@@ -70,16 +69,13 @@ macro opencl(ex...)
                 end
                 $kernel
             end
-        end
-    )
+         end)
 
-    return esc(
-        quote
-            let
-                $code
-            end
+    return esc(quote
+        let
+            $code
         end
-    )
+    end)
 end
 
 
@@ -91,13 +87,13 @@ struct KernelAdaptor end
 Adapt.adapt_storage(to::KernelAdaptor, p::CLPtr{T}) where {T} = reinterpret(Ptr{T}, p)
 
 # convert OpenCL USM host arrays to device arrays
-Adapt.adapt_storage(::KernelAdaptor, xs::CLArray{T, N}) where {T, N} =
-    Base.unsafe_convert(CLDeviceArray{T, N, AS.Global}, xs)
+Adapt.adapt_storage(::KernelAdaptor, xs::CLArray{T,N}) where {T,N} =
+  Base.unsafe_convert(CLDeviceArray{T,N,AS.Global}, xs)
 
 # Base.RefValue isn't GPU compatible, so provide a compatible alternative
 # TODO: port improvements from CUDA.jl
 struct CLRefValue{T} <: Ref{T}
-    x::T
+  x::T
 end
 Base.getindex(r::CLRefValue) = r.x
 Adapt.adapt_structure(to::KernelAdaptor, r::Base.RefValue) = CLRefValue(adapt(to, r[]))
@@ -105,15 +101,13 @@ Adapt.adapt_structure(to::KernelAdaptor, r::Base.RefValue) = CLRefValue(adapt(to
 # broadcast sometimes passes a ref(type), resulting in a GPU-incompatible DataType box.
 # avoid that by using a special kind of ref that knows about the boxed type.
 struct CLRefType{T} <: Ref{DataType} end
-Base.getindex(r::CLRefType{T}) where {T} = T
-Adapt.adapt_structure(to::KernelAdaptor, r::Base.RefValue{<:Union{DataType, Type}}) =
+Base.getindex(r::CLRefType{T}) where T = T
+Adapt.adapt_structure(to::KernelAdaptor, r::Base.RefValue{<:Union{DataType,Type}}) =
     CLRefType{r[]}()
 
 # case where type is the function being broadcasted
-Adapt.adapt_structure(
-    to::KernelAdaptor,
-    bc::Broadcast.Broadcasted{Style, <:Any, Type{T}}
-) where {Style, T} =
+Adapt.adapt_structure(to::KernelAdaptor,
+                      bc::Broadcast.Broadcasted{Style, <:Any, Type{T}}) where {Style, T} =
     Broadcast.Broadcasted{Style}((x...) -> T(x...), adapt(to, bc.args), bc.axes)
 
 """
@@ -131,20 +125,20 @@ kernel_convert(arg) = adapt(KernelAdaptor(), arg)
 
 ## abstract kernel functionality
 
-abstract type AbstractKernel{F, TT} end
+abstract type AbstractKernel{F,TT} end
 
-@inline @generated function call(kernel::AbstractKernel{F, TT}, args...; call_kwargs...) where {F, TT}
+@inline @generated function call(kernel::AbstractKernel{F,TT}, args...; call_kwargs...) where {F,TT}
     sig = Tuple{F, TT.parameters...}    # Base.signature_type with a function type
-    args = (:(kernel.f), (:(args[$i]) for i in 1:length(args))...)
+    args = (:(kernel.f), (:( args[$i] ) for i in 1:length(args))...)
 
     # filter out ghost arguments that shouldn't be passed
     predicate = dt -> isghosttype(dt) || Core.Compiler.isconstType(dt)
     to_pass = map(!predicate, sig.parameters)
-    call_t = Type[x[1] for x in zip(sig.parameters, to_pass) if x[2]]
-    call_args = Union{Expr, Symbol}[x[1] for x in zip(args, to_pass)            if x[2]]
+    call_t =                  Type[x[1] for x in zip(sig.parameters,  to_pass) if x[2]]
+    call_args = Union{Expr,Symbol}[x[1] for x in zip(args, to_pass)            if x[2]]
 
     # replace non-isbits arguments (they should be unused, or compilation would have failed)
-    for (i, dt) in enumerate(call_t)
+    for (i,dt) in enumerate(call_t)
         if !isbitstype(dt)
             call_t[i] = Ptr{Any}
             call_args[i] = :C_NULL
@@ -154,15 +148,16 @@ abstract type AbstractKernel{F, TT} end
     # finalize types
     call_tt = Base.to_tuple_type(call_t)
 
-    return quote
+    quote
         clcall(kernel.fun, $call_tt, $(call_args...); call_kwargs...)
     end
 end
 
 
+
 ## host-side kernels
 
-struct HostKernel{F, TT} <: AbstractKernel{F, TT}
+struct HostKernel{F,TT} <: AbstractKernel{F,TT}
     f::F
     fun::cl.Kernel
 end
@@ -172,7 +167,7 @@ end
 
 const clfunction_lock = ReentrantLock()
 
-function clfunction(f::F, tt::TT = Tuple{}; kwargs...) where {F, TT}
+function clfunction(f::F, tt::TT=Tuple{}; kwargs...) where {F,TT}
     ctx = cl.context()
     dev = cl.device()
 
@@ -189,10 +184,10 @@ function clfunction(f::F, tt::TT = Tuple{}; kwargs...) where {F, TT}
         kernel = get(_kernel_instances, h, nothing)
         if kernel === nothing
             # create the kernel state object
-            kernel = HostKernel{F, tt}(f, fun)
+            kernel = HostKernel{F,tt}(f, fun)
             _kernel_instances[h] = kernel
         end
-        return kernel::HostKernel{F, tt}
+        return kernel::HostKernel{F,tt}
     end
 end
 
@@ -200,5 +195,5 @@ end
 const _kernel_instances = Dict{UInt, Any}()
 
 function (kernel::HostKernel)(args...; kwargs...)
-    return call(kernel, map(kernel_convert, args)...; kwargs...)
+    call(kernel, map(kernel_convert, args)...; kwargs...)
 end

@@ -5,7 +5,7 @@ abstract type AbstractEvent <: CLObject end
 mutable struct Event <: AbstractEvent
     const id::cl_event
 
-    function Event(evt_id; retain::Bool = false)
+    function Event(evt_id; retain::Bool=false)
         evt = new(evt_id)
         retain && clRetainEvent(evt)
         finalizer(clReleaseEvent, evt)
@@ -18,21 +18,21 @@ mutable struct NannyEvent <: AbstractEvent
     const id::cl_event
     const obj::Any
 
-    function NannyEvent(evt_id, obj; retain::Bool = false)
+    function NannyEvent(evt_id, obj; retain::Bool=false)
         nanny_evt = new(evt_id, obj)
         retain && clRetainEvent(nanny_evt)
         finalizer(clReleaseEvent, nanny_evt)
-        return nanny_evt
+        nanny_evt
     end
 end
 
-NannyEvent(evt::Event, obj; retain = false) = NannyEvent(evt.id, obj; retain)
+NannyEvent(evt::Event, obj; retain=false) = NannyEvent(evt.id, obj; retain)
 
 macro return_event(evt)
-    return quote
+    quote
         evt = $(esc(evt))
         try
-            return Event(evt, retain = false)
+            return Event(evt, retain=false)
         catch err
             clReleaseEvent(evt)
             throw(err)
@@ -41,7 +41,7 @@ macro return_event(evt)
 end
 
 macro return_nanny_event(evt, obj)
-    return quote
+    quote
         evt = $(esc(evt))
         try
             return NannyEvent(evt, $(esc(obj)))
@@ -56,14 +56,14 @@ Base.unsafe_convert(::Type{cl_event}, evt::AbstractEvent) = evt.id
 
 function Base.show(io::IO, evt::Event)
     ptr_val = convert(UInt, pointer(evt))
-    ptr_address = "0x$(string(ptr_val, base = 16, pad = Sys.WORD_SIZE >> 2))"
-    return print(io, "OpenCL.Event(@$ptr_address)")
+    ptr_address = "0x$(string(ptr_val, base = 16, pad = Sys.WORD_SIZE>>2))"
+    print(io, "OpenCL.Event(@$ptr_address)")
 end
 
 mutable struct UserEvent <: AbstractEvent
     const id::cl_event
 
-    function UserEvent(evt_id::cl_event, retain::Bool = false)
+    function UserEvent(evt_id::cl_event, retain::Bool=false)
         evt = new(evt_id)
         retain && clRetainEvent(evt)
         finalizer(clReleaseEvent, evt)
@@ -71,7 +71,7 @@ mutable struct UserEvent <: AbstractEvent
     end
 end
 
-function UserEvent(; retain = false)
+function UserEvent(; retain=false)
     status = Ref{Cint}()
     evt_id = clCreateUserEvent(context(), status)
     if status[] != CL_SUCCESS
@@ -87,8 +87,8 @@ end
 
 function Base.show(io::IO, evt::UserEvent)
     ptr_val = convert(UInt, pointer(evt))
-    ptr_address = "0x$(string(ptr_val, base = 16, pad = Sys.WORD_SIZE >> 2))"
-    return print(io, "OpenCL.UserEvent(@$ptr_address)")
+    ptr_address = "0x$(string(ptr_val, base = 16, pad = Sys.WORD_SIZE>>2))"
+    print(io, "OpenCL.UserEvent(@$ptr_address)")
 end
 
 function complete(evt::UserEvent)
@@ -111,19 +111,17 @@ function event_notify(evt_id::cl_event, status::Cint, payload::Ptr{Nothing})
 
     # Use uv_async_send to notify the main thread
     ccall(:uv_async_send, Nothing, (Ptr{Nothing},), handle)
-    return nothing
+    nothing
 end
 
 function add_callback(evt::AbstractEvent, callback::Function)
-    event_notify_ptr = @cfunction(
-        event_notify, Nothing,
-        (cl_event, Cint, Ptr{Cvoid})
-    )
+    event_notify_ptr = @cfunction(event_notify, Nothing,
+                                  (cl_event, Cint, Ptr{Cvoid}))
 
     # The uv_callback is going to notify a task that,
     # then executes the real callback.
     cb = Base.AsyncCondition()
-    return GC.@preserve cb begin
+    GC.@preserve cb begin
 
         # Storing the results of our c_callback needs to be
         # isbits && isimmutable
@@ -132,15 +130,15 @@ function add_callback(evt::AbstractEvent, callback::Function)
         clSetEventCallback(evt, CL_COMPLETE, event_notify_ptr, r_ecb)
 
         @async begin
-            try
-                Base.wait(cb)
-                ecb = r_ecb[]
-                callback(ecb.evt_id, ecb.status)
-            catch
-                rethrow()
-            finally
-                Base.close(cb)
-            end
+           try
+             Base.wait(cb)
+             ecb = r_ecb[]
+             callback(ecb.evt_id, ecb.status)
+           catch
+             rethrow()
+           finally
+             Base.close(cb)
+           end
         end
     end
 end
@@ -164,42 +162,38 @@ function enqueue_marker_with_wait_list(wait_for::Vector{AbstractEvent})
     n_wait_events = cl_uint(length(wait_for))
     wait_evt_ids = [evt.id for evt in wait_for]
     ret_evt = Ref{cl_event}()
-    clEnqueueMarkerWithWaitList(
-        queue(), n_wait_events,
-        isempty(wait_evt_ids) ? C_NULL : wait_evt_ids,
-        ret_evt
-    )
-    return @return_event ret_evt[]
+    clEnqueueMarkerWithWaitList(queue(), n_wait_events,
+                                isempty(wait_evt_ids) ? C_NULL : wait_evt_ids,
+                                ret_evt)
+    @return_event ret_evt[]
 end
 
 function enqueue_barrier_with_wait_list(wait_for::Vector{AbstractEvent})
     n_wait_events = cl_uint(length(wait_for))
     wait_evt_ids = [evt.id for evt in wait_for]
     ret_evt = Ref{cl_event}()
-    clEnqueueBarrierWithWaitList(
-        queue(), n_wait_events,
-        isempty(wait_evt_ids) ? C_NULL : wait_evt_ids,
-        ret_evt
-    )
-    return @return_event ret_evt[]
+    clEnqueueBarrierWithWaitList(queue(), n_wait_events,
+                                 isempty(wait_evt_ids) ? C_NULL : wait_evt_ids,
+                                 ret_evt)
+    @return_event ret_evt[]
 end
 
 function enqueue_marker()
     evt = Ref{cl_event}()
     clEnqueueMarker(queue(), evt)
-    return @return_event evt[]
+    @return_event evt[]
 end
 @deprecate enqueue_marker enqueue_marker_with_wait_list
 
-function enqueue_wait_for_events(wait_for::Vector{T}) where {T <: AbstractEvent}
+function enqueue_wait_for_events(wait_for::Vector{T}) where {T<:AbstractEvent}
     wait_evt_ids = isempty(wait_for) ? C_NULL : [pointer(evt) for evt in wait_for]
-    return GC.@preserve wait_for begin
+    GC.@preserve wait_for begin
         clEnqueueWaitForEvents(queue(), length(wait_for), wait_evt_ids)
-    end
+   end
 end
 
 function enqueue_wait_for_events(wait_for::AbstractEvent)
-    return enqueue_wait_for_events([wait_for])
+    enqueue_wait_for_events([wait_for])
 end
 
 function enqueue_barrier()
@@ -273,7 +267,7 @@ function Base.getproperty(evt::AbstractEvent, s::Symbol)
             throw(ArgumentError("Unknown status value: $status"))
         end
 
-        # profiling properties
+    # profiling properties
     elseif s == :profile_start
         return profiling_info(evt, CL_PROFILING_COMMAND_START)
     elseif s == :profile_end

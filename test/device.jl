@@ -1,12 +1,8 @@
 @testset "Device" begin
     @testset "Type" begin
-        for (t, k) in zip(
-                (
-                    cl.CL_DEVICE_TYPE_GPU, cl.CL_DEVICE_TYPE_CPU,
-                    cl.CL_DEVICE_TYPE_ACCELERATOR, cl.CL_DEVICE_TYPE_ALL,
-                ),
-                (:gpu, :cpu, :accelerator, :all)
-            )
+        for (t, k) in zip((cl.CL_DEVICE_TYPE_GPU, cl.CL_DEVICE_TYPE_CPU,
+                           cl.CL_DEVICE_TYPE_ACCELERATOR, cl.CL_DEVICE_TYPE_ALL),
+                          (:gpu, :cpu, :accelerator, :all))
 
             #for (dk, dt) in zip(cl.devices(cl.platform(), k), cl.devices(cl.platform(), t))
             #    @fact dk == dt --> true
@@ -24,43 +20,43 @@
         if length(devices) > 1
             d1 = devices[1]
             for d2 in devices[2:end]
-                @test pointer(d2) != pointer(d1)
-                @test hash(d2) != hash(d1)
-                @test isequal(d2, d1) == false
-            end
-        end
+               @test pointer(d2) != pointer(d1)
+               @test hash(d2) != hash(d1)
+               @test isequal(d2, d1) == false
+           end
+       end
     end
 
     @testset "Info" begin
         device_info_keys = Symbol[
-            :driver_version,
-            :version,
-            :extensions,
-            :platform,
-            :name,
-            :device_type,
-            :has_image_support,
-            :vendor_id,
-            :max_compute_units,
-            :max_work_item_size,
-            :max_clock_frequency,
-            :address_bits,
-            :max_read_image_args,
-            :max_write_image_args,
-            :global_mem_size,
-            :max_mem_alloc_size,
-            :max_const_buffer_size,
-            :local_mem_size,
-            :has_local_mem,
-            :host_unified_memory,
-            :available,
-            :compiler_available,
-            :max_work_group_size,
-            :max_parameter_size,
-            :profiling_timer_resolution,
-            :max_image2d_shape,
-            :max_image3d_shape,
-        ]
+                :driver_version,
+                :version,
+                :extensions,
+                :platform,
+                :name,
+                :device_type,
+                :has_image_support,
+                :vendor_id,
+                :max_compute_units,
+                :max_work_item_size,
+                :max_clock_frequency,
+                :address_bits,
+                :max_read_image_args,
+                :max_write_image_args,
+                :global_mem_size,
+                :max_mem_alloc_size,
+                :max_const_buffer_size,
+                :local_mem_size,
+                :has_local_mem,
+                :host_unified_memory,
+                :available,
+                :compiler_available,
+                :max_work_group_size,
+                :max_parameter_size,
+                :profiling_timer_resolution,
+                :max_image2d_shape,
+                :max_image3d_shape,
+            ]
         @test isa(cl.platform(), cl.Platform)
         @test_throws ErrorException cl.platform().zjdlkf
 

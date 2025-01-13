@@ -78,20 +78,17 @@ h_B = fill(Float32(BVAL), sizeB)
 h_C = Vector{Float32}(undef, sizeC)
 
 # %20 improvment using @inbounds
-function seq_mat_mul_sdot(
-        Mdim::Int, Ndim::Int, Pdim::Int,
-        A::Array{T}, B::Array{T}, C::Array{T}
-    ) where {T}
+function seq_mat_mul_sdot(Mdim::Int, Ndim::Int, Pdim::Int,
+                          A::Array{T}, B::Array{T}, C::Array{T}) where T
     for i in 1:Ndim
         for j in 1:Mdim
             tmp = zero(Float32)
             for k in 1:Pdim
-                @inbounds tmp += A[(i - 1) * Ndim + k] * B[(k - 1) * Pdim + j]
+                @inbounds tmp += A[(i-1)*Ndim+k] * B[(k-1)*Pdim+j]
             end
-            @inbounds C[(i - 1) * Ndim + j] = tmp
+            @inbounds C[(i-1)*Ndim+j] = tmp
         end
     end
-    return
 end
 
 @info("=== Julia, matix mult (dot prod), order $ORDER ===")
@@ -108,11 +105,11 @@ for i in 1:COUNT
 end
 
 # create OpenCL arrays
-d_a = CLArray(h_A; access = :r)
-d_b = CLArray(h_B; access = :r)
-d_c = CLArray{Float32}(undef, length(h_C); access = :w)
+d_a = CLArray(h_A; access=:r)
+d_b = CLArray(h_B; access=:r)
+d_c = CLArray{Float32}(undef, length(h_C); access=:w)
 
-prg = cl.Program(source = kernel_source) |> cl.build!
+prg  = cl.Program(source=kernel_source) |> cl.build!
 mmul = cl.Kernel(prg, "mmul")
 
 @info("=== OpenCL, matrix mult, C(i, j) per work item, order $Ndim ====")
@@ -125,14 +122,12 @@ for i in 1:COUNT
     # You can enable profiling events on the queue
     # by calling the constructor with the :profile flag
     cl.queue!(:profile) do
-        evt = clcall(
-            mmul, Tuple{Int32, Int32, Int32, Ptr{Float32}, Ptr{Float32}, Ptr{Float32}},
-            Mdim, Ndim, Pdim, d_a, d_b, d_c; global_size
-        )
+        evt = clcall(mmul, Tuple{Int32, Int32, Int32, Ptr{Float32}, Ptr{Float32}, Ptr{Float32}},
+                     Mdim, Ndim, Pdim, d_a, d_b, d_c; global_size)
         wait(evt)
 
         # profiling events are measured in ns
-        run_time = evt.profile_duration / 1.0e9
+        run_time = evt.profile_duration / 1e9
         cl.copy!(h_C, d_c)
         results(Mdim, Ndim, Pdim, h_C, run_time)
     end

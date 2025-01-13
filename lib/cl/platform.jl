@@ -53,8 +53,8 @@ function Base.show(io::IO, p::Platform)
     strip_extra_whitespace = r"\s+"
     platform_name = replace(p.name, strip_extra_whitespace => " ")
     ptr_val = convert(UInt, pointer(p))
-    ptr_address = "0x$(string(ptr_val, base = 16, pad = Sys.WORD_SIZE >> 2))"
-    return print(io, "OpenCL.Platform('$platform_name' @$ptr_address)")
+    ptr_address = "0x$(string(ptr_val, base = 16, pad = Sys.WORD_SIZE>>2))"
+    print(io, "OpenCL.Platform('$platform_name' @$ptr_address)")
 end
 
 function platforms()
@@ -100,10 +100,10 @@ end
 devices(p::Platform) = devices(p, CL_DEVICE_TYPE_ALL)
 
 function devices(p::Platform, dtype::Symbol)
-    return devices(p, cl_device_type(dtype))
+    devices(p, cl_device_type(dtype))
 end
 
 has_device_type(p::Platform, dtype) = length(devices(p, dtype)) > 0
 
-available_devices(p::Platform, dtype::Symbol) = filter(d -> d.available, devices(p, dtype))
+available_devices(p::Platform, dtype::Symbol) = filter(d -> d.available,  devices(p, dtype))
 available_devices(p::Platform) = available_devices(p, :all)
