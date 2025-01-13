@@ -26,7 +26,7 @@ include("device/quirks.jl")
 # high level implementation
 include("memory.jl")
 include("pool.jl")
-include("array_new.jl")
+include("array.jl")
 
 # compiler implementation
 include("compiler/compilation.jl")
