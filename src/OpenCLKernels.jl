@@ -83,16 +83,18 @@ function threads_to_workgroupsize(threads, ndrange)
 end
 
 function (obj::KA.Kernel{OpenCLBackend})(args...; ndrange=nothing, workgroupsize=nothing)
-    ndrange, workgroupsize, iterspace, dynamic = KA.launch_config(obj, ndrange, workgroupsize)
+    ndrange, workgroupsize, iterspace, dynamic =
+        KA.launch_config(obj, ndrange, workgroupsize)
+
     # this might not be the final context, since we may tune the workgroupsize
     ctx = KA.mkcontext(obj, ndrange, iterspace)
     kernel = @opencl launch=false obj.f(ctx, args...)
 
     # figure out the optimal workgroupsize automatically
     if KA.workgroupsize(obj) <: KA.DynamicSize && workgroupsize === nothing
-        items = OpenCL.launch_configuration(kernel)
-        workgroupsize = threads_to_workgroupsize(items, ndrange)
-        iterspace, dynamic = KA.partition(obj, ndrange, workgroupsize)
+        wg_info = cl.work_group_info(kernel.fun, cl.device())
+        wg_size_nd = threads_to_workgroupsize(wg_info.size, ndrange)
+        iterspace, dynamic = KA.partition(obj, ndrange, wg_size_nd)
         ctx = KA.mkcontext(obj, ndrange, iterspace)
     end
 
@@ -104,7 +106,9 @@ function (obj::KA.Kernel{OpenCLBackend})(args...; ndrange=nothing, workgroupsize
     end
 
     # Launch kernel
-    kernel(ctx, args...; items, groups)
+    global_size = groups * items
+    local_size = items
+    kernel(ctx, args...; global_size, local_size)
 
     return nothing
 end
@@ -150,7 +154,7 @@ end
 
 @device_override @inline function KA.SharedMemory(::Type{T}, ::Val{Dims}, ::Val{Id}) where {T, Dims, Id}
     ptr = OpenCL.emit_localmemory(T, Val(prod(Dims)))
-    oneDeviceArray(Dims, ptr)
+    CLDeviceArray(Dims, ptr)
 end
 
 @device_override @inline function KA.Scratchpad(ctx, ::Type{T}, ::Val{Dims}) where {T, Dims}

@@ -193,3 +193,7 @@ end
 
 # cache of kernel instances
 const _kernel_instances = Dict{UInt, Any}()
+
+function (kernel::HostKernel)(args...; kwargs...)
+    call(kernel, map(kernel_convert, args)...; kwargs...)
+end

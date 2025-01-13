@@ -433,13 +433,12 @@ function Base.unsafe_convert(::Type{CLPtr{T}}, x::CLArray{T}) where {T}
   convert(CLPtr{T}, x.data[]) + x.offset*Base.elsize(x)
 end
 
-## interop with device arrays
+# interop with GPU arrays
 
-function Base.unsafe_convert(::Type{CLDeviceArray{T,N,AS.Global}}, a::DenseCLArray{T,N}) where {T,N}
-  CLDeviceArray{T,N,AS.Global}(reinterpret(LLVMPtr{T,AS.Global}, pointer(a)), size(a),
-                               a.maxsize - a.offset*Base.elsize(a))
+function Base.unsafe_convert(::Type{CLDeviceArray{T,N,AS.Global}}, a::CLArray{T,N}) where {T,N}
+  CLDeviceArray{T,N,AS.Global}(size(a), reinterpret(LLVMPtr{T,AS.Global}, pointer(a)),
+                                a.maxsize - a.offset*Base.elsize(a))
 end
-
 
 ## memory copying
 
