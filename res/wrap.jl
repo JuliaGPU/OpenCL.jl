@@ -10,7 +10,7 @@ using Clang.Generators
 
 using JuliaFormatter
 
-function wrap(name, headers...; defines=[], include_dirs=[], dependents=true)
+function wrap(name, headers...; defines = [], include_dirs = [], dependents = true)
     @info "Wrapping $name"
 
     args = get_default_args()
@@ -37,7 +37,7 @@ function wrap(name, headers...; defines=[], include_dirs=[], dependents=true)
     # (i.e., not from included ones)
     if !dependents
         function rewrite!(dag::ExprDAG)
-            replace!(get_nodes(dag)) do node
+            return replace!(get_nodes(dag)) do node
                 path = normpath(Clang.get_filename(node.cursor))
                 if !in(path, headers)
                     return ExprNode(node.id, Generators.Skip(), node.cursor, Expr[], node.adj)
@@ -88,6 +88,7 @@ function rewriter!(ctx, options)
             end
         end
     end
+    return
 end
 
 
@@ -103,8 +104,10 @@ function main()
     paths = map(headers) do header
         joinpath(include_dir, "CL", header)
     end
-    wrap("opencl", paths...; include_dirs=[include_dir],
-         defines=["CL_TARGET_OPENCL_VERSION" => "300"],)
+    return wrap(
+        "opencl", paths...; include_dirs = [include_dir],
+        defines = ["CL_TARGET_OPENCL_VERSION" => "300"],
+    )
 end
 
 isinteractive() || main()

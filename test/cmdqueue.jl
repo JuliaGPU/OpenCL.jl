@@ -6,9 +6,11 @@
             cl.CmdQueue(:out_of_order)
             cl.CmdQueue((:profile, :out_of_order))
         catch err
-            @warn("Platform $(cl.device().platform.name) does not seem to " *
-                  "suport out of order queues: \n$err",maxlog=1,
-                  exception=(err, catch_backtrace()))
+            @warn(
+                "Platform $(cl.device().platform.name) does not seem to " *
+                    "suport out of order queues: \n$err", maxlog = 1,
+                exception = (err, catch_backtrace())
+            )
         end
         @test_throws ArgumentError cl.CmdQueue(:unrecognized_flag)
         for flag in [:profile, :out_of_order]

@@ -18,7 +18,7 @@ src_dir = dirname(Base.source_path())
 
 #
 # Some constant values
-const INSTEPS = 512*512*512
+const INSTEPS = 512 * 512 * 512
 const ITERS = 262144
 
 # Set some default values:
@@ -29,7 +29,7 @@ const in_nsteps = INSTEPS
 const niters = ITERS
 
 kernelsource = read(joinpath(src_dir, "pi_ocl.cl"), String)
-program = cl.Program(source=kernelsource) |> cl.build!
+program = cl.Program(source = kernelsource) |> cl.build!
 
 # pi is a julia keyword
 pi_kernel = cl.Kernel(program, "pi")
@@ -56,7 +56,7 @@ h_psum = Vector{Float32}(undef, nwork_groups)
 println("$nwork_groups work groups of size $work_group_size.")
 println("$nsteps integration steps")
 
-d_partial_sums = CLArray{Float32}(undef, length(h_psum); access=:w)
+d_partial_sums = CLArray{Float32}(undef, length(h_psum); access = :w)
 
 # start timer
 rtime = time()
@@ -65,11 +65,13 @@ rtime = time()
 # using the maximum number of work group items for this device
 # Set the global and local size as tuples
 global_size = (nwork_groups * work_group_size,)
-local_size  = (work_group_size,)
-localmem    = cl.LocalMem(Float32, work_group_size)
+local_size = (work_group_size,)
+localmem = cl.LocalMem(Float32, work_group_size)
 
-clcall(pi_kernel, Tuple{Int32, Float32, cl.LocalMem{Float32}, Ptr{Float32}},
-       niters, step_size, localmem, d_partial_sums; global_size, local_size)
+clcall(
+    pi_kernel, Tuple{Int32, Float32, cl.LocalMem{Float32}, Ptr{Float32}},
+    niters, step_size, localmem, d_partial_sums; global_size, local_size
+)
 
 cl.copy!(h_psum, d_partial_sums)
 

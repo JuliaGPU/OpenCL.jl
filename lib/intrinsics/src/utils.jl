@@ -10,7 +10,7 @@ macro builtin_ccall(name, ret, argtypes, args...)
     argtypes = argtypes.args
 
     function mangle(T::Type)
-        if T == Int32
+        return if T == Int32
             "i"
         elseif T == UInt32
             "j"
@@ -36,10 +36,10 @@ macro builtin_ccall(name, ret, argtypes, args...)
             # mangle address space
             ASstr = if as == AS.Global
                 "CLglobal"
-            #elseif as == AS.Global_device
-            #    "CLdevice"
-            #elseif as == AS.Global_host
-            #    "CLhost"
+                #elseif as == AS.Global_device
+                #    "CLdevice"
+                #elseif as == AS.Global_host
+                #    "CLhost"
             elseif as == AS.Local
                 "CLlocal"
             elseif as == AS.Constant
@@ -72,9 +72,11 @@ macro builtin_ccall(name, ret, argtypes, args...)
     end
 
     push!(opencl_builtins, mangled)
-    esc(quote
-        @typed_ccall($mangled, llvmcall, $ret, ($(argtypes...),), $(args...))
-    end)
+    return esc(
+        quote
+            @typed_ccall($mangled, llvmcall, $ret, ($(argtypes...),), $(args...))
+        end
+    )
 end
 
 
@@ -84,9 +86,11 @@ end
 Base.Experimental.@MethodTable(method_table)
 
 macro device_override(ex)
-    esc(quote
-        Base.Experimental.@overlay($method_table, $ex)
-    end)
+    return esc(
+        quote
+            Base.Experimental.@overlay($method_table, $ex)
+        end
+    )
 end
 
 macro device_function(ex)
@@ -98,8 +102,10 @@ macro device_function(ex)
         error("This function is not intended for use on the CPU")
     end
 
-    esc(quote
-        $(ExprTools.combinedef(def))
-        @device_override $ex
-    end)
+    return esc(
+        quote
+            $(ExprTools.combinedef(def))
+            @device_override $ex
+        end
+    )
 end

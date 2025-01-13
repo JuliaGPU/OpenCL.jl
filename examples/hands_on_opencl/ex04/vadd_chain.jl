@@ -13,7 +13,7 @@
 using OpenCL
 
 # tolerance used in floating point comparisons
-TOL = 1e-3
+TOL = 1.0e-3
 
 # length of vectors a, b, c
 LENGTH = 1024
@@ -41,7 +41,7 @@ __kernel void vadd(
 # create a compute context
 
 # create the compute program and build it
-program = cl.Program(source=kernelsource) |> cl.build!
+program = cl.Program(source = kernelsource) |> cl.build!
 
 #create a, b, e, and g vectors and fill with random float values
 #create empty vectors for c, d, and f
@@ -62,14 +62,14 @@ h_g = rand(Float32, LENGTH)
 # {:use (use host buffer), :alloc (alloc pinned memory), :copy (default)}
 
 # Create the input (a, b, e, g) arrays in device memory and copy data from host
-d_a = CLArray(h_a; access=:r)
-d_b = CLArray(h_b; access=:r)
-d_e = CLArray(h_e; access=:r)
-d_g = CLArray(h_g; access=:r)
+d_a = CLArray(h_a; access = :r)
+d_b = CLArray(h_b; access = :r)
+d_e = CLArray(h_e; access = :r)
+d_g = CLArray(h_g; access = :r)
 # Create the output (c, d, f) array in device memory
-d_c = CLArray{Float32}(undef, LENGTH; access=:w)
-d_d = CLArray{Float32}(undef, LENGTH; access=:w)
-d_f = CLArray{Float32}(undef, LENGTH; access=:w)
+d_c = CLArray{Float32}(undef, LENGTH; access = :w)
+d_d = CLArray{Float32}(undef, LENGTH; access = :w)
+d_f = CLArray{Float32}(undef, LENGTH; access = :w)
 
 # create the kernel
 vadd = cl.Kernel(program, "vadd")
@@ -81,12 +81,18 @@ vadd = cl.Kernel(program, "vadd")
 # here we call the kernel with work size set to the number of elements and no local
 # work size. This enables the opencl runtime to optimize the local size for simple
 # kernels
-clcall(vadd, Tuple{Ptr{Float32}, Ptr{Float32}, Ptr{Float32}, Cuint},
-       d_a, d_b, d_c, LENGTH; global_size=size(h_a))
-clcall(vadd, Tuple{Ptr{Float32}, Ptr{Float32}, Ptr{Float32}, Cuint},
-       d_e, d_c, d_d, LENGTH; global_size=size(h_e))
-clcall(vadd, Tuple{Ptr{Float32}, Ptr{Float32}, Ptr{Float32}, Cuint},
-       d_g, d_d, d_f, LENGTH; global_size=size(h_g))
+clcall(
+    vadd, Tuple{Ptr{Float32}, Ptr{Float32}, Ptr{Float32}, Cuint},
+    d_a, d_b, d_c, LENGTH; global_size = size(h_a)
+)
+clcall(
+    vadd, Tuple{Ptr{Float32}, Ptr{Float32}, Ptr{Float32}, Cuint},
+    d_e, d_c, d_d, LENGTH; global_size = size(h_e)
+)
+clcall(
+    vadd, Tuple{Ptr{Float32}, Ptr{Float32}, Ptr{Float32}, Cuint},
+    d_g, d_d, d_f, LENGTH; global_size = size(h_g)
+)
 
 # copy back the results from the compute device
 # copy!(queue, dst, src) follows same interface as julia's built in copy!
@@ -100,8 +106,10 @@ for i in 1:LENGTH
     if tmp^2 < TOL^2
         global correct += 1
     else
-        println("tmp $tmp h_a $(h_a[i]) h_b $(h_b[i]) ",
-                "h_e $(h_e[i]) h_g $(h_g[i]) h_f $(h_f[i])")
+        println(
+            "tmp $tmp h_a $(h_a[i]) h_b $(h_b[i]) ",
+            "h_e $(h_e[i]) h_g $(h_g[i]) h_f $(h_f[i])"
+        )
     end
 end
 

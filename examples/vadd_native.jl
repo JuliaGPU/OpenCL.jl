@@ -16,6 +16,6 @@ d_b = CLArray(b)
 d_c = CLArray(c)
 
 len = prod(dims)
-@opencl global_size=len vadd(d_a, d_b, d_c)
+@opencl global_size = len vadd(d_a, d_b, d_c)
 c = Array(d_c)
-@test a+b ≈ c
+@test a + b ≈ c

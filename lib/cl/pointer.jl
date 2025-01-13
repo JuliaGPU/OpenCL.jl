@@ -23,7 +23,7 @@ else
 end
 
 # constructor
-CLPtr{T}(x::Union{Int,UInt,CLPtr}) where {T} = Base.bitcast(CLPtr{T}, x)
+CLPtr{T}(x::Union{Int, UInt, CLPtr}) where {T} = Base.bitcast(CLPtr{T}, x)
 
 const CL_NULL = CLPtr{Cvoid}(0)
 
@@ -37,10 +37,10 @@ Base.eltype(::Type{<:CLPtr{T}}) where {T} = T
 
 # to and from integers
 ## pointer to integer
-Base.convert(::Type{T}, x::CLPtr) where {T<:Integer} = T(UInt(x))
+Base.convert(::Type{T}, x::CLPtr) where {T <: Integer} = T(UInt(x))
 ## integer to pointer
-Base.convert(::Type{CLPtr{T}}, x::Union{Int,UInt}) where {T} = CLPtr{T}(x)
-Int(x::CLPtr)  = Base.bitcast(Int, x)
+Base.convert(::Type{CLPtr{T}}, x::Union{Int, UInt}) where {T} = CLPtr{T}(x)
+Int(x::CLPtr) = Base.bitcast(Int, x)
 UInt(x::CLPtr) = Base.bitcast(UInt, x)
 
 # between regular and OpenCL pointers
@@ -54,10 +54,10 @@ Base.convert(::Type{CLPtr{T}}, p::CLPtr) where {T} = Base.bitcast(CLPtr{T}, p)
 Base.cconvert(::Type{<:CLPtr}, x) = x
 
 # fallback for unsafe_convert
-Base.unsafe_convert(::Type{P}, x::CLPtr) where {P<:CLPtr} = convert(P, x)
+Base.unsafe_convert(::Type{P}, x::CLPtr) where {P <: CLPtr} = convert(P, x)
 
 # from arrays
-Base.unsafe_convert(::Type{CLPtr{S}}, a::AbstractArray{T}) where {S,T} =
+Base.unsafe_convert(::Type{CLPtr{S}}, a::AbstractArray{T}) where {S, T} =
     convert(CLPtr{S}, Base.unsafe_convert(CLPtr{T}, a))
 Base.unsafe_convert(::Type{CLPtr{T}}, a::AbstractArray{T}) where {T} =
     error("conversion to pointer not defined for $(typeof(a))")
@@ -68,13 +68,12 @@ Base.isequal(x::CLPtr, y::CLPtr) = (x === y)
 Base.isless(x::CLPtr{T}, y::CLPtr{T}) where {T} = x < y
 
 Base.:(==)(x::CLPtr, y::CLPtr) = UInt(x) == UInt(y)
-Base.:(<)(x::CLPtr,  y::CLPtr) = UInt(x) < UInt(y)
-Base.:(-)(x::CLPtr,  y::CLPtr) = UInt(x) - UInt(y)
+Base.:(<)(x::CLPtr, y::CLPtr) = UInt(x) < UInt(y)
+Base.:(-)(x::CLPtr, y::CLPtr) = UInt(x) - UInt(y)
 
 Base.:(+)(x::CLPtr, y::Integer) = oftype(x, Base.add_ptr(UInt(x), (y % UInt) % UInt))
 Base.:(-)(x::CLPtr, y::Integer) = oftype(x, Base.sub_ptr(UInt(x), (y % UInt) % UInt))
 Base.:(+)(x::Integer, y::CLPtr) = y + x
-
 
 
 #
@@ -115,11 +114,15 @@ function Base.cconvert(::Type{PtrOrCLPtr{T}}, val) where {T}
 end
 
 function Base.unsafe_convert(::Type{PtrOrCLPtr{T}}, val) where {T}
-    ptr = if Core.Compiler.return_type(Base.unsafe_convert,
-                                       Tuple{Type{Ptr{T}}, typeof(val)}) !== Union{}
+    ptr = if Core.Compiler.return_type(
+            Base.unsafe_convert,
+            Tuple{Type{Ptr{T}}, typeof(val)}
+        ) !== Union{}
         Base.unsafe_convert(Ptr{T}, val)
-    elseif Core.Compiler.return_type(Base.unsafe_convert,
-                                     Tuple{Type{CLPtr{T}}, typeof(val)}) !== Union{}
+    elseif Core.Compiler.return_type(
+            Base.unsafe_convert,
+            Tuple{Type{CLPtr{T}}, typeof(val)}
+        ) !== Union{}
         Base.unsafe_convert(CLPtr{T}, val)
     else
         throw(ArgumentError("cannot convert to either a host or device pointer"))
@@ -157,16 +160,16 @@ Base.convert(::Type{CLRef{T}}, x) where {T} = CLRef{T}(x)
 
 ## CLRef object backed by an array at index i
 
-struct CLRefArray{T,A<:AbstractArray{T}} <: Ref{T}
+struct CLRefArray{T, A <: AbstractArray{T}} <: Ref{T}
     x::A
     i::Int
-    CLRefArray{T,A}(x,i) where {T,A<:AbstractArray{T}} = new(x,i)
+    CLRefArray{T, A}(x, i) where {T, A <: AbstractArray{T}} = new(x, i)
 end
-CLRefArray{T}(x::AbstractArray{T}, i::Int=1) where {T} = CLRefArray{T,typeof(x)}(x, i)
-CLRefArray(x::AbstractArray{T}, i::Int=1) where {T} = CLRefArray{T}(x, i)
+CLRefArray{T}(x::AbstractArray{T}, i::Int = 1) where {T} = CLRefArray{T, typeof(x)}(x, i)
+CLRefArray(x::AbstractArray{T}, i::Int = 1) where {T} = CLRefArray{T}(x, i)
 Base.convert(::Type{CLRef{T}}, x::AbstractArray{T}) where {T} = CLRefArray(x, 1)
 
-function Base.unsafe_convert(P::Type{CLPtr{T}}, b::CLRefArray{T}) where T
+function Base.unsafe_convert(P::Type{CLPtr{T}}, b::CLRefArray{T}) where {T}
     return pointer(b.x, b.i)
 end
 function Base.unsafe_convert(P::Type{CLPtr{Any}}, b::CLRefArray{Any})
@@ -205,7 +208,5 @@ Base.unsafe_convert(::Type{RefOrCLRef{T}}, x::CLRefs{T}) where {T} =
 # support conversion from arrays
 Base.convert(::Type{RefOrCLRef{T}}, x::Array{T}) where {T} = convert(Ref{T}, x)
 Base.convert(::Type{RefOrCLRef{T}}, x::AbstractArray{T}) where {T} = convert(CLRef{T}, x)
-Base.unsafe_convert(P::Type{RefOrCLRef{T}}, b::CLRefArray{T}) where T =
+Base.unsafe_convert(P::Type{RefOrCLRef{T}}, b::CLRefArray{T}) where {T} =
     Base.bitcast(RefOrCLRef{T}, Base.unsafe_convert(CLRef{T}, b))
-
-

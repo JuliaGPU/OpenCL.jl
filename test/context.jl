@@ -7,7 +7,7 @@
         @test ctx.reference_count == 1
         ctx_id = pointer(ctx)
 
-        ctx2 = cl.Context(ctx_id; retain=true)
+        ctx2 = cl.Context(ctx_id; retain = true)
         @test ctx.reference_count == 2
         finalize(ctx2)
         @test ctx.reference_count == 1
@@ -48,19 +48,23 @@
         catch err
             @test typeof(err) == cl.CLError
             # CL_DEVICE_NOT_FOUND could be throw for GPU only drivers
-            @test err.desc in (:CL_INVALID_PLATFORM,
-                                     :CL_DEVICE_NOT_FOUND)
+            @test err.desc in (
+                :CL_INVALID_PLATFORM,
+                :CL_DEVICE_NOT_FOUND,
+            )
         end
 
         properties = [(cl.CL_CONTEXT_PLATFORM, cl.platform())]
-        for (cl_dev_type, sym_dev_type) in [(cl.CL_DEVICE_TYPE_CPU, :cpu),
-                                            (cl.CL_DEVICE_TYPE_GPU, :gpu)]
+        for (cl_dev_type, sym_dev_type) in [
+                (cl.CL_DEVICE_TYPE_CPU, :cpu),
+                (cl.CL_DEVICE_TYPE_GPU, :gpu),
+            ]
             if !cl.has_device_type(cl.platform(), sym_dev_type)
                 continue
             end
-            @test cl.Context(sym_dev_type, properties=properties) != nothing
-            @test cl.Context(cl_dev_type, properties=properties) != nothing
-            ctx = cl.Context(cl_dev_type, properties=properties)
+            @test cl.Context(sym_dev_type, properties = properties) != nothing
+            @test cl.Context(cl_dev_type, properties = properties) != nothing
+            ctx = cl.Context(cl_dev_type, properties = properties)
             @test !isempty(ctx.properties)
             test_properties = ctx.properties
 
@@ -78,15 +82,17 @@
             @test platform_in_properties
         end
         try
-            ctx2 = cl.Context(cl.CL_DEVICE_TYPE_ACCELERATOR,
-                              properties=properties)
+            ctx2 = cl.Context(
+                cl.CL_DEVICE_TYPE_ACCELERATOR,
+                properties = properties
+            )
         catch err
             @test typeof(err) == cl.CLError
             @test err.desc == :CL_DEVICE_NOT_FOUND
         end
     end
 
-   @testset "parsing" begin
+    @testset "parsing" begin
         properties = [(cl.CL_CONTEXT_PLATFORM, cl.platform())]
         parsed_properties = cl._parse_properties(properties)
 

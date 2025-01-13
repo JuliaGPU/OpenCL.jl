@@ -12,13 +12,13 @@
     hello_world_str = "hello world"
 
 
-    str_len  = length(hello_world_str) + 1
+    str_len = length(hello_world_str) + 1
     out_arr = CLArray{Cchar}(undef, str_len)
 
-    prg   = cl.Program(source=hello_world_kernel) |> cl.build!
-    kern  = cl.Kernel(prg, "hello")
+    prg = cl.Program(source = hello_world_kernel) |> cl.build!
+    kern = cl.Kernel(prg, "hello")
 
-    clcall(kern, Tuple{Ptr{Cchar}}, out_arr; global_size=str_len)
+    clcall(kern, Tuple{Ptr{Cchar}}, out_arr; global_size = str_len)
     h = Array(out_arr)
 
     @test hello_world_str == GC.@preserve h unsafe_string(pointer(h))
@@ -26,7 +26,7 @@ end
 
 @testset "Low Level API Test" begin
 
-  test_source = "
+    test_source = "
     __kernel void sum(__global const float *a,
                       __global const float *b,
                       __global float *c,
@@ -85,41 +85,55 @@ end
     end
 
     # create input array in device memory
-    Aid = cl.clCreateBuffer(ctx_id, cl.CL_MEM_READ_ONLY | cl.CL_MEM_COPY_HOST_PTR,
-                                sizeof(Cfloat) * len, h_a, err_code)
+    Aid = cl.clCreateBuffer(
+        ctx_id, cl.CL_MEM_READ_ONLY | cl.CL_MEM_COPY_HOST_PTR,
+        sizeof(Cfloat) * len, h_a, err_code
+    )
     if err_code[] != cl.CL_SUCCESS
         error("Error creating buffer A")
     end
-    Bid = cl.clCreateBuffer(ctx_id, cl.CL_MEM_READ_ONLY | cl.CL_MEM_COPY_HOST_PTR,
-                                sizeof(Cfloat) * len, h_b, err_code)
+    Bid = cl.clCreateBuffer(
+        ctx_id, cl.CL_MEM_READ_ONLY | cl.CL_MEM_COPY_HOST_PTR,
+        sizeof(Cfloat) * len, h_b, err_code
+    )
     if err_code[] != cl.CL_SUCCESS
         error("Error creating buffer B")
     end
-    Eid = cl.clCreateBuffer(ctx_id, cl.CL_MEM_WRITE_ONLY | cl.CL_MEM_COPY_HOST_PTR,
-                                sizeof(Cfloat) * len, h_e, err_code)
+    Eid = cl.clCreateBuffer(
+        ctx_id, cl.CL_MEM_WRITE_ONLY | cl.CL_MEM_COPY_HOST_PTR,
+        sizeof(Cfloat) * len, h_e, err_code
+    )
     if err_code[] != cl.CL_SUCCESS
         error("Error creating buffer E")
     end
-    Gid = cl.clCreateBuffer(ctx_id, cl.CL_MEM_WRITE_ONLY | cl.CL_MEM_COPY_HOST_PTR,
-                                sizeof(Cfloat) * len, h_g, err_code)
+    Gid = cl.clCreateBuffer(
+        ctx_id, cl.CL_MEM_WRITE_ONLY | cl.CL_MEM_COPY_HOST_PTR,
+        sizeof(Cfloat) * len, h_g, err_code
+    )
     if err_code[] != cl.CL_SUCCESS
         error("Error creating buffer G")
     end
 
     # create output arrays in device memory
 
-    Cid = cl.clCreateBuffer(ctx_id, cl.CL_MEM_READ_WRITE,
-                                sizeof(Cfloat) * len, C_NULL, err_code)
+    Cid = cl.clCreateBuffer(
+        ctx_id, cl.CL_MEM_READ_WRITE,
+        sizeof(Cfloat) * len, C_NULL, err_code
+    )
     if err_code[] != cl.CL_SUCCESS
         error("Error creating buffer C")
     end
-    Did = cl.clCreateBuffer(ctx_id, cl.CL_MEM_READ_WRITE,
-                                sizeof(Cfloat) * len, C_NULL, err_code)
+    Did = cl.clCreateBuffer(
+        ctx_id, cl.CL_MEM_READ_WRITE,
+        sizeof(Cfloat) * len, C_NULL, err_code
+    )
     if err_code[] != cl.CL_SUCCESS
         error("Error creating buffer D")
     end
-    Fid = cl.clCreateBuffer(ctx_id, cl.CL_MEM_WRITE_ONLY,
-                                sizeof(Cfloat) * len, C_NULL, err_code)
+    Fid = cl.clCreateBuffer(
+        ctx_id, cl.CL_MEM_WRITE_ONLY,
+        sizeof(Cfloat) * len, C_NULL, err_code
+    )
     if err_code[] != cl.CL_SUCCESS
         error("Error creating buffer F")
     end
@@ -130,24 +144,32 @@ end
     cl.clSetKernelArg(k_id, 3, sizeof(cl.Cuint), cl.Cuint[len])
 
     nglobal = Ref{Csize_t}(len)
-    cl.clEnqueueNDRangeKernel(q_id, k_id,  1, C_NULL,
-                                  nglobal, C_NULL, 0, C_NULL, C_NULL)
+    cl.clEnqueueNDRangeKernel(
+        q_id, k_id, 1, C_NULL,
+        nglobal, C_NULL, 0, C_NULL, C_NULL
+    )
 
     cl.clSetKernelArg(k_id, 0, sizeof(cl.cl_mem), [Eid])
     cl.clSetKernelArg(k_id, 1, sizeof(cl.cl_mem), [Cid])
     cl.clSetKernelArg(k_id, 2, sizeof(cl.cl_mem), [Did])
-    cl.clEnqueueNDRangeKernel(q_id, k_id,  1, C_NULL,
-                                  nglobal, C_NULL, 0, C_NULL, C_NULL)
+    cl.clEnqueueNDRangeKernel(
+        q_id, k_id, 1, C_NULL,
+        nglobal, C_NULL, 0, C_NULL, C_NULL
+    )
 
     cl.clSetKernelArg(k_id, 0, sizeof(cl.cl_mem), [Gid])
     cl.clSetKernelArg(k_id, 1, sizeof(cl.cl_mem), [Did])
     cl.clSetKernelArg(k_id, 2, sizeof(cl.cl_mem), [Fid])
-    cl.clEnqueueNDRangeKernel(q_id, k_id,  1, C_NULL,
-                                  nglobal, C_NULL, 0, C_NULL, C_NULL)
+    cl.clEnqueueNDRangeKernel(
+        q_id, k_id, 1, C_NULL,
+        nglobal, C_NULL, 0, C_NULL, C_NULL
+    )
 
     # read back the result from compute device...
-    cl.clEnqueueReadBuffer(q_id, Fid, cl.CL_TRUE, 0,
-                               sizeof(Cfloat) * len, h_f, 0, C_NULL, C_NULL)
+    cl.clEnqueueReadBuffer(
+        q_id, Fid, cl.CL_TRUE, 0,
+        sizeof(Cfloat) * len, h_f, 0, C_NULL, C_NULL
+    )
 
     # test results
     for i in 1:len
@@ -177,43 +199,49 @@ end
         }
     "
 
-    Params = @eval(module $(gensym("KernelTest"))
-            struct Params
-                A::Float32
-                B::Float32
-                #TODO: fixed size arrays?
-                X1::Float32
-                X2::Float32
-                C::Int32
-                Params(a, b, x, c) = begin
-                    new(Float32(a),
-                        Float32(b),
-                        Float32(x[1]),
-                        Float32(x[2]),
-                        Int32(c))
-                end
+    Params = @eval(
+        module $(gensym("KernelTest"))
+        struct Params
+            A::Float32
+            B::Float32
+            #TODO: fixed size arrays?
+            X1::Float32
+            X2::Float32
+            C::Int32
+            Params(a, b, x, c) = begin
+                new(
+                    Float32(a),
+                    Float32(b),
+                    Float32(x[1]),
+                    Float32(x[2]),
+                    Int32(c)
+                )
             end
-        end).Params
+        end
+        end
+    ).Params
 
-    p   = cl.Program(source=test_struct) |> cl.build!
+    p = cl.Program(source = test_struct) |> cl.build!
 
     part3 = cl.Kernel(p, "part3")
 
-    X = fill(1f0, 10)
-    Y = fill(1f0, 10)
+    X = fill(1.0f0, 10)
+    Y = fill(1.0f0, 10)
 
     P = [Params(0.5, 10.0, [0.0, 0.0], 3)]
 
     #TODO: constructor for single immutable types.., check if passed parameter isbits
-    P_arr = CLArray(P; access=:r)
+    P_arr = CLArray(P; access = :r)
 
-    X_arr = CLArray(X; access=:r)
-    Y_arr = CLArray(Y; access=:r)
-    R_arr = CLArray{Float32}(undef, 10; access=:w)
+    X_arr = CLArray(X; access = :r)
+    Y_arr = CLArray(Y; access = :r)
+    R_arr = CLArray{Float32}(undef, 10; access = :w)
 
     global_size = size(X)
-    clcall(part3, Tuple{Ptr{Float32}, Ptr{Float32}, Ptr{Float32}, Ptr{Params}},
-                  X_arr, Y_arr, R_arr, P_arr; global_size)
+    clcall(
+        part3, Tuple{Ptr{Float32}, Ptr{Float32}, Ptr{Float32}, Ptr{Params}},
+        X_arr, Y_arr, R_arr, P_arr; global_size
+    )
 
     r = Array(R_arr)
     @test all(x -> x == 13.5, r)
@@ -238,14 +266,16 @@ end
         }
     "
 
-    MutableParams = @eval(module $(gensym("KernelTest"))
-            mutable struct MutableParams
-                A::Float32
-                B::Float32
-            end
-        end).MutableParams
+    MutableParams = @eval(
+        module $(gensym("KernelTest"))
+        mutable struct MutableParams
+            A::Float32
+            B::Float32
+        end
+        end
+    ).MutableParams
 
-    p   = cl.Program(source=test_mutable_pointerfree) |> cl.build!
+    p = cl.Program(source = test_mutable_pointerfree) |> cl.build!
 
     part3 = cl.Kernel(p, "part3")
 

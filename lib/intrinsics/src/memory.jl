@@ -1,11 +1,11 @@
 # local memory
 
 # get a pointer to local memory, with known (static) or zero length (dynamic)
-@generated function emit_localmemory(::Type{T}, ::Val{len}=Val(0)) where {T,len}
-    Context() do ctx
+@generated function emit_localmemory(::Type{T}, ::Val{len} = Val(0)) where {T, len}
+    return Context() do ctx
         # XXX: as long as LLVMPtr is emitted as i8*, it doesn't make sense to type the GV
         eltyp = convert(LLVMType, LLVM.Int8Type())
-        T_ptr = convert(LLVMType, LLVMPtr{T,AS.Local})
+        T_ptr = convert(LLVMType, LLVMPtr{T, AS.Local})
 
         # create a function
         llvm_f, _ = create_function(T_ptr)
@@ -33,6 +33,6 @@
             ret!(builder, untyped_ptr)
         end
 
-        call_function(llvm_f, LLVMPtr{T,AS.Local})
+        call_function(llvm_f, LLVMPtr{T, AS.Local})
     end
 end

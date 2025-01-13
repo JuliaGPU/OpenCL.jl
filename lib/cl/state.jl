@@ -1,7 +1,7 @@
 ## platform selection
 
 function platform()
-    get!(task_local_storage(), :CLPlatform) do
+    return get!(task_local_storage(), :CLPlatform) do
         ps = platforms()
         if isempty(ps)
             throw(ArgumentError("No OpenCL platforms found"))
@@ -50,7 +50,7 @@ end
 ## device selection
 
 function device()
-    get!(task_local_storage(), :CLDevice) do
+    return get!(task_local_storage(), :CLDevice) do
         dev = default_device(platform())
         isnothing(dev) && throw(ArgumentError("No OpenCL devices found"))
         dev
@@ -69,7 +69,7 @@ end
 function device!(dtype::Symbol)
     dev = devices(platform(), dtype)
     isempty(dev) && throw(ArgumentError("No OpenCL devices found of type $dtype"))
-    device!(first(dev))
+    return device!(first(dev))
 end
 
 
@@ -79,7 +79,7 @@ end
 const context_lock = ReentrantLock()
 const device_contexts = Dict{Device, Context}()
 function context()
-    get!(task_local_storage(), :CLContext) do
+    return get!(task_local_storage(), :CLContext) do
         @lock context_lock begin
             dev = device()
             get!(device_contexts, dev) do
@@ -95,7 +95,7 @@ end
 function device!(f::Base.Callable, args...)
     old = device()
     device!(args...)
-    try
+    return try
         f()
     finally
         device!(old)
@@ -106,15 +106,16 @@ end
 ## per-task queues
 
 # XXX: port CUDA.jl's per-array stream tracking, obviating the need for global sync
-const queues = WeakKeyDict{cl.CmdQueue,Nothing}()
+const queues = WeakKeyDict{cl.CmdQueue, Nothing}()
 function device_synchronize()
     for queue in keys(queues)
         cl.finish(queue)
     end
+    return
 end
 
 function queue()
-    get!(task_local_storage(), :CLQueue) do
+    return get!(task_local_storage(), :CLQueue) do
         q = CmdQueue()
         task_local_storage(:CLQueue, q)
         queues[q] = nothing
@@ -139,7 +140,7 @@ end
 function queue!(f::Base.Callable, args...)
     old = queue()
     queue!(args...)
-    try
+    return try
         f()
     finally
         queue!(old)

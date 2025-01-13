@@ -25,10 +25,10 @@ macro printf(fmt::String, args...)
 end
 
 @generated function emit_printf(::Val{fmt}, argspec...) where {fmt}
-    arg_exprs = [:( argspec[$i] ) for i in 1:length(argspec)]
+    arg_exprs = [:(argspec[$i]) for i in 1:length(argspec)]
     arg_types = [argspec...]
 
-    Context() do ctx
+    return Context() do ctx
         T_void = LLVM.VoidType()
         T_int32 = LLVM.Int32Type()
         T_pint8 = LLVM.PointerType(LLVM.Int8Type(), AS.Constant)
@@ -43,10 +43,10 @@ end
             entry = BasicBlock(llvm_f, "entry")
             position!(builder, entry)
 
-            str = globalstring_ptr!(builder, String(fmt); addrspace=AS.Constant)
+            str = globalstring_ptr!(builder, String(fmt); addrspace = AS.Constant)
 
             # invoke printf and return
-            printf_typ = LLVM.FunctionType(T_int32, [T_pint8]; vararg=true)
+            printf_typ = LLVM.FunctionType(T_int32, [T_pint8]; vararg = true)
             printf = LLVM.Function(mod, "printf", printf_typ)
             push!(function_attributes(printf), EnumAttribute("nobuiltin"))
             chars = call!(builder, printf_typ, printf, [str, parameters(llvm_f)...])
@@ -64,27 +64,27 @@ end
 # simple conversions, defining an expression and the resulting argument type. nothing fancy,
 # `@print` pretty directly maps to `@printf`; we should just support `write(::IO)`.
 const print_conversions = Dict(
-    Float32     => (x->:(Float64($x)),             Float64),
-    Ptr{<:Any}  => (x->:(convert(Ptr{Cvoid}, $x)), Ptr{Cvoid}),
-    Bool        => (x->:(Int32($x)),               Int32),
+    Float32 => (x -> :(Float64($x)), Float64),
+    Ptr{<:Any} => (x -> :(convert(Ptr{Cvoid}, $x)), Ptr{Cvoid}),
+    Bool => (x -> :(Int32($x)), Int32),
 )
 
 # format specifiers
 const print_specifiers = Dict(
     # integers
-    Int16       => "%hd",
-    Int32       => "%d",
-    Int64       => Sys.iswindows() ? "%lld" : "%ld",
-    UInt16      => "%hu",
-    UInt32      => "%u",
-    UInt64      => Sys.iswindows() ? "%llu" : "%lu",
+    Int16 => "%hd",
+    Int32 => "%d",
+    Int64 => Sys.iswindows() ? "%lld" : "%ld",
+    UInt16 => "%hu",
+    UInt32 => "%u",
+    UInt64 => Sys.iswindows() ? "%llu" : "%lu",
 
     # floating-point
-    Float64     => "%f",
+    Float64 => "%f",
 
     # other
-    Cchar       => "%c",
-    Ptr{Cvoid}  => "%p",
+    Cchar => "%c",
+    Ptr{Cvoid} => "%p",
 )
 
 @generated function _print(parts...)
@@ -123,7 +123,7 @@ const print_specifiers = Dict(
         end
     end
 
-    quote
+    return quote
         Base.@_inline_meta
         @printf($fmt, $(args...))
     end
@@ -147,7 +147,7 @@ Limited string interpolation is also possible:
 ```
 """
 macro print(parts...)
-    args = Union{Val,Expr,Symbol}[]
+    args = Union{Val, Expr, Symbol}[]
 
     parts = [parts...]
     while true
@@ -173,16 +173,18 @@ macro print(parts...)
         end
     end
 
-    quote
+    return quote
         _print($(map(esc, args)...))
     end
 end
 
 @doc (@doc @print) ->
 macro println(parts...)
-    esc(quote
-        $SPIRVIntrinsics.@print($(parts...), "\n")
-    end)
+    return esc(
+        quote
+            $SPIRVIntrinsics.@print($(parts...), "\n")
+        end
+    )
 end
 
 """
@@ -197,9 +199,17 @@ GPU analog of `Base.@show`. It comes with the same type restrictions as [`@print
 macro show(exs...)
     blk = Expr(:block)
     for ex in exs
-        push!(blk.args, :($SPIRVIntrinsics.@println($(sprint(Base.show_unquoted,ex)*" = "),
-                                                    begin local value = $(esc(ex)) end)))
+        push!(
+            blk.args, :(
+                $SPIRVIntrinsics.@println(
+                    $(sprint(Base.show_unquoted, ex) * " = "),
+                    begin
+                        local value = $(esc(ex))
+                    end
+                )
+            )
+        )
     end
     isempty(exs) || push!(blk.args, :value)
-    blk
+    return blk
 end

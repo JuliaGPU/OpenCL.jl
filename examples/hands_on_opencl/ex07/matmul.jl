@@ -59,17 +59,20 @@ h_B = fill(Float32(BVAL), sizeB)
 h_C = Vector{Float32}(undef, sizeC)
 
 # %20 improvment using @inbounds
-function seq_mat_mul_sdot(Mdim::Int, Ndim::Int, Pdim::Int,
-                          A::Array{T}, B::Array{T}, C::Array{T}) where T
+function seq_mat_mul_sdot(
+        Mdim::Int, Ndim::Int, Pdim::Int,
+        A::Array{T}, B::Array{T}, C::Array{T}
+    ) where {T}
     for i in 1:Ndim
         for j in 1:Mdim
             tmp = zero(Float32)
             for k in 1:Pdim
-                @inbounds tmp += A[(i-1)*Ndim+k] * B[(k-1)*Pdim+j]
+                @inbounds tmp += A[(i - 1) * Ndim + k] * B[(k - 1) * Pdim + j]
             end
-            @inbounds C[(i-1)*Ndim+j] = tmp
+            @inbounds C[(i - 1) * Ndim + j] = tmp
         end
     end
+    return
 end
 
 @info("=== Julia, matix mult (dot prod), order $ORDER ===")
@@ -86,16 +89,16 @@ for i in 1:COUNT
 end
 
 # create OpenCL array
-d_a = CLArray(h_A; access=:r)
-d_b = CLArray(h_B; access=:r)
-d_c = CLArray{Float32}(undef, length(h_C); access=:w)
+d_a = CLArray(h_A; access = :r)
+d_b = CLArray(h_B; access = :r)
+d_c = CLArray{Float32}(undef, length(h_C); access = :w)
 
 #--------------------------------------------------------------------------------
 # OpenCL matrix multiplication ... Naive
 #--------------------------------------------------------------------------------
 
 kernel_source = read(joinpath(src_dir, "C_elem.cl"), String)
-prg  = cl.Program(source=kernel_source) |> cl.build!
+prg = cl.Program(source = kernel_source) |> cl.build!
 mmul = cl.Kernel(prg, "mmul")
 
 @info("=== OpenCL, matrix mult, C(i, j) per work item, order $Ndim ====")
@@ -103,12 +106,14 @@ mmul = cl.Kernel(prg, "mmul")
 for i in 1:COUNT
     fill!(h_C, 0.0)
     cl.queue!(:profile) do
-        evt = clcall(mmul, Tuple{Int32, Int32, Int32, Ptr{Float32}, Ptr{Float32}, Ptr{Float32}},
-                     Mdim, Ndim, Pdim, d_a, d_b, d_c; global_size=(Ndim, Mdim))
+        evt = clcall(
+            mmul, Tuple{Int32, Int32, Int32, Ptr{Float32}, Ptr{Float32}, Ptr{Float32}},
+            Mdim, Ndim, Pdim, d_a, d_b, d_c; global_size = (Ndim, Mdim)
+        )
         wait(evt)
 
         # profiling events are measured in ns
-        run_time = evt.profile_duration / 1e9
+        run_time = evt.profile_duration / 1.0e9
         cl.copy!(h_C, d_c)
         results(Mdim, Ndim, Pdim, h_C, run_time)
     end
@@ -119,7 +124,7 @@ end
 #--------------------------------------------------------------------------------
 
 kernel_source = read(joinpath(src_dir, "C_row.cl"), String)
-prg  = cl.Program(source=kernel_source) |> cl.build!
+prg = cl.Program(source = kernel_source) |> cl.build!
 mmul = cl.Kernel(prg, "mmul")
 
 @info("=== OpenCL, matrix mult, C row per work item, order $Ndim ====")
@@ -130,12 +135,14 @@ for i in 1:COUNT
     local_size = (div(ORDER, 16),)
 
     cl.queue!(:profile) do
-        evt = clcall(mmul, Tuple{Int32, Int32, Int32, Ptr{Float32}, Ptr{Float32}, Ptr{Float32}},
-                     Mdim, Ndim, Pdim, d_a, d_b, d_c; global_size, local_size)
+        evt = clcall(
+            mmul, Tuple{Int32, Int32, Int32, Ptr{Float32}, Ptr{Float32}, Ptr{Float32}},
+            Mdim, Ndim, Pdim, d_a, d_b, d_c; global_size, local_size
+        )
         wait(evt)
 
         # profiling events are measured in ns
-        run_time = evt.profile_duration / 1e9
+        run_time = evt.profile_duration / 1.0e9
         cl.copy!(h_C, d_c)
         results(Mdim, Ndim, Pdim, h_C, run_time)
     end
@@ -145,27 +152,29 @@ end
 # OpenCL matrix multiplication ... C row per work item, A row in pivate memory
 #--------------------------------------------------------------------------------
 kernel_source = read(joinpath(src_dir, "C_row_priv.cl"), String)
-prg  = cl.Program(source=kernel_source) |> cl.build!
+prg = cl.Program(source = kernel_source) |> cl.build!
 mmul = cl.Kernel(prg, "mmul")
 wk_size = cl.device().max_work_group_size
 if Ndim * (ORDER ÷ 16) >= wk_size
     @warn("Specified work_size $(Ndim * (ORDER ÷ 16)) is bigger than $wk_size")
 else
 
-@info("=== OpenCL, matrix mult, C row, A row in priv mem, order $Ndim ====")
+    @info("=== OpenCL, matrix mult, C row, A row in priv mem, order $Ndim ====")
 
-for i in 1:COUNT
-    fill!(h_C, 0.0)
+    for i in 1:COUNT
+        fill!(h_C, 0.0)
 
-    cl.queue!(:profile) do
-        evt = clcall(mmul, Tuple{Int32, Int32, Int32, Ptr{Float32}, Ptr{Float32}, Ptr{Float32}},
-                     Mdim, Ndim, Pdim, d_a, d_b, d_c; global_size=Ndim, local_size=ORDER)
-        wait(evt)
+        cl.queue!(:profile) do
+            evt = clcall(
+                mmul, Tuple{Int32, Int32, Int32, Ptr{Float32}, Ptr{Float32}, Ptr{Float32}},
+                Mdim, Ndim, Pdim, d_a, d_b, d_c; global_size = Ndim, local_size = ORDER
+            )
+            wait(evt)
 
-        # profiling events are measured in ns
-        run_time = evt.profile_duration / 1e9
-        cl.copy!(h_C, d_c)
-        results(Mdim, Ndim, Pdim, h_C, run_time)
+            # profiling events are measured in ns
+            run_time = evt.profile_duration / 1.0e9
+            cl.copy!(h_C, d_c)
+            results(Mdim, Ndim, Pdim, h_C, run_time)
+        end
     end
-end
 end

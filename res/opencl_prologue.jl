@@ -4,9 +4,11 @@
 end
 
 function check(f)
-    res = retry_reclaim(err -> err == CL_OUT_OF_RESOURCES ||
-                               err == CL_MEM_OBJECT_ALLOCATION_FAILURE ||
-                               err == CL_OUT_OF_HOST_MEMORY) do
+    res = retry_reclaim(
+        err -> err == CL_OUT_OF_RESOURCES ||
+            err == CL_MEM_OBJECT_ALLOCATION_FAILURE ||
+            err == CL_OUT_OF_HOST_MEMORY
+    ) do
         f()
     end
 

@@ -21,7 +21,7 @@
             (:mem_flags, (:rw, :copy)),
             (:size, sizeof(buf)),
             (:reference_count, 1),
-            (:map_count, 0)
+            (:map_count, 0),
         ]
 
         for expectation in expectations

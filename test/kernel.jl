@@ -15,14 +15,14 @@
     #TODO: tests for invalid kernel build error && logs...
 
     @testset "constructor" begin
-        prg = cl.Program(source=test_source)
+        prg = cl.Program(source = test_source)
         @test_throws ArgumentError cl.Kernel(prg, "sum")
         cl.build!(prg)
         @test cl.Kernel(prg, "sum") != nothing
     end
 
     @testset "info" begin
-        prg = cl.Program(source=test_source)
+        prg = cl.Program(source = test_source)
         cl.build!(prg)
         k = cl.Kernel(prg, "sum")
         @test k.function_name == "sum"
@@ -33,7 +33,7 @@
     end
 
     @testset "mem/workgroup size" begin
-        prg = cl.Program(source=test_source)
+        prg = cl.Program(source = test_source)
         cl.build!(prg)
         k = cl.Kernel(prg, "sum")
         wginfo = cl.work_group_info(k, cl.device())
@@ -43,17 +43,17 @@
     end
 
     @testset "set_arg!/set_args!" begin
-        prg = cl.Program(source=test_source) |> cl.build!
+        prg = cl.Program(source = test_source) |> cl.build!
         k = cl.Kernel(prg, "sum")
 
-        count  = 1024
+        count = 1024
         nbytes = count * sizeof(Float32)
 
         h_ones = ones(Float32, count)
 
-        A = CLArray(h_ones; access=:r)
-        B = CLArray(h_ones; access=:r)
-        C = CLArray{Float32}(undef, count; access=:w)
+        A = CLArray(h_ones; access = :r)
+        B = CLArray(h_ones; access = :r)
+        C = CLArray{Float32}(undef, count; access = :w)
 
         # we use julia's index by one convention
         @test cl.set_arg!(k, 1, buffer(A)) != nothing
@@ -71,7 +71,7 @@
         k2 = cl.Kernel(prg, "sum")
         cl.set_args!(k2, buffer(A), buffer(B), buffer(C), UInt32(count))
 
-        h_twos = fill(2f0, count)
+        h_twos = fill(2.0f0, count)
         copyto!(A, h_twos)
         copyto!(B, h_twos)
 
@@ -90,17 +90,21 @@
                 *i += 1;
             };"
 
-        h_buff = Float32[1,]
+        h_buff = Float32[1]
         d_arr = CLArray(h_buff)
 
-        p = cl.Program(source=simple_kernel) |> cl.build!
+        p = cl.Program(source = simple_kernel) |> cl.build!
         k = cl.Kernel(p, "test")
 
         # dimensions must be the same size
-        @test_throws ArgumentError clcall(k, Tuple{Ptr{Float32}}, d_arr;
-                                          global_size=(1,), local_size=(1,1))
-        @test_throws ArgumentError clcall(k, Tuple{Ptr{Float32}}, d_arr;
-                                          global_size=(1,1), local_size=(1,))
+        @test_throws ArgumentError clcall(
+            k, Tuple{Ptr{Float32}}, d_arr;
+            global_size = (1,), local_size = (1, 1)
+        )
+        @test_throws ArgumentError clcall(
+            k, Tuple{Ptr{Float32}}, d_arr;
+            global_size = (1, 1), local_size = (1,)
+        )
 
         # dimensions are bounded
         max_work_dim = cl.device().max_work_item_dims
@@ -108,12 +112,12 @@
 
         # calls are asynchronous, but cl.read blocks
         clcall(k, Tuple{Ptr{Float32}}, d_arr)
-        @test Array(d_arr) == [2f0]
+        @test Array(d_arr) == [2.0f0]
 
         # enqueue task is an alias for calling
         # a kernel with a global/local size of 1
         evt = cl.enqueue_task(k)
-        @test Array(d_arr) == [3f0]
+        @test Array(d_arr) == [3.0f0]
     end
 
     @testset "packed structures" begin
@@ -133,7 +137,7 @@
         out = CLArray{Float32}(undef, 2)
         bstruct = (1, Int32(4))
         clcall(structkernel, Tuple{Ptr{Float32}, Tuple{Int64, Cint}}, out, bstruct)
-        @test Array(out) == [1f0, 4f0]
+        @test Array(out) == [1.0f0, 4.0f0]
     end
 
     @testset "vector arguments" begin
@@ -153,10 +157,12 @@
         out = CLArray{Float32}(undef, 6)
         # NOTE: the user is responsible for padding the vector to 4 elements
         #       (only on some platforms)
-        vec3_a = (1f0, 2f0, 3f0, 0f0)
-        vec3_b = (4f0, 5f0, 6f0, 0f0)
-        clcall(vec3kernel, Tuple{Ptr{Float32}, NTuple{4,Float32}, NTuple{4,Float32}},
-                           out, vec3_a, vec3_b)
-        @test Array(out) == [1f0, 2f0, 3f0, 4f0, 5f0, 6f0]
+        vec3_a = (1.0f0, 2.0f0, 3.0f0, 0.0f0)
+        vec3_b = (4.0f0, 5.0f0, 6.0f0, 0.0f0)
+        clcall(
+            vec3kernel, Tuple{Ptr{Float32}, NTuple{4, Float32}, NTuple{4, Float32}},
+            out, vec3_a, vec3_b
+        )
+        @test Array(out) == [1.0f0, 2.0f0, 3.0f0, 4.0f0, 5.0f0, 6.0f0]
     end
 end
