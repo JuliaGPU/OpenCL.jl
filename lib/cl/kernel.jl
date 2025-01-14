@@ -51,7 +51,7 @@ Base.length(l::LocalMem{T}) where {T} = Int(l.nbytes ÷ sizeof(T))
 
 # preserve the LocalMem; it will be handled by set_arg!
 # XXX: do we want set_arg!(C_NULL::Ptr) to just call clSetKernelArg?
-Base.unsafe_convert(::Type{Ptr{T}}, l::LocalMem{T}) where {T} = l
+Base.unsafe_convert(::Type{CLPtr{T}}, l::LocalMem{T}) where {T} = l
 
 function set_arg!(k::Kernel, idx::Integer, arg::Nothing)
     @assert idx > 0
@@ -61,12 +61,12 @@ end
 
 # SVMBuffers
 ## when passing using `cl.call`
-function set_arg!(k::Kernel, idx::Integer, arg::Union{HostBuffer, DeviceBuffer, SharedBuffer})
+function set_arg!(k::Kernel, idx::Integer, arg::AbstractBuffer)
     ext_clSetKernelArgMemPointerINTEL(k, cl_uint(idx - 1), arg.ptr)
     return k
 end
 ## when passing with `clcall`, which has pre-converted the buffer
-function set_arg!(k::Kernel, idx::Integer, arg::Union{Ptr, Core.LLVMPtr})
+function set_arg!(k::Kernel, idx::Integer, arg::CLPtr{T}) where {T}
     arg = reinterpret(Ptr{Cvoid}, arg)
     if arg != C_NULL
         # XXX: this assumes that the receiving argument is pointer-typed, which is not the
@@ -80,11 +80,13 @@ function set_arg!(k::Kernel, idx::Integer, arg::Union{Ptr, Core.LLVMPtr})
 end
 
 # regular buffers
+#= This is not needed, since we're not using cl_mem based code anymore
 function set_arg!(k::Kernel, idx::Integer, arg::AbstractBuffer)
     arg_boxed = Ref(arg.id)
     clSetKernelArg(k, cl_uint(idx - 1), sizeof(cl_mem), arg_boxed)
     return k
 end
+=#
 
 function set_arg!(k::Kernel, idx::Integer, arg::LocalMem)
     clSetKernelArg(k, cl_uint(idx - 1), arg.nbytes, C_NULL)

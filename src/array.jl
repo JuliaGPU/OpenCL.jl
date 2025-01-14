@@ -803,14 +803,14 @@ function Base.resize!(a::CLVector{T}, n::Integer) where {T}
     # as a result, we can safely support resizing unowned buffers.
     ctx = context(a)
     dev = device(a)
-    buf = allocate(buftype(a), ctx, dev, bufsize, Base.datatype_alignment(T))
+    buf = Managed(allocate(buftype(a), ctx, dev, bufsize, Base.datatype_alignment(T)))
     ptr = convert(CLPtr{T}, buf)
     m = min(length(a), n)
     if m > 0
         unsafe_copyto!(ctx, dev, ptr, pointer(a), m)
     end
     new_data = DataRef(buf) do buf
-        free(buf)
+        release(buf.mem)
     end
     unsafe_free!(a)
 

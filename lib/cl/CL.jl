@@ -20,8 +20,6 @@ include("event.jl")
 include("pointer.jl")
 include("intelfns.jl")
 include("memory.jl")
-# include("buffer.jl")
-# include("svm.jl")
 include("program.jl")
 include("kernel.jl")
 
