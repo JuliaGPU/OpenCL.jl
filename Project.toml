@@ -19,7 +19,7 @@ StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 
 [compat]
 Adapt = "4"
-GPUArrays = "11.1"
+GPUArrays = "11.2.1"
 GPUCompiler = "0.27, 1"
 KernelAbstractions = "0.9.1"
 LLVM = "9.1"
