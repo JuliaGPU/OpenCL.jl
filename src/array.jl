@@ -12,15 +12,19 @@ mutable struct CLArray{T, N} <: AbstractGPUArray{T, N}
 
     # allocating constructor
     function CLArray{T,N}(::UndefInitializer, dims::Dims{N}; access=:rw) where {T,N}
-        buf = cl.SVMBuffer{UInt8}(prod(dims) * sizeof(T), access)
-        ref = DataRef(identity, buf)
-        new(cl.context(), ref, 0, dims)
+        bufsize = prod(dims) * sizeof(T)
+        data = GPUArrays.cached_alloc((CLArray, cl.context(), bufsize, access)) do
+          buf = cl.SVMBuffer{UInt8}(bufsize, access)
+          DataRef(identity, buf)
+        end
+        obj = new{T,N}(cl.context(), data, 0, dims)
+        return obj
     end
 
     # low-level constructor for wrapping existing data
     function CLArray{T,N}(ref::DataRef{cl.SVMBuffer{UInt8}}, dims::Dims;
                           offset::Int=0) where {T,N}
-        new(cl.context(), ref, offset, dims)
+        new{T,N}(cl.context(), ref, offset, dims)
     end
 end
 

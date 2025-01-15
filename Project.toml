@@ -1,6 +1,6 @@
 name = "OpenCL"
 uuid = "08131aa3-fb12-5dee-8b74-c09406e224a2"
-version = "0.10.0"
+version = "0.10.1"
 
 [deps]
 Adapt = "79e6a3ab-5dfb-504d-930d-738a2a938a0e"
@@ -19,7 +19,7 @@ StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 
 [compat]
 Adapt = "4"
-GPUArrays = "11.1"
+GPUArrays = "11.2.1"
 GPUCompiler = "0.27, 1"
 KernelAbstractions = "0.9.1"
 LLVM = "9.1"
