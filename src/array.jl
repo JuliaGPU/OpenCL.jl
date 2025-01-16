@@ -51,12 +51,13 @@ mutable struct CLArray{T, N, M} <: AbstractGPUArray{T, N}
         else
             maxsize
         end
-        data = GPUArrays.cached_alloc((CLArray, cl.device(), M, bufsize)) do
-            DataRef(managed -> release(managed.mem), Managed(allocate(M, cl.context(), cl.device(), bufsize, Base.datatype_alignment(T))))
-        end
-        obj = new{T,N,M}(data, maxsize, 0, dims)
-        finalizer(unsafe_free!, obj)
-        return obj
+
+        return GPUArrays.cached_alloc((CLArray, cl.device(), T, bufsize, M)) do
+            data = DataRef(managed -> release(managed.mem), Managed(allocate(M, cl.context(), cl.device(), bufsize, Base.datatype_alignment(T))))
+            obj = new{T, N, M}(data, maxsize, 0, dims)
+            finalizer(unsafe_free!, obj)
+            return obj
+        end::CLArray{T, N, M}
     end
 
     function CLArray{T, N}(
@@ -176,26 +177,21 @@ Julia should take ownership of the memory, calling `cudaFree` when the array is 
 referenced. The `ctx` argument determines the cl context where the data is allocated in.
 """
 unsafe_wrap
-#=
-# TODO: Look into managed pointer memory in OpenCL
+
+#= TODO: Look into managed pointer memory in OpenCL
 # managed pointer to CLArray
 function Base.unsafe_wrap(::Union{Type{CLArray},Type{CLArray{T}},Type{CLArray{T,N}}},
                           ptr::CLPtr{T}, dims::NTuple{N,Int};
                           own::Bool=false, ctx::cl.Context=cl.context()) where {T,N}
   # identify the memory type
   M = try
-  	typ = Ref{UInt64}()
-    success = cl.ext_clGetMemAllocInfoINTEL(ctx, ptr, cl.CL_MEM_ALLOC_TYPE_INTEL, 
-        sizeof(UInt64), typ, C_NULL)
-    @assert success == cl.CL_SUCCESS
-    if typ[] == cl.CL_MEM_TYPE_SHARED_INTEL
+    typ = buftype(ptr)
+    if is_managed(ptr)
       cl.ShareddBuffer
-    elseif typ[] == cl.CL_MEM_TYPE_DEVICE_INTEL
+    elseif typ == CU_MEMORYTYPE_DEVICE
       cl.DeviceBuffer
-    elseif typ[] == cl.CL_MEM_TYPE_HOST_INTEL
+    elseif typ == CU_MEMORYTYPE_HOST
       cl.HostBuffer
-    elseif typ[] == cl.CL_MEM_TYPE_UNKNOWN_INTEL
-      cl.UnknownBuffer
     else
       error("Unknown memory type; please file an issue.")
     end
@@ -214,30 +210,27 @@ function Base.unsafe_wrap(::Type{CLArray{T,N,M}},
 
   # create a memory object
   mem = if M == cl.SharedBuffer
-    cl.SharedBuffer(ptr, sz, ctx, device(ctx))
+    cl.SharedBuffer(ctx, ptr, sz)
   elseif M == cl.DeviceBuffer
     # TODO: can we identify whether this pointer was allocated asynchronously?
-    cl.DeviceBuffer(ptr, sz, ctx, device(ctx))
+    cl.DeviceBuffer(device(ctx), ctx, ptr, sz, false)
   elseif M == cl.HostBuffer
-    cl.HostBuffer(reinterpret(Ptr{Cvoid}, ptr), sz, ctx)
-  elseif M == cl.UnknownBuffer
-    cl.UnknownBuffer(reinterpret(Ptr{Cvoid}, ptr), sz, ctx)
+    cl.HostBuffer(ctx, host_pointer(ptr), sz)
   else
     throw(ArgumentError("Unknown memory type $M"))
   end
 
-  data = DataRef(own ? managed -> release(managed.mem) : Returns(nothing), Managed(mem))
+  data = DataRef(own ? pool_free : Returns(nothing), Managed(mem))
   CLArray{T,N}(data, dims)
 end
-
 # integer size input
 function Base.unsafe_wrap(::Union{Type{CLArray},Type{CLArray{T}},Type{CLArray{T,1}}},
                           p::CLPtr{T}, dim::Int;
-                          own::Bool=false, ctx::cl.Context=cl.context()) where {T}
+                          own::Bool=false, ctx::CLContext=context()) where {T}
   unsafe_wrap(CLArray{T,1}, p, (dim,); own, ctx)
 end
 function Base.unsafe_wrap(::Type{CLArray{T,1,M}}, p::CLPtr{T}, dim::Int;
-                          own::Bool=false, ctx::cl.Context=cl.context()) where {T,M}
+                          own::Bool=false, ctx::CLContext=context()) where {T,M}
   unsafe_wrap(CLArray{T,1,M}, p, (dim,); own, ctx)
 end
 
@@ -245,11 +238,7 @@ end
 function Base.unsafe_wrap(::Union{Type{Array},Type{Array{T}},Type{Array{T,N}}},
                           p::CLPtr{T}, dims::NTuple{N,Int};
                           own::Bool=false) where {T,N}
-  typ = Ref{UInt64}()
-  success = cl.ext_clGetMemAllocInfoINTEL(cl.context(), p, cl.CL_MEM_ALLOC_TYPE_INTEL, 
-        sizeof(UInt64), typ, C_NULL)
-  @assert success == cl.CL_SUCCESS
-  if typ[] != cl.CL_MEM_TYPE_SHARED_INTEL && typ[] != cl.CL_MEM_TYPE_HOST_INTEL
+  if !is_managed(p) && buftype(p) != CU_MEMORYTYPE_HOST
     throw(ArgumentError("Can only create a CPU array object from a unified or host cl array"))
   end
   unsafe_wrap(Array{T,N}, reinterpret(Ptr{T}, p), dims; own)
@@ -262,13 +251,13 @@ end
 # array input
 function Base.unsafe_wrap(::Union{Type{Array},Type{Array{T}},Type{Array{T,N}}},
                           a::CLArray{T,N}) where {T,N}
-  p = pointer(a; type=cl.HostBuffer)
+  p = pointer(a; type=HostBuffer)
   unsafe_wrap(Array, p, size(a))
 end
 
 # unmanaged pointer to CLArray
-# supports_hmm(dev) = driver_version() >= v"12.2" &&
-#                    attribute(dev, DEVICE_ATTRIBUTE_PAGEABLE_MEMORY_ACCESS) == 1
+supports_hmm(dev) = driver_version() >= v"12.2" &&
+                    attribute(dev, DEVICE_ATTRIBUTE_PAGEABLE_MEMORY_ACCESS) == 1
 function Base.unsafe_wrap(::Type{CLArray{T,N,M}}, p::Ptr{T}, dims::NTuple{N,Int};
                           ctx::CLContext=context()) where {T,N,M<:AbstractBuffer}
   isbitstype(T) || throw(ArgumentError("Can only unsafe_wrap a pointer to a bits type"))
@@ -748,7 +737,7 @@ function GPUArrays.derive(::Type{T}, a::CLArray, dims::Dims{N}, offset::Int) whe
     else
         (a.offset * Base.elsize(a)) ÷ sizeof(T) + offset
     end
-    return CLArray{T, N}(copy(a.data), dims; a.maxsize, offset)
+    return CLArray{T, N}(a.data, dims; a.maxsize, offset)
 end
 
 ## views

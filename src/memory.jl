@@ -10,7 +10,7 @@ mutable struct Managed{M}
     const mem::M
 
     # which stream is currently using the memory.
-    queu::cl.CmdQueue
+    queue::cl.CmdQueue
 
     # whether there are outstanding operations that haven't been synchronized
     dirty::Bool
@@ -18,18 +18,16 @@ mutable struct Managed{M}
     # whether the memory has been captured in a way that would make the dirty bit unreliable
     captured::Bool
 
-    function Managed(mem::cl.AbstractBuffer; queu = cl.queue(), dirty = true, captured = false)
+    function Managed(mem::cl.AbstractBuffer; queue = cl.queue(), dirty = true, captured = false)
         # NOTE: memory starts as dirty, because stream-ordered allocations are only
         #       guaranteed to be physically allocated at a synchronization event.
-        return new{typeof(mem)}(mem, queu, dirty, captured)
+        return new{typeof(mem)}(mem, queue, dirty, captured)
     end
 end
 
-Base.sizeof(managed::Managed) = sizeof(managed.mem)
-
 # wait for the current owner of memory to finish processing
 function synchronize(managed::Managed)
-    cl.finish(managed.queu)
+    cl.finish(managed.queue)
     return managed.dirty = false
 end
 
