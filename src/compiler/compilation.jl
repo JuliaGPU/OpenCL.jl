@@ -2,18 +2,20 @@
 
 struct OpenCLCompilerParams <: AbstractCompilerParams end
 const OpenCLCompilerConfig = CompilerConfig{SPIRVCompilerTarget, OpenCLCompilerParams}
-const OpenCLCompilerJob = CompilerJob{SPIRVCompilerTarget,OpenCLCompilerParams}
+const OpenCLCompilerJob = CompilerJob{SPIRVCompilerTarget, OpenCLCompilerParams}
 
-GPUCompiler.runtime_module(::CompilerJob{<:Any,OpenCLCompilerParams}) = OpenCL
+GPUCompiler.runtime_module(::CompilerJob{<:Any, OpenCLCompilerParams}) = OpenCL
 
 GPUCompiler.method_table(::OpenCLCompilerJob) = method_table
 
 # filter out OpenCL built-ins
 # TODO: eagerly lower these using the translator API
 GPUCompiler.isintrinsic(job::OpenCLCompilerJob, fn::String) =
-    invoke(GPUCompiler.isintrinsic,
-           Tuple{CompilerJob{SPIRVCompilerTarget}, typeof(fn)},
-           job, fn) ||
+    invoke(
+    GPUCompiler.isintrinsic,
+    Tuple{CompilerJob{SPIRVCompilerTarget}, typeof(fn)},
+    job, fn
+) ||
     in(fn, opencl_builtins)
 
 
@@ -42,14 +44,14 @@ function compiler_config(dev::cl.Device; kwargs...)
     end
     return config
 end
-@noinline function _compiler_config(dev; kernel=true, name=nothing, always_inline=false, kwargs...)
+@noinline function _compiler_config(dev; kernel = true, name = nothing, always_inline = false, kwargs...)
     supports_fp16 = "cl_khr_fp16" in dev.extensions
     supports_fp64 = "cl_khr_fp64" in dev.extensions
 
     # create GPUCompiler objects
     target = SPIRVCompilerTarget(; supports_fp16, supports_fp64, kwargs...)
     params = OpenCLCompilerParams()
-    CompilerConfig(target, params; kernel, name, always_inline)
+    return CompilerConfig(target, params; kernel, name, always_inline)
 end
 
 # compile to executable machine code
@@ -59,13 +61,13 @@ function compile(@nospecialize(job::CompilerJob))
         GPUCompiler.compile(:obj, job)
     end
 
-    (obj, entry=LLVM.name(meta.entry))
+    return (obj, entry = LLVM.name(meta.entry))
 end
 
 # link into an executable kernel
 function link(@nospecialize(job::CompilerJob), compiled)
     prog = if "cl_khr_il_program" in cl.device().extensions
-        cl.Program(; il=compiled.obj)
+        cl.Program(; il = compiled.obj)
     else
         error("Your device does not support SPIR-V, which is currently required for native execution.")
         # XXX: kpet/spirv2clc#87, caused by KhronosGroup/SPIRV-LLVM-Translator#2029
@@ -78,5 +80,5 @@ function link(@nospecialize(job::CompilerJob), compiled)
         cl.Program(; source)
     end
     cl.build!(prog)
-    cl.Kernel(prog, compiled.entry)
+    return cl.Kernel(prog, compiled.entry)
 end

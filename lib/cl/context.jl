@@ -6,7 +6,7 @@ mutable struct Context <: CLObject
     # If created from ctx_id already, we need to increase the reference count
     # because then we give out multiple context references with multiple finalizers to the world
     # TODO should we make it in a way, that you can't overwrite it?
-    function Context(ctx_id::cl_context; retain::Bool=false)
+    function Context(ctx_id::cl_context; retain::Bool = false)
         ctx = new(ctx_id)
         retain && clRetainContext(ctx)
         finalizer(clReleaseContext, ctx)
@@ -20,8 +20,8 @@ function Base.show(io::IO, ctx::Context)
     dev_strs = [replace(d.name, r"\s+" => " ") for d in ctx.devices]
     devs_str = join(dev_strs, ",")
     ptr_val = convert(UInt, pointer(ctx))
-    ptr_address = "0x$(string(ptr_val, base = 16, pad = Sys.WORD_SIZE>>2))"
-    print(io, "OpenCL.Context(@$ptr_address on $devs_str)")
+    ptr_address = "0x$(string(ptr_val, base = 16, pad = Sys.WORD_SIZE >> 2))"
+    return print(io, "OpenCL.Context(@$ptr_address on $devs_str)")
 end
 
 struct _CtxErr
@@ -33,7 +33,7 @@ end
 
 const io_lock = ReentrantLock()
 function log_error(message...)
-    @async begin
+    return @async begin
         lock(stderr)
         lock(io_lock)
         print(stderr, string(message..., "\n"))
@@ -51,17 +51,21 @@ function ctx_notify_err(
 end
 
 
-ctx_callback_ptr() = @cfunction(ctx_notify_err, Nothing,
-                                (Ptr{Cchar}, Ptr{Nothing}, Csize_t, Ptr{Nothing}))
+ctx_callback_ptr() = @cfunction(
+    ctx_notify_err, Nothing,
+    (Ptr{Cchar}, Ptr{Nothing}, Csize_t, Ptr{Nothing})
+)
 
 function raise_context_error(err_info, private_info, cb)
     log_error("OpenCL Error: | ", unsafe_string(err_info), " |")
     return
 end
 
-function Context(devs::Vector{Device};
-                 properties=nothing,
-                 callback::Union{Function, Nothing} = nothing)
+function Context(
+        devs::Vector{Device};
+        properties = nothing,
+        callback::Union{Function, Nothing} = nothing
+    )
     if isempty(devs)
         ArgumentError("No devices specified for context")
     end
@@ -82,7 +86,8 @@ function Context(devs::Vector{Device};
     f_ptr = @cfunction($payload, Nothing, (Ptr{Cchar}, Ptr{Nothing}, Csize_t))
     ctx_id = clCreateContext(
         ctx_properties, n_devices, device_ids,
-        ctx_callback_ptr(), f_ptr, err_code)
+        ctx_callback_ptr(), f_ptr, err_code
+    )
     if err_code[] != CL_SUCCESS
         throw(CLError(err_code[]))
     end
@@ -90,8 +95,8 @@ function Context(devs::Vector{Device};
 end
 
 
-Context(d::Device; properties=nothing, callback=nothing) =
-    Context([d], properties=properties, callback=callback)
+Context(d::Device; properties = nothing, callback = nothing) =
+    Context([d], properties = properties, callback = callback)
 
 function Context(dev_type; properties = nothing, callback = nothing)
     if properties !== nothing
@@ -106,18 +111,24 @@ function Context(dev_type; properties = nothing, callback = nothing)
     end
     err_code = Ref{Cint}()
     ctx_user_data = @cfunction($ctx_user_data_cb, Nothing, (Ptr{Cchar}, Ptr{Nothing}, Csize_t))
-    ctx_id = clCreateContextFromType(ctx_properties, dev_type,
-                                         ctx_callback_ptr(), ctx_user_data, err_code)
+    ctx_id = clCreateContextFromType(
+        ctx_properties, dev_type,
+        ctx_callback_ptr(), ctx_user_data, err_code
+    )
     if err_code[] != CL_SUCCESS
         throw(CLError(err_code[]))
     end
     return Context(ctx_id)
 end
 
-function Context(dev_type::Symbol;
-                 properties=nothing, callback=nothing)
-    Context(cl_device_type(dev_type),
-            properties=properties, callback=callback)
+function Context(
+        dev_type::Symbol;
+        properties = nothing, callback = nothing
+    )
+    return Context(
+        cl_device_type(dev_type),
+        properties = properties, callback = callback
+    )
 end
 
 function Base.getproperty(ctx::Context, s::Symbol)
@@ -149,15 +160,15 @@ function Base.getproperty(ctx::Context, s::Symbol)
         result = Any[]
         for i in 1:2:nprops
             key = props[i]
-            value = i < nprops ? props[i+1] : nothing
+            value = i < nprops ? props[i + 1] : nothing
 
             if key == CL_CONTEXT_PLATFORM
                 push!(result, (key, Platform(cl_platform_id(value))))
             elseif key == CL_GL_CONTEXT_KHR ||
-               key == CL_EGL_DISPLAY_KHR ||
-               key == CL_GLX_DISPLAY_KHR ||
-               key == CL_WGL_HDC_KHR ||
-               key == CL_CGL_SHAREGROUP_KHR
+                    key == CL_EGL_DISPLAY_KHR ||
+                    key == CL_GLX_DISPLAY_KHR ||
+                    key == CL_WGL_HDC_KHR ||
+                    key == CL_CGL_SHAREGROUP_KHR
                 push!(result, (key, value))
             elseif key == 0
                 if i != nprops
@@ -198,9 +209,9 @@ function _parse_properties(props)
         elseif Sys.isapple() ? (prop == CL_CONTEXT_PROPERTY_USE_CGL_SHAREGROUP_APPLE) : false
             push!(cl_props, cl_context_properties(val))
         elseif prop == CL_GL_CONTEXT_KHR ||
-            prop == CL_EGL_DISPLAY_KHR ||
-            prop == CL_GLX_DISPLAY_KHR ||
-            prop == CL_CGL_SHAREGROUP_KHR
+                prop == CL_EGL_DISPLAY_KHR ||
+                prop == CL_GLX_DISPLAY_KHR ||
+                prop == CL_CGL_SHAREGROUP_KHR
             push!(cl_props, cl_context_properties(val))
         else
             throw(OpenCLException("Invalid OpenCL Context property"))
@@ -209,4 +220,3 @@ function _parse_properties(props)
     push!(cl_props, cl_context_properties(C_NULL))
     return cl_props
 end
-

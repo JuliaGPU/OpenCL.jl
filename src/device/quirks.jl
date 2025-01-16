@@ -1,5 +1,5 @@
 macro print_and_throw(args...)
-    quote
+    return quote
         @println "ERROR: " $(args...) "."
         throw(nothing)
     end

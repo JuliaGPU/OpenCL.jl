@@ -5,7 +5,7 @@ using Printf
 mutable struct Program <: CLObject
     const id::cl_program
 
-    function Program(program_id::cl_program; retain::Bool=false)
+    function Program(program_id::cl_program; retain::Bool = false)
         p = new(program_id)
         retain && clRetainProgram(p)
         finalizer(clReleaseProgram, p)
@@ -15,13 +15,13 @@ end
 
 Base.show(io::IO, p::Program) = begin
     ptr_val = convert(UInt, pointer(p))
-    ptr_address = "0x$(string(ptr_val, base = 16, pad = Sys.WORD_SIZE>>2))"
+    ptr_address = "0x$(string(ptr_val, base = 16, pad = Sys.WORD_SIZE >> 2))"
     print(io, "OpenCL.Program(@$ptr_address)")
 end
 
 Base.unsafe_convert(::Type{cl_program}, p::Program) = p.id
 
-function Program(; source=nothing, binaries=nothing, il=nothing)
+function Program(; source = nothing, binaries = nothing, il = nothing)
     if count(!isnothing, (source, binaries, il)) != 1
         throw(ArgumentError("Program must be source, binary, or intermediate language"))
     end
@@ -45,7 +45,7 @@ function Program(; source=nothing, binaries=nothing, il=nothing)
         device_ids = Vector{cl_device_id}(undef, ndevices)
         bin_lengths = Vector{Csize_t}(undef, ndevices)
         binary_status = Vector{Cint}(undef, ndevices)
-        binary_ptrs= Vector{Ptr{UInt8}}(undef, ndevices)
+        binary_ptrs = Vector{Ptr{UInt8}}(undef, ndevices)
         try
             for (i, (dev, bin)) in enumerate(binaries)
                 device_ids[i] = dev.id
@@ -53,8 +53,10 @@ function Program(; source=nothing, binaries=nothing, il=nothing)
                 binary_ptrs[i] = Base.unsafe_convert(Ptr{UInt8}, pointer(bin))
             end
             err_code = Ref{Cint}()
-            program_id = clCreateProgramWithBinary(context(), ndevices, device_ids, bin_lengths,
-                                                   binary_ptrs, binary_status, err_code)
+            program_id = clCreateProgramWithBinary(
+                context(), ndevices, device_ids, bin_lengths,
+                binary_ptrs, binary_status, err_code
+            )
             if err_code[] != CL_SUCCESS
                 throw(CLError(err_code[]))
             end
@@ -67,11 +69,11 @@ function Program(; source=nothing, binaries=nothing, il=nothing)
             throw(err)
         end
     end
-    Program(program_id)
+    return Program(program_id)
 end
 
 #TODO: build callback...
-function build!(p::Program; options="")
+function build!(p::Program; options = "")
     opts = String(options)
     ndevices = 0
     device_ids = C_NULL
@@ -87,7 +89,7 @@ function build!(p::Program; options="")
                 if p.source !== nothing
                     println(io)
                     println(io, "Source code:")
-                    for (i,line) in enumerate(split(p.source, "\n"))
+                    for (i, line) in enumerate(split(p.source, "\n"))
                         println(io, @sprintf("%s%-2d: %s", " ", i, line))
                     end
                 end
@@ -156,7 +158,7 @@ function Base.getproperty(p::Program, s::Symbol)
     elseif s == :context
         ctx = Ref{cl_context}()
         clGetProgramInfo(p, CL_PROGRAM_CONTEXT, sizeof(cl_context), ctx, C_NULL)
-        return Context(ctx[], retain=true)
+        return Context(ctx[], retain = true)
     elseif s == :build_status
         status_dict = Dict{Device, cl_build_status}()
         for device in p.devices

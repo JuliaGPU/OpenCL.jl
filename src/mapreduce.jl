@@ -18,10 +18,10 @@
     d = 1
     while d < items
         barrier()
-        index = 2 * d * (item-1) + 1
+        index = 2 * d * (item - 1) + 1
         @inbounds if index <= items
             other_val = if index + d <= items
-                shared[index+d]
+                shared[index + d]
             else
                 neutral
             end
@@ -91,9 +91,11 @@ end
 
 ## COV_EXCL_STOP
 
-function GPUArrays.mapreducedim!(f::F, op::OP, R::AnyCLArray{T},
-                                 A::Union{AbstractArray,Broadcast.Broadcasted};
-                                 init=nothing) where {F, OP, T}
+function GPUArrays.mapreducedim!(
+        f::F, op::OP, R::WrappedCLArray{T},
+        A::Union{AbstractArray, Broadcast.Broadcasted};
+        init = nothing
+    ) where {F, OP, T}
     Base.check_reducedims(R, A)
     length(A) == 0 && return R # isempty(::Broadcasted) iterates
 
@@ -123,7 +125,7 @@ function GPUArrays.mapreducedim!(f::F, op::OP, R::AnyCLArray{T},
     # we want as many as possible to improve algorithm efficiency and execution occupancy.
     wanted_items = length(Rreduce)
     function compute_items(max_items)
-        if wanted_items > max_items
+        return if wanted_items > max_items
             max_items
         else
             wanted_items
@@ -138,13 +140,15 @@ function GPUArrays.mapreducedim!(f::F, op::OP, R::AnyCLArray{T},
 
     # group size is restricted by local memory
     max_lmem_elements = cl.device().local_mem_size ÷ sizeof(T)
-    max_items = min(cl.device().max_work_group_size,
-                    compute_items(max_lmem_elements ÷ 2))
+    max_items = min(
+        cl.device().max_work_group_size,
+        compute_items(max_lmem_elements ÷ 2)
+    )
     # TODO: dynamic local memory to avoid two compilations
 
     # let the driver suggest a group size
     args = (f, op, init, Val(max_items), Rreduce, Rother, R′, A)
-    kernel_args = clconvert.(args)
+    kernel_args = kernel_convert.(args)
     kernel_tt = Tuple{Core.Typeof.(kernel_args)...}
     kernel = clfunction(partial_mapreduce_device, kernel_tt)
     wg_info = cl.work_group_info(kernel.fun, cl.device())
@@ -160,13 +164,14 @@ function GPUArrays.mapreducedim!(f::F, op::OP, R::AnyCLArray{T},
 
     # determine the launch configuration
     local_size = reduce_items
-    global_size = reduce_items*reduce_groups*other_groups
+    global_size = reduce_items * reduce_groups * other_groups
 
     # perform the actual reduction
     if reduce_groups == 1
         # we can cover the dimensions to reduce using a single group
         @opencl local_size global_size partial_mapreduce_device(
-            f, op, init, Val(local_size), Rreduce, Rother, R′, A)
+            f, op, init, Val(local_size), Rreduce, Rother, R′, A
+        )
     else
         # we need multiple steps to cover all values to reduce
         partial = similar(R, (size(R)..., reduce_groups))
@@ -175,9 +180,10 @@ function GPUArrays.mapreducedim!(f::F, op::OP, R::AnyCLArray{T},
             partial .= R
         end
         @opencl local_size global_size partial_mapreduce_device(
-            f, op, init, Val(local_size), Rreduce, Rother, partial, A)
+            f, op, init, Val(local_size), Rreduce, Rother, partial, A
+        )
 
-        GPUArrays.mapreducedim!(identity, op, R′, partial; init=init)
+        GPUArrays.mapreducedim!(identity, op, R′, partial; init = init)
     end
 
     return R

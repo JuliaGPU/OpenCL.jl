@@ -1,5 +1,7 @@
 module cl
 
+using Printf
+
 include("api.jl")
 
 # OpenCL wrapper objects are expected to have an `id` field containing a handle pointer
@@ -15,9 +17,9 @@ include("device.jl")
 include("context.jl")
 include("cmdqueue.jl")
 include("event.jl")
+include("pointer.jl")
+include("intelfns.jl")
 include("memory.jl")
-include("buffer.jl")
-include("svm.jl")
 include("program.jl")
 include("kernel.jl")
 

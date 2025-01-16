@@ -1,4 +1,4 @@
-export @opencl, clfunction, clconvert
+export @opencl, clfunction, kernel_convert
 
 
 ## high-level @opencl interface
@@ -9,7 +9,7 @@ const LAUNCH_KWARGS = [:global_size, :local_size, :queue]
 
 macro opencl(ex...)
     call = ex[end]
-    kwargs = map(ex[1:end-1]) do kwarg
+    kwargs = map(ex[1:(end - 1)]) do kwarg
         if kwarg isa Symbol
             :($kwarg = $kwarg)
         elseif Meta.isexpr(kwarg, :(=))
@@ -31,14 +31,14 @@ macro opencl(ex...)
     macro_kwargs, compiler_kwargs, call_kwargs, other_kwargs =
         split_kwargs(kwargs, MACRO_KWARGS, COMPILER_KWARGS, LAUNCH_KWARGS)
     if !isempty(other_kwargs)
-        key,val = first(other_kwargs).args
+        key, val = first(other_kwargs).args
         throw(ArgumentError("Unsupported keyword argument '$key'"))
     end
 
     # handle keyword arguments that influence the macro's behavior
     launch = true
     for kwarg in macro_kwargs
-        key,val = kwarg.args
+        key, val = kwarg.args
         if key == :launch
             isa(val, Bool) || throw(ArgumentError("`launch` keyword argument to @opencl should be a constant value"))
             launch = val::Bool
@@ -56,12 +56,13 @@ macro opencl(ex...)
 
     # convert the arguments, call the compiler and launch the kernel
     # while keeping the original arguments alive
-    push!(code.args,
+    push!(
+        code.args,
         quote
             $f_var = $f
             GC.@preserve $(vars...) $f_var begin
-                $kernel_f = $clconvert($f_var)
-                $kernel_args = map($clconvert, ($(var_exprs...),))
+                $kernel_f = $kernel_convert($f_var)
+                $kernel_args = map($kernel_convert, ($(var_exprs...),))
                 $kernel_tt = Tuple{map(Core.Typeof, $kernel_args)...}
                 $kernel = $clfunction($kernel_f, $kernel_tt; $(compiler_kwargs...))
                 if $launch
@@ -69,39 +70,34 @@ macro opencl(ex...)
                 end
                 $kernel
             end
-         end)
-
-    return esc(quote
-        let
-            $code
         end
-    end)
+    )
+
+    return esc(
+        quote
+            let
+                $code
+            end
+        end
+    )
 end
 
 
 ## argument conversion
 
-struct KernelAdaptor
-    svm_pointers::Vector{Ptr{Cvoid}}
-end
+struct KernelAdaptor end
 
-# assume directly-passed pointers are SVM pointers
-function Adapt.adapt_storage(to::KernelAdaptor, ptr::Ptr{T}) where {T}
-    push!(to.svm_pointers, ptr)
-    return ptr
-end
+# convert OpenCL USM host pointers to device pointers
+Adapt.adapt_storage(to::KernelAdaptor, p::CLPtr{T}) where {T} = reinterpret(Ptr{T}, p)
 
-# convert SVM buffers to their GPU address
-function Adapt.adapt_storage(to::KernelAdaptor, buf::cl.SVMBuffer)
-    ptr = pointer(buf)
-    push!(to.svm_pointers, ptr)
-    return ptr
-end
+# convert OpenCL USM host arrays to device arrays
+Adapt.adapt_storage(::KernelAdaptor, xs::CLArray{T, N}) where {T, N} =
+    Base.unsafe_convert(CLDeviceArray{T, N, AS.Global}, xs)
 
 # Base.RefValue isn't GPU compatible, so provide a compatible alternative
 # TODO: port improvements from CUDA.jl
 struct CLRefValue{T} <: Ref{T}
-  x::T
+    x::T
 end
 Base.getindex(r::CLRefValue) = r.x
 Adapt.adapt_structure(to::KernelAdaptor, r::Base.RefValue) = CLRefValue(adapt(to, r[]))
@@ -109,17 +105,19 @@ Adapt.adapt_structure(to::KernelAdaptor, r::Base.RefValue) = CLRefValue(adapt(to
 # broadcast sometimes passes a ref(type), resulting in a GPU-incompatible DataType box.
 # avoid that by using a special kind of ref that knows about the boxed type.
 struct CLRefType{T} <: Ref{DataType} end
-Base.getindex(r::CLRefType{T}) where T = T
-Adapt.adapt_structure(to::KernelAdaptor, r::Base.RefValue{<:Union{DataType,Type}}) =
+Base.getindex(r::CLRefType{T}) where {T} = T
+Adapt.adapt_structure(to::KernelAdaptor, r::Base.RefValue{<:Union{DataType, Type}}) =
     CLRefType{r[]}()
 
 # case where type is the function being broadcasted
-Adapt.adapt_structure(to::KernelAdaptor,
-                      bc::Broadcast.Broadcasted{Style, <:Any, Type{T}}) where {Style, T} =
+Adapt.adapt_structure(
+    to::KernelAdaptor,
+    bc::Broadcast.Broadcasted{Style, <:Any, Type{T}}
+) where {Style, T} =
     Broadcast.Broadcasted{Style}((x...) -> T(x...), adapt(to, bc.args), bc.axes)
 
 """
-    clconvert(x, [pointers])
+    kernel_convert(x)
 
 This function is called for every argument to be passed to a kernel, allowing it to be
 converted to a GPU-friendly format. By default, the function does nothing and returns the
@@ -127,33 +125,26 @@ input object `x` as-is.
 
 Do not add methods to this function, but instead extend the underlying Adapt.jl package and
 register methods for the the `OpenCL.KernelAdaptor` type.
-
-The `pointers` argument is used to collect pointers to indirect SVM buffers, which need to
-be registered with OpenCL before invoking the kernel.
 """
-function clconvert(arg, pointers::Vector{Ptr{Cvoid}}=Ptr{Cvoid}[])
-    adapt(KernelAdaptor(pointers), arg)
-end
-
+kernel_convert(arg) = adapt(KernelAdaptor(), arg)
 
 
 ## abstract kernel functionality
 
-abstract type AbstractKernel{F,TT} end
+abstract type AbstractKernel{F, TT} end
 
-@inline @generated function (kernel::AbstractKernel{F,TT})(args...;
-                                                           call_kwargs...) where {F,TT}
+@inline @generated function call(kernel::AbstractKernel{F, TT}, args...; call_kwargs...) where {F, TT}
     sig = Tuple{F, TT.parameters...}    # Base.signature_type with a function type
-    args = (:(kernel.f), (:( clconvert(args[$i], svm_pointers) ) for i in 1:length(args))...)
+    args = (:(kernel.f), (:(args[$i]) for i in 1:length(args))...)
 
     # filter out ghost arguments that shouldn't be passed
     predicate = dt -> isghosttype(dt) || Core.Compiler.isconstType(dt)
     to_pass = map(!predicate, sig.parameters)
-    call_t =                  Type[x[1] for x in zip(sig.parameters,  to_pass) if x[2]]
-    call_args = Union{Expr,Symbol}[x[1] for x in zip(args, to_pass)            if x[2]]
+    call_t = Type[x[1] for x in zip(sig.parameters, to_pass) if x[2]]
+    call_args = Union{Expr, Symbol}[x[1] for x in zip(args, to_pass)            if x[2]]
 
     # replace non-isbits arguments (they should be unused, or compilation would have failed)
-    for (i,dt) in enumerate(call_t)
+    for (i, dt) in enumerate(call_t)
         if !isbitstype(dt)
             call_t[i] = Ptr{Any}
             call_args[i] = :C_NULL
@@ -163,17 +154,15 @@ abstract type AbstractKernel{F,TT} end
     # finalize types
     call_tt = Base.to_tuple_type(call_t)
 
-    quote
-        svm_pointers = Ptr{Cvoid}[]
-        clcall(kernel.fun, $call_tt, $(call_args...); svm_pointers, call_kwargs...)
+    return quote
+        clcall(kernel.fun, $call_tt, $(call_args...); call_kwargs...)
     end
 end
 
 
-
 ## host-side kernels
 
-struct HostKernel{F,TT} <: AbstractKernel{F,TT}
+struct HostKernel{F, TT} <: AbstractKernel{F, TT}
     f::F
     fun::cl.Kernel
 end
@@ -183,7 +172,7 @@ end
 
 const clfunction_lock = ReentrantLock()
 
-function clfunction(f::F, tt::TT=Tuple{}; kwargs...) where {F,TT}
+function clfunction(f::F, tt::TT = Tuple{}; kwargs...) where {F, TT}
     ctx = cl.context()
     dev = cl.device()
 
@@ -200,12 +189,16 @@ function clfunction(f::F, tt::TT=Tuple{}; kwargs...) where {F,TT}
         kernel = get(_kernel_instances, h, nothing)
         if kernel === nothing
             # create the kernel state object
-            kernel = HostKernel{F,tt}(f, fun)
+            kernel = HostKernel{F, tt}(f, fun)
             _kernel_instances[h] = kernel
         end
-        return kernel::HostKernel{F,tt}
+        return kernel::HostKernel{F, tt}
     end
 end
 
 # cache of kernel instances
 const _kernel_instances = Dict{UInt, Any}()
+
+function (kernel::HostKernel)(args...; kwargs...)
+    return call(kernel, map(kernel_convert, args)...; kwargs...)
+end
