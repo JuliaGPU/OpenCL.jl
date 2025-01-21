@@ -16,7 +16,7 @@ BroadcastStyle(
     ::CLArrayStyle{N, B1},
     ::CLArrayStyle{N, B2}
 ) where {N, B1, B2} =
-    CLArrayStyle{N, cl.SharedBuffer}()
+    CLArrayStyle{N, cl.UnifiedSharedMemory}()
 
 # allocation of output arrays
 Base.similar(bc::Broadcasted{CLArrayStyle{N, B}}, ::Type{T}, dims) where {T, N, B} =

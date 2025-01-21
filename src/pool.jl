@@ -29,16 +29,16 @@ function Base.showerror(io::IO, err::OutOfGPUMemoryError)
     return io
 end
 
-function allocate(::Type{cl.DeviceBuffer}, ctx, dev, bytes::Int, alignment::Int)
-    bytes == 0 && return cl.DeviceBuffer(cl.CL_NULL, bytes, ctx, dev)
+function allocate(::Type{cl.UnifiedDeviceMemory}, ctx, dev, bytes::Int, alignment::Int)
+    bytes == 0 && return cl.UnifiedDeviceMemory(cl.CL_NULL, bytes, ctx, dev)
 
     buf = cl.device_alloc(ctx, dev, bytes, alignment = alignment)
     # make_resident(ctx, dev, buf)
     return buf
 end
 
-function allocate(::Type{cl.SharedBuffer}, ctx, dev, bytes::Int, alignment::Int)
-    bytes == 0 && return cl.SharedBuffer(cl.CL_NULL, bytes, ctx, dev)
+function allocate(::Type{cl.UnifiedSharedMemory}, ctx, dev, bytes::Int, alignment::Int)
+    bytes == 0 && return cl.UnifiedSharedMemory(cl.CL_NULL, bytes, ctx, dev)
 
     # TODO: support cross-device shared buffers (by setting `dev=nothing`)
 
@@ -47,20 +47,20 @@ function allocate(::Type{cl.SharedBuffer}, ctx, dev, bytes::Int, alignment::Int)
     return buf
 end
 
-function allocate(::Type{cl.HostBuffer}, ctx, dev, bytes::Int, alignment::Int)
-    bytes == 0 && return cl.HostBuffer(cl.CL_NULL, bytes, ctx)
+function allocate(::Type{cl.UnifiedHostMemory}, ctx, dev, bytes::Int, alignment::Int)
+    bytes == 0 && return cl.UnifiedHostMemory(cl.CL_NULL, bytes, ctx)
     return cl.host_alloc(ctx, bytes, alignment = alignment)
 end
 
-function allocate(::Type{cl.SVMBuffer}, ctx, dev, bytes::Int, alignment::Int)
-    bytes == 0 && return cl.SVMBuffer(cl.CL_NULL, bytes, ctx)
+function allocate(::Type{cl.SharedVirtualMemory}, ctx, dev, bytes::Int, alignment::Int)
+    bytes == 0 && return cl.SharedVirtualMemory(cl.CL_NULL, bytes, ctx)
 
     buf = cl.svm_alloc(ctx, bytes, alignment = alignment)
     # make_resident(ctx, dev, buf)
     return buf
 end
 
-function release(buf::cl.AbstractBuffer)
+function release(buf::cl.AbstractMemory)
     sizeof(buf) == 0 && return
 
     # XXX: is it necessary to evice memory if we are going to free it?
@@ -69,7 +69,7 @@ function release(buf::cl.AbstractBuffer)
     #      GC-driven finalizer. if we need to, port the stream/queue
     #      tracking from CUDA.jl so that we can synchronize only the
     #      queue that's associated with the buffer.
-    #if buf isa oneL0.DeviceBuffer || buf isa oneL0.SharedBuffer
+    #if buf isa oneL0.UnifiedDeviceMemory || buf isa oneL0.UnifiedSharedMemory
     #    ctx = oneL0.context(buf)
     #    dev = oneL0.device(buf)
     #    evict(ctx, dev, buf)

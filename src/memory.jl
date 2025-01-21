@@ -18,7 +18,7 @@ mutable struct Managed{M}
     # whether the memory has been captured in a way that would make the dirty bit unreliable
     captured::Bool
 
-    function Managed(mem::cl.AbstractBuffer; queu = cl.queue(), dirty = true, captured = false)
+    function Managed(mem::cl.AbstractMemory; queu = cl.queue(), dirty = true, captured = false)
         # NOTE: memory starts as dirty, because stream-ordered allocations are only
         #       guaranteed to be physically allocated at a synchronization event.
         return new{typeof(mem)}(mem, queu, dirty, captured)
@@ -68,7 +68,7 @@ function Base.convert(::Type{Ptr{T}}, managed::Managed{M}) where {T, M}
     end
 
     # accessing memory on the CPU: only allowed for host or unified allocations
-    if M == cl.DeviceBuffer
+    if M == cl.UnifiedDeviceMemory
         throw(
             ArgumentError(
                 """cannot take the CPU address of GPU memory."""

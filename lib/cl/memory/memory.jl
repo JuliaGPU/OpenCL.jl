@@ -6,29 +6,29 @@ export device_alloc, host_alloc, shared_alloc, svm_alloc, free
 # untyped buffers
 #
 
-abstract type AbstractBuffer end
+abstract type AbstractMemory end
 
-Base.convert(T::Type{<:Union{Ptr, CLPtr}}, buf::AbstractBuffer) =
+Base.convert(T::Type{<:Union{Ptr, CLPtr}}, buf::AbstractMemory) =
     throw(ArgumentError("Illegal conversion of a $(typeof(buf)) to a $T"))
 
 # ccall integration
 #
 # taking the pointer of a buffer means returning the underlying pointer,
 # and not the pointer of the buffer object itself.
-Base.unsafe_convert(P::Type{<:Union{Ptr, CLPtr}}, buf::AbstractBuffer) = convert(P, buf)
+Base.unsafe_convert(P::Type{<:Union{Ptr, CLPtr}}, buf::AbstractMemory) = convert(P, buf)
 
-include("usm_buffer.jl")
-include("svm_buffer.jl")
+include("usm.jl")
+include("svm.jl")
 include("backend.jl")
 
 ############################################
 
 # free function for different buffers
 
-function free(buf::AbstractBuffer; blocking = false)
+function free(buf::AbstractMemory; blocking = false)
     ctx = context(buf)
     ptr = Ptr{Nothing}(UInt(buf.ptr))
-    return if typeof(buf) == SVMBuffer
+    return if typeof(buf) == SharedVirtualMemory
         ext_clSVMFree(ctx, ptr)
         if blocking
             finish(queue())

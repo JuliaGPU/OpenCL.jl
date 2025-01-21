@@ -166,10 +166,10 @@ device(A::CLArray) = cl.device(A.data[].mem)
 buftype(x::CLArray) = buftype(typeof(x))
 buftype(::Type{<:CLArray{<:Any, <:Any, M}}) where {M} = @isdefined(M) ? M : Any
 
-is_device(a::CLArray) = buftype(a) == cl.DeviceBuffer
-is_shared(a::CLArray) = buftype(a) == cl.SharedBuffer
-is_host(a::CLArray) = buftype(a) == cl.HostBuffer
-is_svm(a::CLArray) = buftype(a) == cl.SVMBuffer
+is_device(a::CLArray) = buftype(a) == cl.UnifiedDeviceMemory
+is_shared(a::CLArray) = buftype(a) == cl.UnifiedSharedMemory
+is_host(a::CLArray) = buftype(a) == cl.UnifiedHostMemory
+is_svm(a::CLArray) = buftype(a) == cl.SharedVirtualMemory
 
 ## derived types
 
@@ -207,10 +207,10 @@ const StridedCLVector{T} = StridedCLArray{T, 1}
 const StridedCLMatrix{T} = StridedCLArray{T, 2}
 const StridedCLVecOrMat{T} = Union{StridedCLVector{T}, StridedCLMatrix{T}}
 
-@inline function Base.pointer(x::StridedCLArray{T}, i::Integer = 1; type = cl.DeviceBuffer) where {T}
-    PT = if type == cl.DeviceBuffer
+@inline function Base.pointer(x::StridedCLArray{T}, i::Integer = 1; type = cl.UnifiedDeviceMemory) where {T}
+    PT = if type == cl.UnifiedDeviceMemory
         CLPtr{T}
-    elseif type == cl.HostBuffer
+    elseif type == cl.UnifiedHostMemory
         Ptr{T}
     else
         error("unknown memory type")
@@ -259,14 +259,14 @@ Base.convert(::Type{T}, x::T) where {T <: CLArray} = x
 
 ## indexing
 
-function Base.getindex(x::CLArray{<:Any, <:Any, <:Union{cl.HostBuffer, cl.SharedBuffer}}, I::Int)
+function Base.getindex(x::CLArray{<:Any, <:Any, <:Union{cl.UnifiedHostMemory, cl.UnifiedSharedMemory}}, I::Int)
     @boundscheck checkbounds(x, I)
-    return unsafe_load(pointer(x, I; type = cl.HostBuffer))
+    return unsafe_load(pointer(x, I; type = cl.UnifiedHostMemory))
 end
 
-function Base.setindex!(x::CLArray{<:Any, <:Any, <:Union{cl.HostBuffer, cl.SharedBuffer}}, v, I::Int)
+function Base.setindex!(x::CLArray{<:Any, <:Any, <:Union{cl.UnifiedHostMemory, cl.UnifiedSharedMemory}}, v, I::Int)
     @boundscheck checkbounds(x, I)
-    return unsafe_store!(pointer(x, I; type = cl.HostBuffer), v)
+    return unsafe_store!(pointer(x, I; type = cl.UnifiedHostMemory), v)
 end
 
 ## interop with libraries
@@ -412,7 +412,7 @@ end
 
 function Base.unsafe_copyto!(
         ctx::cl.cl.Context, dev::cl.Device,
-        dest::DenseCLArray{T, <:Any, <:Union{cl.SharedBuffer, cl.HostBuffer}}, doffs, src::Array{T}, soffs, n; backend
+        dest::DenseCLArray{T, <:Any, <:Union{cl.UnifiedSharedMemory, cl.UnifiedHostMemory}}, doffs, src::Array{T}, soffs, n; backend
     ) where {T}
     # maintain queue-ordered semantics
     synchronize(dest)
@@ -423,7 +423,7 @@ function Base.unsafe_copyto!(
     end
     GC.@preserve src dest begin
         ptr = pointer(dest, doffs)
-        unsafe_copyto!(pointer(dest, doffs; type = cl.HostBuffer), pointer(src, soffs), n)
+        unsafe_copyto!(pointer(dest, doffs; type = cl.UnifiedHostMemory), pointer(src, soffs), n)
         if Base.isbitsunion(T)
             # copy selector bytes
             error("CLArray does not yet support isbits-union arrays")
@@ -435,7 +435,7 @@ end
 
 function Base.unsafe_copyto!(
         ctx::cl.Context, dev::cl.Device,
-        dest::Array{T}, doffs, src::DenseCLArray{T, <:Any, <:Union{cl.SharedBuffer, cl.HostBuffer}}, soffs, n; backend
+        dest::Array{T}, doffs, src::DenseCLArray{T, <:Any, <:Union{cl.UnifiedSharedMemory, cl.UnifiedHostMemory}}, soffs, n; backend
     ) where {T}
     # maintain queue-ordered semantics
     synchronize(src)
@@ -446,7 +446,7 @@ function Base.unsafe_copyto!(
     end
     GC.@preserve src dest begin
         ptr = pointer(dest, doffs)
-        unsafe_copyto!(pointer(dest, doffs), pointer(src, soffs; type = cl.HostBuffer), n)
+        unsafe_copyto!(pointer(dest, doffs), pointer(src, soffs; type = cl.UnifiedHostMemory), n)
         if Base.isbitsunion(T)
             # copy selector bytes
             error("CLArray does not yet support isbits-union arrays")
@@ -556,12 +556,12 @@ Base.unsafe_convert(::Type{CLPtr{T}}, A::PermutedDimsArray) where {T} =
 ## unsafe_wrap
 
 """
-    unsafe_wrap(Array, arr::CLArray{_,_,cl.SharedBuffer})
+    unsafe_wrap(Array, arr::CLArray{_,_,cl.UnifiedSharedMemory})
 
 Wrap a Julia `Array` around the buffer that backs a `CLArray`. This is only possible if the
 GPU array is backed by a shared buffer, i.e. if it was created with `CLArray{T}(undef, ...)`.
 """
-function Base.unsafe_wrap(::Type{Array}, arr::CLArray{T, N, cl.SharedBuffer}) where {T, N}
+function Base.unsafe_wrap(::Type{Array}, arr::CLArray{T, N, cl.UnifiedSharedMemory}) where {T, N}
     # TODO: can we make this more convenient by increasing the buffer's refcount and using
     #       a finalizer on the Array? does that work when taking views etc of the Array?
     ptr = reinterpret(Ptr{T}, pointer(arr))

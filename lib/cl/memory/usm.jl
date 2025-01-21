@@ -1,12 +1,14 @@
+abstract type UnifiedMemory <: AbstractMemory end
+
 ## device buffer
 
 """
-    DeviceBuffer
+    UnifiedDeviceMemory
 
 A buffer of device memory, owned by a specific device. Generally, may only be accessed by
 the device that owns it.
 """
-struct DeviceBuffer <: AbstractBuffer
+struct UnifiedDeviceMemory <: UnifiedMemory
     ptr::CLPtr{Cvoid}
     bytesize::Int
     context::Context
@@ -35,36 +37,36 @@ function device_alloc(
     @info ptr error_code[]
     result = Ref{UInt64}()
     @warn result
-    success = clGetMemAllocInfoINTEL(ctx, ptr, CL_MEM_ALLOC_BASE_PTR_INTEL, 
+    success = clGetMemAllocInfoINTEL(ctx, ptr, CL_MEM_ALLOC_BASE_PTR_INTEL,
         sizeof(UInt64), result, C_NULL)
 
     @error success result
     @assert success == CL_SUCCESS
     =#
-    return DeviceBuffer(reinterpret(CLPtr{Cvoid}, ptr), bytesize, ctx, dev)
+    return UnifiedDeviceMemory(reinterpret(CLPtr{Cvoid}, ptr), bytesize, ctx, dev)
 end
 
-Base.pointer(buf::DeviceBuffer) = buf.ptr
-Base.sizeof(buf::DeviceBuffer) = buf.bytesize
-context(buf::DeviceBuffer) = buf.context
-device(buf::DeviceBuffer) = buf.device
+Base.pointer(buf::UnifiedDeviceMemory) = buf.ptr
+Base.sizeof(buf::UnifiedDeviceMemory) = buf.bytesize
+context(buf::UnifiedDeviceMemory) = buf.context
+device(buf::UnifiedDeviceMemory) = buf.device
 
-Base.show(io::IO, buf::DeviceBuffer) =
-    @printf(io, "DeviceBuffer(%s at %p)", Base.format_bytes(sizeof(buf)), pointer(buf))
+Base.show(io::IO, buf::UnifiedDeviceMemory) =
+    @printf(io, "UnifiedDeviceMemory(%s at %p)", Base.format_bytes(sizeof(buf)), pointer(buf))
 
-Base.convert(::Type{CLPtr{T}}, buf::DeviceBuffer) where {T} =
+Base.convert(::Type{CLPtr{T}}, buf::UnifiedDeviceMemory) where {T} =
     convert(CLPtr{T}, pointer(buf))
 
 
 ## host buffer
 
 """
-    HostBuffer
+    UnifiedHostMemory
 
 A buffer of memory on the host. May be accessed by the host, and all devices within the
 host driver. Frequently used as staging areas to transfer data to or from devices.
 """
-struct HostBuffer <: AbstractBuffer
+struct UnifiedHostMemory <: UnifiedMemory
     ptr::Ptr{Cvoid}
     bytesize::Int
     context::Context
@@ -91,36 +93,36 @@ function host_alloc(
     #=
     @info ptr error_code[]
     result = Ref{UInt64}()
-    success = clGetMemAllocInfoINTEL(ctx, ptr, CL_MEM_ALLOC_BASE_PTR_INTEL, 
+    success = clGetMemAllocInfoINTEL(ctx, ptr, CL_MEM_ALLOC_BASE_PTR_INTEL,
         sizeof(UInt64), result, C_NULL)
     @assert success == CL_SUCCESS
     =#
-    return HostBuffer(ptr, bytesize, ctx)
+    return UnifiedHostMemory(ptr, bytesize, ctx)
 end
 
-Base.pointer(buf::HostBuffer) = buf.ptr
-Base.sizeof(buf::HostBuffer) = buf.bytesize
-context(buf::HostBuffer) = buf.context
-device(buf::HostBuffer) = nothing
+Base.pointer(buf::UnifiedHostMemory) = buf.ptr
+Base.sizeof(buf::UnifiedHostMemory) = buf.bytesize
+context(buf::UnifiedHostMemory) = buf.context
+device(buf::UnifiedHostMemory) = nothing
 
-Base.show(io::IO, buf::HostBuffer) =
-    @printf(io, "HostBuffer(%s at %p)", Base.format_bytes(sizeof(buf)), Int(pointer(buf)))
+Base.show(io::IO, buf::UnifiedHostMemory) =
+    @printf(io, "UnifiedHostMemory(%s at %p)", Base.format_bytes(sizeof(buf)), Int(pointer(buf)))
 
-Base.convert(::Type{Ptr{T}}, buf::HostBuffer) where {T} =
+Base.convert(::Type{Ptr{T}}, buf::UnifiedHostMemory) where {T} =
     convert(Ptr{T}, pointer(buf))
 
-Base.convert(::Type{CLPtr{T}}, buf::HostBuffer) where {T} =
+Base.convert(::Type{CLPtr{T}}, buf::UnifiedHostMemory) where {T} =
     reinterpret(CLPtr{T}, pointer(buf))
 
 
 ## shared buffer
 
 """
-    SharedBuffer
+    UnifiedSharedMemory
 
 A managed buffer that is shared between the host and one or more devices.
 """
-struct SharedBuffer <: AbstractBuffer
+struct UnifiedSharedMemory <: UnifiedMemory
     ptr::CLPtr{Cvoid}
     bytesize::Int
     context::Context
@@ -156,31 +158,31 @@ function shared_alloc(
     @info ptr error_code[]
     result = Ref{UInt64}()
     @warn result
-    success = clGetMemAllocInfoINTEL(ctx, ptr, CL_MEM_ALLOC_BASE_PTR_INTEL, 
+    success = clGetMemAllocInfoINTEL(ctx, ptr, CL_MEM_ALLOC_BASE_PTR_INTEL,
         sizeof(UInt64), result, C_NULL)
 
     @error success result
     @assert success == CL_SUCCESS
     =#
-    return SharedBuffer(reinterpret(CLPtr{Cvoid}, ptr), bytesize, ctx, dev)
+    return UnifiedSharedMemory(reinterpret(CLPtr{Cvoid}, ptr), bytesize, ctx, dev)
 end
 
-Base.pointer(buf::SharedBuffer) = buf.ptr
-Base.sizeof(buf::SharedBuffer) = buf.bytesize
-context(buf::SharedBuffer) = buf.context
-device(buf::SharedBuffer) = buf.device
+Base.pointer(buf::UnifiedSharedMemory) = buf.ptr
+Base.sizeof(buf::UnifiedSharedMemory) = buf.bytesize
+context(buf::UnifiedSharedMemory) = buf.context
+device(buf::UnifiedSharedMemory) = buf.device
 
-Base.show(io::IO, buf::SharedBuffer) =
-    @printf(io, "SharedBuffer(%s at %p)", Base.format_bytes(sizeof(buf)), Int(pointer(buf)))
+Base.show(io::IO, buf::UnifiedSharedMemory) =
+    @printf(io, "UnifiedSharedMemory(%s at %p)", Base.format_bytes(sizeof(buf)), Int(pointer(buf)))
 
-Base.convert(::Type{Ptr{T}}, buf::SharedBuffer) where {T} =
+Base.convert(::Type{Ptr{T}}, buf::UnifiedSharedMemory) where {T} =
     convert(Ptr{T}, reinterpret(Ptr{Cvoid}, pointer(buf)))
 
-Base.convert(::Type{CLPtr{T}}, buf::SharedBuffer) where {T} =
+Base.convert(::Type{CLPtr{T}}, buf::UnifiedSharedMemory) where {T} =
     convert(CLPtr{T}, pointer(buf))
 
 
-struct UnknownBuffer <: AbstractBuffer
+struct UnknownBuffer <: UnifiedMemory
     ptr::Ptr{Cvoid}
     bytesize::Int
     context::Context

@@ -49,7 +49,7 @@ import Adapt
 
     if !isnothing(cl.usm_capabilities(cl.device()))
         @testset "shared buffers & unsafe_wrap" begin
-            a = CLVector{Int, cl.SharedBuffer}(undef, 2)
+            a = CLVector{Int, cl.UnifiedSharedMemory}(undef, 2)
 
             # check that basic operations work on arrays backed by shared memory
             fill!(a, 40)
@@ -66,19 +66,19 @@ import Adapt
         end
 
         # https://github.com/JuliaGPU/CUDA.jl/issues/2191
-        @testset "preserving buffer types" begin
-            a = CLVector{Int, cl.SharedBuffer}([1])
-            @test OpenCL.buftype(a) == cl.SharedBuffer
+        @testset "preserving memory types" begin
+            a = CLVector{Int, cl.UnifiedSharedMemory}([1])
+            @test OpenCL.buftype(a) == cl.UnifiedSharedMemory
 
             # unified-ness should be preserved
             b = a .+ 1
-            @test OpenCL.buftype(b) == cl.SharedBuffer
+            @test OpenCL.buftype(b) == cl.UnifiedSharedMemory
 
             # when there's a conflict, we should defer to unified memory
-            c = CLVector{Int, cl.HostBuffer}([1])
-            d = CLVector{Int, cl.DeviceBuffer}([1])
+            c = CLVector{Int, cl.UnifiedHostMemory}([1])
+            d = CLVector{Int, cl.UnifiedDeviceMemory}([1])
             e = c .+ d
-            @test OpenCL.buftype(e) == cl.SharedBuffer
+            @test OpenCL.buftype(e) == cl.UnifiedSharedMemory
         end
     else
         @warn "Skipping USM-specific tests as not supported on device $(cl.device())"

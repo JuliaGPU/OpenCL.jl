@@ -95,7 +95,7 @@ end
 get_clptr_type(x::CLPtr{T}) where {T} = T
 
 # convert SVM buffers to their GPU address
-function Adapt.adapt_storage(to::KernelAdaptor, buf::cl.SVMBuffer)
+function Adapt.adapt_storage(to::KernelAdaptor, buf::cl.SharedVirtualMemory)
     ptr = pointer(buf)
     T = get_clptr_type(ptr)
     push!(to.pointers, ptr)
@@ -103,7 +103,7 @@ function Adapt.adapt_storage(to::KernelAdaptor, buf::cl.SVMBuffer)
     return reinterpret(Ptr{T}, ptr)
 end
 
-function Adapt.adapt_storage(to::KernelAdaptor, buf::cl.Union{cl.HostBuffer, cl.DeviceBuffer, cl.SharedBuffer, cl.UnknownBuffer})
+function Adapt.adapt_storage(to::KernelAdaptor, buf::cl.Union{cl.UnifiedHostMemory, cl.UnifiedDeviceMemory, cl.UnifiedSharedMemory, cl.UnknownBuffer})
     ptr = pointer(buf)
     push!(to.pointers)
     T = get_clptr_type(ptr)

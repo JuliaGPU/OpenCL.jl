@@ -1,24 +1,24 @@
 # OpenCL Memory Object
 
-abstract type AbstractMemory <: CLObject end
+abstract type AbstractMemoryObject <: CLObject end
 
 #This should be implemented by all subtypes
-# type MemoryType <: AbstractMemory
+# type MemoryType <: AbstractMemoryObject
 #     id::cl_mem
 #     ...
 # end
 
 # for passing buffers to OpenCL APIs: use the underlying handle
-Base.unsafe_convert(::Type{cl_mem}, mem::AbstractMemory) = mem.id
+Base.unsafe_convert(::Type{cl_mem}, mem::AbstractMemoryObject) = mem.id
 
 # for passing buffers to kernels: keep the buffer, it's handled by `cl.set_arg!`
-Base.unsafe_convert(::Type{<:Ptr}, mem::AbstractMemory) = mem
+Base.unsafe_convert(::Type{<:Ptr}, mem::AbstractMemoryObject) = mem
 
-Base.sizeof(mem::AbstractMemory) = mem.size
+Base.sizeof(mem::AbstractMemoryObject) = mem.size
 
-context(mem::AbstractMemory) = mem.context
+context(mem::AbstractMemoryObject) = mem.context
 
-function Base.getproperty(mem::AbstractMemory, s::Symbol)
+function Base.getproperty(mem::AbstractMemoryObject, s::Symbol)
     if s == :context
         param = Ref{cl_context}()
         clGetMemObjectInfo(mem, CL_MEM_CONTEXT, sizeof(cl_context), param, C_NULL)
@@ -73,7 +73,7 @@ end
 
 # OpenCL.Buffer
 
-mutable struct Buffer{T} <: AbstractMemory
+mutable struct Buffer{T} <: AbstractMemoryObject
     const id::cl_mem
     const len::Int
 

@@ -1,4 +1,4 @@
-struct SVMBuffer <: AbstractBuffer
+struct SharedVirtualMemory <: AbstractMemory
     ptr::CLPtr{Cvoid}
     bytesize::Int
     context::Context
@@ -31,21 +31,21 @@ function svm_alloc(
         len > 0 && enqueue_svm_fill(ptr, zero(T), len)
     end
     =#
-    return SVMBuffer(reinterpret(CLPtr{Cvoid}, ptr), bytesize, ctx)
+    return SharedVirtualMemory(reinterpret(CLPtr{Cvoid}, ptr), bytesize, ctx)
 end
 
-Base.pointer(buf::SVMBuffer) = buf.ptr
-Base.sizeof(buf::SVMBuffer) = buf.bytesize
-context(buf::SVMBuffer) = buf.context
-device(::SVMBuffer) = nothing
+Base.pointer(buf::SharedVirtualMemory) = buf.ptr
+Base.sizeof(buf::SharedVirtualMemory) = buf.bytesize
+context(buf::SharedVirtualMemory) = buf.context
+device(::SharedVirtualMemory) = nothing
 
-Base.show(io::IO, buf::SVMBuffer) =
-    @printf(io, "SVMBuffer(%s at %p)", Base.format_bytes(sizeof(buf)), Int(pointer(buf)))
+Base.show(io::IO, buf::SharedVirtualMemory) =
+    @printf(io, "SharedVirtualMemory(%s at %p)", Base.format_bytes(sizeof(buf)), Int(pointer(buf)))
 
-Base.convert(::Type{Ptr{T}}, buf::SVMBuffer) where {T} =
+Base.convert(::Type{Ptr{T}}, buf::SharedVirtualMemory) where {T} =
     convert(Ptr{T}, pointer(buf))
 
-Base.convert(::Type{CLPtr{T}}, buf::SVMBuffer) where {T} =
+Base.convert(::Type{CLPtr{T}}, buf::SharedVirtualMemory) where {T} =
     reinterpret(CLPtr{T}, pointer(buf))
 
 

@@ -59,9 +59,9 @@ function set_arg!(k::Kernel, idx::Integer, backend::Type{<:CLBackend}, arg::Noth
     return k
 end
 
-# Abstract Buffers
+# raw memory
 ## when passing using `cl.call`
-function set_arg!(k::Kernel, idx::Integer, backend::Type{<:CLBackend}, arg::T) where {T <: AbstractBuffer}
+function set_arg!(k::Kernel, idx::Integer, backend::Type{<:CLBackend}, arg::T) where {T <: AbstractMemory}
     set_kernel_arg_abstract_pointer(backend)(k, cl_uint(idx - 1), arg.ptr)
     return k
 end
@@ -79,8 +79,8 @@ function set_arg!(k::Kernel, idx::Integer, backend::Type{<:CLBackend}, arg::CLPt
     return k
 end
 
-# regular buffers
-function set_arg!(k::Kernel, idx::Integer, backend::Type{<:CLBackend}, arg::AbstractMemory)
+# memory objects
+function set_arg!(k::Kernel, idx::Integer, backend::Type{<:CLBackend}, arg::AbstractMemoryObject)
     arg_boxed = Ref(arg.id)
     clSetKernelArg(k, cl_uint(idx-1), sizeof(cl_mem), arg_boxed)
     return k

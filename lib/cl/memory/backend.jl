@@ -21,15 +21,15 @@ function select_buffer(dev::Device = cl.device())
     return @memoize begin
         backend = select_backend(dev)
         if backend == USMBackend
-            DeviceBuffer
+            UnifiedDeviceMemory
         else
-            SVMBuffer
+            SharedVirtualMemory
         end
-    end::Type{<:AbstractBuffer}
+    end::Type{<:AbstractMemory}
 end
 
-function get_backend_from_buffer(x::Type{<:AbstractBuffer})
-    return if x == SVMBuffer
+function get_backend_from_buffer(x::Type{<:AbstractMemory})
+    return if x == SharedVirtualMemory
         SVMBackend
     else
         USMBackend
@@ -52,8 +52,8 @@ function set_kernel_arg_abstract_pointer(backend::Type{<:CLBackend})
     end
 end
 
-function set_kernel_arg_abstract_pointer(backend::Type{<:AbstractBuffer})
-    return if backend == SVMBuffer
+function set_kernel_arg_abstract_pointer(backend::Type{<:AbstractMemory})
+    return if backend == SharedVirtualMemory
         ext_clSetKernelArgSVMPointer
     else
         ext_clSetKernelArgMemPointerINTEL
