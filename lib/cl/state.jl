@@ -22,7 +22,7 @@ end
 function platform!(p::Platform)
     task_local_storage(:CLPlatform, p)
     delete!(task_local_storage(), :CLDevice)
-    delete!(task_local_storage(), :CLContext)
+    delete!(task_local_storage(), :CLDeviceState)
     delete!(task_local_storage(), :CLQueue)
     return p
 end
@@ -60,7 +60,7 @@ end
 # allow overriding with a specific device
 function device!(dev::Device)
     task_local_storage(:CLDevice, dev)
-    delete!(task_local_storage(), :CLContext)
+    delete!(task_local_storage(), :CLDeviceState)
     delete!(task_local_storage(), :CLQueue)
     return dev
 end
@@ -73,23 +73,55 @@ function device!(dtype::Symbol)
 end
 
 
-## per-device contexts
+## per-device state
 
-# we use a single context per device
-const context_lock = ReentrantLock()
-const device_contexts = Dict{Device, Context}()
-function context()
-    get!(task_local_storage(), :CLContext) do
-        @lock context_lock begin
-            dev = device()
-            get!(device_contexts, dev) do
+# each device is associated with a single context
+# (and some other state we only want to set up once)
+
+abstract type AbstractMemoryBackend end
+struct SVMBackend <: AbstractMemoryBackend end
+struct USMBackend <: AbstractMemoryBackend end
+
+struct DeviceState
+    context::Context
+    backend::AbstractMemoryBackend
+end
+
+const device_states = Dict{Device, DeviceState}()
+const device_state_lock = ReentrantLock()
+function device_state(dev::Device = device())
+    return get!(task_local_storage(), :CLDeviceState) do
+        @lock device_state_lock begin
+            get!(device_states, dev) do
                 ctx = Context(dev)
-                device_contexts[dev] = ctx
-                ctx
+
+                # validate memory support
+
+                # determine if USM is supported
+                usm = if usm_supported(dev)
+                    caps = usm_capabilities(dev)
+                    caps.host.access && caps.device.access
+                else
+                    false
+                end
+
+                # determine if SVM is available (if needed)
+                if !usm
+                    caps = svm_capabilities(dev)
+                    if !caps.coarse_grain_buffer
+                        error("Device $dev does not support USM or coarse-grained SVM, either of which is required by OpenCL.jl")
+                    end
+                end
+
+                backend = usm ? USMBackend() : SVMBackend()
+                device_states[dev] = DeviceState(ctx, backend)
             end
         end
-    end::Context
+    end::DeviceState
 end
+
+context(dev::Device = device()) = device_state(dev).context
+memory_backend(dev::Device = device()) = device_state(dev).backend
 
 # temporarily switch the current device to a different device
 function device!(f::Base.Callable, args...)

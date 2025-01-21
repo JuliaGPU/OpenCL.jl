@@ -52,7 +52,7 @@ mutable struct CLArray{T, N, M} <: AbstractGPUArray{T, N}
             maxsize
         end
         data = GPUArrays.cached_alloc((CLArray, cl.device(), M, bufsize)) do
-            DataRef(managed -> release(managed.mem), Managed(allocate(M, cl.context(), cl.device(), bufsize, Base.datatype_alignment(T))))
+            DataRef(managed -> release(managed.mem), Managed(alloc(M, cl.context(), cl.device(), bufsize, Base.datatype_alignment(T))))
         end
         obj = new{T, N, M}(data, maxsize, 0, dims)
         finalizer(unsafe_free!, obj)
@@ -92,8 +92,15 @@ const CLMatrix{T} = CLArray{T, 2}
 const CLVecOrMat{T} = Union{CLVector{T}, CLMatrix{T}}
 
 # default to non-unified memory
+function memory_type()
+    if cl.memory_backend() == cl.USMBackend()
+        return cl.UnifiedDeviceMemory
+    else
+        return cl.SharedVirtualMemory
+    end
+end
 CLArray{T, N}(::UndefInitializer, dims::Dims{N}) where {T, N} =
-    CLArray{T, N, cl.select_buffer()}(undef, dims)
+    CLArray{T, N, memory_type()}(undef, dims)
 
 # buffer, type and dimensionality specified
 CLArray{T, N, M}(::UndefInitializer, dims::NTuple{N, Integer}) where {T, N, M} =
@@ -234,7 +241,7 @@ const WrappedCLVecOrMat{T} = Union{WrappedCLVector{T}, WrappedCLMatrix{T}}
 end
 
 @inline CLArray{T, N}(xs::AbstractArray{<:Any, N}) where {T, N} =
-    CLArray{T, N, cl.select_buffer()}(xs)
+    CLArray{T, N, memory_type()}(xs)
 
 @inline CLArray{T, N}(xs::CLArray{<:Any, N, B}) where {T, N, B} =
     CLArray{T, N, B}(xs)
@@ -253,9 +260,11 @@ cl.CLRef(x::Any) = cl.CLRefArray(CLArray([x]))
 cl.CLRef{T}(x) where {T} = cl.CLRefArray{T}(CLArray(T[x]))
 cl.CLRef{T}() where {T} = cl.CLRefArray(CLArray{T}(undef, 1))
 
+
 ## conversions
 
 Base.convert(::Type{T}, x::T) where {T <: CLArray} = x
+
 
 ## indexing
 
@@ -268,6 +277,7 @@ function Base.setindex!(x::CLArray{<:Any, <:Any, <:Union{cl.UnifiedHostMemory, c
     @boundscheck checkbounds(x, I)
     return unsafe_store!(pointer(x, I; type = cl.UnifiedHostMemory), v)
 end
+
 
 ## interop with libraries
 
@@ -283,7 +293,8 @@ function Base.unsafe_convert(::Type{CLPtr{T}}, x::CLArray{T}) where {T}
     return convert(CLPtr{T}, x.data[]) + x.offset * Base.elsize(x)
 end
 
-# interop with GPU arrays
+
+## interop with GPU arrays
 
 function Base.unsafe_convert(::Type{CLDeviceArray{T, N, AS.Global}}, a::CLArray{T, N}) where {T, N}
     return CLDeviceArray{T, N, AS.Global}(
@@ -291,6 +302,7 @@ function Base.unsafe_convert(::Type{CLDeviceArray{T, N, AS.Global}}, a::CLArray{
         a.maxsize - a.offset * Base.elsize(a)
     )
 end
+
 
 ## memory copying
 
@@ -304,12 +316,12 @@ function Base.copyto!(
         dest::CLArray{T}, doffs::Integer, src::Array{T}, soffs::Integer,
         n::Integer
     ) where {T}
-    n == 0 && return dest
+    (n == 0 || sizeof(T) == 0) && return dest
     @boundscheck checkbounds(dest, doffs)
     @boundscheck checkbounds(dest, doffs + n - 1)
     @boundscheck checkbounds(src, soffs)
     @boundscheck checkbounds(src, soffs + n - 1)
-    unsafe_copyto!(context(dest), cl.device(), dest, doffs, src, soffs, n; backend = get_backend(dest.data[]))
+    unsafe_copyto!(dest, doffs, src, soffs, n)
     return dest
 end
 
@@ -320,12 +332,12 @@ function Base.copyto!(
         dest::Array{T}, doffs::Integer, src::DenseCLArray{T}, soffs::Integer,
         n::Integer
     ) where {T}
-    n == 0 && return dest
+    (n == 0 || sizeof(T) == 0) && return dest
     @boundscheck checkbounds(dest, doffs)
     @boundscheck checkbounds(dest, doffs + n - 1)
     @boundscheck checkbounds(src, soffs)
     @boundscheck checkbounds(src, soffs + n - 1)
-    unsafe_copyto!(context(src), cl.device(), dest, doffs, src, soffs, n; backend = get_backend(src.data[]))
+    unsafe_copyto!(dest, doffs, src, soffs, n)
     return dest
 end
 
@@ -336,13 +348,13 @@ function Base.copyto!(
         dest::DenseCLArray{T}, doffs::Integer, src::DenseCLArray{T}, soffs::Integer,
         n::Integer
     ) where {T}
-    n == 0 && return dest
+    (n == 0 || sizeof(T) == 0) && return dest
     @boundscheck checkbounds(dest, doffs)
     @boundscheck checkbounds(dest, doffs + n - 1)
     @boundscheck checkbounds(src, soffs)
     @boundscheck checkbounds(src, soffs + n - 1)
     @assert context(dest) == context(src)
-    unsafe_copyto!(context(dest), cl.device(), dest, doffs, src, soffs, n; backend = get_backend(dest.data[]))
+    unsafe_copyto!(dest, doffs, src, soffs, n)
     return dest
 end
 
@@ -354,12 +366,13 @@ for (srcty, dstty) in [(:Array, :CLArray), (:CLArray, :Array), (:CLArray, :CLArr
         function Base.unsafe_copyto!(
                 dst::$dstty{T}, dst_off::Int,
                 src::$srcty{T}, src_off::Int,
-                N::Int; blocking::Bool = true, backend = cl.select_backend()
+                N::Int; blocking::Bool = true
             ) where {T}
             nbytes = N * sizeof(T)
-            println(buftype(dst), buftype(src))
-            return cl.enqueue_abstract_memcpy(
-                pointer(dst, dst_off), pointer(src, src_off), nbytes; blocking = blocking, backend = backend
+            # XXX: memory copies with a different device active, or between devices?
+            return unsafe_copyto!(
+                cl.context(), cl.device(), pointer(dst, dst_off),
+                pointer(src, src_off), N; blocking
             )
         end
         Base.unsafe_copyto!(dst::$dstty, src::$srcty, N; kwargs...) =
@@ -368,98 +381,21 @@ for (srcty, dstty) in [(:Array, :CLArray), (:CLArray, :Array), (:CLArray, :CLArr
 end
 
 function Base.unsafe_copyto!(
-        ctx::cl.Context, dev::cl.Device,
-        dest::DenseCLArray{T}, doffs, src::Array{T}, soffs, n; backend
+        ctx::cl.Context, dev::cl.Device, dst::Union{Ptr{T}, CLPtr{T}},
+        src::Union{Ptr{T}, CLPtr{T}}, N::Integer;
+        blocking::Bool = true
     ) where {T}
-
-    GC.@preserve src dest unsafe_copyto!(ctx, dev, pointer(dest, doffs), pointer(src, soffs), n; backend = backend)
-    if Base.isbitsunion(T)
-        # copy selector bytes
-        error("CLArray does not yet support isbits-union arrays")
+    nbytes = N * sizeof(T)
+    nbytes == 0 && return
+    return if cl.memory_backend(dev) == cl.USMBackend()
+        cl.enqueue_usm_copy(dst, src, nbytes; blocking)
+    elseif cl.memory_backend(dev) == cl.SVMBackend()
+        cl.enqueue_svm_copy(dst, src, nbytes; blocking)
     end
-    return dest
 end
 
-function Base.unsafe_copyto!(
-        ctx::cl.Context, dev::cl.Device,
-        dest::Array{T}, doffs, src::DenseCLArray{T}, soffs, n; backend
-    ) where {T}
-    GC.@preserve src dest unsafe_copyto!(ctx, dev, pointer(dest, doffs), pointer(src, soffs), n; backend = backend)
-    if Base.isbitsunion(T)
-        # copy selector bytes
-        error("CLArray does not yet support isbits-union arrays")
-    end
 
-    # copies to the host are synchronizing
-    synchronize(src)
-
-    return dest
-end
-
-function Base.unsafe_copyto!(
-        ctx::cl.Context, dev::cl.Device,
-        dest::DenseCLArray{T}, doffs, src::DenseCLArray{T}, soffs, n; backend
-    ) where {T}
-    GC.@preserve src dest unsafe_copyto!(ctx, dev, pointer(dest, doffs), pointer(src, soffs), n; backend = backend)
-    if Base.isbitsunion(T)
-        # copy selector bytes
-        error("CLArray does not yet support isbits-union arrays")
-    end
-    return dest
-end
-
-# between Array and host-accessible CLArray
-
-function Base.unsafe_copyto!(
-        ctx::cl.cl.Context, dev::cl.Device,
-        dest::DenseCLArray{T, <:Any, <:Union{cl.UnifiedSharedMemory, cl.UnifiedHostMemory}}, doffs, src::Array{T}, soffs, n; backend
-    ) where {T}
-    # maintain queue-ordered semantics
-    synchronize(dest)
-
-    if Base.isbitsunion(T)
-        # copy selector bytes
-        error("CLArray does not yet support isbits-union arrays")
-    end
-    GC.@preserve src dest begin
-        ptr = pointer(dest, doffs)
-        unsafe_copyto!(pointer(dest, doffs; type = cl.UnifiedHostMemory), pointer(src, soffs), n)
-        if Base.isbitsunion(T)
-            # copy selector bytes
-            error("CLArray does not yet support isbits-union arrays")
-        end
-    end
-
-    return dest
-end
-
-function Base.unsafe_copyto!(
-        ctx::cl.Context, dev::cl.Device,
-        dest::Array{T}, doffs, src::DenseCLArray{T, <:Any, <:Union{cl.UnifiedSharedMemory, cl.UnifiedHostMemory}}, soffs, n; backend
-    ) where {T}
-    # maintain queue-ordered semantics
-    synchronize(src)
-
-    if Base.isbitsunion(T)
-        # copy selector bytes
-        error("CLArray does not yet support isbits-union arrays")
-    end
-    GC.@preserve src dest begin
-        ptr = pointer(dest, doffs)
-        unsafe_copyto!(pointer(dest, doffs), pointer(src, soffs; type = cl.UnifiedHostMemory), n)
-        if Base.isbitsunion(T)
-            # copy selector bytes
-            error("CLArray does not yet support isbits-union arrays")
-        end
-    end
-
-    return dest
-end
-
-# TODO: LOOK INTO IF THIS OPTIMIZATION CAN BE SUPPORTED
-# optimization: memcpy between host or unified arrays without context switching
-
-## regular gpu array adaptor
+## gpu array adaptor
 
 # We don't convert isbits types in `adapt`, since they are already
 # considered GPU-compatible.
@@ -475,26 +411,6 @@ Adapt.adapt_storage(::Type{<:CLArray{T, N}}, xs::AT) where {T, N, AT <: Abstract
 Adapt.adapt_storage(::Type{<:CLArray{T, N, M}}, xs::AT) where {T, N, M, AT <: AbstractArray} =
     isbitstype(AT) ? xs : convert(CLArray{T, N, M}, xs)
 
-#= TODO: LOOK INTO IF THIS IS OKAY OR NOT, LATER
-## opinionated gpu array adaptor
-
-# eagerly converts Float64 to Float32, for performance reasons
-
-struct CLArrayKernelAdaptor{M} end
-
-Adapt.adapt_storage(::CLArrayKernelAdaptor{M}, xs::AbstractArray{T,N}) where {T,N,M} =
-  isbits(xs) ? xs : CLArray{T,N,M}(xs)
-
-Adapt.adapt_storage(::CLArrayKernelAdaptor{M}, xs::AbstractArray{T,N}) where {T<:AbstractFloat,N,M} =
-  isbits(xs) ? xs : CLArray{Float32,N,M}(xs)
-
-Adapt.adapt_storage(::CLArrayKernelAdaptor{M}, xs::AbstractArray{T,N}) where {T<:Complex{<:AbstractFloat},N,M} =
-  isbits(xs) ? xs : CLArray{ComplexF32,N,M}(xs)
-
-# not for Float16
-Adapt.adapt_storage(::CLArrayKernelAdaptor{M}, xs::AbstractArray{T,N}) where {T<:Union{Float16,BFloat16},N,M} =
-  isbits(xs) ? xs : CLArray{T,N,M}(xs)
-=#
 
 ## utilities
 
@@ -505,28 +421,24 @@ ones(dims...) = ones(Float32, dims...)
 fill(v, dims...) = fill!(CLArray{typeof(v)}(undef, dims...), v)
 fill(v, dims::Dims) = fill!(CLArray{typeof(v)}(undef, dims...), v)
 
-#= TODO: Look into this optimization later
-# optimized implementation of `fill!` for types that are directly supported by memset
-memsettype(T::Type) = T
-memsettype(T::Type{<:Signed}) = unsigned(T)
-memsettype(T::Type{<:AbstractFloat}) = Base.uinttype(T)
-const MemsetCompatTypes = Union{UInt8, Int8,
-                                UInt16, Int16, Float16,
-                                UInt32, Int32, Float32}
-function Base.fill!(A::DenseCLArray{T}, x) where T <: MemsetCompatTypes
-  U = memsettype(T)
-  y = reinterpret(U, convert(T, x))
-  context!(context(A)) do
-    memset(convert(CLPtr{U}, pointer(A)), y, length(A))
-  end
-  A
-end
-=#
-
 function Base.fill!(A::DenseCLArray{T}, val) where {T}
     B = [convert(T, val)]
     unsafe_fill!(context(A), cl.device(), pointer(A), pointer(B), length(A))
     return A
+end
+
+function unsafe_fill!(
+        ctx::cl.Context, dev::cl.Device, ptr::Union{Ptr{T}, CLPtr{T}},
+        pattern::Union{Ptr{T}, CLPtr{T}}, N::Integer; queue::cl.CmdQueue = cl.queue()
+    ) where {T}
+    pattern_bytes = N * sizeof(T)
+    pattern_bytes == 0 && return
+    if cl.memory_backend(dev) == cl.USMBackend()
+        cl.enqueue_usm_fill(ptr, pattern, sizeof(T), pattern_bytes; queue)
+    elseif cl.memory_backend(dev) == cl.SVMBackend()
+        cl.enqueue_svm_fill(ptr, pattern, sizeof(T), pattern_bytes; queue)
+    end
+    return cl.finish(queue)
 end
 
 ## views
@@ -592,11 +504,11 @@ function Base.resize!(a::CLVector{T}, n::Integer) where {T}
     # as a result, we can safely support resizing unowned buffers.
     ctx = context(a)
     dev = device(a)
-    buf = Managed(allocate(buftype(a), ctx, dev, bufsize, Base.datatype_alignment(T)))
+    buf = Managed(alloc(buftype(a), ctx, dev, bufsize, Base.datatype_alignment(T)))
     ptr = convert(CLPtr{T}, buf)
     m = min(length(a), n)
     if m > 0
-        unsafe_copyto!(ctx, dev, ptr, pointer(a), m)
+        unsafe_copyto!(context(a), device(a), ptr, pointer(a), m)
     end
     new_data = DataRef(buf) do buf
         release(buf.mem)

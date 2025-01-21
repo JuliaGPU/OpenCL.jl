@@ -1,7 +1,6 @@
 module cl
 
 using Printf
-import LLVM.Interop: assume
 
 include("pointer.jl")
 include("api.jl")
@@ -14,7 +13,6 @@ Base.hash(obj::CLObject, h::UInt) = hash(pointer(obj), h)
 
 # API wrappers
 include("error.jl")
-include("utils.jl")
 include("platform.jl")
 include("device.jl")
 include("context.jl")

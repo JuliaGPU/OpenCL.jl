@@ -1,5 +1,17 @@
 abstract type UnifiedMemory <: AbstractMemory end
 
+function free(buf::UnifiedMemory; blocking = false)
+    ctx = context(buf)
+    ptr = Ptr{Nothing}(UInt(buf.ptr))
+    if blocking
+        clMemBlockingFreeINTEL(ctx, ptr)
+    else
+        clMemFreeINTEL(ctx, ptr)
+    end
+    return
+end
+
+
 ## device buffer
 
 """
@@ -195,8 +207,8 @@ context(buf::UnknownBuffer) = buf.context
 Base.show(io::IO, buf::UnknownBuffer) =
     @printf(io, "UnknownBuffer(%s at %p)", Base.format_bytes(sizeof(buf)), Int(pointer(buf)))
 
-function enqueue_usm_memcpy(
-        dst::Union{CLPtr, Ptr}, src::Union{CLPtr, Ptr}, nbytes::Integer; queu::CmdQueue = queue(), blocking::Bool = false,
+function enqueue_usm_copy(
+        dst::Union{CLPtr, Ptr}, src::Union{CLPtr, Ptr}, nbytes::Integer; queue::CmdQueue = queue(), blocking::Bool = false,
         wait_for::Vector{Event} = Event[]
     )::Union{Event, Nothing}
     n_evts = length(wait_for)
@@ -204,27 +216,27 @@ function enqueue_usm_memcpy(
     return GC.@preserve wait_for begin
         com = (CL_NULL, C_NULL)
         ret_evt = (dst in com || src in com) ? C_NULL : Ref{cl_event}()
-        clEnqueueMemcpyINTEL(queu, blocking, dst, src, nbytes, n_evts, evt_ids, ret_evt)
+        clEnqueueMemcpyINTEL(queue, blocking, dst, src, nbytes, n_evts, evt_ids, ret_evt)
         @return_event ret_evt[]
     end
 end
 
-function enqueue_usm_memfill(
-        dst::Union{CLPtr, Ptr}, pattern::Union{Ptr{T}, CLPtr{T}}, pattern_size::Integer, nbytes::Integer; queu::CmdQueue = queue(),
+function enqueue_usm_fill(
+        dst::Union{CLPtr, Ptr}, pattern::Union{Ptr{T}, CLPtr{T}}, pattern_size::Integer, nbytes::Integer; queue::CmdQueue = queue(),
         wait_for::Vector{Event} = Event[]
     ) where {T}
     n_evts = length(wait_for)
     evt_ids = isempty(wait_for) ? C_NULL : [pointer(evt) for evt in wait_for]
     return GC.@preserve wait_for begin
         ret_evt = Ref{cl_event}()
-        clEnqueueMemFillINTEL(queu, dst, pattern, pattern_size, nbytes, n_evts, evt_ids, ret_evt)
+        clEnqueueMemFillINTEL(queue, dst, pattern, pattern_size, nbytes, n_evts, evt_ids, ret_evt)
         @return_event ret_evt[]
     end
 end
 
-function enqueue_usm_migratemem(
+function enqueue_usm_migrate(
         ptr::Union{CLPtr, Ptr}, nbytes::Integer;
-        queu::CmdQueue = queue(),
+        queue::CmdQueue = queue(),
         wait_for::Vector{Event} = Event[],
         properties::Vector{Symbol} = Symbol[]
     )
@@ -244,14 +256,14 @@ function enqueue_usm_migratemem(
     evt_ids = isempty(wait_for) ? C_NULL : [pointer(evt) for evt in wait_for]
     return GC.@preserve wait_for begin
         ret_evt = Ref{cl_event}()
-        clEnqueueMigrateMemINTEL(queu, ptr, nbytes, flag, n_evts, evt_ids, ret_evt)
+        clEnqueueMigrateMemINTEL(queue, ptr, nbytes, flag, n_evts, evt_ids, ret_evt)
         @return_event ret_evt[]
     end
 end
 
-function enqueue_usm_memadvise(
+function enqueue_usm_advise(
         ptr::Union{CLPtr, Ptr}, nbytes::Integer;
-        queu::CmdQueue = queue(),
+        queue::CmdQueue = queue(),
         wait_for::Vector{Event} = Event[],
         properties::Vector{Symbol} = Symbol[]
     )
@@ -263,7 +275,7 @@ function enqueue_usm_memadvise(
     evt_ids = isempty(wait_for) ? C_NULL : [pointer(evt) for evt in wait_for]
     return GC.@preserve wait_for begin
         ret_evt = Ref{cl_event}()
-        clEnqueueMemAdviseINTEL(queu, ptr, nbytes, flag, n_evts, evt_ids, ret_evt)
+        clEnqueueMemAdviseINTEL(queue, ptr, nbytes, flag, n_evts, evt_ids, ret_evt)
         @return_event ret_evt[]
     end
 end

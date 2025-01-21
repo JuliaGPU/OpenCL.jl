@@ -53,7 +53,7 @@ Base.length(l::LocalMem{T}) where {T} = Int(l.nbytes ÷ sizeof(T))
 # XXX: do we want set_arg!(C_NULL::Ptr) to just call clSetKernelArg?
 Base.unsafe_convert(::Type{CLPtr{T}}, l::LocalMem{T}) where {T} = l
 
-function set_arg!(k::Kernel, idx::Integer, backend::Type{<:CLBackend}, arg::Nothing)
+function set_arg!(k::Kernel, idx::Integer, arg::Nothing)
     @assert idx > 0
     clSetKernelArg(k, cl_uint(idx-1), sizeof(cl_mem), C_NULL)
     return k
@@ -61,12 +61,16 @@ end
 
 # raw memory
 ## when passing using `cl.call`
-function set_arg!(k::Kernel, idx::Integer, backend::Type{<:CLBackend}, arg::T) where {T <: AbstractMemory}
-    set_kernel_arg_abstract_pointer(backend)(k, cl_uint(idx - 1), arg.ptr)
+function set_arg!(k::Kernel, idx::Integer, arg::AbstractMemory)
+    if cl.memory_backend() == cl.SVMBackend()
+        clSetKernelArgSVMPointer(k, cl_uint(idx - 1), arg.ptr)
+    else
+        clSetKernelArgMemPointerINTEL(k, cl_uint(idx - 1), arg.ptr)
+    end
     return k
 end
 ## when passing with `clcall`, which has pre-converted the buffer
-function set_arg!(k::Kernel, idx::Integer, backend::Type{<:CLBackend}, arg::CLPtr{T}) where {T}
+function set_arg!(k::Kernel, idx::Integer, arg::CLPtr{T}) where {T}
     arg = reinterpret(Ptr{Cvoid}, arg)
     if arg != C_NULL
         # XXX: this assumes that the receiving argument is pointer-typed, which is not the
@@ -74,24 +78,28 @@ function set_arg!(k::Kernel, idx::Integer, backend::Type{<:CLBackend}, arg::CLPt
         #      `Core.LLVMPtr`, which _is_ pointer-valued. We retain this handling for `Ptr`
         #      for users passing pointers to OpenCL C, and because `Ptr` is pointer-valued
         #      starting with Julia 1.12.
-        set_kernel_arg_abstract_pointer(backend)(k, cl_uint(idx - 1), arg)
+        if cl.memory_backend() == cl.SVMBackend()
+            clSetKernelArgSVMPointer(k, cl_uint(idx - 1), arg)
+        else
+            clSetKernelArgMemPointerINTEL(k, cl_uint(idx - 1), arg)
+        end
     end
     return k
 end
 
 # memory objects
-function set_arg!(k::Kernel, idx::Integer, backend::Type{<:CLBackend}, arg::AbstractMemoryObject)
+function set_arg!(k::Kernel, idx::Integer, arg::AbstractMemoryObject)
     arg_boxed = Ref(arg.id)
     clSetKernelArg(k, cl_uint(idx-1), sizeof(cl_mem), arg_boxed)
     return k
 end
 
-function set_arg!(k::Kernel, idx::Integer, backend::Type{<:CLBackend}, arg::LocalMem)
+function set_arg!(k::Kernel, idx::Integer, arg::LocalMem)
     clSetKernelArg(k, cl_uint(idx - 1), arg.nbytes, C_NULL)
     return k
 end
 
-function set_arg!(k::Kernel, idx::Integer, backend::Type{<:CLBackend}, arg::T) where {T}
+function set_arg!(k::Kernel, idx::Integer, arg::T) where {T}
     ref = Ref(arg)
     tsize = sizeof(ref)
     err = unchecked_clSetKernelArg(k, cl_uint(idx - 1), tsize, ref)
@@ -111,9 +119,9 @@ function set_arg!(k::Kernel, idx::Integer, backend::Type{<:CLBackend}, arg::T) w
     return k
 end
 
-function set_args!(k::Kernel, backend::Type{<:CLBackend}, args...)
+function set_args!(k::Kernel, args...)
     for (i, a) in enumerate(args)
-        set_arg!(k, i, backend, a)
+        set_arg!(k, i, a)
     end
 end
 
@@ -177,11 +185,11 @@ end
 
 function call(
         k::Kernel, args...; global_size = (1,), local_size = nothing,
-        global_work_offset = nothing, wait_on::Vector{Event} = Event[], backend = Ref{Type{<:CLBackend}}(cl.select_backend()),
+        global_work_offset = nothing, wait_on::Vector{Event} = Event[],
         pointers::Vector{CLPtr} = CLPtr[]
     )
-    set_args!(k, backend[], args...)
-    flag = abstract_kernel_exec_info_ptrs(backend[])
+    set_args!(k, args...)
+    flag = cl.memory_backend() == cl.SVMBackend() ? CL_KERNEL_EXEC_INFO_SVM_PTRS : CL_KERNEL_EXEC_INFO_USM_PTRS_INTEL
     if !isempty(pointers)
         clSetKernelExecInfo(
             k, flag,

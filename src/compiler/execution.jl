@@ -78,44 +78,28 @@ macro opencl(ex...)
     end)
 end
 
-## SVM argument conversion
-
 ## argument conversion
 
 struct KernelAdaptor
     pointers::Vector{CLPtr}
-    backend::Ref{Type{<:cl.CLBackend}}
 end
 
 function Adapt.adapt_storage(to::KernelAdaptor, ptr::CLPtr{T}) where {T}
     push!(to.pointers, ptr)
-    return reinterpret(Ptr{T}, ptr)
+    return ptr
 end
 
-get_clptr_type(x::CLPtr{T}) where {T} = T
-
-# convert SVM buffers to their GPU address
-function Adapt.adapt_storage(to::KernelAdaptor, buf::cl.SharedVirtualMemory)
+function Adapt.adapt_storage(to::KernelAdaptor, buf::cl.AbstractMemory)
     ptr = pointer(buf)
-    T = get_clptr_type(ptr)
     push!(to.pointers, ptr)
-    to.backend[] = cl.SVMBackend
-    return reinterpret(Ptr{T}, ptr)
+    return ptr
 end
 
-function Adapt.adapt_storage(to::KernelAdaptor, buf::cl.Union{cl.UnifiedHostMemory, cl.UnifiedDeviceMemory, cl.UnifiedSharedMemory, cl.UnknownBuffer})
-    ptr = pointer(buf)
-    push!(to.pointers)
-    T = get_clptr_type(ptr)
-    return reinterpret(Ptr{T}, ptr)
+function Adapt.adapt_storage(to::KernelAdaptor, arr::CLArray{T, N}) where {T, N}
+    ptr = pointer(arr)
+    push!(to.pointers, ptr)
+    return Base.unsafe_convert(CLDeviceArray{T, N, AS.Global}, arr)
 end
-
-function Adapt.adapt_storage(to::KernelAdaptor, xs::CLArray{T, N}) where {T, N}
-    to.backend[] = cl.get_backend_from_buffer(buftype(xs))
-    return Base.unsafe_convert(CLDeviceArray{T, N, AS.Global}, xs)
-end
-
-## argument conversion
 
 # Base.RefValue isn't GPU compatible, so provide a compatible alternative
 # TODO: port improvements from CUDA.jl
@@ -147,7 +131,7 @@ input object `x` as-is.
 Do not add methods to this function, but instead extend the underlying Adapt.jl package and
 register methods for the the `OpenCL.KernelAdaptor` type.
 """
-clconvert(arg, backend = Ref{Type{<:cl.CLBackend}}(cl.select_backend()), pointers::Vector{CLPtr} = CLPtr[]) = adapt(KernelAdaptor(pointers, backend), arg)
+clconvert(arg, pointers::Vector{CLPtr} = CLPtr[]) = adapt(KernelAdaptor(pointers), arg)
 
 ## abstract kernel functionality
 
@@ -156,7 +140,7 @@ abstract type AbstractKernel{F, TT} end
 @inline @generated function (kernel::AbstractKernel{F,TT})(args...;
                                                            call_kwargs...) where {F,TT}
     sig = Tuple{F, TT.parameters...}    # Base.signature_type with a function type
-    args = (:(kernel.f), (:(clconvert(args[$i], backend, pointers)) for i in 1:length(args))...)
+    args = (:(kernel.f), (:(clconvert(args[$i], pointers)) for i in 1:length(args))...)
 
     # filter out ghost arguments that shouldn't be passed
     predicate = dt -> isghosttype(dt) || Core.Compiler.isconstType(dt)
@@ -177,8 +161,7 @@ abstract type AbstractKernel{F, TT} end
 
     quote
         pointers = CLPtr[]
-        backend = Ref{Type{<:cl.CLBackend}}(cl.select_backend())
-        clcall(kernel.fun, $call_tt, $(call_args...); backend, pointers, call_kwargs...)
+        clcall(kernel.fun, $call_tt, $(call_args...); pointers, call_kwargs...)
     end
 end
 

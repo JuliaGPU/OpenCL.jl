@@ -190,69 +190,57 @@ function exec_capabilities(d::Device)
     )
 end
 
-function usm_capabilities(d::Device)
-    available = try
-        result1 = Ref{cl_device_unified_shared_memory_capabilities_intel}()
-        clGetDeviceInfo(
-            d, CL_DEVICE_HOST_MEM_CAPABILITIES_INTEL,
-            sizeof(cl_device_unified_shared_memory_capabilities_intel), result1, C_NULL
-        )
-
-        result2 = Ref{cl_device_unified_shared_memory_capabilities_intel}()
-        clGetDeviceInfo(
-            d, CL_DEVICE_DEVICE_MEM_CAPABILITIES_INTEL,
-            sizeof(cl_device_unified_shared_memory_capabilities_intel), result2, C_NULL
-        )
-
-        result3 = Ref{cl_device_unified_shared_memory_capabilities_intel}()
-        clGetDeviceInfo(
-            d, CL_DEVICE_SINGLE_DEVICE_SHARED_MEM_CAPABILITIES_INTEL,
-            sizeof(cl_device_unified_shared_memory_capabilities_intel), result3, C_NULL
-        )
-
-        result4 = Ref{cl_device_unified_shared_memory_capabilities_intel}()
-        clGetDeviceInfo(
-            d, CL_DEVICE_SHARED_SYSTEM_MEM_CAPABILITIES_INTEL,
-            sizeof(cl_device_unified_shared_memory_capabilities_intel), result4, C_NULL
-        )
-
-        result5 = Ref{cl_device_unified_shared_memory_capabilities_intel}()
-        clGetDeviceInfo(
-            d, CL_DEVICE_CROSS_DEVICE_SHARED_MEM_CAPABILITIES_INTEL,
-            sizeof(cl_device_unified_shared_memory_capabilities_intel), result5, C_NULL
-        )
-
-        mask = (result1[], result2[], result3[], result4[], result5[])
-
-        function retmask(m)
-            return (;
-                usm_access = m & CL_UNIFIED_SHARED_MEMORY_ACCESS_INTEL != 0,
-                usm_atomic_access = m & CL_UNIFIED_SHARED_MEMORY_ATOMIC_ACCESS_INTEL != 0,
-                usm_concurrent_access = m & CL_UNIFIED_SHARED_MEMORY_CONCURRENT_ACCESS_INTEL != 0,
-                usm_concurrent_atomic_acces = m & CL_UNIFIED_SHARED_MEMORY_CONCURRENT_ATOMIC_ACCESS_INTEL != 0,
-            )
-        end
-
-        (;
-            usm_host_capabilities = retmask(mask[1]),
-            usm_device_capabilities = retmask(mask[2]),
-            usm_single_device_capabilities = retmask(mask[3]),
-            usm_shared_capabilities = retmask(mask[4]),
-            usm_cross_device_capabilities = retmask(mask[5]),
-        )
-    catch e
-        nothing
-    end
-    return available
+function usm_supported(d::Device)
+    "cl_intel_unified_shared_memory" in d.extensions || return false
+    return true
 end
 
-function check_usm_capabilities(d::Device)
-    available = usm_capabilities(d)
-    return if isnothing(available)
-        @error("USM extension not available for device $(d.name)")
-    else
-        available
+function usm_capabilities(d::Device)
+    usm_supported(d) || throw(ArgumentError("Unified Shared Memory not supported on this device"))
+
+    function check_capability_bits(mask::cl_device_unified_shared_memory_capabilities_intel)
+        (;
+            access = mask & CL_UNIFIED_SHARED_MEMORY_ACCESS_INTEL != 0,
+            atomic_access = mask & CL_UNIFIED_SHARED_MEMORY_ATOMIC_ACCESS_INTEL != 0,
+            concurrent_access = mask & CL_UNIFIED_SHARED_MEMORY_CONCURRENT_ACCESS_INTEL != 0,
+            concurrent_atomic_access = mask & CL_UNIFIED_SHARED_MEMORY_CONCURRENT_ATOMIC_ACCESS_INTEL != 0,
+        )
     end
+
+    host = Ref{cl_device_unified_shared_memory_capabilities_intel}()
+    device = Ref{cl_device_unified_shared_memory_capabilities_intel}()
+    single_device = Ref{cl_device_unified_shared_memory_capabilities_intel}()
+    shared = Ref{cl_device_unified_shared_memory_capabilities_intel}()
+    cross_device = Ref{cl_device_unified_shared_memory_capabilities_intel}()
+
+    clGetDeviceInfo(
+        d, CL_DEVICE_HOST_MEM_CAPABILITIES_INTEL,
+        sizeof(cl_device_unified_shared_memory_capabilities_intel), host, C_NULL
+    )
+    clGetDeviceInfo(
+        d, CL_DEVICE_DEVICE_MEM_CAPABILITIES_INTEL,
+        sizeof(cl_device_unified_shared_memory_capabilities_intel), device, C_NULL
+    )
+    clGetDeviceInfo(
+        d, CL_DEVICE_SINGLE_DEVICE_SHARED_MEM_CAPABILITIES_INTEL,
+        sizeof(cl_device_unified_shared_memory_capabilities_intel), single_device, C_NULL
+    )
+    clGetDeviceInfo(
+        d, CL_DEVICE_SHARED_SYSTEM_MEM_CAPABILITIES_INTEL,
+        sizeof(cl_device_unified_shared_memory_capabilities_intel), shared, C_NULL
+    )
+    clGetDeviceInfo(
+        d, CL_DEVICE_CROSS_DEVICE_SHARED_MEM_CAPABILITIES_INTEL,
+        sizeof(cl_device_unified_shared_memory_capabilities_intel), cross_device, C_NULL
+    )
+
+    return (;
+        host = check_capability_bits(host[]),
+        device = check_capability_bits(device[]),
+        single_device = check_capability_bits(single_device[]),
+        shared = check_capability_bits(shared[]),
+        cross_device = check_capability_bits(cross_device[]),
+    )
 end
 
 function svm_capabilities(d::Device)

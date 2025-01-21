@@ -54,13 +54,12 @@
         A = CLArray(h_ones)
         B = CLArray(h_ones)
         C = CLArray{Float32}(undef, count)
-        backend = cl.select_backend()
 
         # we use julia's index by one convention
-        @test cl.set_arg!(k, 1, backend, A.data[].mem) != nothing
-        @test cl.set_arg!(k, 2, backend, B.data[].mem) != nothing
-        @test cl.set_arg!(k, 3, backend, C.data[].mem) != nothing
-        @test cl.set_arg!(k, 4, backend, UInt32(count)) != nothing
+        @test cl.set_arg!(k, 1, A.data[].mem) != nothing
+        @test cl.set_arg!(k, 2, B.data[].mem) != nothing
+        @test cl.set_arg!(k, 3, C.data[].mem) != nothing
+        @test cl.set_arg!(k, 4, UInt32(count)) != nothing
 
         cl.enqueue_kernel(k, count) |> wait
         r = Array(C)
@@ -70,7 +69,7 @@
 
         # test set_args with new kernel
         k2 = cl.Kernel(prg, "sum")
-        cl.set_args!(k2, backend, A.data[].mem, B.data[].mem, C.data[].mem, UInt32(count))
+        cl.set_args!(k2, A.data[].mem, B.data[].mem, C.data[].mem, UInt32(count))
 
         h_twos = fill(2f0, count)
         copyto!(A, h_twos)
