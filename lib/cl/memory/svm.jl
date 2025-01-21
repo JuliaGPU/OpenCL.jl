@@ -63,7 +63,7 @@ function enqueue_svm_memcpy(
     evt_ids = isempty(wait_for) ? C_NULL : [pointer(evt) for evt in wait_for]
     return GC.@preserve wait_for begin
         ret_evt = Ref{cl_event}()
-        ext_clEnqueueSVMMemcpy(queu, blocking, dst, src, nbytes, n_evts, evt_ids, ret_evt)
+        clEnqueueSVMMemcpy(queu, blocking, dst, src, nbytes, n_evts, evt_ids, ret_evt)
         @return_event ret_evt[]
     end
 end
@@ -86,7 +86,7 @@ function enqueue_svm_map(
     evt_ids = isempty(wait_for) ? C_NULL : [pointer(evt) for evt in wait_for]
     GC.@preserve wait_for begin
         ret_evt = Ref{cl_event}()
-        ext_clEnqueueSVMMap(
+        clEnqueueSVMMap(
             queu, blocking, flags, ptr, nbytes,
             n_evts, evt_ids, ret_evt
         )
@@ -101,7 +101,7 @@ function enqueue_svm_unmap(ptr::Union{Ptr, CLPtr}; queu::CmdQueue = queue(), wai
     evt_ids = isempty(wait_for) ? C_NULL : [pointer(evt) for evt in wait_for]
     GC.@preserve wait_for begin
         ret_evt = Ref{cl_event}()
-        ext_clEnqueueSVMUnmap(queu, ptr, n_evts, evt_ids, ret_evt)
+        clEnqueueSVMUnmap(queu, ptr, n_evts, evt_ids, ret_evt)
         return Event(ret_evt[])
     end
 end
@@ -113,7 +113,7 @@ function enqueue_svm_fill(ptr::Union{Ptr, CLPtr}, pattern::Union{Ptr{T}, CLPtr{T
     evt_ids = isempty(wait_for) ? C_NULL : [pointer(evt) for evt in wait_for]
     return GC.@preserve wait_for begin
         ret_evt = Ref{cl_event}()
-        ext_clEnqueueSVMMemFill(
+        clEnqueueSVMMemFill(
             queu, ptr, pattern,
             pattern_size, nbytes,
             n_evts, evt_ids, ret_evt

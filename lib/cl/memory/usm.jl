@@ -30,7 +30,7 @@ function device_alloc(
         end
     end
 
-    ptr = ext_clDeviceMemAllocINTEL(ctx, dev, cl_mem_properties_intel[CL_MEM_ALLOC_FLAGS_INTEL, flags, 0], bytesize, alignment, error_code)
+    ptr = clDeviceMemAllocINTEL(ctx, dev, cl_mem_properties_intel[CL_MEM_ALLOC_FLAGS_INTEL, flags, 0], bytesize, alignment, error_code)
 
     @assert error_code[] == CL_SUCCESS
     #=
@@ -87,7 +87,7 @@ function host_alloc(
         end
     end
 
-    ptr = ext_clHostMemAllocINTEL(ctx, cl_mem_properties_intel[CL_MEM_ALLOC_FLAGS_INTEL, flags, 0], bytesize, alignment, error_code)
+    ptr = clHostMemAllocINTEL(ctx, cl_mem_properties_intel[CL_MEM_ALLOC_FLAGS_INTEL, flags, 0], bytesize, alignment, error_code)
 
     @assert error_code[] == CL_SUCCESS
     #=
@@ -151,7 +151,7 @@ function shared_alloc(
         end
     end
 
-    ptr = ext_clSharedMemAllocINTEL(ctx, dev, cl_mem_properties_intel[CL_MEM_ALLOC_FLAGS_INTEL, flags, 0], bytesize, alignment, error_code)
+    ptr = clSharedMemAllocINTEL(ctx, dev, cl_mem_properties_intel[CL_MEM_ALLOC_FLAGS_INTEL, flags, 0], bytesize, alignment, error_code)
 
     @assert error_code[] == CL_SUCCESS
     #=
@@ -204,7 +204,7 @@ function enqueue_usm_memcpy(
     return GC.@preserve wait_for begin
         com = (CL_NULL, C_NULL)
         ret_evt = (dst in com || src in com) ? C_NULL : Ref{cl_event}()
-        result = ext_clEnqueueMemcpyINTEL(queu, blocking, dst, src, nbytes, n_evts, evt_ids, ret_evt)
+        result = unchecked_clEnqueueMemcpyINTEL(queu, blocking, dst, src, nbytes, n_evts, evt_ids, ret_evt)
         if result != CL_SUCCESS
             if result == CL_INVALID_VALUE
                 return nothing
@@ -224,8 +224,7 @@ function enqueue_usm_memfill(
     evt_ids = isempty(wait_for) ? C_NULL : [pointer(evt) for evt in wait_for]
     return GC.@preserve wait_for begin
         ret_evt = Ref{cl_event}()
-        result = ext_clEnqueueMemFillINTEL(queu, dst, pattern, pattern_size, nbytes, n_evts, evt_ids, ret_evt)
-        result != CL_SUCCESS && error(CLError(result))
+        clEnqueueMemFillINTEL(queu, dst, pattern, pattern_size, nbytes, n_evts, evt_ids, ret_evt)
         @return_event ret_evt[]
     end
 end
@@ -252,8 +251,7 @@ function enqueue_usm_migratemem(
     evt_ids = isempty(wait_for) ? C_NULL : [pointer(evt) for evt in wait_for]
     return GC.@preserve wait_for begin
         ret_evt = Ref{cl_event}()
-        result = ext_clEnqueueMigrateMemINTEL(queu, ptr, nbytes, flag, n_evts, evt_ids, ret_evt)
-        result != CL_SUCCESS && error(CLError(result))
+        clEnqueueMigrateMemINTEL(queu, ptr, nbytes, flag, n_evts, evt_ids, ret_evt)
         @return_event ret_evt[]
     end
 end
@@ -272,8 +270,7 @@ function enqueue_usm_memadvise(
     evt_ids = isempty(wait_for) ? C_NULL : [pointer(evt) for evt in wait_for]
     return GC.@preserve wait_for begin
         ret_evt = Ref{cl_event}()
-        result = ext_clEnqueueMemAdviseINTEL(queu, ptr, nbytes, flag, n_evts, evt_ids, ret_evt)
-        result != CL_SUCCESS && error(CLError(result))
+        clEnqueueMemAdviseINTEL(queu, ptr, nbytes, flag, n_evts, evt_ids, ret_evt)
         @return_event ret_evt[]
     end
 end

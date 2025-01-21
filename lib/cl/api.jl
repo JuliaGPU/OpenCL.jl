@@ -69,6 +69,22 @@ function retry_reclaim(f, isfailed)
     ret
 end
 
+macro ext_ccall(ex)
+    # decode the expression
+    @assert Meta.isexpr(ex, :(::))
+    call, ret = ex.args
+    @assert Meta.isexpr(call, :call)
+    target, argexprs... = call.args
+    @assert Meta.isexpr(target, :(.))
+    _, fn = target.args
+
+    @gensym fptr
+    esc(quote
+        $fptr = $clGetExtensionFunctionAddressForPlatform(platform(), $fn)
+        @ccall $(Expr(:($), fptr))($(argexprs...))::$ret
+    end)
+end
+
 include("libopencl.jl")
 
 @static if Sys.iswindows()

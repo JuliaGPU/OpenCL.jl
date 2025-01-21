@@ -28,22 +28,19 @@ include("backend.jl")
 function free(buf::AbstractMemory; blocking = false)
     ctx = context(buf)
     ptr = Ptr{Nothing}(UInt(buf.ptr))
-    return if typeof(buf) == SharedVirtualMemory
-        ext_clSVMFree(ctx, ptr)
+    if buf isa SharedVirtualMemory
+        clSVMFree(ctx, ptr)
         if blocking
             finish(queue())
         end
-        nothing
     else
-        freefun = if blocking
-            ext_clMemBlockingFreeINTEL
+        if blocking
+            clMemBlockingFreeINTEL(ctx, ptr)
         else
-            ext_clMemFreeINTEL
+            clMemFreeINTEL(ctx, ptr)
         end
-        success = freefun(ctx, ptr)
-        @assert success == CL_SUCCESS
-        success
     end
+    return
 end
 
 #############################################

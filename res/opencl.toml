@@ -1,12 +1,12 @@
 [general]
 library_name = "libopencl"
-output_file_path = "../lib/libopencl.jl"
+output_file_path = "../lib/cl/libopencl.jl"
 prologue_file_path = "./opencl_prologue.jl"
 print_using_CEnum = false
 
 output_ignorelist = [
     "CL_PARTITION_BY_NAMES_LIST_END_EXT",
-    "CL_IMPORT_MEMORY_WHOLE_ALLOCATION_ARM"
+    "CL_IMPORT_MEMORY_WHOLE_ALLOCATION_ARM",
 ]
 
 
@@ -15,3 +15,52 @@ use_ccall_macro = true
 
 [api]
 checked_rettypes = [ "cl_int" ]
+
+# TODO: also rewrite return types (clSVMAlloc, clHostMemAllocINTEL, clDeviceMemAllocINTEL, clSharedMemAllocINTEL)
+
+[api.clEnqueueSVMMemcpy.argtypes]
+3 = "PtrOrCLPtr{Cvoid}"
+4 = "PtrOrCLPtr{Cvoid}"
+
+[api.clEnqueueSVMMemFill.argtypes]
+2 = "PtrOrCLPtr{Cvoid}"
+
+[api.clEnqueueSVMMap.argtypes]
+4 = "PtrOrCLPtr{Cvoid}"
+
+[api.clEnqueueSVMUnmap.argtypes]
+2 = "PtrOrCLPtr{Cvoid}"
+
+[api.clEnqueueSVMMigrateMem.argtypes]
+3 = "Ptr{PtrOrCLPtr{Cvoid}}"
+
+[api.clSetKernelArgSVMPointer.argtypes]
+3 = "PtrOrCLPtr{Cvoid}"
+
+[api.clSVMFree.argtypes]
+2 = "PtrOrCLPtr{Cvoid}"
+
+[api.clMemFreeINTEL.argtypes]
+2 = "PtrOrCLPtr{Cvoid}"
+
+[api.clMemBlockingFreeINTEL.argtypes]
+2 = "PtrOrCLPtr{Cvoid}"
+
+[api.clGetMemAllocInfoINTEL.argtypes]
+2 = "PtrOrCLPtr{Cvoid}"
+
+[api.clEnqueueMemcpyINTEL.argtypes]
+3 = "PtrOrCLPtr{Cvoid}"
+4 = "PtrOrCLPtr{Cvoid}"
+
+[api.clEnqueueMemFillINTEL.argtypes]
+2 = "PtrOrCLPtr{Cvoid}"
+
+[api.clSetKernelArgMemPointerINTEL.argtypes]
+3 = "PtrOrCLPtr{Cvoid}"
+
+[api.clEnqueueMemAdviseINTEL.argtypes]
+2 = "PtrOrCLPtr{Cvoid}"
+
+[api.clEnqueueMigrateMemINTEL.argtypes]
+2 = "PtrOrCLPtr{Cvoid}"

@@ -46,16 +46,16 @@ end
 
 function set_kernel_arg_abstract_pointer(backend::Type{<:CLBackend})
     return if backend == SVMBackend
-        ext_clSetKernelArgSVMPointer
+        clSetKernelArgSVMPointer
     else
-        ext_clSetKernelArgMemPointerINTEL
+        clSetKernelArgMemPointerINTEL
     end
 end
 
 function set_kernel_arg_abstract_pointer(backend::Type{<:AbstractMemory})
     return if backend == SharedVirtualMemory
-        ext_clSetKernelArgSVMPointer
+        clSetKernelArgSVMPointer
     else
-        ext_clSetKernelArgMemPointerINTEL
+        clSetKernelArgMemPointerINTEL
     end
 end

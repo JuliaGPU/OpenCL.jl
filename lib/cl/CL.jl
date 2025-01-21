@@ -3,6 +3,7 @@ module cl
 using Printf
 import LLVM.Interop: assume
 
+include("pointer.jl")
 include("api.jl")
 
 # OpenCL wrapper objects are expected to have an `id` field containing a handle pointer
@@ -19,8 +20,6 @@ include("device.jl")
 include("context.jl")
 include("cmdqueue.jl")
 include("event.jl")
-include("pointer.jl")
-include("modified_fns.jl")
 include("memory/memory.jl")
 include("buffer.jl")
 include("program.jl")
