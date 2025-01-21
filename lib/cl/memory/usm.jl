@@ -204,14 +204,7 @@ function enqueue_usm_memcpy(
     return GC.@preserve wait_for begin
         com = (CL_NULL, C_NULL)
         ret_evt = (dst in com || src in com) ? C_NULL : Ref{cl_event}()
-        result = unchecked_clEnqueueMemcpyINTEL(queu, blocking, dst, src, nbytes, n_evts, evt_ids, ret_evt)
-        if result != CL_SUCCESS
-            if result == CL_INVALID_VALUE
-                return nothing
-            else
-                error(CLError(result))
-            end
-        end
+        clEnqueueMemcpyINTEL(queu, blocking, dst, src, nbytes, n_evts, evt_ids, ret_evt)
         @return_event ret_evt[]
     end
 end
