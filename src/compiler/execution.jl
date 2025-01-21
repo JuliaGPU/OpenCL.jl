@@ -78,25 +78,44 @@ macro opencl(ex...)
     end)
 end
 
+## SVM argument conversion
 
 ## argument conversion
 
 struct KernelAdaptor
-    svm_pointers::Vector{Ptr{Cvoid}}
+    pointers::Vector{CLPtr}
+    backend::Ref{Type{<:cl.CLBackend}}
 end
 
-# assume directly-passed pointers are SVM pointers
-function Adapt.adapt_storage(to::KernelAdaptor, ptr::Ptr{T}) where {T}
-    push!(to.svm_pointers, ptr)
-    return ptr
+function Adapt.adapt_storage(to::KernelAdaptor, ptr::CLPtr{T}) where {T}
+    push!(to.pointers, ptr)
+    return reinterpret(Ptr{T}, ptr)
 end
+
+get_clptr_type(x::CLPtr{T}) where {T} = T
 
 # convert SVM buffers to their GPU address
 function Adapt.adapt_storage(to::KernelAdaptor, buf::cl.SVMBuffer)
     ptr = pointer(buf)
-    push!(to.svm_pointers, ptr)
-    return ptr
+    T = get_clptr_type(ptr)
+    push!(to.pointers, ptr)
+    to.backend[] = cl.SVMBackend
+    return reinterpret(Ptr{T}, ptr)
 end
+
+function Adapt.adapt_storage(to::KernelAdaptor, buf::cl.Union{cl.HostBuffer, cl.DeviceBuffer, cl.SharedBuffer, cl.UnknownBuffer})
+    ptr = pointer(buf)
+    push!(to.pointers)
+    T = get_clptr_type(ptr)
+    return reinterpret(Ptr{T}, ptr)
+end
+
+function Adapt.adapt_storage(to::KernelAdaptor, xs::CLArray{T, N}) where {T, N}
+    to.backend[] = cl.get_backend_from_buffer(buftype(xs))
+    return Base.unsafe_convert(CLDeviceArray{T, N, AS.Global}, xs)
+end
+
+## argument conversion
 
 # Base.RefValue isn't GPU compatible, so provide a compatible alternative
 # TODO: port improvements from CUDA.jl
@@ -119,7 +138,7 @@ Adapt.adapt_structure(to::KernelAdaptor,
     Broadcast.Broadcasted{Style}((x...) -> T(x...), adapt(to, bc.args), bc.axes)
 
 """
-    clconvert(x, [pointers])
+    clconvert(x)
 
 This function is called for every argument to be passed to a kernel, allowing it to be
 converted to a GPU-friendly format. By default, the function does nothing and returns the
@@ -127,24 +146,17 @@ input object `x` as-is.
 
 Do not add methods to this function, but instead extend the underlying Adapt.jl package and
 register methods for the the `OpenCL.KernelAdaptor` type.
-
-The `pointers` argument is used to collect pointers to indirect SVM buffers, which need to
-be registered with OpenCL before invoking the kernel.
 """
-function clconvert(arg, pointers::Vector{Ptr{Cvoid}}=Ptr{Cvoid}[])
-    adapt(KernelAdaptor(pointers), arg)
-end
-
-
+clconvert(arg, backend = Ref{Type{<:cl.CLBackend}}(cl.select_backend()), pointers::Vector{CLPtr} = CLPtr[]) = adapt(KernelAdaptor(pointers, backend), arg)
 
 ## abstract kernel functionality
 
-abstract type AbstractKernel{F,TT} end
+abstract type AbstractKernel{F, TT} end
 
 @inline @generated function (kernel::AbstractKernel{F,TT})(args...;
                                                            call_kwargs...) where {F,TT}
     sig = Tuple{F, TT.parameters...}    # Base.signature_type with a function type
-    args = (:(kernel.f), (:( clconvert(args[$i], svm_pointers) ) for i in 1:length(args))...)
+    args = (:(kernel.f), (:(clconvert(args[$i], backend, pointers)) for i in 1:length(args))...)
 
     # filter out ghost arguments that shouldn't be passed
     predicate = dt -> isghosttype(dt) || Core.Compiler.isconstType(dt)
@@ -164,8 +176,9 @@ abstract type AbstractKernel{F,TT} end
     call_tt = Base.to_tuple_type(call_t)
 
     quote
-        svm_pointers = Ptr{Cvoid}[]
-        clcall(kernel.fun, $call_tt, $(call_args...); svm_pointers, call_kwargs...)
+        pointers = CLPtr[]
+        backend = Ref{Type{<:cl.CLBackend}}(cl.select_backend())
+        clcall(kernel.fun, $call_tt, $(call_args...); backend, pointers, call_kwargs...)
     end
 end
 

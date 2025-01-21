@@ -78,17 +78,14 @@
 end
 
 
-@testset "SVMBuffer" begin
+@testset "SVM Buffer" begin
     # simple buffer
-    let buf = cl.SVMBuffer{Int}(1)
-        @test ndims(buf) == 1
-        @test eltype(buf) == Int
-        @test length(buf) == 1
+    let buf = cl.svm_alloc(cl.context(), sizeof(Int))
         @test sizeof(buf) == sizeof(Int)
     end
 
     # memory copy
-    let buf = cl.SVMBuffer{Int}(1)
+    let buf = cl.svm_alloc(cl.context(), sizeof(Int))
         ptr = pointer(buf)
 
         src = [42]
@@ -100,7 +97,8 @@ end
     end
 
     # memory map
-    let buf = cl.SVMBuffer{Int}(1)
+
+    let buf = cl.svm_alloc(cl.context(), sizeof(Int))
         ptr = pointer(buf)
 
         src = [42]
@@ -108,7 +106,7 @@ end
 
         evt = cl.enqueue_svm_map(ptr, sizeof(src), :rw)
         wait(evt)
-        mapped = unsafe_wrap(Array, ptr, 1; own=false)
+        mapped = unsafe_wrap(Array, Ptr{Int}(UInt(ptr)), 1; own = false)
         @test mapped[] == 42
         mapped[] = 100
         cl.enqueue_svm_unmap(ptr) |> cl.wait
@@ -119,10 +117,10 @@ end
     end
 
     # fill
-    let buf = cl.SVMBuffer{Int}(3)
+    let buf = cl.svm_alloc(cl.context(), 3 * sizeof(Int))
         ptr = pointer(buf)
 
-        cl.enqueue_svm_fill(ptr, 42, 3)
+        cl.enqueue_svm_fill(ptr, pointer([42]), sizeof(Int), 3 * sizeof(Int))
 
         dst = Vector{Int}(undef, 3)
         cl.enqueue_svm_memcpy(pointer(dst), ptr, sizeof(dst); blocking=true)

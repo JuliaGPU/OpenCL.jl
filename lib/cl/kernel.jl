@@ -51,22 +51,22 @@ Base.length(l::LocalMem{T}) where {T} = Int(l.nbytes ÷ sizeof(T))
 
 # preserve the LocalMem; it will be handled by set_arg!
 # XXX: do we want set_arg!(C_NULL::Ptr) to just call clSetKernelArg?
-Base.unsafe_convert(::Type{Ptr{T}}, l::LocalMem{T}) where {T} = l
+Base.unsafe_convert(::Type{CLPtr{T}}, l::LocalMem{T}) where {T} = l
 
-function set_arg!(k::Kernel, idx::Integer, arg::Nothing)
+function set_arg!(k::Kernel, idx::Integer, backend::Type{<:CLBackend}, arg::Nothing)
     @assert idx > 0
     clSetKernelArg(k, cl_uint(idx-1), sizeof(cl_mem), C_NULL)
     return k
 end
 
-# SVMBuffers
+# Abstract Buffers
 ## when passing using `cl.call`
-function set_arg!(k::Kernel, idx::Integer, arg::SVMBuffer)
-    clSetKernelArgSVMPointer(k, cl_uint(idx-1), arg.ptr)
+function set_arg!(k::Kernel, idx::Integer, backend::Type{<:CLBackend}, arg::T) where {T <: AbstractBuffer}
+    set_kernel_arg_abstract_pointer(backend)(k, cl_uint(idx - 1), arg.ptr)
     return k
 end
 ## when passing with `clcall`, which has pre-converted the buffer
-function set_arg!(k::Kernel, idx::Integer, arg::Union{Ptr,Core.LLVMPtr})
+function set_arg!(k::Kernel, idx::Integer, backend::Type{<:CLBackend}, arg::CLPtr{T}) where {T}
     arg = reinterpret(Ptr{Cvoid}, arg)
     if arg != C_NULL
         # XXX: this assumes that the receiving argument is pointer-typed, which is not the
@@ -74,24 +74,24 @@ function set_arg!(k::Kernel, idx::Integer, arg::Union{Ptr,Core.LLVMPtr})
         #      `Core.LLVMPtr`, which _is_ pointer-valued. We retain this handling for `Ptr`
         #      for users passing pointers to OpenCL C, and because `Ptr` is pointer-valued
         #      starting with Julia 1.12.
-        clSetKernelArgSVMPointer(k, cl_uint(idx-1), arg)
+        set_kernel_arg_abstract_pointer(backend)(k, cl_uint(idx - 1), arg)
     end
     return k
 end
 
 # regular buffers
-function set_arg!(k::Kernel, idx::Integer, arg::AbstractMemory)
+function set_arg!(k::Kernel, idx::Integer, backend::Type{<:CLBackend}, arg::AbstractMemory)
     arg_boxed = Ref(arg.id)
     clSetKernelArg(k, cl_uint(idx-1), sizeof(cl_mem), arg_boxed)
     return k
 end
 
-function set_arg!(k::Kernel, idx::Integer, arg::LocalMem)
-    clSetKernelArg(k, cl_uint(idx-1), arg.nbytes, C_NULL)
+function set_arg!(k::Kernel, idx::Integer, backend::Type{<:CLBackend}, arg::LocalMem)
+    clSetKernelArg(k, cl_uint(idx - 1), arg.nbytes, C_NULL)
     return k
 end
 
-function set_arg!(k::Kernel, idx::Integer, arg::T) where T
+function set_arg!(k::Kernel, idx::Integer, backend::Type{<:CLBackend}, arg::T) where {T}
     ref = Ref(arg)
     tsize = sizeof(ref)
     err = unchecked_clSetKernelArg(k, cl_uint(idx - 1), tsize, ref)
@@ -111,9 +111,9 @@ function set_arg!(k::Kernel, idx::Integer, arg::T) where T
     return k
 end
 
-function set_args!(k::Kernel, args...)
+function set_args!(k::Kernel, backend::Type{<:CLBackend}, args...)
     for (i, a) in enumerate(args)
-        set_arg!(k, i, a)
+        set_arg!(k, i, backend, a)
     end
 end
 
@@ -175,13 +175,18 @@ function enqueue_kernel(k::Kernel, global_work_size, local_work_size=nothing;
     return Event(ret_event[], retain=false)
 end
 
-function call(k::Kernel, args...; global_size=(1,), local_size=nothing,
-              global_work_offset=nothing, wait_on::Vector{Event}=Event[],
-              svm_pointers::Vector{Ptr{Cvoid}}=Ptr{Cvoid}[])
-    set_args!(k, args...)
-    if !isempty(svm_pointers)
-        clSetKernelExecInfo(k, CL_KERNEL_EXEC_INFO_SVM_PTRS,
-                            sizeof(svm_pointers), svm_pointers)
+function call(
+        k::Kernel, args...; global_size = (1,), local_size = nothing,
+        global_work_offset = nothing, wait_on::Vector{Event} = Event[], backend = Ref{Type{<:CLBackend}}(cl.select_backend()),
+        pointers::Vector{CLPtr} = CLPtr[]
+    )
+    set_args!(k, backend[], args...)
+    flag = abstract_kernel_exec_info_ptrs(backend[])
+    if !isempty(pointers)
+        clSetKernelExecInfo(
+            k, flag,
+            sizeof(pointers), pointers
+        )
     end
     enqueue_kernel(k, global_size, local_size; global_work_offset, wait_on)
 end

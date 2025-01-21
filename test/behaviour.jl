@@ -18,7 +18,7 @@
     prg   = cl.Program(source=hello_world_kernel) |> cl.build!
     kern  = cl.Kernel(prg, "hello")
 
-    clcall(kern, Tuple{Ptr{Cchar}}, out_arr; global_size=str_len)
+    clcall(kern, Tuple{CLPtr{Cchar}}, out_arr; global_size = str_len)
     h = Array(out_arr)
 
     @test hello_world_str == GC.@preserve h unsafe_string(pointer(h))
@@ -205,14 +205,15 @@ end
     P = [Params(0.5, 10.0, [0.0, 0.0], 3)]
 
     #TODO: constructor for single immutable types.., check if passed parameter isbits
-    P_arr = CLArray(P; access=:r)
+    P_arr = CLArray(P)
 
-    X_arr = CLArray(X; access=:r)
-    Y_arr = CLArray(Y; access=:r)
-    R_arr = CLArray{Float32}(undef, 10; access=:w)
+    X_arr = CLArray(X)
+    Y_arr = CLArray(Y)
+    R_arr = CLArray{Float32}(undef, 10)
 
     global_size = size(X)
-    clcall(part3, Tuple{Ptr{Float32}, Ptr{Float32}, Ptr{Float32}, Ptr{Params}},
+    clcall(
+        part3, Tuple{CLPtr{Float32}, CLPtr{Float32}, CLPtr{Float32}, CLPtr{Params}},
                   X_arr, Y_arr, R_arr, P_arr; global_size)
 
     r = Array(R_arr)
@@ -251,7 +252,7 @@ end
 
     P = MutableParams(0.5, 10.0)
     P_arr = CLArray{Float32}(undef, 2)
-    clcall(part3, Tuple{Ptr{Float32}, MutableParams}, P_arr, P)
+    clcall(part3, Tuple{CLPtr{Float32}, MutableParams}, P_arr, P)
 
     r = Array(P_arr)
 

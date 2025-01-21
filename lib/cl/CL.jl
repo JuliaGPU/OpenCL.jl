@@ -1,5 +1,8 @@
 module cl
 
+using Printf
+import LLVM.Interop: assume
+
 include("api.jl")
 
 # OpenCL wrapper objects are expected to have an `id` field containing a handle pointer
@@ -10,14 +13,16 @@ Base.hash(obj::CLObject, h::UInt) = hash(pointer(obj), h)
 
 # API wrappers
 include("error.jl")
+include("utils.jl")
 include("platform.jl")
 include("device.jl")
 include("context.jl")
 include("cmdqueue.jl")
 include("event.jl")
-include("memory.jl")
+include("pointer.jl")
+include("modified_fns.jl")
+include("memory/memory.jl")
 include("buffer.jl")
-include("svm.jl")
 include("program.jl")
 include("kernel.jl")
 

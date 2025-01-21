@@ -190,6 +190,71 @@ function exec_capabilities(d::Device)
     )
 end
 
+function usm_capabilities(d::Device)
+    available = try
+        result1 = Ref{cl_device_unified_shared_memory_capabilities_intel}()
+        clGetDeviceInfo(
+            d, CL_DEVICE_HOST_MEM_CAPABILITIES_INTEL,
+            sizeof(cl_device_unified_shared_memory_capabilities_intel), result1, C_NULL
+        )
+
+        result2 = Ref{cl_device_unified_shared_memory_capabilities_intel}()
+        clGetDeviceInfo(
+            d, CL_DEVICE_DEVICE_MEM_CAPABILITIES_INTEL,
+            sizeof(cl_device_unified_shared_memory_capabilities_intel), result2, C_NULL
+        )
+
+        result3 = Ref{cl_device_unified_shared_memory_capabilities_intel}()
+        clGetDeviceInfo(
+            d, CL_DEVICE_SINGLE_DEVICE_SHARED_MEM_CAPABILITIES_INTEL,
+            sizeof(cl_device_unified_shared_memory_capabilities_intel), result3, C_NULL
+        )
+
+        result4 = Ref{cl_device_unified_shared_memory_capabilities_intel}()
+        clGetDeviceInfo(
+            d, CL_DEVICE_SHARED_SYSTEM_MEM_CAPABILITIES_INTEL,
+            sizeof(cl_device_unified_shared_memory_capabilities_intel), result4, C_NULL
+        )
+
+        result5 = Ref{cl_device_unified_shared_memory_capabilities_intel}()
+        clGetDeviceInfo(
+            d, CL_DEVICE_CROSS_DEVICE_SHARED_MEM_CAPABILITIES_INTEL,
+            sizeof(cl_device_unified_shared_memory_capabilities_intel), result5, C_NULL
+        )
+
+        mask = (result1[], result2[], result3[], result4[], result5[])
+
+        function retmask(m)
+            return (;
+                usm_access = m & CL_UNIFIED_SHARED_MEMORY_ACCESS_INTEL != 0,
+                usm_atomic_access = m & CL_UNIFIED_SHARED_MEMORY_ATOMIC_ACCESS_INTEL != 0,
+                usm_concurrent_access = m & CL_UNIFIED_SHARED_MEMORY_CONCURRENT_ACCESS_INTEL != 0,
+                usm_concurrent_atomic_acces = m & CL_UNIFIED_SHARED_MEMORY_CONCURRENT_ATOMIC_ACCESS_INTEL != 0,
+            )
+        end
+
+        (;
+            usm_host_capabilities = retmask(mask[1]),
+            usm_device_capabilities = retmask(mask[2]),
+            usm_single_device_capabilities = retmask(mask[3]),
+            usm_shared_capabilities = retmask(mask[4]),
+            usm_cross_device_capabilities = retmask(mask[5]),
+        )
+    catch e
+        nothing
+    end
+    return available
+end
+
+function check_usm_capabilities(d::Device)
+    available = usm_capabilities(d)
+    return if isnothing(available)
+        @error("USM extension not available for device $(d.name)")
+    else
+        available
+    end
+end
+
 function svm_capabilities(d::Device)
     result = Ref{cl_device_svm_capabilities}()
     clGetDeviceInfo(d, CL_DEVICE_SVM_CAPABILITIES,
