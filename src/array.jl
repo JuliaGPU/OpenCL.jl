@@ -172,13 +172,13 @@ Base.sizeof(x::CLArray) = Base.elsize(x) * length(x)
 context(A::CLArray) = cl.context(A.data[].mem)
 device(A::CLArray) = cl.device(A.data[].mem)
 
-buftype(x::CLArray) = buftype(typeof(x))
-buftype(::Type{<:CLArray{<:Any, <:Any, M}}) where {M} = @isdefined(M) ? M : Any
+memtype(x::CLArray) = memtype(typeof(x))
+memtype(::Type{<:CLArray{<:Any, <:Any, M}}) where {M} = @isdefined(M) ? M : Any
 
-is_device(a::CLArray) = buftype(a) == cl.UnifiedDeviceMemory
-is_shared(a::CLArray) = buftype(a) == cl.UnifiedSharedMemory
-is_host(a::CLArray) = buftype(a) == cl.UnifiedHostMemory
-is_svm(a::CLArray) = buftype(a) == cl.SharedVirtualMemory
+is_device(a::CLArray) = memtype(a) == cl.UnifiedDeviceMemory
+is_shared(a::CLArray) = memtype(a) == cl.UnifiedSharedMemory
+is_host(a::CLArray) = memtype(a) == cl.UnifiedHostMemory
+is_svm(a::CLArray) = memtype(a) == cl.SharedVirtualMemory
 
 ## derived types
 
@@ -369,30 +369,25 @@ for (srcty, dstty) in [(:Array, :CLArray), (:CLArray, :Array), (:CLArray, :CLArr
                 N::Int; blocking::Bool = true
             ) where {T}
             nbytes = N * sizeof(T)
-            # XXX: memory copies with a different device active, or between devices?
-            return GC.@preserve src dst begin
-                unsafe_copyto!(
-                    cl.context(), cl.device(), pointer(dst, dst_off),
-                    pointer(src, src_off), N; blocking
-                )
+            nbytes == 0 && return
+
+            dev = if $dstty == CLArray
+                device(dst)
+            else
+                device(src)
+            end
+            cl.device!(dev) do
+                if cl.memory_backend(dev) == cl.SVMBackend()
+                    cl.enqueue_svm_copy(pointer(dst, dst_off), pointer(src, src_off), nbytes; blocking)
+                elseif cl.memory_backend(dev) == cl.USMBackend()
+                    cl.enqueue_usm_copy(pointer(dst, dst_off), pointer(src, src_off), nbytes; blocking)
+                else
+                    error(cl.memory_backend(dev))
+                end
             end
         end
         Base.unsafe_copyto!(dst::$dstty, src::$srcty, N; kwargs...) =
             unsafe_copyto!(dst, 1, src, 1, N; kwargs...)
-    end
-end
-
-function Base.unsafe_copyto!(
-        ctx::cl.Context, dev::cl.Device, dst::Union{Ptr{T}, CLPtr{T}},
-        src::Union{Ptr{T}, CLPtr{T}}, N::Integer;
-        blocking::Bool = true
-    ) where {T}
-    nbytes = N * sizeof(T)
-    nbytes == 0 && return
-    return if cl.memory_backend(dev) == cl.USMBackend()
-        cl.enqueue_usm_copy(dst, src, nbytes; blocking)
-    elseif cl.memory_backend(dev) == cl.SVMBackend()
-        cl.enqueue_svm_copy(dst, src, nbytes; blocking)
     end
 end
 
@@ -510,12 +505,12 @@ function Base.resize!(a::CLVector{T}, n::Integer) where {T}
     # as a result, we can safely support resizing unowned buffers.
     ctx = context(a)
     dev = device(a)
-    mem = alloc(buftype(a), ctx, dev, bufsize; alignment=Base.datatype_alignment(T))
+    mem = alloc(memtype(a), ctx, dev, bufsize; alignment=Base.datatype_alignment(T))
     ptr = convert(CLPtr{T}, mem)
     m = min(length(a), n)
     if m > 0
         GC.@preserve a begin
-            if buftype(a) == cl.SharedVirtualMemory
+            if memtype(a) == cl.SharedVirtualMemory
                 cl.enqueue_svm_copy(ptr, pointer(a), m*sizeof(T); blocking=false)
             else
                 cl.enqueue_usm_copy(ptr, pointer(a), m*sizeof(T); blocking=false)

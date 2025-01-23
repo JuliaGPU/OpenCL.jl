@@ -8,7 +8,7 @@ CLArrayStyle{M, B}(::Val{N}) where {N, M, B} = CLArrayStyle{N, B}()
 # identify the broadcast style of a (wrapped) CLArray
 BroadcastStyle(::Type{<:CLArray{T, N, B}}) where {T, N, B} = CLArrayStyle{N, B}()
 BroadcastStyle(W::Type{<:WrappedCLArray{T, N}}) where {T, N} =
-    CLArrayStyle{N, buftype(Adapt.unwrap_type(W))}()
+    CLArrayStyle{N, memtype(Adapt.unwrap_type(W))}()
 
 # when we are dealing with different buffer styles, we cannot know
 # which one is better, so use shared memory

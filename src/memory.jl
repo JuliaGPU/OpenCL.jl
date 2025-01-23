@@ -39,10 +39,6 @@ function maybe_synchronize(managed::Managed)
     end
 end
 
-function managed_buftype(::Managed{M}) where {M}
-    return M
-end
-
 function Base.convert(::Type{CLPtr{T}}, managed::Managed{M}) where {T, M}
     # let null pointers pass through as-is
     ptr = convert(CLPtr{T}, managed.mem)

@@ -68,17 +68,17 @@ import Adapt
         # https://github.com/JuliaGPU/CUDA.jl/issues/2191
         @testset "preserving memory types" begin
             a = CLVector{Int, cl.UnifiedSharedMemory}([1])
-            @test OpenCL.buftype(a) == cl.UnifiedSharedMemory
+            @test OpenCL.memtype(a) == cl.UnifiedSharedMemory
 
             # unified-ness should be preserved
             b = a .+ 1
-            @test OpenCL.buftype(b) == cl.UnifiedSharedMemory
+            @test OpenCL.memtype(b) == cl.UnifiedSharedMemory
 
             # when there's a conflict, we should defer to unified memory
             c = CLVector{Int, cl.UnifiedSharedMemory}([1])
             d = CLVector{Int, cl.UnifiedDeviceMemory}([1])
             e = c .+ d
-            @test OpenCL.buftype(e) == cl.UnifiedSharedMemory
+            @test OpenCL.memtype(e) == cl.UnifiedSharedMemory
         end
     else
         @warn "Skipping USM-specific tests as not supported on device $(cl.device())"
