@@ -46,7 +46,11 @@ function Base.convert(::Type{CLPtr{T}}, managed::Managed{M}) where {T, M}
         return ptr
     end
 
-    # TODO: FIGURE OUT ACTIVE STATE
+    # accessing memory on another queue: ensure the data is ready and take ownership
+    if managed.queue != cl.queue()
+        maybe_synchronize(managed)
+        managed.queue = cl.queue()
+    end
 
     managed.dirty = true
     return ptr
@@ -66,7 +70,6 @@ function Base.convert(::Type{Ptr{T}}, managed::Managed{M}) where {T, M}
                 """cannot take the CPU address of GPU memory."""
             )
         )
-
     end
 
     # make sure any work on the memory has finished.
