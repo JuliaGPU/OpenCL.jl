@@ -270,12 +270,12 @@ Base.convert(::Type{T}, x::T) where {T <: CLArray} = x
 
 function Base.getindex(x::CLArray{<:Any, <:Any, <:Union{cl.UnifiedHostMemory, cl.UnifiedSharedMemory}}, I::Int)
     @boundscheck checkbounds(x, I)
-    return unsafe_load(host_pointer(x, I))
+    return GC.@preserve x unsafe_load(host_pointer(x, I))
 end
 
 function Base.setindex!(x::CLArray{<:Any, <:Any, <:Union{cl.UnifiedHostMemory, cl.UnifiedSharedMemory}}, v, I::Int)
     @boundscheck checkbounds(x, I)
-    return unsafe_store!(host_pointer(x, I), v)
+    return GC.@preserve x unsafe_store!(host_pointer(x, I), v)
 end
 
 
@@ -370,10 +370,12 @@ for (srcty, dstty) in [(:Array, :CLArray), (:CLArray, :Array), (:CLArray, :CLArr
             ) where {T}
             nbytes = N * sizeof(T)
             # XXX: memory copies with a different device active, or between devices?
-            return unsafe_copyto!(
-                cl.context(), cl.device(), pointer(dst, dst_off),
-                pointer(src, src_off), N; blocking
-            )
+            return GC.@preserve src dst begin
+                unsafe_copyto!(
+                    cl.context(), cl.device(), pointer(dst, dst_off),
+                    pointer(src, src_off), N; blocking
+                )
+            end
         end
         Base.unsafe_copyto!(dst::$dstty, src::$srcty, N; kwargs...) =
             unsafe_copyto!(dst, 1, src, 1, N; kwargs...)
@@ -423,7 +425,9 @@ fill(v, dims::Dims) = fill!(CLArray{typeof(v)}(undef, dims...), v)
 
 function Base.fill!(A::DenseCLArray{T}, val) where {T}
     B = [convert(T, val)]
-    unsafe_fill!(context(A), cl.device(), pointer(A), pointer(B), length(A))
+    GC.@preserve A B begin
+        unsafe_fill!(context(A), cl.device(), pointer(A), pointer(B), length(A))
+    end
     return A
 end
 
@@ -510,10 +514,12 @@ function Base.resize!(a::CLVector{T}, n::Integer) where {T}
     ptr = convert(CLPtr{T}, mem)
     m = min(length(a), n)
     if m > 0
-        if buftype(a) == cl.SharedVirtualMemory
-            cl.enqueue_svm_copy(ptr, pointer(a), m*sizeof(T); blocking=false)
-        else
-            cl.enqueue_usm_copy(ptr, pointer(a), m*sizeof(T); blocking=false)
+        GC.@preserve a begin
+            if buftype(a) == cl.SharedVirtualMemory
+                cl.enqueue_svm_copy(ptr, pointer(a), m*sizeof(T); blocking=false)
+            else
+                cl.enqueue_usm_copy(ptr, pointer(a), m*sizeof(T); blocking=false)
+            end
         end
     end
     new_data = DataRef(free, mem)
