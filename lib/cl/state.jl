@@ -60,6 +60,7 @@ end
 # allow overriding with a specific device
 function device!(dev::Device)
     task_local_storage(:CLDevice, dev)
+    task_local_storage(:CLPlatform, dev.platform)
     delete!(task_local_storage(), :CLDeviceState)
     delete!(task_local_storage(), :CLQueue)
     return dev
