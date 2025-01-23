@@ -111,43 +111,44 @@ end
 
 ## public interface
 
-function alloc(ctx, dev, bytes::Int; alignment::Int = 0)
+function alloc(bytes::Int; alignment::Int = 0)
     if cl.device_state(dev).usm
-        return cl.alloc(cl.UnifiedDeviceMemory, ctx, dev, bytes; alignment)
+        return cl.alloc(cl.UnifiedDeviceMemory, cl.context(), cl.device(), bytes; alignment)
     else
-        return cl.alloc(cl.SharedVirtualMemory, ctx, dev, bytes; alignment)
+        return cl.alloc(cl.SharedVirtualMemory, cl.context(), cl.device(), bytes; alignment)
     end
 end
 
-function alloc(::Type{cl.UnifiedDeviceMemory}, ctx, dev, bytes::Int; alignment::Int = 0)
-    bytes == 0 && return Managed(cl.UnifiedDeviceMemory(cl.CL_NULL, bytes, ctx, dev))
-
-    mem = cl.device_alloc(ctx, dev, bytes; alignment)
-    # make_resident(ctx, dev, mem)
+function alloc(::Type{cl.UnifiedDeviceMemory}, bytes::Int; alignment::Int = 0)
+    if bytes == 0
+        return Managed(cl.UnifiedDeviceMemory(cl.CL_NULL, bytes, cl.context(), cl.device()))
+    end
+    mem = cl.device_alloc(cl.context(), cl.device(), bytes; alignment)
     return Managed(mem)
 end
 
-function alloc(::Type{cl.UnifiedSharedMemory}, ctx, dev, bytes::Int; alignment::Int = 0)
-    bytes == 0 && return Managed(cl.UnifiedSharedMemory(cl.CL_NULL, bytes, ctx, dev))
-
+function alloc(::Type{cl.UnifiedSharedMemory}, bytes::Int; alignment::Int = 0)
+    if bytes == 0
+        return Managed(cl.UnifiedSharedMemory(cl.CL_NULL, bytes, cl.context(), cl.device()))
+    end
     # TODO: support cross-device shared memory (by setting `dev=nothing`)
-
-    mem = cl.shared_alloc(ctx, dev, bytes; alignment)
+    mem = cl.shared_alloc(cl.context(), cl.device(), bytes; alignment)
     return Managed(mem)
 end
 
-function alloc(::Type{cl.UnifiedHostMemory}, ctx, dev, bytes::Int; alignment::Int = 0)
-    bytes == 0 && return Managed(cl.UnifiedHostMemory(cl.CL_NULL, bytes, ctx))
-
-    mem = cl.host_alloc(ctx, bytes; alignment)
+function alloc(::Type{cl.UnifiedHostMemory}, bytes::Int; alignment::Int = 0)
+    if bytes == 0
+        return Managed(cl.UnifiedHostMemory(cl.CL_NULL, bytes, cl.context()))
+    end
+    mem = cl.host_alloc(cl.context(), bytes; alignment)
     return Managed(mem)
 end
 
-function alloc(::Type{cl.SharedVirtualMemory}, ctx, dev, bytes::Int; alignment::Int = 0)
-    bytes == 0 && return Managed(cl.SharedVirtualMemory(cl.CL_NULL, bytes, ctx))
-
-    mem = cl.svm_alloc(ctx, bytes; alignment)
-    # make_resident(ctx, dev, mem)
+function alloc(::Type{cl.SharedVirtualMemory}, bytes::Int; alignment::Int = 0)
+    if bytes == 0
+        return Managed(cl.SharedVirtualMemory(cl.CL_NULL, bytes, cl.context()))
+    end
+    mem = cl.svm_alloc(cl.context(), bytes; alignment)
     return Managed(mem)
 end
 
@@ -155,17 +156,21 @@ function free(managed::Managed{<:cl.AbstractMemory})
     mem = managed.mem
     sizeof(mem) == 0 && return
 
-    # "`clSVMFree` does not wait for previously enqueued commands that may be using
-    # svm_pointer to finish before freeing svm_pointer. It is the responsibility of the
-    # application to make sure that enqueued commands that use svm_pointer have finished
-    # before freeing svm_pointer". USM has `clMemBlockingFreeINTEL`, but by doing the
-    # synchronization ourselves we provide more opportunity for concurrent execution.
-    synchronize(managed)
+    # XXX: we shouldn't have to look up the device here; all state should be keyed
+    #      on the context (i.e., doing `cl.context!` instead of `cl.device!`).
+    cl.device!(cl.context(mem).devices[]) do
+        # "`clSVMFree` does not wait for previously enqueued commands that may be using
+        # svm_pointer to finish before freeing svm_pointer. It is the responsibility of the
+        # application to make sure that enqueued commands that use svm_pointer have finished
+        # before freeing svm_pointer". USM has `clMemBlockingFreeINTEL`, but by doing the
+        # synchronization ourselves we provide more opportunity for concurrent execution.
+        synchronize(managed)
 
-    if mem isa cl.SharedVirtualMemory
-        cl.svm_free(mem)
-    else
-        cl.usm_free(mem)
+        if mem isa cl.SharedVirtualMemory
+            cl.svm_free(mem)
+        else
+            cl.usm_free(mem)
+        end
     end
 
     return

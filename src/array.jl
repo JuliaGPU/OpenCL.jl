@@ -51,9 +51,8 @@ mutable struct CLArray{T, N, M} <: AbstractGPUArray{T, N}
         else
             maxsize
         end
-        data = GPUArrays.cached_alloc((CLArray, cl.device(), M, bufsize)) do
-            buf = alloc(M, cl.context(), cl.device(), bufsize;
-                        alignment=Base.datatype_alignment(T))
+        data = GPUArrays.cached_alloc((CLArray, cl.context(), M, bufsize)) do
+            buf = alloc(M, bufsize; alignment=Base.datatype_alignment(T))
             DataRef(free, buf)
         end
         obj = new{T, N, M}(data, maxsize, 0, dims)
@@ -420,8 +419,10 @@ fill(v, dims::Dims) = fill!(CLArray{typeof(v)}(undef, dims...), v)
 
 function Base.fill!(A::DenseCLArray{T}, val) where {T}
     B = [convert(T, val)]
-    GC.@preserve A B begin
-        unsafe_fill!(context(A), cl.device(), pointer(A), pointer(B), length(A))
+    cl.device!(device(A)) do
+        GC.@preserve A B begin
+            unsafe_fill!(context(A), cl.device(), pointer(A), pointer(B), length(A))
+        end
     end
     return A
 end
@@ -503,21 +504,21 @@ function Base.resize!(a::CLVector{T}, n::Integer) where {T}
 
     # replace the data with a new CL. this 'unshares' the array.
     # as a result, we can safely support resizing unowned buffers.
-    ctx = context(a)
-    dev = device(a)
-    mem = alloc(memtype(a), ctx, dev, bufsize; alignment=Base.datatype_alignment(T))
-    ptr = convert(CLPtr{T}, mem)
-    m = min(length(a), n)
-    if m > 0
-        GC.@preserve a begin
-            if memtype(a) == cl.SharedVirtualMemory
-                cl.enqueue_svm_copy(ptr, pointer(a), m*sizeof(T); blocking=false)
-            else
-                cl.enqueue_usm_copy(ptr, pointer(a), m*sizeof(T); blocking=false)
+    new_data = cl.device!(device(a)) do
+        mem = alloc(memtype(a), bufsize; alignment=Base.datatype_alignment(T))
+        ptr = convert(CLPtr{T}, mem)
+        m = min(length(a), n)
+        if m > 0
+            GC.@preserve a begin
+                if memtype(a) == cl.SharedVirtualMemory
+                    cl.enqueue_svm_copy(ptr, pointer(a), m*sizeof(T); blocking=false)
+                else
+                    cl.enqueue_usm_copy(ptr, pointer(a), m*sizeof(T); blocking=false)
+                end
             end
         end
+        DataRef(free, mem)
     end
-    new_data = DataRef(free, mem)
     unsafe_free!(a)
 
     a.data = new_data
