@@ -15,13 +15,10 @@ mutable struct Managed{M}
     # whether there are outstanding operations that haven't been synchronized
     dirty::Bool
 
-    # whether the memory has been captured in a way that would make the dirty bit unreliable
-    captured::Bool
-
-    function Managed(mem::cl.AbstractMemory; queue = cl.queue(), dirty = true, captured = false)
+    function Managed(mem::cl.AbstractMemory; queue = cl.queue(), dirty = true)
         # NOTE: memory starts as dirty, because stream-ordered allocations are only
         #       guaranteed to be physically allocated at a synchronization event.
-        return new{typeof(mem)}(mem, queue, dirty, captured)
+        return new{typeof(mem)}(mem, queue, dirty)
     end
 end
 
@@ -30,13 +27,15 @@ Base.sizeof(managed::Managed) = sizeof(managed.mem)
 # wait for the current owner of memory to finish processing
 function synchronize(managed::Managed)
     cl.finish(managed.queue)
-    return managed.dirty = false
+    managed.dirty = false
+    return
 end
 
 function maybe_synchronize(managed::Managed)
-    return if managed.dirty || managed.captured
+    if managed.dirty
         synchronize(managed)
     end
+    return nothing
 end
 
 function Base.convert(::Type{CLPtr{T}}, managed::Managed{M}) where {T, M}
