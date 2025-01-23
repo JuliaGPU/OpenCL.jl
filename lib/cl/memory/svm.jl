@@ -4,8 +4,7 @@ struct SharedVirtualMemory <: AbstractMemory
     context::Context
 end
 
-function svm_alloc(
-        ctx::Context, bytesize::Integer;
+function svm_alloc(bytesize::Integer;
         alignment::Integer = 0, access::Symbol = :rw, fine_grained = false
     )
     flags = if access == :rw
@@ -22,7 +21,7 @@ function svm_alloc(
         flags |= CL_MEM_SVM_FINE_GRAIN_BUFFER
     end
 
-    ptr = clSVMAlloc(ctx, flags, bytesize, alignment)
+    ptr = clSVMAlloc(context(), flags, bytesize, alignment)
     @assert ptr != C_NULL
 
     # JuliaGPU/OpenCL.jl#252: uninitialized SVM memory doesn't work on Intel
@@ -30,7 +29,7 @@ function svm_alloc(
         enqueue_svm_fill(ptr, UInt8(0), bytesize)
     end
 
-    return SharedVirtualMemory(ptr, bytesize, ctx)
+    return SharedVirtualMemory(ptr, bytesize, context())
 end
 
 function svm_free(buf::SharedVirtualMemory)
@@ -114,14 +113,14 @@ end
 function enqueue_svm_fill(ptr::Union{Ptr, CLPtr}, pattern::T, N::Integer;
                           wait_for::Vector{Event}=Event[]) where {T}
     nbytes = N * sizeof(T)
-    nbytes_pattern = sizeof(T)
-    @assert nbytes_pattern > 0
+    nbytes == 0 && return
+    pattern_size = sizeof(T)
     n_evts  = length(wait_for)
     evt_ids = isempty(wait_for) ? C_NULL : [pointer(evt) for evt in wait_for]
     GC.@preserve wait_for begin
         ret_evt = Ref{cl_event}()
-        clEnqueueSVMMemFill(queue(), ptr, [pattern],
-                            nbytes_pattern, nbytes,
+        clEnqueueSVMMemFill(queue(), ptr, Ref(pattern),
+                            pattern_size, nbytes,
                             n_evts, evt_ids, ret_evt)
         @return_event ret_evt[]
     end

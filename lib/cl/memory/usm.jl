@@ -26,8 +26,7 @@ struct UnifiedDeviceMemory <: UnifiedMemory
     device::Device
 end
 
-function device_alloc(
-        ctx::Context, dev::Device, bytesize::Integer;
+function device_alloc(bytesize::Integer;
         alignment::Integer = 0, write_combined::Bool = false
     )
     flags = 0
@@ -37,12 +36,12 @@ function device_alloc(
 
     error_code = Ref{Cint}()
     props = cl_mem_properties_intel[CL_MEM_ALLOC_FLAGS_INTEL, flags, 0]
-    ptr = clDeviceMemAllocINTEL(ctx, dev, props, bytesize, alignment, error_code)
+    ptr = clDeviceMemAllocINTEL(context(), device(), props, bytesize, alignment, error_code)
     if error_code[] != CL_SUCCESS
         throw(CLError(error_code[]))
     end
 
-    return UnifiedDeviceMemory(ptr, bytesize, ctx, dev)
+    return UnifiedDeviceMemory(ptr, bytesize, context(), device())
 end
 
 Base.pointer(buf::UnifiedDeviceMemory) = buf.ptr
@@ -71,8 +70,7 @@ struct UnifiedHostMemory <: UnifiedMemory
     context::Context
 end
 
-function host_alloc(
-        ctx::Context, bytesize::Integer;
+function host_alloc(bytesize::Integer;
         alignment::Integer = 0, write_combined::Bool = false
     )
     flags = 0
@@ -82,12 +80,12 @@ function host_alloc(
 
     error_code = Ref{Cint}()
     props = cl_mem_properties_intel[CL_MEM_ALLOC_FLAGS_INTEL, flags, 0]
-    ptr = clHostMemAllocINTEL(ctx, props, bytesize, alignment, error_code)
+    ptr = clHostMemAllocINTEL(context(), props, bytesize, alignment, error_code)
     if error_code[] != CL_SUCCESS
         throw(CLError(error_code[]))
     end
 
-    return UnifiedHostMemory(ptr, bytesize, ctx)
+    return UnifiedHostMemory(ptr, bytesize, context())
 end
 
 Base.pointer(buf::UnifiedHostMemory) = buf.ptr
@@ -116,8 +114,7 @@ struct UnifiedSharedMemory <: UnifiedMemory
     device::Union{Nothing, Device}
 end
 
-function shared_alloc(
-        ctx::Context, dev::Device, bytesize::Integer;
+function shared_alloc(bytesize::Integer;
         alignment::Integer = 0, write_combined = false, placement = nothing
     )
     flags = 0
@@ -136,12 +133,12 @@ function shared_alloc(
 
     error_code = Ref{Cint}()
     props = cl_mem_properties_intel[CL_MEM_ALLOC_FLAGS_INTEL, flags, 0]
-    ptr = clSharedMemAllocINTEL(ctx, dev, props, bytesize, alignment, error_code)
+    ptr = clSharedMemAllocINTEL(context(), device(), props, bytesize, alignment, error_code)
     if error_code[] != CL_SUCCESS
         throw(CLError(error_code[]))
     end
 
-    return UnifiedSharedMemory(ptr, bytesize, ctx, dev)
+    return UnifiedSharedMemory(ptr, bytesize, context(), device())
 end
 
 Base.pointer(buf::UnifiedSharedMemory) = buf.ptr
@@ -190,14 +187,14 @@ end
 function enqueue_usm_fill(ptr::Union{Ptr, CLPtr}, pattern::T, N::Integer;
                           wait_for::Vector{Event}=Event[]) where {T}
     nbytes = N * sizeof(T)
-    nbytes_pattern = sizeof(T)
-    @assert nbytes_pattern > 0
+    nbytes == 0 && return
+    pattern_size = sizeof(T)
     n_evts  = length(wait_for)
     evt_ids = isempty(wait_for) ? C_NULL : [pointer(evt) for evt in wait_for]
     GC.@preserve wait_for begin
         ret_evt = Ref{cl_event}()
-        clEnqueueMemFillINTEL(queue(), ptr, [pattern],
-                              nbytes_pattern, nbytes,
+        clEnqueueMemFillINTEL(queue(), ptr, Ref(pattern),
+                              pattern_size, nbytes,
                               n_evts, evt_ids, ret_evt)
         @return_event ret_evt[]
     end

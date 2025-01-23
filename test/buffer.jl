@@ -80,12 +80,12 @@ end
 
 @testset "SVM Buffer" begin
     # simple buffer
-    let buf = cl.svm_alloc(cl.context(), sizeof(Int))
+    let buf = cl.svm_alloc(sizeof(Int))
         @test sizeof(buf) == sizeof(Int)
     end
 
     # memory copy
-    let buf = cl.svm_alloc(cl.context(), sizeof(Int))
+    let buf = cl.svm_alloc(sizeof(Int))
         ptr = pointer(buf)
 
         src = [42]
@@ -98,7 +98,7 @@ end
 
     # memory map
 
-    let buf = cl.svm_alloc(cl.context(), sizeof(Int))
+    let buf = cl.svm_alloc(sizeof(Int))
         ptr = pointer(buf)
 
         src = [42]
@@ -117,10 +117,10 @@ end
     end
 
     # fill
-    let buf = cl.svm_alloc(cl.context(), 3 * sizeof(Int))
+    let buf = cl.svm_alloc(3 * sizeof(Int))
         ptr = pointer(buf)
 
-        cl.enqueue_svm_fill(ptr, [42], 3)
+        cl.enqueue_svm_fill(ptr, 42, 3)
 
         dst = Vector{Int}(undef, 3)
         cl.enqueue_svm_copy(pointer(dst), ptr, sizeof(dst); blocking = true)

@@ -428,7 +428,6 @@ function unsafe_fill!(
         ptr::Union{Ptr{T}, CLPtr{T}},
         pattern::T, N::Integer
     ) where {T}
-    N * sizeof(T) == 0 && return
     if cl.memory_backend() == cl.USMBackend()
         cl.enqueue_usm_fill(ptr, pattern, N)
     elseif cl.memory_backend() == cl.SVMBackend()

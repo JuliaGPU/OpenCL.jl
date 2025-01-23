@@ -115,10 +115,10 @@ end
 ## public interface
 
 function alloc(bytes::Int; alignment::Int = 0)
-    if cl.device_state(dev).usm
-        return cl.alloc(cl.UnifiedDeviceMemory, cl.context(), cl.device(), bytes; alignment)
+    if cl.memory_backend() == cl.USMBackend()
+        return alloc(cl.UnifiedDeviceMemory, bytes; alignment)
     else
-        return cl.alloc(cl.SharedVirtualMemory, cl.context(), cl.device(), bytes; alignment)
+        return alloc(cl.SharedVirtualMemory, bytes; alignment)
     end
 end
 
@@ -126,7 +126,7 @@ function alloc(::Type{cl.UnifiedDeviceMemory}, bytes::Int; alignment::Int = 0)
     if bytes == 0
         return Managed(cl.UnifiedDeviceMemory(cl.CL_NULL, bytes, cl.context(), cl.device()))
     end
-    mem = cl.device_alloc(cl.context(), cl.device(), bytes; alignment)
+    mem = cl.device_alloc(bytes; alignment)
     return Managed(mem)
 end
 
@@ -135,7 +135,7 @@ function alloc(::Type{cl.UnifiedSharedMemory}, bytes::Int; alignment::Int = 0)
         return Managed(cl.UnifiedSharedMemory(cl.CL_NULL, bytes, cl.context(), cl.device()))
     end
     # TODO: support cross-device shared memory (by setting `dev=nothing`)
-    mem = cl.shared_alloc(cl.context(), cl.device(), bytes; alignment)
+    mem = cl.shared_alloc(bytes; alignment)
     return Managed(mem)
 end
 
@@ -143,7 +143,7 @@ function alloc(::Type{cl.UnifiedHostMemory}, bytes::Int; alignment::Int = 0)
     if bytes == 0
         return Managed(cl.UnifiedHostMemory(cl.CL_NULL, bytes, cl.context()))
     end
-    mem = cl.host_alloc(cl.context(), bytes; alignment)
+    mem = cl.host_alloc(bytes; alignment)
     return Managed(mem)
 end
 
@@ -151,7 +151,7 @@ function alloc(::Type{cl.SharedVirtualMemory}, bytes::Int; alignment::Int = 0)
     if bytes == 0
         return Managed(cl.SharedVirtualMemory(cl.CL_NULL, bytes, cl.context()))
     end
-    mem = cl.svm_alloc(cl.context(), bytes; alignment)
+    mem = cl.svm_alloc(bytes; alignment)
     return Managed(mem)
 end
 

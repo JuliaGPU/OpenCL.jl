@@ -190,10 +190,7 @@ function call(
     set_args!(k, args...)
     flag = cl.memory_backend() == cl.SVMBackend() ? CL_KERNEL_EXEC_INFO_SVM_PTRS : CL_KERNEL_EXEC_INFO_USM_PTRS_INTEL
     if !isempty(pointers)
-        clSetKernelExecInfo(
-            k, flag,
-            sizeof(pointers), pointers
-        )
+        clSetKernelExecInfo(k, flag, sizeof(pointers), pointers)
     end
     enqueue_kernel(k, global_size, local_size; global_work_offset, wait_on)
 end
