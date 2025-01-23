@@ -174,7 +174,7 @@ function free(managed::Managed{<:cl.AbstractMemory})
 
     if mem isa cl.SharedVirtualMemory
         cl.svm_free(mem)
-        finish(queue())
+        cl.finish(queue())
     else
         cl.usm_free(mem; blocking = true)
     end
