@@ -23,12 +23,15 @@ struct UnifiedDeviceMemory <: UnifiedMemory
     ptr::CLPtr{Cvoid}
     bytesize::Int
     context::Context
-    device::Device
 end
+
+UnifiedDeviceMemory() = UnifiedDeviceMemory(CL_NULL, 0, context())
 
 function device_alloc(bytesize::Integer;
         alignment::Integer = 0, write_combined::Bool = false
     )
+    bytesize == 0 && return UnifiedDeviceMemory()
+
     flags = 0
     if write_combined
         flags |= CL_MEM_ALLOC_WRITE_COMBINED_INTEL
@@ -41,13 +44,12 @@ function device_alloc(bytesize::Integer;
         throw(CLError(error_code[]))
     end
 
-    return UnifiedDeviceMemory(ptr, bytesize, context(), device())
+    return UnifiedDeviceMemory(ptr, bytesize, context())
 end
 
 Base.pointer(buf::UnifiedDeviceMemory) = buf.ptr
 Base.sizeof(buf::UnifiedDeviceMemory) = buf.bytesize
 context(buf::UnifiedDeviceMemory) = buf.context
-device(buf::UnifiedDeviceMemory) = buf.device
 
 Base.show(io::IO, buf::UnifiedDeviceMemory) =
     @printf(io, "UnifiedDeviceMemory(%s at %p)", Base.format_bytes(sizeof(buf)), pointer(buf))
@@ -70,9 +72,13 @@ struct UnifiedHostMemory <: UnifiedMemory
     context::Context
 end
 
+UnifiedHostMemory() = UnifiedHostMemory(C_NULL, 0, context())
+
 function host_alloc(bytesize::Integer;
         alignment::Integer = 0, write_combined::Bool = false
     )
+    bytesize == 0 && return UnifiedHostMemory()
+
     flags = 0
     if write_combined
         flags |= CL_MEM_ALLOC_WRITE_COMBINED_INTEL
@@ -91,7 +97,6 @@ end
 Base.pointer(buf::UnifiedHostMemory) = buf.ptr
 Base.sizeof(buf::UnifiedHostMemory) = buf.bytesize
 context(buf::UnifiedHostMemory) = buf.context
-device(buf::UnifiedHostMemory) = nothing
 
 Base.show(io::IO, buf::UnifiedHostMemory) =
     @printf(io, "UnifiedHostMemory(%s at %p)", Base.format_bytes(sizeof(buf)), Int(pointer(buf)))
@@ -111,12 +116,15 @@ struct UnifiedSharedMemory <: UnifiedMemory
     ptr::CLPtr{Cvoid}
     bytesize::Int
     context::Context
-    device::Union{Nothing, Device}
 end
+
+UnifiedSharedMemory() = UnifiedSharedMemory(CL_NULL, 0, context())
 
 function shared_alloc(bytesize::Integer;
         alignment::Integer = 0, write_combined = false, placement = nothing
     )
+    bytesize == 0 && return UnifiedSharedMemory()
+
     flags = 0
     if write_combined
         flags |= CL_MEM_ALLOC_WRITE_COMBINED_INTEL
@@ -138,13 +146,12 @@ function shared_alloc(bytesize::Integer;
         throw(CLError(error_code[]))
     end
 
-    return UnifiedSharedMemory(ptr, bytesize, context(), device())
+    return UnifiedSharedMemory(ptr, bytesize, context())
 end
 
 Base.pointer(buf::UnifiedSharedMemory) = buf.ptr
 Base.sizeof(buf::UnifiedSharedMemory) = buf.bytesize
 context(buf::UnifiedSharedMemory) = buf.context
-device(buf::UnifiedSharedMemory) = buf.device
 
 Base.show(io::IO, buf::UnifiedSharedMemory) =
     @printf(io, "UnifiedSharedMemory(%s at %p)", Base.format_bytes(sizeof(buf)), Int(pointer(buf)))
@@ -161,6 +168,8 @@ struct UnknownBuffer <: UnifiedMemory
     bytesize::Int
     context::Context
 end
+
+UnknownBuffer() = UnknownBuffer(C_NULL, 0, context())
 
 Base.pointer(buf::UnknownBuffer) = buf.ptr
 Base.sizeof(buf::UnknownBuffer) = buf.bytesize

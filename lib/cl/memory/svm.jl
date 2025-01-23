@@ -4,9 +4,13 @@ struct SharedVirtualMemory <: AbstractMemory
     context::Context
 end
 
+SharedVirtualMemory() = SharedVirtualMemory(CL_NULL, 0, context())
+
 function svm_alloc(bytesize::Integer;
         alignment::Integer = 0, access::Symbol = :rw, fine_grained = false
     )
+    bytesize == 0 && return SharedVirtualMemory()
+
     flags = if access == :rw
         CL_MEM_READ_WRITE
     elseif access == :r
@@ -40,7 +44,6 @@ end
 Base.pointer(buf::SharedVirtualMemory) = buf.ptr
 Base.sizeof(buf::SharedVirtualMemory) = buf.bytesize
 context(buf::SharedVirtualMemory) = buf.context
-device(::SharedVirtualMemory) = nothing
 
 Base.show(io::IO, buf::SharedVirtualMemory) =
     @printf(io, "SharedVirtualMemory(%s at %p)", Base.format_bytes(sizeof(buf)), Int(pointer(buf)))

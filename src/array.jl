@@ -169,7 +169,6 @@ Base.size(x::CLArray) = x.dims
 Base.sizeof(x::CLArray) = Base.elsize(x) * length(x)
 
 context(A::CLArray) = cl.context(A.data[].mem)
-device(A::CLArray) = cl.device(A.data[].mem)
 
 memtype(x::CLArray) = memtype(typeof(x))
 memtype(::Type{<:CLArray{<:Any, <:Any, M}}) where {M} = @isdefined(M) ? M : Any
@@ -439,7 +438,6 @@ end
 
 ## views
 
-device(a::SubArray) = device(parent(a))
 context(a::SubArray) = context(parent(a))
 
 # pointer conversions
@@ -455,7 +453,6 @@ end
 
 ## PermutedDimsArray
 
-device(a::Base.PermutedDimsArray) = device(parent(a))
 context(a::Base.PermutedDimsArray) = context(parent(a))
 
 Base.unsafe_convert(::Type{CLPtr{T}}, A::PermutedDimsArray) where {T} =
