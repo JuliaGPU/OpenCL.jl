@@ -1,12 +1,11 @@
 abstract type UnifiedMemory <: AbstractMemory end
 
-function free(buf::UnifiedMemory; blocking = false)
+function usm_free(buf::UnifiedMemory; blocking = false)
     ctx = context(buf)
-    ptr = Ptr{Nothing}(UInt(buf.ptr))
     if blocking
-        clMemBlockingFreeINTEL(ctx, ptr)
+        clMemBlockingFreeINTEL(ctx, buf)
     else
-        clMemFreeINTEL(ctx, ptr)
+        clMemFreeINTEL(ctx, buf)
     end
     return
 end
@@ -29,32 +28,20 @@ end
 
 function device_alloc(
         ctx::Context, dev::Device, bytesize::Integer;
-        alignment::Integer = 0, error_code::Ref{Int32} = Ref{Int32}(), properties::Tuple{Vararg{Symbol}} = ()
+        alignment::Integer = 0, write_combined::Bool = false
     )
     flags = 0
-    if !isempty(properties)
-        for i in properties
-            if i == :wc
-                flags |= CL_MEM_ALLOC_WRITE_COMBINED_INTEL
-            else
-                @warn "$i not recognized, ignoring flag. Valid optinos include `:wc`, `:ipd`, and `:iph`"
-            end
-        end
+    if write_combined
+        flags |= CL_MEM_ALLOC_WRITE_COMBINED_INTEL
     end
 
-    ptr = clDeviceMemAllocINTEL(ctx, dev, cl_mem_properties_intel[CL_MEM_ALLOC_FLAGS_INTEL, flags, 0], bytesize, alignment, error_code)
+    error_code = Ref{Cint}()
+    props = cl_mem_properties_intel[CL_MEM_ALLOC_FLAGS_INTEL, flags, 0]
+    ptr = clDeviceMemAllocINTEL(ctx, dev, props, bytesize, alignment, error_code)
+    if error_code[] != CL_SUCCESS
+        throw(CLError(error_code[]))
+    end
 
-    @assert error_code[] == CL_SUCCESS
-    #=
-    @info ptr error_code[]
-    result = Ref{UInt64}()
-    @warn result
-    success = clGetMemAllocInfoINTEL(ctx, ptr, CL_MEM_ALLOC_BASE_PTR_INTEL,
-        sizeof(UInt64), result, C_NULL)
-
-    @error success result
-    @assert success == CL_SUCCESS
-    =#
     return UnifiedDeviceMemory(reinterpret(CLPtr{Cvoid}, ptr), bytesize, ctx, dev)
 end
 
@@ -86,29 +73,20 @@ end
 
 function host_alloc(
         ctx::Context, bytesize::Integer;
-        alignment::Integer = 0, error_code::Ref{Int32} = Ref{Int32}(), properties::Tuple{Vararg{Symbol}} = ()
+        alignment::Integer = 0, write_combined::Bool = false
     )
     flags = 0
-    if !isempty(properties)
-        for i in properties
-            if i == :wc
-                flags |= CL_MEM_ALLOC_WRITE_COMBINED_INTEL
-            else
-                @warn "$i not recognized, ignoring flag. Valid optinos include `:wc`"
-            end
-        end
+    if write_combined
+        flags |= CL_MEM_ALLOC_WRITE_COMBINED_INTEL
     end
 
-    ptr = clHostMemAllocINTEL(ctx, cl_mem_properties_intel[CL_MEM_ALLOC_FLAGS_INTEL, flags, 0], bytesize, alignment, error_code)
+    error_code = Ref{Cint}()
+    props = cl_mem_properties_intel[CL_MEM_ALLOC_FLAGS_INTEL, flags, 0]
+    ptr = clHostMemAllocINTEL(ctx, props, bytesize, alignment, error_code)
+    if error_code[] != CL_SUCCESS
+        throw(CLError(error_code[]))
+    end
 
-    @assert error_code[] == CL_SUCCESS
-    #=
-    @info ptr error_code[]
-    result = Ref{UInt64}()
-    success = clGetMemAllocInfoINTEL(ctx, ptr, CL_MEM_ALLOC_BASE_PTR_INTEL,
-        sizeof(UInt64), result, C_NULL)
-    @assert success == CL_SUCCESS
-    =#
     return UnifiedHostMemory(ptr, bytesize, ctx)
 end
 
@@ -143,39 +121,29 @@ end
 
 function shared_alloc(
         ctx::Context, dev::Device, bytesize::Integer;
-        alignment::Integer = 0, error_code::Ref{Int32} = Ref{Int32}(), properties::Tuple{Vararg{Symbol}} = ()
+        alignment::Integer = 0, write_combined = false, placement = nothing
     )
     flags = 0
-    if !isempty(properties)
-        if (:ipd in properties) && (:iph in properties)
-            error("`properties` contains both `:ipd` and `:iph`, these flags are mutually exclusive.")
-        end
-        for i in properties
-            if i == :wc
-                flags |= CL_MEM_ALLOC_WRITE_COMBINED_INTEL
-            elseif i == :ipd
-                flags |= CL_MEM_ALLOC_INITIAL_PLACEMENT_DEVICE_INTEL
-            elseif i == :iph
-                flags |= CL_MEM_ALLOC_INITIAL_PLACEMENT_HOST_INTEL
-            else
-                @warn "$i not recognized, ignoring flag. Valid optinos include `:wc`, `:ipd`, and `:iph`"
-            end
+    if write_combined
+        flags |= CL_MEM_ALLOC_WRITE_COMBINED_INTEL
+    end
+    if placement !== nothing
+        if placement == :host
+            flags |= CL_MEM_ALLOC_INITIAL_PLACEMENT_HOST_INTEL
+        elseif placement == :device
+            flags |= CL_MEM_ALLOC_INITIAL_PLACEMENT_DEVICE_INTEL
+        else
+            error("Invalid placement, the only allowed values for placement are :host and :device")
         end
     end
 
-    ptr = clSharedMemAllocINTEL(ctx, dev, cl_mem_properties_intel[CL_MEM_ALLOC_FLAGS_INTEL, flags, 0], bytesize, alignment, error_code)
+    error_code = Ref{Cint}()
+    props = cl_mem_properties_intel[CL_MEM_ALLOC_FLAGS_INTEL, flags, 0]
+    ptr = clSharedMemAllocINTEL(ctx, dev, props, bytesize, alignment, error_code)
+    if error_code[] != CL_SUCCESS
+        throw(CLError(error_code[]))
+    end
 
-    @assert error_code[] == CL_SUCCESS
-    #=
-    @info ptr error_code[]
-    result = Ref{UInt64}()
-    @warn result
-    success = clGetMemAllocInfoINTEL(ctx, ptr, CL_MEM_ALLOC_BASE_PTR_INTEL,
-        sizeof(UInt64), result, C_NULL)
-
-    @error success result
-    @assert success == CL_SUCCESS
-    =#
     return UnifiedSharedMemory(reinterpret(CLPtr{Cvoid}, ptr), bytesize, ctx, dev)
 end
 

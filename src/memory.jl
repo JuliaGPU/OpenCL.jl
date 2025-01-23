@@ -115,61 +115,69 @@ end
 
 ## public interface
 
-function alloc(ctx, dev, bytes::Int, alignment::Int)
+function alloc(ctx, dev, bytes::Int; alignment::Int = 0)
     if cl.device_state(dev).usm
-        return cl.alloc(cl.UnifiedDeviceMemory, ctx, dev, bytes, alignment)
+        return cl.alloc(cl.UnifiedDeviceMemory, ctx, dev, bytes; alignment)
     else
-        return cl.alloc(cl.SharedVirtualMemory, ctx, dev, bytes, alignment)
+        return cl.alloc(cl.SharedVirtualMemory, ctx, dev, bytes; alignment)
     end
 end
 
-function alloc(::Type{cl.UnifiedDeviceMemory}, ctx, dev, bytes::Int, alignment::Int)
-    bytes == 0 && return cl.UnifiedDeviceMemory(cl.CL_NULL, bytes, ctx, dev)
+function alloc(::Type{cl.UnifiedDeviceMemory}, ctx, dev, bytes::Int; alignment::Int = 0)
+    bytes == 0 && return Managed(cl.UnifiedDeviceMemory(cl.CL_NULL, bytes, ctx, dev))
 
-    buf = cl.device_alloc(ctx, dev, bytes, alignment = alignment)
-    # make_resident(ctx, dev, buf)
-    return buf
+    mem = cl.device_alloc(ctx, dev, bytes; alignment)
+    # make_resident(ctx, dev, mem)
+    return Managed(mem)
 end
 
-function alloc(::Type{cl.UnifiedSharedMemory}, ctx, dev, bytes::Int, alignment::Int)
-    bytes == 0 && return cl.UnifiedSharedMemory(cl.CL_NULL, bytes, ctx, dev)
+function alloc(::Type{cl.UnifiedSharedMemory}, ctx, dev, bytes::Int; alignment::Int = 0)
+    bytes == 0 && return Managed(cl.UnifiedSharedMemory(cl.CL_NULL, bytes, ctx, dev))
 
-    # TODO: support cross-device shared buffers (by setting `dev=nothing`)
+    # TODO: support cross-device shared memory (by setting `dev=nothing`)
 
-    buf = cl.shared_alloc(ctx, dev, bytes, alignment = alignment)
-
-    return buf
+    mem = cl.shared_alloc(ctx, dev, bytes; alignment)
+    return Managed(mem)
 end
 
-function alloc(::Type{cl.UnifiedHostMemory}, ctx, dev, bytes::Int, alignment::Int)
-    bytes == 0 && return cl.UnifiedHostMemory(cl.CL_NULL, bytes, ctx)
-    return cl.host_alloc(ctx, bytes, alignment = alignment)
+function alloc(::Type{cl.UnifiedHostMemory}, ctx, dev, bytes::Int; alignment::Int = 0)
+    bytes == 0 && return Managed(cl.UnifiedHostMemory(cl.CL_NULL, bytes, ctx))
+
+    mem = cl.host_alloc(ctx, bytes; alignment)
+    return Managed(mem)
 end
 
-function alloc(::Type{cl.SharedVirtualMemory}, ctx, dev, bytes::Int, alignment::Int)
-    bytes == 0 && return cl.SharedVirtualMemory(cl.CL_NULL, bytes, ctx)
+function alloc(::Type{cl.SharedVirtualMemory}, ctx, dev, bytes::Int; alignment::Int = 0)
+    bytes == 0 && return Managed(cl.SharedVirtualMemory(cl.CL_NULL, bytes, ctx))
 
-    buf = cl.svm_alloc(ctx, bytes, alignment = alignment)
-    # make_resident(ctx, dev, buf)
-    return buf
+    mem = cl.svm_alloc(ctx, bytes; alignment)
+    # make_resident(ctx, dev, mem)
+    return Managed(mem)
 end
 
-function release(buf::cl.AbstractMemory)
-    sizeof(buf) == 0 && return
+function free(managed::Managed{<:cl.AbstractMemory})
+    mem = managed.mem
+
+    sizeof(mem) == 0 && return
 
     # XXX: is it necessary to evice memory if we are going to free it?
     #      this is racy, because eviction is not queue-ordered, and
     #      we don't want to synchronize inside what could have been a
     #      GC-driven finalizer. if we need to, port the stream/queue
     #      tracking from CUDA.jl so that we can synchronize only the
-    #      queue that's associated with the buffer.
-    #if buf isa oneL0.UnifiedDeviceMemory || buf isa oneL0.UnifiedSharedMemory
-    #    ctx = oneL0.context(buf)
-    #    dev = oneL0.device(buf)
-    #    evict(ctx, dev, buf)
+    #      queue that's associated with the memory.
+    #if mem isa oneL0.UnifiedDeviceMemory || mem isa oneL0.UnifiedSharedMemory
+    #    ctx = oneL0.context(mem)
+    #    dev = oneL0.device(mem)
+    #    evict(ctx, dev, mem)
     #end
 
-    free(buf, blocking = true)
+    if mem isa cl.SharedVirtualMemory
+        cl.svm_free(mem)
+        finish(queue())
+    else
+        cl.usm_free(mem; blocking = true)
+    end
 
     # TODO: queue-ordered free from non-finalizer tasks once we have
     #       `zeMemFreeAsync(ptr, queue)`

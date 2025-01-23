@@ -52,7 +52,9 @@ mutable struct CLArray{T, N, M} <: AbstractGPUArray{T, N}
             maxsize
         end
         data = GPUArrays.cached_alloc((CLArray, cl.device(), M, bufsize)) do
-            DataRef(managed -> release(managed.mem), Managed(alloc(M, cl.context(), cl.device(), bufsize, Base.datatype_alignment(T))))
+            buf = alloc(M, cl.context(), cl.device(), bufsize;
+                        alignment=Base.datatype_alignment(T))
+            DataRef(free, buf)
         end
         obj = new{T, N, M}(data, maxsize, 0, dims)
         finalizer(unsafe_free!, obj)
@@ -504,15 +506,13 @@ function Base.resize!(a::CLVector{T}, n::Integer) where {T}
     # as a result, we can safely support resizing unowned buffers.
     ctx = context(a)
     dev = device(a)
-    buf = Managed(alloc(buftype(a), ctx, dev, bufsize, Base.datatype_alignment(T)))
-    ptr = convert(CLPtr{T}, buf)
+    mem = alloc(buftype(a), ctx, dev, bufsize; alignment=Base.datatype_alignment(T))
+    ptr = convert(CLPtr{T}, mem)
     m = min(length(a), n)
     if m > 0
         unsafe_copyto!(context(a), device(a), ptr, pointer(a), m)
     end
-    new_data = DataRef(buf) do buf
-        release(buf.mem)
-    end
+    new_data = DataRef(free, mem)
     unsafe_free!(a)
 
     a.data = new_data

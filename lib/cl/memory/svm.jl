@@ -23,24 +23,18 @@ function svm_alloc(
     end
 
     ptr = clSVMAlloc(ctx, flags, bytesize, alignment)
-
     @assert ptr != C_NULL
-    #=
+
     # JuliaGPU/OpenCL.jl#252: uninitialized SVM memory doesn't work on Intel
     if platform().name == "Intel(R) OpenCL Graphics"
         len > 0 && enqueue_svm_fill(ptr, zero(T), len)
     end
-    =#
+
     return SharedVirtualMemory(reinterpret(CLPtr{Cvoid}, ptr), bytesize, ctx)
 end
 
-function free(buf::SharedVirtualMemory; blocking = false)
-    ctx = context(buf)
-    ptr = Ptr{Nothing}(UInt(buf.ptr))
-    clSVMFree(ctx, ptr)
-    if blocking
-        finish(queue())
-    end
+function svm_free(buf::SharedVirtualMemory)
+    clSVMFree(context(buf), buf)
     return
 end
 
