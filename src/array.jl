@@ -491,6 +491,8 @@ the first `n` elements will be retained. If `n` is larger, the new elements are 
 guaranteed to be initialized.
 """
 function Base.resize!(a::CLVector{T}, n::Integer) where {T}
+    n == length(a) && return a
+
     # TODO: add additional space to allow for quicker resizing
     maxsize = n * sizeof(T)
     bufsize = if isbitstype(T)
@@ -508,7 +510,11 @@ function Base.resize!(a::CLVector{T}, n::Integer) where {T}
     ptr = convert(CLPtr{T}, mem)
     m = min(length(a), n)
     if m > 0
-        unsafe_copyto!(context(a), device(a), ptr, pointer(a), m)
+        if buftype(a) == cl.SharedVirtualMemory
+            cl.enqueue_svm_copy(ptr, pointer(a), m*sizeof(T); blocking=false)
+        else
+            cl.enqueue_usm_copy(ptr, pointer(a), m*sizeof(T); blocking=false)
+        end
     end
     new_data = DataRef(free, mem)
     unsafe_free!(a)
