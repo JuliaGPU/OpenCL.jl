@@ -446,7 +446,7 @@ end
 
 function clSVMAlloc(context, flags, size, alignment)
     @ccall libopencl.clSVMAlloc(context::cl_context, flags::cl_svm_mem_flags, size::Csize_t,
-                                alignment::cl_uint)::Ptr{Cvoid}
+                                alignment::cl_uint)::CLPtr{Cvoid}
 end
 
 function clSVMFree(context, svm_pointer)
@@ -607,7 +607,7 @@ end
 
 @checked function clSetKernelArgSVMPointer(kernel, arg_index, arg_value)
     @ccall libopencl.clSetKernelArgSVMPointer(kernel::cl_kernel, arg_index::cl_uint,
-                                              arg_value::PtrOrCLPtr{Cvoid})::cl_int
+                                              arg_value::CLPtr{Cvoid})::cl_int
 end
 
 @checked function clSetKernelExecInfo(kernel, param_name, param_value_size, param_value)
@@ -984,7 +984,7 @@ end
 @checked function clEnqueueSVMMemFill(command_queue, svm_ptr, pattern, pattern_size, size,
                                       num_events_in_wait_list, event_wait_list, event)
     @ccall libopencl.clEnqueueSVMMemFill(command_queue::cl_command_queue,
-                                         svm_ptr::PtrOrCLPtr{Cvoid}, pattern::Ptr{Cvoid},
+                                         svm_ptr::CLPtr{Cvoid}, pattern::Ptr{Cvoid},
                                          pattern_size::Csize_t, size::Csize_t,
                                          num_events_in_wait_list::cl_uint,
                                          event_wait_list::Ptr{cl_event},
@@ -994,7 +994,7 @@ end
 @checked function clEnqueueSVMMap(command_queue, blocking_map, flags, svm_ptr, size,
                                   num_events_in_wait_list, event_wait_list, event)
     @ccall libopencl.clEnqueueSVMMap(command_queue::cl_command_queue, blocking_map::cl_bool,
-                                     flags::cl_map_flags, svm_ptr::PtrOrCLPtr{Cvoid},
+                                     flags::cl_map_flags, svm_ptr::CLPtr{Cvoid},
                                      size::Csize_t, num_events_in_wait_list::cl_uint,
                                      event_wait_list::Ptr{cl_event},
                                      event::Ptr{cl_event})::cl_int
@@ -1003,7 +1003,7 @@ end
 @checked function clEnqueueSVMUnmap(command_queue, svm_ptr, num_events_in_wait_list,
                                     event_wait_list, event)
     @ccall libopencl.clEnqueueSVMUnmap(command_queue::cl_command_queue,
-                                       svm_ptr::PtrOrCLPtr{Cvoid},
+                                       svm_ptr::CLPtr{Cvoid},
                                        num_events_in_wait_list::cl_uint,
                                        event_wait_list::Ptr{cl_event},
                                        event::Ptr{cl_event})::cl_int
@@ -1014,7 +1014,7 @@ end
                                          event_wait_list, event)
     @ccall libopencl.clEnqueueSVMMigrateMem(command_queue::cl_command_queue,
                                             num_svm_pointers::cl_uint,
-                                            svm_pointers::Ptr{PtrOrCLPtr{Cvoid}},
+                                            svm_pointers::Ptr{CLPtr{Cvoid}},
                                             sizes::Ptr{Csize_t},
                                             flags::cl_mem_migration_flags,
                                             num_events_in_wait_list::cl_uint,
@@ -2431,14 +2431,14 @@ function clDeviceMemAllocINTEL(context, device, properties, size, alignment, err
     @ext_ccall libopencl.clDeviceMemAllocINTEL(context::cl_context, device::cl_device_id,
                                                properties::Ptr{cl_mem_properties_intel},
                                                size::Csize_t, alignment::cl_uint,
-                                               errcode_ret::Ptr{cl_int})::Ptr{Cvoid}
+                                               errcode_ret::Ptr{cl_int})::CLPtr{Cvoid}
 end
 
 function clSharedMemAllocINTEL(context, device, properties, size, alignment, errcode_ret)
     @ext_ccall libopencl.clSharedMemAllocINTEL(context::cl_context, device::cl_device_id,
                                                properties::Ptr{cl_mem_properties_intel},
                                                size::Csize_t, alignment::cl_uint,
-                                               errcode_ret::Ptr{cl_int})::Ptr{Cvoid}
+                                               errcode_ret::Ptr{cl_int})::CLPtr{Cvoid}
 end
 
 @checked function clMemFreeINTEL(context, ptr)
@@ -2452,7 +2452,7 @@ end
 
 @checked function clGetMemAllocInfoINTEL(context, ptr, param_name, param_value_size,
                                          param_value, param_value_size_ret)
-    @ext_ccall libopencl.clGetMemAllocInfoINTEL(context::cl_context, ptr::PtrOrCLPtr{Cvoid},
+    @ext_ccall libopencl.clGetMemAllocInfoINTEL(context::cl_context, ptr::CLPtr{Cvoid},
                                                 param_name::cl_mem_info_intel,
                                                 param_value_size::Csize_t,
                                                 param_value::Ptr{Cvoid},
@@ -2462,15 +2462,14 @@ end
 @checked function clSetKernelArgMemPointerINTEL(kernel, arg_index, arg_value)
     @ext_ccall libopencl.clSetKernelArgMemPointerINTEL(kernel::cl_kernel,
                                                        arg_index::cl_uint,
-                                                       arg_value::PtrOrCLPtr{Cvoid})::cl_int
+                                                       arg_value::CLPtr{Cvoid})::cl_int
 end
 
 @checked function clEnqueueMemFillINTEL(command_queue, dst_ptr, pattern, pattern_size, size,
                                         num_events_in_wait_list, event_wait_list, event)
     @ext_ccall libopencl.clEnqueueMemFillINTEL(command_queue::cl_command_queue,
-                                               dst_ptr::PtrOrCLPtr{Cvoid},
-                                               pattern::Ptr{Cvoid}, pattern_size::Csize_t,
-                                               size::Csize_t,
+                                               dst_ptr::CLPtr{Cvoid}, pattern::Ptr{Cvoid},
+                                               pattern_size::Csize_t, size::Csize_t,
                                                num_events_in_wait_list::cl_uint,
                                                event_wait_list::Ptr{cl_event},
                                                event::Ptr{cl_event})::cl_int
@@ -2489,7 +2488,7 @@ end
 @checked function clEnqueueMemAdviseINTEL(command_queue, ptr, size, advice,
                                           num_events_in_wait_list, event_wait_list, event)
     @ext_ccall libopencl.clEnqueueMemAdviseINTEL(command_queue::cl_command_queue,
-                                                 ptr::PtrOrCLPtr{Cvoid}, size::Csize_t,
+                                                 ptr::CLPtr{Cvoid}, size::Csize_t,
                                                  advice::cl_mem_advice_intel,
                                                  num_events_in_wait_list::cl_uint,
                                                  event_wait_list::Ptr{cl_event},
@@ -2504,7 +2503,7 @@ const clEnqueueMigrateMemINTEL_fn = Ptr{clEnqueueMigrateMemINTEL_t}
 @checked function clEnqueueMigrateMemINTEL(command_queue, ptr, size, flags,
                                            num_events_in_wait_list, event_wait_list, event)
     @ext_ccall libopencl.clEnqueueMigrateMemINTEL(command_queue::cl_command_queue,
-                                                  ptr::PtrOrCLPtr{Cvoid}, size::Csize_t,
+                                                  ptr::CLPtr{Cvoid}, size::Csize_t,
                                                   flags::cl_mem_migration_flags,
                                                   num_events_in_wait_list::cl_uint,
                                                   event_wait_list::Ptr{cl_event},

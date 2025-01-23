@@ -42,7 +42,7 @@ function device_alloc(
         throw(CLError(error_code[]))
     end
 
-    return UnifiedDeviceMemory(reinterpret(CLPtr{Cvoid}, ptr), bytesize, ctx, dev)
+    return UnifiedDeviceMemory(ptr, bytesize, ctx, dev)
 end
 
 Base.pointer(buf::UnifiedDeviceMemory) = buf.ptr
@@ -101,9 +101,6 @@ Base.show(io::IO, buf::UnifiedHostMemory) =
 Base.convert(::Type{Ptr{T}}, buf::UnifiedHostMemory) where {T} =
     convert(Ptr{T}, pointer(buf))
 
-Base.convert(::Type{CLPtr{T}}, buf::UnifiedHostMemory) where {T} =
-    reinterpret(CLPtr{T}, pointer(buf))
-
 
 ## shared buffer
 
@@ -144,7 +141,7 @@ function shared_alloc(
         throw(CLError(error_code[]))
     end
 
-    return UnifiedSharedMemory(reinterpret(CLPtr{Cvoid}, ptr), bytesize, ctx, dev)
+    return UnifiedSharedMemory(ptr, bytesize, ctx, dev)
 end
 
 Base.pointer(buf::UnifiedSharedMemory) = buf.ptr

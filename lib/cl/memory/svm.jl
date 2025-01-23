@@ -30,7 +30,7 @@ function svm_alloc(
         len > 0 && enqueue_svm_fill(ptr, zero(T), len)
     end
 
-    return SharedVirtualMemory(reinterpret(CLPtr{Cvoid}, ptr), bytesize, ctx)
+    return SharedVirtualMemory(ptr, bytesize, ctx)
 end
 
 function svm_free(buf::SharedVirtualMemory)

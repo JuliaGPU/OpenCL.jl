@@ -201,7 +201,7 @@ const DenseCLVecOrMat{T} = Union{DenseCLVector{T}, DenseCLMatrix{T}}
 
 # strided arrays
 const StridedSubCLArray{
-    T, N, I <: Tuple{
+    T, N, M, I <: Tuple{
         Vararg{
             Union{
                 Base.RangeIndex, Base.ReshapedUnitRange,
@@ -210,22 +210,20 @@ const StridedSubCLArray{
         },
     },
 } =
-    SubArray{T, N, <:CLArray, I}
-const StridedCLArray{T, N} = Union{CLArray{T, N}, StridedSubCLArray{T, N}}
-const StridedCLVector{T} = StridedCLArray{T, 1}
-const StridedCLMatrix{T} = StridedCLArray{T, 2}
-const StridedCLVecOrMat{T} = Union{StridedCLVector{T}, StridedCLMatrix{T}}
+    SubArray{T, N, <:CLArray{<:Any,<:Any,M}, I}
+const StridedCLArray{T, N, M} = Union{CLArray{T, N, M}, StridedSubCLArray{T, N, M}}
+const StridedCLVector{T, M} = StridedCLArray{T, 1, M}
+const StridedCLMatrix{T, M} = StridedCLArray{T, 2, M}
+const StridedCLVecOrMat{T, M} = Union{StridedCLVector{T, M}, StridedCLMatrix{T, M}}
 
-@inline function Base.pointer(x::StridedCLArray{T}, i::Integer = 1; type = cl.UnifiedDeviceMemory) where {T}
-    PT = if type == cl.UnifiedDeviceMemory
-        CLPtr{T}
-    elseif type == cl.UnifiedHostMemory
-        Ptr{T}
-    else
-        error("unknown memory type")
-    end
-    return Base.unsafe_convert(PT, x) + Base._memory_offset(x, i)
-end
+@inline device_pointer(x::StridedCLArray{T}, i::Integer = 1) where {T} =
+    Base.unsafe_convert(CLPtr{T}, x) + Base._memory_offset(x, i)
+@inline host_pointer(x::StridedCLArray{T}, i::Integer = 1) where {T} =
+    Base.unsafe_convert(Ptr{T}, x) + Base._memory_offset(x, i)
+
+@inline Base.pointer(x::StridedCLArray, i::Integer = 1) = device_pointer(x, i)
+@inline Base.pointer(x::StridedCLArray{<:Any,<:Any,cl.UnifiedHostMemory}, i::Integer = 1) =
+    host_pointer(x, i)
 
 # anything that's (secretly) backed by a CLArray
 const WrappedCLArray{T, N} = Union{CLArray{T, N}, WrappedArray{T, N, CLArray, CLArray{T, N}}}
@@ -272,12 +270,12 @@ Base.convert(::Type{T}, x::T) where {T <: CLArray} = x
 
 function Base.getindex(x::CLArray{<:Any, <:Any, <:Union{cl.UnifiedHostMemory, cl.UnifiedSharedMemory}}, I::Int)
     @boundscheck checkbounds(x, I)
-    return unsafe_load(pointer(x, I; type = cl.UnifiedHostMemory))
+    return unsafe_load(host_pointer(x, I))
 end
 
 function Base.setindex!(x::CLArray{<:Any, <:Any, <:Union{cl.UnifiedHostMemory, cl.UnifiedSharedMemory}}, v, I::Int)
     @boundscheck checkbounds(x, I)
-    return unsafe_store!(pointer(x, I; type = cl.UnifiedHostMemory), v)
+    return unsafe_store!(host_pointer(x, I), v)
 end
 
 

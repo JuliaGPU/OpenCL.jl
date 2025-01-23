@@ -82,6 +82,14 @@ function rewriter!(ctx, options)
                 expr.args[2].args[1].args[1] = Symbol("@ext_ccall")
             end
 
+            # rewrite pointer return types
+            if haskey(options, "api") && haskey(options["api"], fn)
+                rettype = get(options["api"][fn], "rettype", nothing)
+                if rettype !== nothing
+                    call_expr.args[2] = Meta.parse(rettype)
+                end
+            end
+
             # rewrite pointer argument types
             arg_exprs = call_expr.args[1].args[2:end]
             if haskey(options, "api") && haskey(options["api"], fn)
@@ -138,8 +146,10 @@ function main()
     paths = map(headers) do header
         joinpath(include_dir, "CL", header)
     end
-    wrap("opencl", paths...; include_dirs=[include_dir],
-         defines=["CL_TARGET_OPENCL_VERSION" => "300"],)
+    cd(@__DIR__) do
+        wrap("opencl", paths...; include_dirs=[include_dir],
+             defines=["CL_TARGET_OPENCL_VERSION" => "300"],)
+    end
 end
 
 isinteractive() || main()

@@ -71,7 +71,6 @@ function set_arg!(k::Kernel, idx::Integer, arg::AbstractMemory)
 end
 ## when passing with `clcall`, which has pre-converted the buffer
 function set_arg!(k::Kernel, idx::Integer, arg::CLPtr{T}) where {T}
-    arg = reinterpret(Ptr{Cvoid}, arg)
     if arg != C_NULL
         # XXX: this assumes that the receiving argument is pointer-typed, which is not the
         #      case with Julia's `Ptr` ABI. Instead, one should reinterpret the pointer as a

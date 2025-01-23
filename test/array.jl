@@ -75,7 +75,7 @@ import Adapt
             @test OpenCL.buftype(b) == cl.UnifiedSharedMemory
 
             # when there's a conflict, we should defer to unified memory
-            c = CLVector{Int, cl.UnifiedHostMemory}([1])
+            c = CLVector{Int, cl.UnifiedSharedMemory}([1])
             d = CLVector{Int, cl.UnifiedDeviceMemory}([1])
             e = c .+ d
             @test OpenCL.buftype(e) == cl.UnifiedSharedMemory
