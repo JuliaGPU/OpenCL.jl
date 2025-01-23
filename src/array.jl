@@ -370,18 +370,16 @@ for (srcty, dstty) in [(:Array, :CLArray), (:CLArray, :Array), (:CLArray, :CLArr
             nbytes = N * sizeof(T)
             nbytes == 0 && return
 
-            dev = if $dstty == CLArray
-                device(dst)
+            ctx = if $dstty == CLArray
+                context(dst)
             else
-                device(src)
+                context(src)
             end
-            cl.device!(dev) do
-                if cl.memory_backend(dev) == cl.SVMBackend()
+            cl.context!(ctx) do
+                if cl.memory_backend() == cl.SVMBackend()
                     cl.enqueue_svm_copy(pointer(dst, dst_off), pointer(src, src_off), nbytes; blocking)
-                elseif cl.memory_backend(dev) == cl.USMBackend()
+                elseif cl.memory_backend() == cl.USMBackend()
                     cl.enqueue_usm_copy(pointer(dst, dst_off), pointer(src, src_off), nbytes; blocking)
-                else
-                    error(cl.memory_backend(dev))
                 end
             end
         end
@@ -503,7 +501,7 @@ function Base.resize!(a::CLVector{T}, n::Integer) where {T}
 
     # replace the data with a new CL. this 'unshares' the array.
     # as a result, we can safely support resizing unowned buffers.
-    new_data = cl.device!(device(a)) do
+    new_data = cl.context!(context(a)) do
         mem = alloc(memtype(a), bufsize; alignment=Base.datatype_alignment(T))
         ptr = convert(CLPtr{T}, mem)
         m = min(length(a), n)
