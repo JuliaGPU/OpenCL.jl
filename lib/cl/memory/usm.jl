@@ -163,20 +163,7 @@ Base.convert(::Type{CLPtr{T}}, buf::UnifiedSharedMemory) where {T} =
     convert(CLPtr{T}, pointer(buf))
 
 
-struct UnknownBuffer <: UnifiedMemory
-    ptr::Ptr{Cvoid}
-    bytesize::Int
-    context::Context
-end
-
-UnknownBuffer() = UnknownBuffer(C_NULL, 0, context())
-
-Base.pointer(buf::UnknownBuffer) = buf.ptr
-Base.sizeof(buf::UnknownBuffer) = buf.bytesize
-context(buf::UnknownBuffer) = buf.context
-
-Base.show(io::IO, buf::UnknownBuffer) =
-    @printf(io, "UnknownBuffer(%s at %p)", Base.format_bytes(sizeof(buf)), Int(pointer(buf)))
+## memory operations
 
 function enqueue_usm_copy(
         dst::Union{CLPtr, Ptr}, src::Union{CLPtr, Ptr}, nbytes::Integer; queue::CmdQueue = queue(), blocking::Bool = false,
