@@ -157,30 +157,20 @@ end
 
 function free(managed::Managed{<:cl.AbstractMemory})
     mem = managed.mem
-
     sizeof(mem) == 0 && return
 
-    # XXX: is it necessary to evice memory if we are going to free it?
-    #      this is racy, because eviction is not queue-ordered, and
-    #      we don't want to synchronize inside what could have been a
-    #      GC-driven finalizer. if we need to, port the stream/queue
-    #      tracking from CUDA.jl so that we can synchronize only the
-    #      queue that's associated with the memory.
-    #if mem isa oneL0.UnifiedDeviceMemory || mem isa oneL0.UnifiedSharedMemory
-    #    ctx = oneL0.context(mem)
-    #    dev = oneL0.device(mem)
-    #    evict(ctx, dev, mem)
-    #end
+    # "`clSVMFree` does not wait for previously enqueued commands that may be using
+    # svm_pointer to finish before freeing svm_pointer. It is the responsibility of the
+    # application to make sure that enqueued commands that use svm_pointer have finished
+    # before freeing svm_pointer". USM has `clMemBlockingFreeINTEL`, but by doing the
+    # synchronization ourselves we provide more opportunity for concurrent execution.
+    synchronize(managed)
 
     if mem isa cl.SharedVirtualMemory
         cl.svm_free(mem)
-        cl.finish(cl.queue())
     else
-        cl.usm_free(mem; blocking = true)
+        cl.usm_free(mem)
     end
-
-    # TODO: queue-ordered free from non-finalizer tasks once we have
-    #       `zeMemFreeAsync(ptr, queue)`
 
     return
 end
