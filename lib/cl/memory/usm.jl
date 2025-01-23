@@ -186,15 +186,19 @@ function enqueue_usm_copy(
     end
 end
 
-function enqueue_usm_fill(
-        dst::Union{CLPtr, Ptr}, pattern::Union{Ptr{T}, CLPtr{T}}, pattern_size::Integer, nbytes::Integer; queue::CmdQueue = queue(),
-        wait_for::Vector{Event} = Event[]
-    ) where {T}
-    n_evts = length(wait_for)
+# fill a buffer with a pattern, returning an event
+function enqueue_usm_fill(ptr::Union{Ptr, CLPtr}, pattern::T, N::Integer;
+                          wait_for::Vector{Event}=Event[]) where {T}
+    nbytes = N * sizeof(T)
+    nbytes_pattern = sizeof(T)
+    @assert nbytes_pattern > 0
+    n_evts  = length(wait_for)
     evt_ids = isempty(wait_for) ? C_NULL : [pointer(evt) for evt in wait_for]
-    return GC.@preserve wait_for begin
+    GC.@preserve wait_for begin
         ret_evt = Ref{cl_event}()
-        clEnqueueMemFillINTEL(queue, dst, pattern, pattern_size, nbytes, n_evts, evt_ids, ret_evt)
+        clEnqueueMemFillINTEL(queue(), ptr, [pattern],
+                              nbytes_pattern, nbytes,
+                              n_evts, evt_ids, ret_evt)
         @return_event ret_evt[]
     end
 end

@@ -120,7 +120,7 @@ end
     let buf = cl.svm_alloc(cl.context(), 3 * sizeof(Int))
         ptr = pointer(buf)
 
-        cl.enqueue_svm_fill(ptr, pointer([42]), sizeof(Int), 3 * sizeof(Int))
+        cl.enqueue_svm_fill(ptr, [42], 3)
 
         dst = Vector{Int}(undef, 3)
         cl.enqueue_svm_copy(pointer(dst), ptr, sizeof(dst); blocking = true)

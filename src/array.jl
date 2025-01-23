@@ -418,28 +418,27 @@ fill(v, dims...) = fill!(CLArray{typeof(v)}(undef, dims...), v)
 fill(v, dims::Dims) = fill!(CLArray{typeof(v)}(undef, dims...), v)
 
 function Base.fill!(A::DenseCLArray{T}, val) where {T}
-    B = [convert(T, val)]
-    cl.device!(device(A)) do
-        GC.@preserve A B begin
-            unsafe_fill!(context(A), cl.device(), pointer(A), pointer(B), length(A))
+    cl.context!(context(A)) do
+        GC.@preserve A begin
+            unsafe_fill!(pointer(A), convert(T, val), length(A))
         end
     end
     return A
 end
 
 function unsafe_fill!(
-        ctx::cl.Context, dev::cl.Device, ptr::Union{Ptr{T}, CLPtr{T}},
-        pattern::Union{Ptr{T}, CLPtr{T}}, N::Integer; queue::cl.CmdQueue = cl.queue()
+        ptr::Union{Ptr{T}, CLPtr{T}},
+        pattern::T, N::Integer
     ) where {T}
-    pattern_bytes = N * sizeof(T)
-    pattern_bytes == 0 && return
-    if cl.memory_backend(dev) == cl.USMBackend()
-        cl.enqueue_usm_fill(ptr, pattern, sizeof(T), pattern_bytes; queue)
-    elseif cl.memory_backend(dev) == cl.SVMBackend()
-        cl.enqueue_svm_fill(ptr, pattern, sizeof(T), pattern_bytes; queue)
+    N * sizeof(T) == 0 && return
+    if cl.memory_backend() == cl.USMBackend()
+        cl.enqueue_usm_fill(ptr, pattern, N)
+    elseif cl.memory_backend() == cl.SVMBackend()
+        cl.enqueue_svm_fill(ptr, pattern, N)
     end
-    return cl.finish(queue)
+    return
 end
+
 
 ## views
 

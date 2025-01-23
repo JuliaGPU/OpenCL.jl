@@ -27,7 +27,7 @@ function svm_alloc(
 
     # JuliaGPU/OpenCL.jl#252: uninitialized SVM memory doesn't work on Intel
     if platform().name == "Intel(R) OpenCL Graphics"
-        len > 0 && enqueue_svm_fill(ptr, zero(T), len)
+        enqueue_svm_fill(ptr, UInt8(0), bytesize)
     end
 
     return SharedVirtualMemory(ptr, bytesize, ctx)
@@ -111,18 +111,18 @@ function enqueue_svm_unmap(ptr::Union{Ptr, CLPtr}; queue::CmdQueue = queue(), wa
 end
 
 # fill a buffer with a pattern, returning an event
-function enqueue_svm_fill(ptr::Union{Ptr, CLPtr}, pattern::Union{Ptr{T}, CLPtr{T}}, pattern_size::Integer, nbytes::Integer; queue::CmdQueue = queue(), wait_for::Vector{Event} = Event[]) where {T}
-    @assert pattern_size > 0
-    n_evts = length(wait_for)
+function enqueue_svm_fill(ptr::Union{Ptr, CLPtr}, pattern::T, N::Integer;
+                          wait_for::Vector{Event}=Event[]) where {T}
+    nbytes = N * sizeof(T)
+    nbytes_pattern = sizeof(T)
+    @assert nbytes_pattern > 0
+    n_evts  = length(wait_for)
     evt_ids = isempty(wait_for) ? C_NULL : [pointer(evt) for evt in wait_for]
-    return GC.@preserve wait_for begin
+    GC.@preserve wait_for begin
         ret_evt = Ref{cl_event}()
-        clEnqueueSVMMemFill(
-            queue, ptr, pattern,
-            pattern_size, nbytes,
-            n_evts, evt_ids, ret_evt
-        )
+        clEnqueueSVMMemFill(queue(), ptr, [pattern],
+                            nbytes_pattern, nbytes,
+                            n_evts, evt_ids, ret_evt)
         @return_event ret_evt[]
     end
 end
-
