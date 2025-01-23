@@ -40,6 +40,8 @@ function context()
 end
 
 function context!(ctx::Context)
+    ctx == context() && return ctx
+
     clear_task_local_storage!()
     task_local_storage(:CLContext, ctx)
     return ctx
@@ -83,6 +85,8 @@ end
 
 # allow overriding with a specific platform
 function platform!(p::Platform)
+    p == platform() && return p
+
     clear_task_local_storage!()
     task_local_storage(:CLPlatform, p)
     return p
@@ -126,6 +130,8 @@ end
 
 # allow overriding with a specific device
 function device!(dev::Device)
+    dev == device() && return dev
+
     clear_task_local_storage!()
     task_local_storage(:CLDevice, dev)
     return dev
