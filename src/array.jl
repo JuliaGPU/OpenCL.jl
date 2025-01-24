@@ -368,15 +368,11 @@ for (srcty, dstty) in [(:Array, :CLArray), (:CLArray, :Array), (:CLArray, :CLArr
             nbytes = N * sizeof(T)
             nbytes == 0 && return
 
-            ctx = if $dstty == CLArray
-                context(dst)
-            else
-                context(src)
-            end
-            cl.context!(ctx) do
-                if cl.memory_backend() == cl.SVMBackend()
+            device_array = $dstty == CLArray ? dst : src
+            cl.context!(context(device_array)) do
+                if memtype(device_array) == cl.SharedVirtualMemory
                     cl.enqueue_svm_copy(pointer(dst, dst_off), pointer(src, src_off), nbytes; blocking)
-                elseif cl.memory_backend() == cl.USMBackend()
+                else
                     cl.enqueue_usm_copy(pointer(dst, dst_off), pointer(src, src_off), nbytes; blocking)
                 end
             end
@@ -416,22 +412,14 @@ fill(v, dims::Dims) = fill!(CLArray{typeof(v)}(undef, dims...), v)
 function Base.fill!(A::DenseCLArray{T}, val) where {T}
     cl.context!(context(A)) do
         GC.@preserve A begin
-            unsafe_fill!(pointer(A), convert(T, val), length(A))
+            if memtype(A) == cl.SharedVirtualMemory
+                cl.enqueue_svm_fill(pointer(A), convert(T, val), length(A))
+            else
+                cl.enqueue_usm_fill(pointer(A), convert(T, val), length(A))
+            end
         end
     end
     return A
-end
-
-function unsafe_fill!(
-        ptr::Union{Ptr{T}, CLPtr{T}},
-        pattern::T, N::Integer
-    ) where {T}
-    if cl.memory_backend() == cl.USMBackend()
-        cl.enqueue_usm_fill(ptr, pattern, N)
-    elseif cl.memory_backend() == cl.SVMBackend()
-        cl.enqueue_svm_fill(ptr, pattern, N)
-    end
-    return
 end
 
 
@@ -456,6 +444,7 @@ context(a::Base.PermutedDimsArray) = context(parent(a))
 
 Base.unsafe_convert(::Type{CLPtr{T}}, A::PermutedDimsArray) where {T} =
     Base.unsafe_convert(CLPtr{T}, parent(A))
+
 
 ## unsafe_wrap
 

@@ -113,14 +113,6 @@ end
 
 ## public interface
 
-function alloc(bytes::Int; alignment::Int = 0)
-    if cl.memory_backend() == cl.USMBackend()
-        return alloc(cl.UnifiedDeviceMemory, bytes; alignment)
-    else
-        return alloc(cl.SharedVirtualMemory, bytes; alignment)
-    end
-end
-
 function alloc(::Type{cl.UnifiedDeviceMemory}, bytes::Int; alignment::Int = 0)
     mem = cl.device_alloc(bytes; alignment)
     return Managed(mem)
