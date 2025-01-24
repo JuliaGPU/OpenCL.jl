@@ -39,7 +39,7 @@ end
     foo() = @opencl dummy()
     @inferred foo()
 
-    # with arguments, we call clconvert
+    # with arguments, we call OpenCL.kernel_convert
     kernel(a) = return
     bar(a) = @opencl kernel(a)
     @inferred bar(CLArray([1]))

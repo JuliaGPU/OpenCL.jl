@@ -290,6 +290,12 @@ function Base.unsafe_convert(::Type{CLPtr{T}}, x::CLArray{T}) where {T}
     return convert(CLPtr{T}, x.data[]) + x.offset * Base.elsize(x)
 end
 
+# when passing to OpenCL kernels with `clcall`, don't convert directly to a pointer,
+# but keep the underlying memory around so that we can configure the kernel correctly.
+function cl.clconvert(::Type{<:Union{Ptr, CLPtr}}, x::CLArray)
+    return x.data[].mem
+end
+
 
 ## interop with GPU arrays
 

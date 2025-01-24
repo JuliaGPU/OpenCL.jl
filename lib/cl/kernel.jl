@@ -49,9 +49,10 @@ Base.eltype(l::LocalMem{T}) where {T} = T
 Base.sizeof(l::LocalMem{T}) where {T} = l.nbytes
 Base.length(l::LocalMem{T}) where {T} = Int(l.nbytes ÷ sizeof(T))
 
-# preserve the LocalMem; it will be handled by set_arg!
-# XXX: do we want set_arg!(C_NULL::Ptr) to just call clSetKernelArg?
-Base.unsafe_convert(::Type{CLPtr{T}}, l::LocalMem{T}) where {T} = l
+# preserve the LocalMem; it will be handled by `set_arg!`
+# XXX: can we avoid the `set_arg!` special case and `clconvert` to `CU_NULL`?
+#      the problem is the size being passed to `clSetKernelArg`
+unsafe_clconvert(::Type{CLPtr{T}}, l::LocalMem{T}) where {T} = l
 
 function set_arg!(k::Kernel, idx::Integer, arg::Nothing)
     @assert idx > 0
@@ -59,36 +60,27 @@ function set_arg!(k::Kernel, idx::Integer, arg::Nothing)
     return k
 end
 
+# refuse passing pointers directly
+function set_arg!(k::Kernel, idx::Integer, arg::CLPtr{T}) where {T}
+    if arg != C_NULL
+        error("Cannot pass a pointer directly to a kernel; use a memory object instead")
+    end
+    return k
+end
+
 # raw memory
-## when passing using `cl.call`
 function set_arg!(k::Kernel, idx::Integer, arg::AbstractMemory)
+    # XXX: this assumes that the receiving argument is pointer-typed, which is not the case
+    #      with Julia's `Ptr` ABI. Instead, one should reinterpret the pointer as a
+    #      `Core.LLVMPtr`, which _is_ pointer-valued. We retain this handling for `Ptr` for
+    #      users passing pointers to OpenCL C, and because `Ptr` is pointer-valued starting
+    #      with Julia 1.12.
     if arg isa SharedVirtualMemory
         clSetKernelArgSVMPointer(k, idx - 1, pointer(arg))
     elseif arg isa UnifiedMemory
         clSetKernelArgMemPointerINTEL(k, idx - 1, pointer(arg))
     else
         error("Unknown memory type")
-    end
-    return k
-end
-## when passing with `clcall`, which has pre-converted the buffer
-function set_arg!(k::Kernel, idx::Integer, arg::CLPtr{T}) where {T}
-    # XXX: this assumes that the receiving argument is pointer-typed, which is not the case
-    #      with Julia's `Ptr` ABI. Instead, one should reinterpret the pointer as a
-    #      `Core.LLVMPtr`, which _is_ pointer-valued. We retain this handling for `Ptr` for
-    #      users passing pointers to OpenCL C, and because `Ptr` is pointer-valued starting
-    #      with Julia 1.12.
-    if arg != C_NULL
-        # we don't know where this pointer came from, so we can't can't accurately configure
-        # it. should be defer the memory to pointer conversion to here (i.e., disable the
-        # current `unsafe_convert` method for `AbstractMemory`) so that we have the memory
-        # object here? that would also break `ccall`, so we probably need somethin specific
-        # to `clcall`. for now, just use the global back-end configuration
-        if cl.memory_backend() == cl.SVMBackend()
-            clSetKernelArgSVMPointer(k, idx - 1, arg)
-        else
-            clSetKernelArgMemPointerINTEL(k, idx - 1, arg)
-        end
     end
     return k
 end
@@ -100,6 +92,7 @@ function set_arg!(k::Kernel, idx::Integer, arg::AbstractMemoryObject)
     return k
 end
 
+# local memory
 function set_arg!(k::Kernel, idx::Integer, arg::LocalMem)
     clSetKernelArg(k, idx - 1, arg.nbytes, C_NULL)
     return k
@@ -240,6 +233,8 @@ end
 
 # convert the argument values to match the kernel's signature (specified by the user)
 # (this mimics `lower-ccall` in julia-syntax.scm)
+clconvert(typ, arg) = Base.cconvert(typ, arg)
+unsafe_clconvert(typ, arg) = Base.unsafe_convert(typ, arg)
 @inline @generated function convert_arguments(f::Function, ::Type{tt}, args...) where {tt}
     types = tt.parameters
 
@@ -250,8 +245,8 @@ end
     for i in 1:length(args)
         converted_args[i] = gensym()
         arg_ptrs[i] = gensym()
-        push!(ex.args, :($(converted_args[i]) = Base.cconvert($(types[i]), args[$i])))
-        push!(ex.args, :($(arg_ptrs[i]) = Base.unsafe_convert($(types[i]), $(converted_args[i]))))
+        push!(ex.args, :($(converted_args[i]) = clconvert($(types[i]), args[$i])))
+        push!(ex.args, :($(arg_ptrs[i]) = unsafe_clconvert($(types[i]), $(converted_args[i]))))
     end
 
     append!(ex.args, (quote
@@ -262,6 +257,9 @@ end
 
     return ex
 end
+
+# memory should not be converted (yet), as we need to keep track of the memory type
+unsafe_clconvert(::Type{<:Union{Ptr, CLPtr}}, memory::AbstractMemory) = memory
 
 clcall(f::F, types::Tuple, args::Vararg{Any,N}; kwargs...) where {N,F} =
     clcall(f, _to_tuple_type(types), args...; kwargs...)

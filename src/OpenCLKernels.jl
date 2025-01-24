@@ -175,6 +175,6 @@ end
 
 ## Other
 
-KA.argconvert(::KA.Kernel{OpenCLBackend}, arg) = clconvert(arg)
+KA.argconvert(::KA.Kernel{OpenCLBackend}, arg) = OpenCL.kernel_convert(arg)
 
 end

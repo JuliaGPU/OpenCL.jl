@@ -1,4 +1,4 @@
-export @opencl, clfunction, clconvert
+export @opencl, clfunction
 
 
 ## high-level @opencl interface
@@ -60,8 +60,8 @@ macro opencl(ex...)
         quote
             $f_var = $f
             GC.@preserve $(vars...) $f_var begin
-                $kernel_f = $clconvert($f_var)
-                $kernel_args = map($clconvert, ($(var_exprs...),))
+                $kernel_f = $kernel_convert($f_var)
+                $kernel_args = map($kernel_convert, ($(var_exprs...),))
                 $kernel_tt = Tuple{map(Core.Typeof, $kernel_args)...}
                 $kernel = $clfunction($kernel_f, $kernel_tt; $(compiler_kwargs...))
                 if $launch
@@ -116,7 +116,7 @@ Adapt.adapt_structure(to::KernelAdaptor,
     Broadcast.Broadcasted{Style}((x...) -> T(x...), adapt(to, bc.args), bc.axes)
 
 """
-    clconvert(x)
+    kernel_convert(x)
 
 This function is called for every argument to be passed to a kernel, allowing it to be
 converted to a GPU-friendly format. By default, the function does nothing and returns the
@@ -125,7 +125,7 @@ input object `x` as-is.
 Do not add methods to this function, but instead extend the underlying Adapt.jl package and
 register methods for the the `OpenCL.KernelAdaptor` type.
 """
-clconvert(arg, indirect_memory::Vector{cl.AbstractMemory} = cl.AbstractMemory[]) =
+kernel_convert(arg, indirect_memory::Vector{cl.AbstractMemory} = cl.AbstractMemory[]) =
     adapt(KernelAdaptor(indirect_memory), arg)
 
 ## abstract kernel functionality
@@ -135,7 +135,7 @@ abstract type AbstractKernel{F, TT} end
 @inline @generated function (kernel::AbstractKernel{F,TT})(args...;
                                                            call_kwargs...) where {F,TT}
     sig = Tuple{F, TT.parameters...}    # Base.signature_type with a function type
-    args = (:(kernel.f), (:(clconvert(args[$i], indirect_memory)) for i in 1:length(args))...)
+    args = (:(kernel.f), (:(kernel_convert(args[$i], indirect_memory)) for i in 1:length(args))...)
 
     # filter out ghost arguments that shouldn't be passed
     predicate = dt -> isghosttype(dt) || Core.Compiler.isconstType(dt)
