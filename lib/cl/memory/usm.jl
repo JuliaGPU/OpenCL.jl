@@ -1,11 +1,12 @@
 abstract type UnifiedMemory <: AbstractMemory end
 
 function usm_free(buf::UnifiedMemory; blocking::Bool = false)
-    ctx = context(buf)
-    if blocking
-        clMemBlockingFreeINTEL(ctx, buf)
-    else
-        clMemFreeINTEL(ctx, buf)
+    if sizeof(buf) != 0
+        if blocking
+            clMemBlockingFreeINTEL(context(buf), buf)
+        else
+            clMemFreeINTEL(context(buf), buf)
+        end
     end
     return
 end

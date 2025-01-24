@@ -136,8 +136,6 @@ end
 
 function free(managed::Managed{<:cl.AbstractMemory})
     mem = managed.mem
-    sizeof(mem) == 0 && return
-
     cl.context!(cl.context(mem)) do
         # "`clSVMFree` does not wait for previously enqueued commands that may be using
         # svm_pointer to finish before freeing svm_pointer. It is the responsibility of the

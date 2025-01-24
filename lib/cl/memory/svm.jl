@@ -37,7 +37,9 @@ function svm_alloc(bytesize::Integer;
 end
 
 function svm_free(buf::SharedVirtualMemory)
-    clSVMFree(context(buf), buf)
+    if sizeof(buf) != 0
+        clSVMFree(context(buf), buf)
+    end
     return
 end
 
