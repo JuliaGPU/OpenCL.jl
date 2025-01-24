@@ -162,27 +162,29 @@ abstract type AbstractMemoryBackend end
 struct SVMBackend <: AbstractMemoryBackend end
 struct USMBackend <: AbstractMemoryBackend end
 
+function default_memory_backend(dev::Device)
+    # determine if USM is supported
+    usm = if usm_supported(dev)
+        caps = usm_capabilities(dev)
+        caps.host.access && caps.device.access
+    else
+        false
+    end
+
+    # determine if SVM is available (if needed)
+    if !usm
+        caps = svm_capabilities(dev)
+        if !caps.coarse_grain_buffer
+            error("Device $dev does not support USM or coarse-grained SVM, either of which is required by OpenCL.jl")
+        end
+    end
+
+    usm ? USMBackend() : SVMBackend()
+end
+
 function memory_backend()
     return get!(task_local_storage(), :CLMemoryBackend) do
-        dev = device()
-
-        # determine if USM is supported
-        usm = if usm_supported(dev)
-            caps = usm_capabilities(dev)
-            caps.host.access && caps.device.access
-        else
-            false
-        end
-
-        # determine if SVM is available (if needed)
-        if !usm
-            caps = svm_capabilities(dev)
-            if !caps.coarse_grain_buffer
-                error("Device $dev does not support USM or coarse-grained SVM, either of which is required by OpenCL.jl")
-            end
-        end
-
-        usm ? USMBackend() : SVMBackend()
+        default_memory_backend(device())
     end
 end
 
