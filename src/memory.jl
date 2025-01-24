@@ -142,7 +142,9 @@ function free(managed::Managed{<:cl.AbstractMemory})
         # application to make sure that enqueued commands that use svm_pointer have finished
         # before freeing svm_pointer". USM has `clMemBlockingFreeINTEL`, but by doing the
         # synchronization ourselves we provide more opportunity for concurrent execution.
-        synchronize(managed)
+        if managed.queue.valid
+            synchronize(managed)
+        end
 
         if mem isa cl.SharedVirtualMemory
             cl.svm_free(mem)
