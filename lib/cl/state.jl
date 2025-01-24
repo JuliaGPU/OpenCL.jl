@@ -1,4 +1,4 @@
-# global state
+# task-bound state
 
 function clear_task_local_storage!()
     # the primary key for all task-local state is the context

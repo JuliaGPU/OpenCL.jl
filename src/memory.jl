@@ -138,9 +138,7 @@ function free(managed::Managed{<:cl.AbstractMemory})
     mem = managed.mem
     sizeof(mem) == 0 && return
 
-    # XXX: we shouldn't have to look up the device here; all state should be keyed
-    #      on the context (i.e., doing `cl.context!` instead of `cl.device!`).
-    cl.device!(cl.context(mem).devices[]) do
+    cl.context!(cl.context(mem)) do
         # "`clSVMFree` does not wait for previously enqueued commands that may be using
         # svm_pointer to finish before freeing svm_pointer. It is the responsibility of the
         # application to make sure that enqueued commands that use svm_pointer have finished
