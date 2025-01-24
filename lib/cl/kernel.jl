@@ -193,17 +193,22 @@ function call(
         usm_pointers = CLPtr{Cvoid}[]
         device_access = host_access = shared_access = false
         for memory in indirect_memory
+            ptr = pointer(memory)
+            if ptr == C_NULL || ptr == CL_NULL
+                continue
+            end
+
             if memory isa SharedVirtualMemory
-                push!(svm_pointers, pointer(memory))
+                push!(svm_pointers, ptr)
             elseif memory isa UnifiedDeviceMemory
                 device_access = true
-                push!(usm_pointers, pointer(memory))
+                push!(usm_pointers, ptr)
             elseif memory isa UnifiedHostMemory
                 host_access = true
-                push!(usm_pointers, reinterpret(CLPtr{Cvoid}, pointer(memory)))
+                push!(usm_pointers, reinterpret(CLPtr{Cvoid}, ptr))
             elseif memory isa UnifiedSharedMemory
                 shared_access = true
-                push!(usm_pointers, pointer(memory))
+                push!(usm_pointers, ptr)
             else
                 throw(ArgumentError("Unknown memory type"))
             end
