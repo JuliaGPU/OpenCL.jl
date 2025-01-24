@@ -81,7 +81,7 @@ end
 ## argument conversion
 
 struct KernelAdaptor
-    pointers::Vector{CLPtr}
+    pointers::Vector{CLPtr{Cvoid}}
 end
 
 function Adapt.adapt_storage(to::KernelAdaptor, ptr::CLPtr{T}) where {T}
@@ -131,7 +131,8 @@ input object `x` as-is.
 Do not add methods to this function, but instead extend the underlying Adapt.jl package and
 register methods for the the `OpenCL.KernelAdaptor` type.
 """
-clconvert(arg, pointers::Vector{CLPtr} = CLPtr[]) = adapt(KernelAdaptor(pointers), arg)
+clconvert(arg, pointers::Vector{CLPtr{Cvoid}} = CLPtr{Cvoid}[]) =
+    adapt(KernelAdaptor(pointers), arg)
 
 ## abstract kernel functionality
 
@@ -160,7 +161,7 @@ abstract type AbstractKernel{F, TT} end
     call_tt = Base.to_tuple_type(call_t)
 
     quote
-        pointers = CLPtr[]
+        pointers = CLPtr{Cvoid}[]
         clcall(kernel.fun, $call_tt, $(call_args...); pointers, call_kwargs...)
     end
 end

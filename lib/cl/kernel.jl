@@ -185,11 +185,15 @@ end
 function call(
         k::Kernel, args...; global_size = (1,), local_size = nothing,
         global_work_offset = nothing, wait_on::Vector{Event} = Event[],
-        pointers::Vector{CLPtr} = CLPtr[]
+        pointers::Vector{CLPtr{Cvoid}} = CLPtr{Cvoid}[]
     )
     set_args!(k, args...)
-    flag = cl.memory_backend() == cl.SVMBackend() ? CL_KERNEL_EXEC_INFO_SVM_PTRS : CL_KERNEL_EXEC_INFO_USM_PTRS_INTEL
     if !isempty(pointers)
+        # XXX: preserve the memory objects instead of the derived pointers
+        #      so that we can accurately set this flag
+        clSetKernelExecInfo(k, CL_KERNEL_EXEC_INFO_INDIRECT_DEVICE_ACCESS_INTEL, sizeof(cl_bool), Ref{cl_bool}(true))
+
+        flag = cl.memory_backend() == cl.SVMBackend() ? CL_KERNEL_EXEC_INFO_SVM_PTRS : CL_KERNEL_EXEC_INFO_USM_PTRS_INTEL
         clSetKernelExecInfo(k, flag, sizeof(pointers), pointers)
     end
     enqueue_kernel(k, global_size, local_size; global_work_offset, wait_on)
