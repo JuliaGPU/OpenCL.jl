@@ -280,7 +280,6 @@ end
 ## interop with libraries
 
 function Base.unsafe_convert(::Type{Ptr{T}}, x::CLArray{T}) where {T}
-    buf = x.data[]
     if is_device(x)
         throw(ArgumentError("cannot take the CPU address of a $(typeof(x))"))
     end

@@ -81,23 +81,17 @@ end
 ## argument conversion
 
 struct KernelAdaptor
-    pointers::Vector{CLPtr{Cvoid}}
+    indirect_memory::Vector{cl.AbstractMemory}
 end
 
-function Adapt.adapt_storage(to::KernelAdaptor, ptr::CLPtr{T}) where {T}
-    push!(to.pointers, ptr)
-    return ptr
-end
-
+# when converting to pointers, we need to keep track of the underlying memory type
 function Adapt.adapt_storage(to::KernelAdaptor, buf::cl.AbstractMemory)
     ptr = pointer(buf)
-    push!(to.pointers, ptr)
+    push!(to.indirect_memory, buf)
     return ptr
 end
-
 function Adapt.adapt_storage(to::KernelAdaptor, arr::CLArray{T, N}) where {T, N}
-    ptr = pointer(arr)
-    push!(to.pointers, ptr)
+    push!(to.indirect_memory, arr.data[].mem)
     return Base.unsafe_convert(CLDeviceArray{T, N, AS.Global}, arr)
 end
 
@@ -131,8 +125,8 @@ input object `x` as-is.
 Do not add methods to this function, but instead extend the underlying Adapt.jl package and
 register methods for the the `OpenCL.KernelAdaptor` type.
 """
-clconvert(arg, pointers::Vector{CLPtr{Cvoid}} = CLPtr{Cvoid}[]) =
-    adapt(KernelAdaptor(pointers), arg)
+clconvert(arg, indirect_memory::Vector{cl.AbstractMemory} = cl.AbstractMemory[]) =
+    adapt(KernelAdaptor(indirect_memory), arg)
 
 ## abstract kernel functionality
 
@@ -141,7 +135,7 @@ abstract type AbstractKernel{F, TT} end
 @inline @generated function (kernel::AbstractKernel{F,TT})(args...;
                                                            call_kwargs...) where {F,TT}
     sig = Tuple{F, TT.parameters...}    # Base.signature_type with a function type
-    args = (:(kernel.f), (:(clconvert(args[$i], pointers)) for i in 1:length(args))...)
+    args = (:(kernel.f), (:(clconvert(args[$i], indirect_memory)) for i in 1:length(args))...)
 
     # filter out ghost arguments that shouldn't be passed
     predicate = dt -> isghosttype(dt) || Core.Compiler.isconstType(dt)
@@ -161,8 +155,8 @@ abstract type AbstractKernel{F, TT} end
     call_tt = Base.to_tuple_type(call_t)
 
     quote
-        pointers = CLPtr{Cvoid}[]
-        clcall(kernel.fun, $call_tt, $(call_args...); pointers, call_kwargs...)
+        indirect_memory = cl.AbstractMemory[]
+        clcall(kernel.fun, $call_tt, $(call_args...); indirect_memory, call_kwargs...)
     end
 end
 
