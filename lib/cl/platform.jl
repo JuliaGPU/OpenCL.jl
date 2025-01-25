@@ -89,14 +89,6 @@ function devices(p::Platform, dtype)
     return Device[Device(id) for id in result]
 end
 
-function default_device(p::Platform)
-    devs = devices(p, CL_DEVICE_TYPE_DEFAULT)
-    isempty(devs) && return nothing
-    # XXX: clGetDeviceIDs documents CL_DEVICE_TYPE_DEFAULT should only return one device,
-    #      but it's been observed to return multiple devices on some platforms...
-    return first(devs)
-end
-
 devices(p::Platform) = devices(p, CL_DEVICE_TYPE_ALL)
 
 function devices(p::Platform, dtype::Symbol)

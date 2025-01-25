@@ -1,4 +1,4 @@
-export @opencl, clfunction, clconvert
+export @opencl, clfunction
 
 
 ## high-level @opencl interface
@@ -60,8 +60,8 @@ macro opencl(ex...)
         quote
             $f_var = $f
             GC.@preserve $(vars...) $f_var begin
-                $kernel_f = $clconvert($f_var)
-                $kernel_args = map($clconvert, ($(var_exprs...),))
+                $kernel_f = $kernel_convert($f_var)
+                $kernel_args = map($kernel_convert, ($(var_exprs...),))
                 $kernel_tt = Tuple{map(Core.Typeof, $kernel_args)...}
                 $kernel = $clfunction($kernel_f, $kernel_tt; $(compiler_kwargs...))
                 if $launch
@@ -78,24 +78,21 @@ macro opencl(ex...)
     end)
 end
 
-
 ## argument conversion
 
 struct KernelAdaptor
-    svm_pointers::Vector{Ptr{Cvoid}}
+    indirect_memory::Vector{cl.AbstractMemory}
 end
 
-# assume directly-passed pointers are SVM pointers
-function Adapt.adapt_storage(to::KernelAdaptor, ptr::Ptr{T}) where {T}
-    push!(to.svm_pointers, ptr)
-    return ptr
-end
-
-# convert SVM buffers to their GPU address
-function Adapt.adapt_storage(to::KernelAdaptor, buf::cl.SVMBuffer)
+# when converting to pointers, we need to keep track of the underlying memory type
+function Adapt.adapt_storage(to::KernelAdaptor, buf::cl.AbstractMemory)
     ptr = pointer(buf)
-    push!(to.svm_pointers, ptr)
+    push!(to.indirect_memory, buf)
     return ptr
+end
+function Adapt.adapt_storage(to::KernelAdaptor, arr::CLArray{T, N}) where {T, N}
+    push!(to.indirect_memory, arr.data[].mem)
+    return Base.unsafe_convert(CLDeviceArray{T, N, AS.Global}, arr)
 end
 
 # Base.RefValue isn't GPU compatible, so provide a compatible alternative
@@ -119,7 +116,7 @@ Adapt.adapt_structure(to::KernelAdaptor,
     Broadcast.Broadcasted{Style}((x...) -> T(x...), adapt(to, bc.args), bc.axes)
 
 """
-    clconvert(x, [pointers])
+    kernel_convert(x)
 
 This function is called for every argument to be passed to a kernel, allowing it to be
 converted to a GPU-friendly format. By default, the function does nothing and returns the
@@ -127,24 +124,18 @@ input object `x` as-is.
 
 Do not add methods to this function, but instead extend the underlying Adapt.jl package and
 register methods for the the `OpenCL.KernelAdaptor` type.
-
-The `pointers` argument is used to collect pointers to indirect SVM buffers, which need to
-be registered with OpenCL before invoking the kernel.
 """
-function clconvert(arg, pointers::Vector{Ptr{Cvoid}}=Ptr{Cvoid}[])
-    adapt(KernelAdaptor(pointers), arg)
-end
-
-
+kernel_convert(arg, indirect_memory::Vector{cl.AbstractMemory} = cl.AbstractMemory[]) =
+    adapt(KernelAdaptor(indirect_memory), arg)
 
 ## abstract kernel functionality
 
-abstract type AbstractKernel{F,TT} end
+abstract type AbstractKernel{F, TT} end
 
 @inline @generated function (kernel::AbstractKernel{F,TT})(args...;
                                                            call_kwargs...) where {F,TT}
     sig = Tuple{F, TT.parameters...}    # Base.signature_type with a function type
-    args = (:(kernel.f), (:( clconvert(args[$i], svm_pointers) ) for i in 1:length(args))...)
+    args = (:(kernel.f), (:(kernel_convert(args[$i], indirect_memory)) for i in 1:length(args))...)
 
     # filter out ghost arguments that shouldn't be passed
     predicate = dt -> isghosttype(dt) || Core.Compiler.isconstType(dt)
@@ -164,8 +155,8 @@ abstract type AbstractKernel{F,TT} end
     call_tt = Base.to_tuple_type(call_t)
 
     quote
-        svm_pointers = Ptr{Cvoid}[]
-        clcall(kernel.fun, $call_tt, $(call_args...); svm_pointers, call_kwargs...)
+        indirect_memory = cl.AbstractMemory[]
+        clcall(kernel.fun, $call_tt, $(call_args...); indirect_memory, call_kwargs...)
     end
 end
 

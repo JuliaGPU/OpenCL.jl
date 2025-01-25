@@ -21,7 +21,7 @@ prog = cl.Program(; source) |> cl.build!
 kern = cl.Kernel(prog, "vadd")
 
 len = prod(dims)
-clcall(kern, Tuple{Ptr{Float32}, Ptr{Float32}, Ptr{Float32}},
+clcall(kern, Tuple{CLPtr{Float32}, CLPtr{Float32}, CLPtr{Float32}},
        d_a, d_b, d_c; global_size=(len,))
 c = Array(d_c)
 @test a+b ≈ c

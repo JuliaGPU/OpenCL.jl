@@ -49,52 +49,59 @@ Base.eltype(l::LocalMem{T}) where {T} = T
 Base.sizeof(l::LocalMem{T}) where {T} = l.nbytes
 Base.length(l::LocalMem{T}) where {T} = Int(l.nbytes ÷ sizeof(T))
 
-# preserve the LocalMem; it will be handled by set_arg!
-# XXX: do we want set_arg!(C_NULL::Ptr) to just call clSetKernelArg?
-Base.unsafe_convert(::Type{Ptr{T}}, l::LocalMem{T}) where {T} = l
+# preserve the LocalMem; it will be handled by `set_arg!`
+# XXX: can we avoid the `set_arg!` special case and `clconvert` to `CU_NULL`?
+#      the problem is the size being passed to `clSetKernelArg`
+unsafe_clconvert(::Type{CLPtr{T}}, l::LocalMem{T}) where {T} = l
 
 function set_arg!(k::Kernel, idx::Integer, arg::Nothing)
     @assert idx > 0
-    clSetKernelArg(k, cl_uint(idx-1), sizeof(cl_mem), C_NULL)
+    clSetKernelArg(k, idx - 1, sizeof(cl_mem), C_NULL)
     return k
 end
 
-# SVMBuffers
-## when passing using `cl.call`
-function set_arg!(k::Kernel, idx::Integer, arg::SVMBuffer)
-    clSetKernelArgSVMPointer(k, cl_uint(idx-1), arg.ptr)
-    return k
-end
-## when passing with `clcall`, which has pre-converted the buffer
-function set_arg!(k::Kernel, idx::Integer, arg::Union{Ptr,Core.LLVMPtr})
-    arg = reinterpret(Ptr{Cvoid}, arg)
+# refuse passing pointers directly
+function set_arg!(k::Kernel, idx::Integer, arg::CLPtr{T}) where {T}
     if arg != C_NULL
-        # XXX: this assumes that the receiving argument is pointer-typed, which is not the
-        #      case with Julia's `Ptr` ABI. Instead, one should reinterpret the pointer as a
-        #      `Core.LLVMPtr`, which _is_ pointer-valued. We retain this handling for `Ptr`
-        #      for users passing pointers to OpenCL C, and because `Ptr` is pointer-valued
-        #      starting with Julia 1.12.
-        clSetKernelArgSVMPointer(k, cl_uint(idx-1), arg)
+        error("Cannot pass a pointer directly to a kernel; use a memory object instead")
     end
     return k
 end
 
-# regular buffers
+# raw memory
 function set_arg!(k::Kernel, idx::Integer, arg::AbstractMemory)
+    # XXX: this assumes that the receiving argument is pointer-typed, which is not the case
+    #      with Julia's `Ptr` ABI. Instead, one should reinterpret the pointer as a
+    #      `Core.LLVMPtr`, which _is_ pointer-valued. We retain this handling for `Ptr` for
+    #      users passing pointers to OpenCL C, and because `Ptr` is pointer-valued starting
+    #      with Julia 1.12.
+    if arg isa SharedVirtualMemory
+        clSetKernelArgSVMPointer(k, idx - 1, pointer(arg))
+    elseif arg isa UnifiedMemory
+        clSetKernelArgMemPointerINTEL(k, idx - 1, pointer(arg))
+    else
+        error("Unknown memory type")
+    end
+    return k
+end
+
+# memory objects
+function set_arg!(k::Kernel, idx::Integer, arg::AbstractMemoryObject)
     arg_boxed = Ref(arg.id)
-    clSetKernelArg(k, cl_uint(idx-1), sizeof(cl_mem), arg_boxed)
+    clSetKernelArg(k, idx - 1, sizeof(cl_mem), arg_boxed)
     return k
 end
 
+# local memory
 function set_arg!(k::Kernel, idx::Integer, arg::LocalMem)
-    clSetKernelArg(k, cl_uint(idx-1), arg.nbytes, C_NULL)
+    clSetKernelArg(k, idx - 1, arg.nbytes, C_NULL)
     return k
 end
 
-function set_arg!(k::Kernel, idx::Integer, arg::T) where T
+function set_arg!(k::Kernel, idx::Integer, arg::T) where {T}
     ref = Ref(arg)
     tsize = sizeof(ref)
-    err = unchecked_clSetKernelArg(k, cl_uint(idx - 1), tsize, ref)
+    err = unchecked_clSetKernelArg(k, idx - 1, tsize, ref)
     if err == CL_INVALID_ARG_SIZE
         error("""Mismatch between Julia and OpenCL type for kernel argument $idx.
 
@@ -162,32 +169,77 @@ function enqueue_kernel(k::Kernel, global_work_size, local_work_size=nothing;
     end
 
     if !isempty(wait_on)
-        n_events = cl_uint(length(wait_on))
+        n_events = length(wait_on)
         wait_event_ids = [evt.id for evt in wait_on]
     else
-        n_events = cl_uint(0)
+        n_events = 0
         wait_event_ids = C_NULL
     end
 
     ret_event = Ref{cl_event}()
-    clEnqueueNDRangeKernel(queue(), k, cl_uint(work_dim), goffset, gsize, lsize,
+    clEnqueueNDRangeKernel(queue(), k, work_dim, goffset, gsize, lsize,
                            n_events, wait_event_ids, ret_event)
     return Event(ret_event[], retain=false)
 end
 
-function call(k::Kernel, args...; global_size=(1,), local_size=nothing,
-              global_work_offset=nothing, wait_on::Vector{Event}=Event[],
-              svm_pointers::Vector{Ptr{Cvoid}}=Ptr{Cvoid}[])
+function call(
+        k::Kernel, args...; global_size = (1,), local_size = nothing,
+        global_work_offset = nothing, wait_on::Vector{Event} = Event[],
+        indirect_memory::Vector{AbstractMemory} = AbstractMemory[]
+    )
     set_args!(k, args...)
-    if !isempty(svm_pointers)
-        clSetKernelExecInfo(k, CL_KERNEL_EXEC_INFO_SVM_PTRS,
-                            sizeof(svm_pointers), svm_pointers)
+    if !isempty(indirect_memory)
+        svm_pointers = CLPtr{Cvoid}[]
+        usm_pointers = CLPtr{Cvoid}[]
+        device_access = host_access = shared_access = false
+        for memory in indirect_memory
+            ptr = pointer(memory)
+            if ptr == C_NULL || ptr == CL_NULL
+                continue
+            end
+
+            if memory isa SharedVirtualMemory
+                push!(svm_pointers, ptr)
+            elseif memory isa UnifiedDeviceMemory
+                device_access = true
+                push!(usm_pointers, ptr)
+            elseif memory isa UnifiedHostMemory
+                host_access = true
+                push!(usm_pointers, reinterpret(CLPtr{Cvoid}, ptr))
+            elseif memory isa UnifiedSharedMemory
+                shared_access = true
+                push!(usm_pointers, ptr)
+            else
+                throw(ArgumentError("Unknown memory type"))
+            end
+        end
+
+        # configure USM access
+        if device_access
+            clSetKernelExecInfo(k, CL_KERNEL_EXEC_INFO_INDIRECT_DEVICE_ACCESS_INTEL, sizeof(cl_bool), Ref{cl_bool}(true))
+        end
+        if host_access
+            clSetKernelExecInfo(k, CL_KERNEL_EXEC_INFO_INDIRECT_HOST_ACCESS_INTEL, sizeof(cl_bool), Ref{cl_bool}(true))
+        end
+        if shared_access
+            clSetKernelExecInfo(k, CL_KERNEL_EXEC_INFO_INDIRECT_SHARED_ACCESS_INTEL, sizeof(cl_bool), Ref{cl_bool}(true))
+        end
+
+        # set the pointers
+        if !isempty(svm_pointers)
+            clSetKernelExecInfo(k, CL_KERNEL_EXEC_INFO_SVM_PTRS, sizeof(svm_pointers), svm_pointers)
+        end
+        if !isempty(usm_pointers)
+            clSetKernelExecInfo(k, CL_KERNEL_EXEC_INFO_USM_PTRS_INTEL, sizeof(usm_pointers), usm_pointers)
+        end
     end
     enqueue_kernel(k, global_size, local_size; global_work_offset, wait_on)
 end
 
 # convert the argument values to match the kernel's signature (specified by the user)
 # (this mimics `lower-ccall` in julia-syntax.scm)
+clconvert(typ, arg) = Base.cconvert(typ, arg)
+unsafe_clconvert(typ, arg) = Base.unsafe_convert(typ, arg)
 @inline @generated function convert_arguments(f::Function, ::Type{tt}, args...) where {tt}
     types = tt.parameters
 
@@ -198,8 +250,8 @@ end
     for i in 1:length(args)
         converted_args[i] = gensym()
         arg_ptrs[i] = gensym()
-        push!(ex.args, :($(converted_args[i]) = Base.cconvert($(types[i]), args[$i])))
-        push!(ex.args, :($(arg_ptrs[i]) = Base.unsafe_convert($(types[i]), $(converted_args[i]))))
+        push!(ex.args, :($(converted_args[i]) = clconvert($(types[i]), args[$i])))
+        push!(ex.args, :($(arg_ptrs[i]) = unsafe_clconvert($(types[i]), $(converted_args[i]))))
     end
 
     append!(ex.args, (quote
@@ -210,6 +262,9 @@ end
 
     return ex
 end
+
+# memory should not be converted (yet), as we need to keep track of the memory type
+unsafe_clconvert(::Type{<:Union{Ptr, CLPtr}}, memory::AbstractMemory) = memory
 
 clcall(f::F, types::Tuple, args::Vararg{Any,N}; kwargs...) where {N,F} =
     clcall(f, _to_tuple_type(types), args...; kwargs...)

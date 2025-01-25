@@ -16,26 +16,30 @@ include("../lib/cl/CL.jl")
 export cl
 
 # device functionality
-include("device/runtime.jl")
 import SPIRVIntrinsics
 SPIRVIntrinsics.@import_all
 SPIRVIntrinsics.@reexport_public
+include("device/runtime.jl")
 include("device/array.jl")
 include("device/quirks.jl")
+
+# high level implementation
+include("memory.jl")
+include("array.jl")
 
 # compiler implementation
 include("compiler/compilation.jl")
 include("compiler/execution.jl")
 include("compiler/reflection.jl")
 
-# high-level functionality
+# integrations and specialized functionality
 include("util.jl")
-include("array.jl")
+include("broadcast.jl")
 include("mapreduce.jl")
 include("gpuarrays.jl")
+include("random.jl")
 
 include("OpenCLKernels.jl")
 import .OpenCLKernels: OpenCLBackend
 export OpenCLBackend
-
 end

@@ -2,15 +2,14 @@
 
 mutable struct CmdQueue <: CLObject
     const id::cl_command_queue
+    Base.@atomic valid::Bool
 
     function CmdQueue(q_id::cl_command_queue; retain::Bool=false)
-        q = new(q_id)
+        q = new(q_id, true)
         retain && clRetainCommandQueue(q)
         finalizer(q) do _
-          # this is to prevent `device_synchronize()` operating on freed queues.
-          # XXX: why does the WeakKeyDict contain freed objects?
-          delete!(cl.queues, q)
-          clReleaseCommandQueue(q)
+            Base.@atomic q.valid = false
+            clReleaseCommandQueue(q)
         end
         return q
     end

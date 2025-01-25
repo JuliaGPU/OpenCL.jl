@@ -51,14 +51,14 @@
 
         h_ones = ones(Float32, count)
 
-        A = CLArray(h_ones; access=:r)
-        B = CLArray(h_ones; access=:r)
-        C = CLArray{Float32}(undef, count; access=:w)
+        A = CLArray(h_ones)
+        B = CLArray(h_ones)
+        C = CLArray{Float32}(undef, count)
 
         # we use julia's index by one convention
-        @test cl.set_arg!(k, 1, buffer(A)) != nothing
-        @test cl.set_arg!(k, 2, buffer(B)) != nothing
-        @test cl.set_arg!(k, 3, buffer(C)) != nothing
+        @test cl.set_arg!(k, 1, A.data[].mem) != nothing
+        @test cl.set_arg!(k, 2, B.data[].mem) != nothing
+        @test cl.set_arg!(k, 3, C.data[].mem) != nothing
         @test cl.set_arg!(k, 4, UInt32(count)) != nothing
 
         cl.enqueue_kernel(k, count) |> wait
@@ -69,7 +69,7 @@
 
         # test set_args with new kernel
         k2 = cl.Kernel(prg, "sum")
-        cl.set_args!(k2, buffer(A), buffer(B), buffer(C), UInt32(count))
+        cl.set_args!(k2, A.data[].mem, B.data[].mem, C.data[].mem, UInt32(count))
 
         h_twos = fill(2f0, count)
         copyto!(A, h_twos)
@@ -107,7 +107,7 @@
         bad = tuple([1 for _ in 1:(max_work_dim + 1)])
 
         # calls are asynchronous, but cl.read blocks
-        clcall(k, Tuple{Ptr{Float32}}, d_arr)
+        clcall(k, Tuple{CLPtr{Float32}}, d_arr)
         @test Array(d_arr) == [2f0]
 
         # enqueue task is an alias for calling
@@ -132,7 +132,7 @@
         structkernel = cl.Kernel(prg, "structest")
         out = CLArray{Float32}(undef, 2)
         bstruct = (1, Int32(4))
-        clcall(structkernel, Tuple{Ptr{Float32}, Tuple{Int64, Cint}}, out, bstruct)
+        clcall(structkernel, Tuple{CLPtr{Float32}, Tuple{Int64, Cint}}, out, bstruct)
         @test Array(out) == [1f0, 4f0]
     end
 
@@ -155,7 +155,8 @@
         #       (only on some platforms)
         vec3_a = (1f0, 2f0, 3f0, 0f0)
         vec3_b = (4f0, 5f0, 6f0, 0f0)
-        clcall(vec3kernel, Tuple{Ptr{Float32}, NTuple{4,Float32}, NTuple{4,Float32}},
+        clcall(
+            vec3kernel, Tuple{CLPtr{Float32}, NTuple{4, Float32}, NTuple{4, Float32}},
                            out, vec3_a, vec3_b)
         @test Array(out) == [1f0, 2f0, 3f0, 4f0, 5f0, 6f0]
     end

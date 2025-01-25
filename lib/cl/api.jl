@@ -69,6 +69,22 @@ function retry_reclaim(f, isfailed)
     ret
 end
 
+macro ext_ccall(ex)
+    # decode the expression
+    @assert Meta.isexpr(ex, :(::))
+    call, ret = ex.args
+    @assert Meta.isexpr(call, :call)
+    target, argexprs... = call.args
+    @assert Meta.isexpr(target, :(.))
+    _, fn = target.args
+
+    @gensym fptr
+    esc(quote
+        $fptr = $clGetExtensionFunctionAddressForPlatform(platform(), $fn)
+        @ccall $(Expr(:($), fptr))($(argexprs...))::$ret
+    end)
+end
+
 include("libopencl.jl")
 
 @static if Sys.iswindows()
@@ -175,23 +191,5 @@ end
 function __init__()
     if !OpenCL_jll.is_available()
         @error "OpenCL_jll is not available for your platform, OpenCL.jl. will not work."
-    end
-
-    # ensure that operations executed by the REPL back-end finish before returning,
-    # because displaying values happens on a different task
-    if isdefined(Base, :active_repl_backend) && !isnothing(Base.active_repl_backend)
-        push!(Base.active_repl_backend.ast_transforms, synchronize_opencl_tasks)
-    end
-end
-
-function synchronize_opencl_tasks(ex)
-    quote
-        try
-            $(ex)
-        finally
-            if haskey($task_local_storage(), :CLDevice)
-                $device_synchronize()
-            end
-        end
     end
 end

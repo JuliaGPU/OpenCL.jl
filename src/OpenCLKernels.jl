@@ -22,8 +22,9 @@ KA.zeros(::OpenCLBackend, ::Type{T}, dims::Tuple) where T = OpenCL.zeros(T, dims
 KA.ones(::OpenCLBackend, ::Type{T}, dims::Tuple) where T = OpenCL.ones(T, dims)
 
 KA.get_backend(::CLArray) = OpenCLBackend()
+# TODO should be non-blocking
 KA.synchronize(::OpenCLBackend) = cl.finish(cl.queue())
-KA.supports_float64(::OpenCLBackend) = false  # XXX: this is platform/device dependent
+KA.supports_float64(::OpenCLBackend) = false  # TODO: Check if this is device dependent
 
 Adapt.adapt_storage(::OpenCLBackend, a::Array) = Adapt.adapt(CLArray, a)
 Adapt.adapt_storage(::OpenCLBackend, a::CLArray) = a
@@ -174,6 +175,6 @@ end
 
 ## Other
 
-KA.argconvert(::KA.Kernel{OpenCLBackend}, arg) = clconvert(arg)
+KA.argconvert(::KA.Kernel{OpenCLBackend}, arg) = OpenCL.kernel_convert(arg)
 
 end

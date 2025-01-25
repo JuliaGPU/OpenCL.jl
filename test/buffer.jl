@@ -78,54 +78,52 @@
 end
 
 
-@testset "SVMBuffer" begin
+@testset "SVM Buffer" begin
     # simple buffer
-    let buf = cl.SVMBuffer{Int}(1)
-        @test ndims(buf) == 1
-        @test eltype(buf) == Int
-        @test length(buf) == 1
+    let buf = cl.svm_alloc(sizeof(Int))
         @test sizeof(buf) == sizeof(Int)
     end
 
     # memory copy
-    let buf = cl.SVMBuffer{Int}(1)
+    let buf = cl.svm_alloc(sizeof(Int))
         ptr = pointer(buf)
 
         src = [42]
-        cl.enqueue_svm_memcpy(ptr, pointer(src), sizeof(src))
+        cl.enqueue_svm_copy(ptr, pointer(src), sizeof(src))
 
         dst = [0]
-        cl.enqueue_svm_memcpy(pointer(dst), ptr, sizeof(dst); blocking=true)
+        cl.enqueue_svm_copy(pointer(dst), ptr, sizeof(dst); blocking = true)
         @test dst == [42]
     end
 
     # memory map
-    let buf = cl.SVMBuffer{Int}(1)
+
+    let buf = cl.svm_alloc(sizeof(Int))
         ptr = pointer(buf)
 
         src = [42]
-        cl.enqueue_svm_memcpy(ptr, pointer(src), sizeof(src))
+        cl.enqueue_svm_copy(ptr, pointer(src), sizeof(src))
 
         evt = cl.enqueue_svm_map(ptr, sizeof(src), :rw)
         wait(evt)
-        mapped = unsafe_wrap(Array, ptr, 1; own=false)
+        mapped = unsafe_wrap(Array, Ptr{Int}(UInt(ptr)), 1; own = false)
         @test mapped[] == 42
         mapped[] = 100
         cl.enqueue_svm_unmap(ptr) |> cl.wait
 
         dst = [0]
-        cl.enqueue_svm_memcpy(pointer(dst), ptr, sizeof(dst); blocking=true)
+        cl.enqueue_svm_copy(pointer(dst), ptr, sizeof(dst); blocking = true)
         @test dst == [100]
     end
 
     # fill
-    let buf = cl.SVMBuffer{Int}(3)
+    let buf = cl.svm_alloc(3 * sizeof(Int))
         ptr = pointer(buf)
 
         cl.enqueue_svm_fill(ptr, 42, 3)
 
         dst = Vector{Int}(undef, 3)
-        cl.enqueue_svm_memcpy(pointer(dst), ptr, sizeof(dst); blocking=true)
+        cl.enqueue_svm_copy(pointer(dst), ptr, sizeof(dst); blocking = true)
         @test dst == [42,42,42]
     end
 end

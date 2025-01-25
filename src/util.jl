@@ -64,19 +64,28 @@ function versioninfo(io::IO=stdout)
         for device in cl.devices(platform)
             print(io, "   · $(device.name)")
 
-            ## list some relevant extensions
-            extensions = []
+            # show a list of tags
+            tags = []
+            ## memory back-end
+            backend = cl.default_memory_backend(device)
+            if backend == cl.SVMBackend()
+                push!(tags, "svm")
+            elseif backend == cl.USMBackend()
+                push!(tags, "usm")
+            end
+            ## relevant extensions
             if in("cl_khr_fp16", device.extensions)
-                push!(extensions, "fp16")
+                push!(tags, "fp16")
             end
             if in("cl_khr_fp64", device.extensions)
-                push!(extensions, "fp64")
+                push!(tags, "fp64")
             end
             if in("cl_khr_il_program", device.extensions)
-                push!(extensions, "il")
+                push!(tags, "il")
             end
-            if !isempty(extensions)
-                print(io, " (", join(extensions, ", "), ")")
+            ## render
+            if !isempty(tags)
+                print(io, " (", join(tags, ", "), ")")
             end
             println(io)
         end

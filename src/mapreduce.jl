@@ -91,7 +91,8 @@ end
 
 ## COV_EXCL_STOP
 
-function GPUArrays.mapreducedim!(f::F, op::OP, R::AnyCLArray{T},
+function GPUArrays.mapreducedim!(
+        f::F, op::OP, R::WrappedCLArray{T},
                                  A::Union{AbstractArray,Broadcast.Broadcasted};
                                  init=nothing) where {F, OP, T}
     Base.check_reducedims(R, A)
@@ -144,7 +145,7 @@ function GPUArrays.mapreducedim!(f::F, op::OP, R::AnyCLArray{T},
 
     # let the driver suggest a group size
     args = (f, op, init, Val(max_items), Rreduce, Rother, R′, A)
-    kernel_args = clconvert.(args)
+    kernel_args = kernel_convert.(args)
     kernel_tt = Tuple{Core.Typeof.(kernel_args)...}
     kernel = clfunction(partial_mapreduce_device, kernel_tt)
     wg_info = cl.work_group_info(kernel.fun, cl.device())
