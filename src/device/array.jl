@@ -223,7 +223,7 @@ Base.@propagate_inbounds Base.getindex(A::Const, i1::Integer) = const_arrayref(A
 Base.show(io::IO, a::CLDeviceVector) =
     print(io, "$(length(a))-element device array at $(pointer(a))")
 Base.show(io::IO, a::CLDeviceArray) =
-    print(io, "$(join(a.shape, '×')) device array at $(pointer(a))")
+    print(io, "$(join(size(a), '×')) device array at $(pointer(a))")
 
 Base.show(io::IO, mime::MIME"text/plain", a::CLDeviceArray) = show(io, a)
 
