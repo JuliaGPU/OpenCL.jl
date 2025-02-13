@@ -21,9 +21,9 @@ for (julia_name, (spirv_name, offset)) in [
         export $julia_name
         @device_function $julia_name() =
             Base.llvmcall(
-                $("""$gvar_name = external addrspace(1) global i32
+                $("""$gvar_name = external addrspace($(AS.Input)) global i32
                      define i32 @entry() #0 {
-                         %val = load i32, i32 addrspace(1)* $gvar_name
+                         %val = load i32, i32 addrspace($(AS.Input))* $gvar_name
                          ret i32 %val
                      }
                      attributes #0 = { alwaysinline }
@@ -48,9 +48,9 @@ for (julia_name, (spirv_name, offset)) in [
         export $julia_name
         @device_function $julia_name(dimindx::Integer=1) =
             Base.llvmcall(
-                $("""$gvar_name = external addrspace(1) global <3 x i32>
+                $("""$gvar_name = external addrspace($(AS.Input)) global <3 x i32>
                      define i32 @entry(i32 %idx) #0 {
-                         %val = load <3 x i32>, <3 x i32> addrspace(1)* $gvar_name
+                         %val = load <3 x i32>, <3 x i32> addrspace($(AS.Input))* $gvar_name
                          %element = extractelement <3 x i32> %val, i32 %idx
                          ret i32 %element
                      }
