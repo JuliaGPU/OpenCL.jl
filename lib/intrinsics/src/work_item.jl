@@ -17,17 +17,18 @@ for (julia_name, (spirv_name, offset)) in [
         :get_num_sub_groups             => (:BuiltInNumSubgroups, 0u32),
         :get_enqueued_num_sub_groups    => (:BuiltInNumEnqueuedSubgroups, 0u32)]
     gvar_name = Symbol("@__spirv_$(spirv_name)")
+    width = Int === Int64 ? 64 : 32
     @eval begin
         export $julia_name
         @device_function $julia_name() =
             Base.llvmcall(
-                $("""$gvar_name = external addrspace($(AS.Input)) global i32
-                     define i32 @entry() #0 {
-                         %val = load i32, i32 addrspace($(AS.Input))* $gvar_name
-                         ret i32 %val
+                $("""$gvar_name = external addrspace($(AS.Input)) global i$(width)
+                     define i$(width) @entry() #0 {
+                         %val = load i$(width), i$(width) addrspace($(AS.Input))* $gvar_name
+                         ret i$(width) %val
                      }
                      attributes #0 = { alwaysinline }
-                """, "entry"), UInt32, Tuple{}) % Int + $offset
+                """, "entry"), UInt, Tuple{}) % Int + $offset
     end
 end
 
@@ -44,17 +45,18 @@ for (julia_name, (spirv_name, offset)) in [
         :get_enqueued_local_size    => (:BuiltInEnqueuedWorkgroupSize, 0u32),
         :get_num_groups             => (:BuiltInNumWorkgroups, 0u32)]
     gvar_name = Symbol("@__spirv_$(spirv_name)")
+    width = Int === Int64 ? 64 : 32
     @eval begin
         export $julia_name
         @device_function $julia_name(dimindx::Integer=1) =
             Base.llvmcall(
-                $("""$gvar_name = external addrspace($(AS.Input)) global <3 x i32>
-                     define i32 @entry(i32 %idx) #0 {
-                         %val = load <3 x i32>, <3 x i32> addrspace($(AS.Input))* $gvar_name
-                         %element = extractelement <3 x i32> %val, i32 %idx
-                         ret i32 %element
+                $("""$gvar_name = external addrspace($(AS.Input)) global <3 x i$(width)>
+                     define i$(width) @entry(i$(width) %idx) #0 {
+                         %val = load <3 x i$(width)>, <3 x i$(width)> addrspace($(AS.Input))* $gvar_name
+                         %element = extractelement <3 x i$(width)> %val, i$(width) %idx
+                         ret i$(width) %element
                      }
                      attributes #0 = { alwaysinline }
-                """, "entry"), UInt32, Tuple{UInt32}, UInt32(dimindx - 1u32)) % Int + $offset
+                """, "entry"), UInt64, Tuple{UInt64}, UInt64(dimindx - 1u32)) % Int + $offset
     end
 end
