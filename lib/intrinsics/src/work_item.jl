@@ -57,6 +57,6 @@ for (julia_name, (spirv_name, offset)) in [
                          ret i$(width) %element
                      }
                      attributes #0 = { alwaysinline }
-                """, "entry"), UInt64, Tuple{UInt64}, UInt64(dimindx - 1u32)) % Int + $offset
+                """, "entry"), UInt, Tuple{UInt}, UInt(dimindx - 1u32)) % Int + $offset
     end
 end
