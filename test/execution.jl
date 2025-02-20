@@ -93,7 +93,7 @@ end
 
     @test OpenCL.return_type(identity, Tuple{Int}) === Int
     @test OpenCL.return_type(sin, Tuple{Float32}) === Float32
-    @test OpenCL.return_type(getindex, Tuple{CLDeviceArray{Float32,1,AS.Global},Int32}) === Float32
+    @test OpenCL.return_type(getindex, Tuple{CLDeviceArray{Float32,1,AS.CrossWorkgroup},Int32}) === Float32
     @test OpenCL.return_type(getindex, Tuple{Base.RefValue{Integer}}) === Integer
 end
 
