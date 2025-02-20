@@ -32,6 +32,7 @@ if do_help
 
                --help             Show this text.
                --list             List all available tests.
+               --verbose          Print more information during testing.
                --quickfail        Fail the entire run as soon as a single test errored.
                --jobs=N           Launch `N` processes to perform tests (default: Sys.CPU_THREADS).
                --platform=NAME    Run tests on the platform named `NAME` (default: all platforms).
@@ -40,6 +41,7 @@ if do_help
     exit(0)
 end
 _, jobs = extract_flag!(ARGS, "--jobs", Sys.CPU_THREADS)
+do_verbose, _ = extract_flag!(ARGS, "--verbose")
 do_quickfail, _ = extract_flag!(ARGS, "--quickfail")
 
 include("setup.jl")     # make sure everything is precompiled
@@ -178,6 +180,16 @@ function print_testworker_stats(test, wrkr, resp)
     end
 end
 global print_testworker_started = (name, wrkr)->begin
+    if do_verbose
+        lock(print_lock)
+        try
+            printstyled(name, color=:white)
+            printstyled(lpad("($wrkr)", name_align - textwidth(name) + 1, " "), " |",
+                " "^elapsed_align, "started at $(now())\n", color=:white)
+        finally
+            unlock(print_lock)
+        end
+    end
 end
 function print_testworker_errored(name, wrkr)
     lock(print_lock)
