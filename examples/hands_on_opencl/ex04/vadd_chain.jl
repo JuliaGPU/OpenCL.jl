@@ -62,14 +62,14 @@ h_g = rand(Float32, LENGTH)
 # {:use (use host buffer), :alloc (alloc pinned memory), :copy (default)}
 
 # Create the input (a, b, e, g) arrays in device memory and copy data from host
-d_a = CLArray(h_a; access=:r)
-d_b = CLArray(h_b; access=:r)
-d_e = CLArray(h_e; access=:r)
-d_g = CLArray(h_g; access=:r)
+d_a = CLArray(h_a)
+d_b = CLArray(h_b)
+d_e = CLArray(h_e)
+d_g = CLArray(h_g)
 # Create the output (c, d, f) array in device memory
-d_c = CLArray{Float32}(undef, LENGTH; access=:w)
-d_d = CLArray{Float32}(undef, LENGTH; access=:w)
-d_f = CLArray{Float32}(undef, LENGTH; access=:w)
+d_c = CLArray{Float32}(undef, LENGTH)
+d_d = CLArray{Float32}(undef, LENGTH)
+d_f = CLArray{Float32}(undef, LENGTH)
 
 # create the kernel
 vadd = cl.Kernel(program, "vadd")

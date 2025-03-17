@@ -95,7 +95,7 @@ h_psum = Vector{Float32}(undef, nwork_groups)
 println("$nwork_groups work groups of size $work_group_size.")
 println("$nsteps integration steps")
 
-d_partial_sums = CLArray{Float32}(undef, length(h_psum); access=:w)
+d_partial_sums = CLArray{Float32}(undef, length(h_psum))
 
 # start timer
 rtime = time()

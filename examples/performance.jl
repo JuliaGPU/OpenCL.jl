@@ -74,9 +74,9 @@ function cl_performance(ndatapts::Integer, nworkers::Integer)
                 continue
             end
 
-            da = CLArray(a; access=:r)
-            db = CLArray(b; access=:r)
-            dc = CLArray{Float32}(undef, length(a); access=:w)
+            da = CLArray(a)
+            db = CLArray(b)
+            dc = CLArray{Float32}(undef, length(a))
 
             prg  = cl.Program(source=bench_kernel) |> cl.build!
             kern = cl.Kernel(prg, "sum")

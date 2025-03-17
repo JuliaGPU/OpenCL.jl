@@ -86,9 +86,9 @@ for i in 1:COUNT
 end
 
 # create OpenCL array
-d_a = CLArray(h_A; access=:r)
-d_b = CLArray(h_B; access=:r)
-d_c = CLArray{Float32}(undef, length(h_C); access=:w)
+d_a = CLArray(h_A)
+d_b = CLArray(h_B)
+d_c = CLArray{Float32}(undef, length(h_C))
 
 #--------------------------------------------------------------------------------
 # OpenCL matrix multiplication ... Naive
