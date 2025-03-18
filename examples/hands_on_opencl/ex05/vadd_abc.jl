@@ -47,12 +47,12 @@ h_a = rand(Float32, LENGTH)
 h_b = rand(Float32, LENGTH)
 h_c = rand(Float32, LENGTH)
 
-d_a = CLArray(h_a; access=:r)
-d_b = CLArray(h_b; access=:r)
-d_c = CLArray(h_c; access=:r)
+d_a = CLArray(h_a)
+d_b = CLArray(h_b)
+d_c = CLArray(h_c)
 
 # create the output (r) buffer in device memory
-d_r = CLArray{Float32}(undef, LENGTH; access=:w)
+d_r = CLArray{Float32}(undef, LENGTH)
 
 # create the kernel
 vadd = cl.Kernel(program, "vadd")

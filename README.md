@@ -75,9 +75,9 @@ const source = """
 a = rand(Float32, 50_000)
 b = rand(Float32, 50_000)
 
-d_a = CLArray(a; access=:r)
-d_b = CLArray(b; access=:r)
-d_c = similar(d_a; access=:w)
+d_a = CLArray(a)
+d_b = CLArray(b)
+d_c = similar(d_a)
 
 p = cl.Program(; source) |> cl.build!
 k = cl.Kernel(p, "vadd")
@@ -107,9 +107,9 @@ end
 a = rand(Float32, 50_000)
 b = rand(Float32, 50_000)
 
-d_a = CLArray(a; access=:r)
-d_b = CLArray(b; access=:r)
-d_c = similar(d_a; access=:w)
+d_a = CLArray(a)
+d_b = CLArray(b)
+d_c = similar(d_a)
 
 @opencl global_size=size(a) vadd(d_a, d_b, d_c)
 
