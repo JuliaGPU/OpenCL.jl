@@ -151,6 +151,8 @@ else
 
 @info("=== OpenCL, matrix mult, C row, priv A, B, cols loc, order $Ndim ====")
 
+ORDER = 2
+
 for i in 1:COUNT
     fill!(h_C, 0.0)
     localmem = cl.LocalMem(Float32, Pdim)

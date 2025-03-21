@@ -106,6 +106,6 @@ end
 # N_WORKERS has to be less than or equal to the device's max work group size
 # ex. N_WORKERS = 1 is non parallel execution on the gpu
 
-const N_DATA_PTS = Int(2^23) # ~8 million
-const N_WORKERS  = Int(2^7)
+const N_DATA_PTS = Int(2^2) # ~8 million
+const N_WORKERS  = Int(2^2)
 cl_performance(N_DATA_PTS, N_WORKERS)

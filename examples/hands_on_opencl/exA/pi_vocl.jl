@@ -27,6 +27,7 @@ if length(ARGS) < 1
     exit(1)
 end
 vector_size = parse(Int, ARGS[1])
+vector_size = 8
 
 if vector_size == 1
         ITERS = 262144
@@ -68,13 +69,11 @@ end
 nwork_groups = in_nsteps ÷ (work_group_size * niters)
 
 # get the max work group size for the kernel on our device
-if vector_size == 1
-    max_size = cl.work_group_info(pi_kernel, cl.device()).size
-elseif vector_size == 4
-    max_size = cl.work_group_info(pi_kernel, cl.device()).size
-elseif vector_size == 8
-    max_size = cl.work_group_info(pi_kernel, cl.device()).size
-end
+max_size = cl.work_group_info(pi_kernel, cl.device()).size
+cl.work_group_info(pi_kernel, cl.device()).prefered_size_multiple
+cl.work_group_info(pi_kernel, cl.device()).private_mem_size
+cl.work_group_info(pi_kernel, cl.device()).local_mem_size
+cl.work_group_info(pi_kernel, cl.device()).compile_size
 
 if max_size > work_group_size
     work_group_size = max_size
