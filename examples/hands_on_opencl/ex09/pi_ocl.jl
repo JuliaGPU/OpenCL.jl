@@ -18,15 +18,15 @@ src_dir = dirname(Base.source_path())
 
 #
 # Some constant values
-const INSTEPS = 512*512*512
-const ITERS = 262144
+INSTEPS = 512*512*512
+ITERS = 262144
 
 # Set some default values:
 # Default number of steps (updated later to device prefereable)
-const in_nsteps = INSTEPS
+in_nsteps = INSTEPS
 
 # Default number of iterations
-const niters = ITERS
+niters = ITERS
 
 kernelsource = read(joinpath(src_dir, "pi_ocl.cl"), String)
 program = cl.Program(source=kernelsource) |> cl.build!

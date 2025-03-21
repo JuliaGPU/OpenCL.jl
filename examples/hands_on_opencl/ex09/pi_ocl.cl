@@ -35,6 +35,8 @@ __kernel void pi(
 
    for(i= istart; i<iend; i++){
        x = (i+0.5f)*step_size;
+       // arctan(x)' = 1 / (1 + x^2)
+       // pi/4 = arctan(1)
        accum += 4.0f/(1.0f+x*x);
    }
 
