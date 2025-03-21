@@ -159,7 +159,7 @@ for i in 1:COUNT
         global_size = (Ndim,)
         local_size = (div(ORDER, 16),)
 
-        evt = clcall(mmul, Tuple{Int32, Int32, Int32, Ptr{Float32}, Ptr{Float32}, Ptr{Float32}, cl.LocalMem{Float32}},
+        evt = clcall(mmul, Tuple{Int32, Int32, Int32, Ptr{Float32}, Ptr{Float32}, Ptr{Float32}, CLPtr{Float32}},
                      Mdim, Ndim, Pdim, d_a, d_b, d_c, localmem; global_size, local_size)
         wait(evt)
 
