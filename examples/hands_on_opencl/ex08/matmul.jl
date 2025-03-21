@@ -139,7 +139,7 @@ for i in 1:COUNT
 end
 
 #--------------------------------------------------------------------------------
-# OpenCL matrix multiplication ... C row per work item, A row in pivate memory
+# OpenCL matrix multiplication ... C row per work item, A row in private memory
 #--------------------------------------------------------------------------------
 kernel_source = read(joinpath(src_dir, "C_row_priv_block.cl"), String)
 prg  = cl.Program(source=kernel_source) |> cl.build!
@@ -172,7 +172,7 @@ end
 end
 
 #--------------------------------------------------------------------------------
-# OpenCL matrix multiplication ... C row per work item, A row pivate, B col local
+# OpenCL matrix multiplication ... C row per work item, A row private, B col local
 #--------------------------------------------------------------------------------
 kernel_source = read(joinpath(src_dir, "C_block_form.cl"), String)
 prg  = cl.Program(source=kernel_source) |> cl.build!
