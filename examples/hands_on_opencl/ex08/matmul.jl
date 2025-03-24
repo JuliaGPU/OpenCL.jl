@@ -103,7 +103,7 @@ mmul = cl.Kernel(prg, "mmul")
 for i in 1:COUNT
     fill!(h_C, 0.0)
     cl.queue!(:profile) do
-        evt = clcall(mmul, Tuple{Int32, Int32, Int32, Ptr{Float32}, Ptr{Float32}, Ptr{Float32}},
+        evt = clcall(mmul, Tuple{Int32, Int32, Int32, CLPtr{Float32}, CLPtr{Float32}, CLPtr{Float32}},
                      Mdim, Ndim, Pdim, d_a, d_b, d_c; global_size=(Ndim, Mdim))
         wait(evt)
 
@@ -127,7 +127,7 @@ mmul = cl.Kernel(prg, "mmul")
 for i in 1:COUNT
     fill!(h_C, 0.0)
     cl.queue!(:profile) do
-        evt = clcall(mmul, Tuple{Int32, Int32, Int32, Ptr{Float32}, Ptr{Float32}, Ptr{Float32}},
+        evt = clcall(mmul, Tuple{Int32, Int32, Int32, CLPtr{Float32}, CLPtr{Float32}, CLPtr{Float32}},
                      Mdim, Ndim, Pdim, d_a, d_b, d_c; global_size=Ndim, local_size=(ORDER ÷ 16))
         wait(evt)
 
@@ -159,7 +159,7 @@ for i in 1:COUNT
         global_size = (Ndim,)
         local_size = (div(ORDER, 16),)
 
-        evt = clcall(mmul, Tuple{Int32, Int32, Int32, Ptr{Float32}, Ptr{Float32}, Ptr{Float32}, CLPtr{Float32}},
+        evt = clcall(mmul, Tuple{Int32, Int32, Int32, CLPtr{Float32}, CLPtr{Float32}, CLPtr{Float32}, CLPtr{Float32}},
                      Mdim, Ndim, Pdim, d_a, d_b, d_c, localmem; global_size, local_size)
         wait(evt)
 
@@ -190,7 +190,7 @@ for i in 1:COUNT
     localmem1 = cl.LocalMem(Float32, blocksize^2)
     localmem2 = cl.LocalMem(Float32, blocksize^2)
     cl.queue!(:profile) do
-        evt = clcall(mmul, Tuple{Int32, Int32, Int32, Ptr{Float32}, Ptr{Float32}, Ptr{Float32}, Ptr{Float32}, Ptr{Float32}},
+        evt = clcall(mmul, Tuple{Int32, Int32, Int32, CLPtr{Float32}, CLPtr{Float32}, CLPtr{Float32}, CLPtr{Float32}, CLPtr{Float32}},
                      Mdim, Ndim, Pdim, d_a, d_b, d_c, localmem1, localmem2; global_size=Ndim, local_size=(ORDER ÷ 16))
         wait(evt)
 
