@@ -1,3 +1,5 @@
 [deps]
-PyPlot = "d330b81b-6aea-500a-939a-2ce795aea3ee"
+CairoMakie = "13f3f980-e62b-5c42-98c6-ff1f3baf88f0"
+Makie = "ee78f7c6-11fb-53f2-987a-cfe4a2b5a57a"
+OpenCL = "08131aa3-fb12-5dee-8b74-c09406e224a2"
 pocl_jll = "627d6b7a-bbe6-5189-83e7-98cc0a5aeadd"
