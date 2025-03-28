@@ -86,9 +86,9 @@ for i in 1:COUNT
 end
 
 # create OpenCL array
-d_a = CLArray(h_A; access=:r)
-d_b = CLArray(h_B; access=:r)
-d_c = CLArray{Float32}(undef, length(h_C); access=:w)
+d_a = CLArray(h_A)
+d_b = CLArray(h_B)
+d_c = CLArray{Float32}(undef, length(h_C))
 
 #--------------------------------------------------------------------------------
 # OpenCL matrix multiplication ... Naive
@@ -103,7 +103,7 @@ mmul = cl.Kernel(prg, "mmul")
 for i in 1:COUNT
     fill!(h_C, 0.0)
     cl.queue!(:profile) do
-        evt = clcall(mmul, Tuple{Int32, Int32, Int32, Ptr{Float32}, Ptr{Float32}, Ptr{Float32}},
+        evt = clcall(mmul, Tuple{Int32, Int32, Int32, CLPtr{Float32}, CLPtr{Float32}, CLPtr{Float32}},
                      Mdim, Ndim, Pdim, d_a, d_b, d_c; global_size=(Ndim, Mdim))
         wait(evt)
 
@@ -130,7 +130,7 @@ for i in 1:COUNT
     local_size = (div(ORDER, 16),)
 
     cl.queue!(:profile) do
-        evt = clcall(mmul, Tuple{Int32, Int32, Int32, Ptr{Float32}, Ptr{Float32}, Ptr{Float32}},
+        evt = clcall(mmul, Tuple{Int32, Int32, Int32, CLPtr{Float32}, CLPtr{Float32}, CLPtr{Float32}},
                      Mdim, Ndim, Pdim, d_a, d_b, d_c; global_size, local_size)
         wait(evt)
 
@@ -142,7 +142,7 @@ for i in 1:COUNT
 end
 
 #--------------------------------------------------------------------------------
-# OpenCL matrix multiplication ... C row per work item, A row in pivate memory
+# OpenCL matrix multiplication ... C row per work item, A row in private memory
 #--------------------------------------------------------------------------------
 kernel_source = read(joinpath(src_dir, "C_row_priv.cl"), String)
 prg  = cl.Program(source=kernel_source) |> cl.build!
@@ -158,7 +158,7 @@ for i in 1:COUNT
     fill!(h_C, 0.0)
 
     cl.queue!(:profile) do
-        evt = clcall(mmul, Tuple{Int32, Int32, Int32, Ptr{Float32}, Ptr{Float32}, Ptr{Float32}},
+        evt = clcall(mmul, Tuple{Int32, Int32, Int32, CLPtr{Float32}, CLPtr{Float32}, CLPtr{Float32}},
                      Mdim, Ndim, Pdim, d_a, d_b, d_c; global_size=Ndim, local_size=ORDER)
         wait(evt)
 

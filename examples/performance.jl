@@ -74,9 +74,9 @@ function cl_performance(ndatapts::Integer, nworkers::Integer)
                 continue
             end
 
-            da = CLArray(a; access=:r)
-            db = CLArray(b; access=:r)
-            dc = CLArray{Float32}(undef, length(a); access=:w)
+            da = CLArray(a)
+            db = CLArray(b)
+            dc = CLArray{Float32}(undef, length(a))
 
             prg  = cl.Program(source=bench_kernel) |> cl.build!
             kern = cl.Kernel(prg, "sum")
@@ -87,7 +87,7 @@ function cl_performance(ndatapts::Integer, nworkers::Integer)
 
             cl.queue!(:profile) do
                 # call the kernel
-                evt = clcall(kern, Tuple{Ptr{Float32}, Ptr{Float32}, Ptr{Float32}},
+                evt = clcall(kern, Tuple{CLPtr{Float32}, CLPtr{Float32}, CLPtr{Float32}},
                              da, db, dc; global_size, local_size)
                 wait(evt)
 

@@ -105,9 +105,9 @@ for i in 1:COUNT
 end
 
 # create OpenCL arrays
-d_a = CLArray(h_A; access=:r)
-d_b = CLArray(h_B; access=:r)
-d_c = CLArray{Float32}(undef, length(h_C); access=:w)
+d_a = CLArray(h_A)
+d_b = CLArray(h_B)
+d_c = CLArray{Float32}(undef, length(h_C))
 
 prg  = cl.Program(source=kernel_source) |> cl.build!
 mmul = cl.Kernel(prg, "mmul")
@@ -122,7 +122,7 @@ for i in 1:COUNT
     # You can enable profiling events on the queue
     # by calling the constructor with the :profile flag
     cl.queue!(:profile) do
-        evt = clcall(mmul, Tuple{Int32, Int32, Int32, Ptr{Float32}, Ptr{Float32}, Ptr{Float32}},
+        evt = clcall(mmul, Tuple{Int32, Int32, Int32, CLPtr{Float32}, CLPtr{Float32}, CLPtr{Float32}},
                      Mdim, Ndim, Pdim, d_a, d_b, d_c; global_size)
         wait(evt)
 

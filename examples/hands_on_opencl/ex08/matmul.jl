@@ -86,9 +86,9 @@ for i in 1:COUNT
 end
 
 # create OpenCL array
-d_a = CLArray(h_A; access=:r)
-d_b = CLArray(h_B; access=:r)
-d_c = CLArray{Float32}(undef, length(h_C); access=:w)
+d_a = CLArray(h_A)
+d_b = CLArray(h_B)
+d_c = CLArray{Float32}(undef, length(h_C))
 
 #--------------------------------------------------------------------------------
 # OpenCL matrix multiplication ... Naive
@@ -103,7 +103,7 @@ mmul = cl.Kernel(prg, "mmul")
 for i in 1:COUNT
     fill!(h_C, 0.0)
     cl.queue!(:profile) do
-        evt = clcall(mmul, Tuple{Int32, Int32, Int32, Ptr{Float32}, Ptr{Float32}, Ptr{Float32}},
+        evt = clcall(mmul, Tuple{Int32, Int32, Int32, CLPtr{Float32}, CLPtr{Float32}, CLPtr{Float32}},
                      Mdim, Ndim, Pdim, d_a, d_b, d_c; global_size=(Ndim, Mdim))
         wait(evt)
 
@@ -127,7 +127,7 @@ mmul = cl.Kernel(prg, "mmul")
 for i in 1:COUNT
     fill!(h_C, 0.0)
     cl.queue!(:profile) do
-        evt = clcall(mmul, Tuple{Int32, Int32, Int32, Ptr{Float32}, Ptr{Float32}, Ptr{Float32}},
+        evt = clcall(mmul, Tuple{Int32, Int32, Int32, CLPtr{Float32}, CLPtr{Float32}, CLPtr{Float32}},
                      Mdim, Ndim, Pdim, d_a, d_b, d_c; global_size=Ndim, local_size=(ORDER ÷ 16))
         wait(evt)
 
@@ -139,7 +139,7 @@ for i in 1:COUNT
 end
 
 #--------------------------------------------------------------------------------
-# OpenCL matrix multiplication ... C row per work item, A row in pivate memory
+# OpenCL matrix multiplication ... C row per work item, A row in private memory
 #--------------------------------------------------------------------------------
 kernel_source = read(joinpath(src_dir, "C_row_priv_block.cl"), String)
 prg  = cl.Program(source=kernel_source) |> cl.build!
@@ -159,7 +159,7 @@ for i in 1:COUNT
         global_size = (Ndim,)
         local_size = (div(ORDER, 16),)
 
-        evt = clcall(mmul, Tuple{Int32, Int32, Int32, Ptr{Float32}, Ptr{Float32}, Ptr{Float32}, cl.LocalMem{Float32}},
+        evt = clcall(mmul, Tuple{Int32, Int32, Int32, CLPtr{Float32}, CLPtr{Float32}, CLPtr{Float32}, CLPtr{Float32}},
                      Mdim, Ndim, Pdim, d_a, d_b, d_c, localmem; global_size, local_size)
         wait(evt)
 
@@ -172,7 +172,7 @@ end
 end
 
 #--------------------------------------------------------------------------------
-# OpenCL matrix multiplication ... C row per work item, A row pivate, B col local
+# OpenCL matrix multiplication ... C row per work item, A row private, B col local
 #--------------------------------------------------------------------------------
 kernel_source = read(joinpath(src_dir, "C_block_form.cl"), String)
 prg  = cl.Program(source=kernel_source) |> cl.build!
@@ -190,7 +190,7 @@ for i in 1:COUNT
     localmem1 = cl.LocalMem(Float32, blocksize^2)
     localmem2 = cl.LocalMem(Float32, blocksize^2)
     cl.queue!(:profile) do
-        evt = clcall(mmul, Tuple{Int32, Int32, Int32, Ptr{Float32}, Ptr{Float32}, Ptr{Float32}, Ptr{Float32}, Ptr{Float32}},
+        evt = clcall(mmul, Tuple{Int32, Int32, Int32, CLPtr{Float32}, CLPtr{Float32}, CLPtr{Float32}, CLPtr{Float32}, CLPtr{Float32}},
                      Mdim, Ndim, Pdim, d_a, d_b, d_c, localmem1, localmem2; global_size=Ndim, local_size=(ORDER ÷ 16))
         wait(evt)
 
