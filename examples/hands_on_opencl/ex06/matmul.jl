@@ -122,7 +122,7 @@ for i in 1:COUNT
     # You can enable profiling events on the queue
     # by calling the constructor with the :profile flag
     cl.queue!(:profile) do
-        evt = clcall(mmul, Tuple{Int32, Int32, Int32, Ptr{Float32}, Ptr{Float32}, Ptr{Float32}},
+        evt = clcall(mmul, Tuple{Int32, Int32, Int32, CLPtr{Float32}, CLPtr{Float32}, CLPtr{Float32}},
                      Mdim, Ndim, Pdim, d_a, d_b, d_c; global_size)
         wait(evt)
 

@@ -87,7 +87,7 @@ d_c = similar(d_a)
 p = cl.Program(; source) |> cl.build!
 k = cl.Kernel(p, "vadd")
 
-clcall(k, Tuple{Ptr{Float32}, Ptr{Float32}, Ptr{Float32}},
+clcall(k, Tuple{CLPtr{Float32}, CLPtr{Float32}, CLPtr{Float32}},
        d_a, d_b, d_c; global_size=size(a))
 
 c = Array(d_c)

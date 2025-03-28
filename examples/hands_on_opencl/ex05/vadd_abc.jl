@@ -58,7 +58,7 @@ d_r = CLArray{Float32}(undef, LENGTH)
 vadd = cl.Kernel(program, "vadd")
 
 # execute the kernel over the entire range of the input
-clcall(vadd, Tuple{Ptr{Float32}, Ptr{Float32}, Ptr{Float32}, Ptr{Float32}, Cuint},
+clcall(vadd, Tuple{CLPtr{Float32}, CLPtr{Float32}, CLPtr{Float32}, CLPtr{Float32}, Cuint},
        d_a, d_b, d_c, d_r, UInt32(LENGTH); global_size=size(h_a))
 
 # read the results back from the compute device
