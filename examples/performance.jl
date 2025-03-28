@@ -87,7 +87,7 @@ function cl_performance(ndatapts::Integer, nworkers::Integer)
 
             cl.queue!(:profile) do
                 # call the kernel
-                evt = clcall(kern, Tuple{Ptr{Float32}, Ptr{Float32}, Ptr{Float32}},
+                evt = clcall(kern, Tuple{CLPtr{Float32}, CLPtr{Float32}, CLPtr{Float32}},
                              da, db, dc; global_size, local_size)
                 wait(evt)
 

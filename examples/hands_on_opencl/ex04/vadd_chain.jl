@@ -81,11 +81,11 @@ vadd = cl.Kernel(program, "vadd")
 # here we call the kernel with work size set to the number of elements and no local
 # work size. This enables the opencl runtime to optimize the local size for simple
 # kernels
-clcall(vadd, Tuple{Ptr{Float32}, Ptr{Float32}, Ptr{Float32}, Cuint},
+clcall(vadd, Tuple{CLPtr{Float32}, CLPtr{Float32}, CLPtr{Float32}, Cuint},
        d_a, d_b, d_c, LENGTH; global_size=size(h_a))
-clcall(vadd, Tuple{Ptr{Float32}, Ptr{Float32}, Ptr{Float32}, Cuint},
+clcall(vadd, Tuple{CLPtr{Float32}, CLPtr{Float32}, CLPtr{Float32}, Cuint},
        d_e, d_c, d_d, LENGTH; global_size=size(h_e))
-clcall(vadd, Tuple{Ptr{Float32}, Ptr{Float32}, Ptr{Float32}, Cuint},
+clcall(vadd, Tuple{CLPtr{Float32}, CLPtr{Float32}, CLPtr{Float32}, Cuint},
        d_g, d_d, d_f, LENGTH; global_size=size(h_g))
 
 # copy back the results from the compute device
