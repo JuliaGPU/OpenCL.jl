@@ -55,6 +55,11 @@ Available platforms: 3
    · Intel(R) Arc(TM) A770 Graphics (fp16, il)
 ```
 
+> [!WARNING]
+> OpenCL is only computing the list of platforms [once](https://github.com/KhronosGroup/OpenCL-ICD-Loader/blob/d547426c32f9af274ec1369acd1adcfd8fe0ee40/loader/linux/icd_linux.c#L234-L238).
+> Therefore if `using pocl_jll` is executed after `OpenCL.versioninfo()` or other calls to the OpenCL API
+> then it won't affect the list of platforms available and you will need to restart the Julia session
+> and run `using pocl_jll` before `OpenCL` is used.
 
 ## Basic example: vector add
 
