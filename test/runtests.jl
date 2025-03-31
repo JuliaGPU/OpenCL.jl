@@ -30,12 +30,13 @@ if do_help
     println("""
         Usage: runtests.jl [--help] [--list] [--jobs=N] [TESTS...]
 
-               --help             Show this text.
-               --list             List all available tests.
-               --verbose          Print more information during testing.
-               --quickfail        Fail the entire run as soon as a single test errored.
-               --jobs=N           Launch `N` processes to perform tests (default: Sys.CPU_THREADS).
-               --platform=NAME    Run tests on the platform named `NAME` (default: all platforms).
+               --help                        Show this text.
+               --list                        List all available tests.
+               --verbose                     Print more information during testing.
+               --quickfail                   Fail the entire run as soon as a single test errored.
+               --jobs=N                      Launch `N` processes to perform tests (default: Sys.CPU_THREADS).
+               --platform=NAME               Run tests on the platform named `NAME` (default: all platforms).
+               --check-bounds={yes*|no|auto} Julia is launched with this argument
 
                Remaining arguments filter the tests that will be executed.""")
     exit(0)
@@ -121,7 +122,8 @@ const test_exeflags = Base.julia_cmd()
 filter!(test_exeflags.exec) do c
     return !(startswith(c, "--depwarn") || startswith(c, "--check-bounds"))
 end
-push!(test_exeflags.exec, "--check-bounds=auto")
+_, check_bounds = extract_flag!(ARGS, "--check-bounds", "yes")
+push!(test_exeflags.exec, "--check-bounds=$check_bounds")
 push!(test_exeflags.exec, "--startup-file=no")
 push!(test_exeflags.exec, "--depwarn=yes")
 push!(test_exeflags.exec, "--project=$(Base.active_project())")
