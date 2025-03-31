@@ -94,8 +94,8 @@ for gentype in generic_types
     cosval = Ref{$gentype}()
     sinval = GC.@preserve cosval begin
         ptr = Base.unsafe_convert(Ptr{$gentype}, cosval)
-        llvm_ptr = reinterpret(LLVMPtr{$gentype, AS.Private}, ptr)
-        @builtin_ccall("sincos", $gentype, ($gentype, LLVMPtr{$gentype, AS.Private}), x, llvm_ptr)
+        llvm_ptr = reinterpret(LLVMPtr{$gentype, AS.Function}, ptr)
+        @builtin_ccall("sincos", $gentype, ($gentype, LLVMPtr{$gentype, AS.Function}), x, llvm_ptr)
     end
     return sinval, cosval[]
 end
