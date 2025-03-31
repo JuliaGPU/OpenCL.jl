@@ -121,7 +121,7 @@ const test_exeflags = Base.julia_cmd()
 filter!(test_exeflags.exec) do c
     return !(startswith(c, "--depwarn") || startswith(c, "--check-bounds"))
 end
-#push!(test_exeflags.exec, "--check-bounds=yes")
+push!(test_exeflags.exec, "--check-bounds=auto")
 push!(test_exeflags.exec, "--startup-file=no")
 push!(test_exeflags.exec, "--depwarn=yes")
 push!(test_exeflags.exec, "--project=$(Base.active_project())")
