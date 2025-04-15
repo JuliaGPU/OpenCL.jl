@@ -65,9 +65,8 @@ jobs:
                 "CMake_jll",
               ])
               # versioned
-              Pkg.add(name="LLVM_full_jll", version="19")
-              llvm_version = "$(Base.libllvm_version.major).$(Base.libllvm_version.minor)"
-              Pkg.add(name="SPIRV_LLVM_Translator_jll", version=llvm_version)'
+              Pkg.add(name="LLVM_full_jll", version="20")
+              Pkg.add(name="SPIRV_LLVM_Translator_jll", version="20")'
       - name: Build PoCL
         if: ${{ matrix.pocl == 'local' }}
         run: |
