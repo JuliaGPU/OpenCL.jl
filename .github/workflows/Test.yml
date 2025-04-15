@@ -42,7 +42,8 @@ jobs:
         if: ${{ matrix.pocl == 'local' }}
         uses: actions/checkout@v4
         with:
-          repository: pocl/pocl
+          repository: pjaaskel/pocl
+          ref: UnreachableToReturns-fixes
           path: pocl
       - name: Install system dependencies
         if: ${{ matrix.pocl == 'local' }}
