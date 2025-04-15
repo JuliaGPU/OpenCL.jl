@@ -65,7 +65,7 @@ jobs:
                 "CMake_jll",
               ])
               # versioned
-              Pkg.add(name="LLVM_full_jll", version=v"19")
+              Pkg.add(name="LLVM_full_jll", version="19")
               llvm_version = "$(Base.libllvm_version.major).$(Base.libllvm_version.minor)"
               Pkg.add(name="SPIRV_LLVM_Translator_jll", version=llvm_version)'
       - name: Build PoCL
