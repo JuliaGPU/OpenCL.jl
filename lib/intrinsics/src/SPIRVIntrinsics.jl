@@ -7,12 +7,7 @@ import ExprTools
 
 import SpecialFunctions
 
-# helper type for writing UInt32/Int32 literals
-# TODO: upstream this
-struct Literal{T} end
-Base.:(*)(x::Number, ::Type{Literal{T}}) where {T} = T(x)
-const i32 = Literal{Int32}
-const u32 = Literal{UInt32}
+using GPUToolbox
 
 include("pointer.jl")
 include("utils.jl")
