@@ -13,7 +13,7 @@ concurrency:
 
 jobs:
   test:
-    name: Julia ${{ matrix.version }} - ${{ matrix.os }} - ${{ matrix.arch }}
+    name: Julia ${{ matrix.version }} - ${{ matrix.os }} - ${{ matrix.arch }} - PoCL ${{ matrix.pocl }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -21,14 +21,101 @@ jobs:
         version: ['1.10', '1.11']
         os: ['ubuntu-latest', 'macOS-latest']
         arch: [x64]
+        pocl: [jll]
+        include:
+          - version: '1.10'
+            os: ubuntu-latest
+            arch: x64
+            pocl: local
+          - version: '1.11'
+            os: ubuntu-latest
+            arch: x64
+            pocl: local
     steps:
-      - uses: actions/checkout@v4
-      - uses: julia-actions/setup-julia@v2
+      - name: Checkout OpenCL.jl
+        uses: actions/checkout@v4
+
+      - name: Setup Julia
+        uses: julia-actions/setup-julia@v2
         with:
           version: ${{ matrix.version }}
           arch: ${{ matrix.arch }}
-      - uses: julia-actions/cache@v2
-      - run: |
+
+      - name: Setup Julia cache
+        uses: julia-actions/cache@v2
+
+      - name: Checkout PoCL
+        if: ${{ matrix.pocl == 'local' }}
+        uses: actions/checkout@v4
+        with:
+          repository: pocl/pocl
+          path: pocl
+
+      - name: Install system dependencies
+        if: ${{ matrix.pocl == 'local' }}
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake ninja-build pkg-config
+
+      - name: Install Julia dependencies
+        if: ${{ matrix.pocl == 'local' }}
+        run: |
+            touch pocl/Project.toml
+            julia --project=pocl --color=yes -e '
+              using Pkg
+
+              # unversioned
+              Pkg.add([
+                "SPIRV_Tools_jll",
+                "OpenCL_jll",
+                "OpenCL_Headers_jll",
+                "Hwloc_jll",
+                "CMake_jll",
+              ])
+
+              # versioned
+              Pkg.add(name="LLVM_full_jll", version="19")
+              Pkg.add(name="SPIRV_LLVM_Translator_jll", version="19")'
+
+      - name: Build PoCL
+        if: ${{ matrix.pocl == 'local' }}
+        run: |
+            julia --project=pocl --color=yes -e '
+              using LLVM_full_jll,
+                    SPIRV_Tools_jll, SPIRV_LLVM_Translator_jll,
+                    OpenCL_jll, OpenCL_Headers_jll,
+                    Hwloc_jll, CMake_jll
+
+              sourcedir = joinpath(@__DIR__, "pocl")
+              builddir = joinpath(@__DIR__, "build")
+              destdir = joinpath(@__DIR__, "target")
+
+              prefix = []
+              for jll in [SPIRV_Tools_jll, SPIRV_LLVM_Translator_jll, OpenCL_jll,
+                          OpenCL_Headers_jll, Hwloc_jll]
+                  push!(prefix, jll.artifact_dir)
+              end
+
+              withenv("LD_LIBRARY_PATH" => joinpath(Sys.BINDIR, Base.PRIVATE_LIBDIR)) do
+                  mkpath(builddir)
+                  run(```cmake -B $builddir -S $sourcedir
+                        -GNinja
+                        -DCMAKE_BUILD_TYPE=Debug
+                        -DENABLE_TESTS:Bool=OFF
+                        -DSTATIC_LLVM:Bool=On
+                        -DCMAKE_INSTALL_PREFIX=$destdir
+                        -DWITH_LLVM_CONFIG=$(LLVM_full_jll.artifact_dir)/tools/llvm-config
+                        -DCMAKE_PREFIX_PATH="$(join(prefix, ";"))"
+                        -DKERNELLIB_HOST_CPU_VARIANTS=distro```)
+
+                  run(```$(cmake()) --build $builddir --parallel $(Sys.CPU_THREADS) --target install```)
+              end'
+
+            echo '[pocl_jll]' > test/LocalPreferences.toml
+            echo 'libpocl_path="${{ github.workspace }}/target/lib/libpocl.so"' >> test/LocalPreferences.toml
+
+      - name: Setup OpenCL.jl
+        run: |
           julia --project -e '
             using Pkg
 
@@ -37,9 +124,12 @@ jobs:
             catch
               Pkg.develop(path="lib/intrinsics")
             end'
-      - uses: julia-actions/julia-runtest@v1
+
+      - name: Test OpenCL.jl
+        uses: julia-actions/julia-runtest@v1
         with:
           test_args: '--platform=pocl'
+
       - uses: julia-actions/julia-processcoverage@v1
       - uses: codecov/codecov-action@v5
         with:
