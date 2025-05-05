@@ -44,42 +44,19 @@ end
 
             T_actual_args = LLVMType[]
             actual_args = LLVM.Value[]
-            for (i, (arg, argtyp, argval)) in enumerate(zip(parameters(llvm_f), arg_types, argspec))
-                # if the value is a Val, we'll try to emit it as a constant
-                const_arg = if argval <: Val
-                    # also pass the actual value for the fallback path (and to simplify
-                    # construction of the LLVM function, where we can ignore constants)
-                    argexprs[i] = argval.parameters[1]
-
-                    argval.parameters[1]
-                else
-                    nothing
-                end
-
+            for (_, (arg, argtyp)) in enumerate(zip(parameters(llvm_f), arg_types))
                 if argtyp <: LLVMPtr
                     # passed as i8*
                     T,AS = argtyp.parameters
                     actual_typ = LLVM.PointerType(convert(LLVMType, T), AS)
-                    actual_arg = if const_arg == C_NULL
-                        LLVM.PointerNull(actual_typ)
-                    elseif const_arg !== nothing
-                        intptr = LLVM.ConstantInt(LLVM.Int64Type(), Int(const_arg))
-                        const_inttoptr(intptr, actual_typ)
-                    else
-                        bitcast!(builder, arg, actual_typ)
-                    end
+                    actual_arg = bitcast!(builder, arg, actual_typ)
                 elseif argtyp <: Ptr
                     T = eltype(argtyp)
                     if T === Nothing
                         T = Int8
                     end
                     actual_typ = LLVM.PointerType(convert(LLVMType, T))
-                    actual_arg = if const_arg == C_NULL
-                        LLVM.PointerNull(actual_typ)
-                    elseif const_arg !== nothing
-                        intptr = LLVM.ConstantInt(LLVM.Int64Type(), Int(const_arg))
-                        const_inttoptr(intptr, actual_typ)
-                    elseif value_type(arg) isa LLVM.PointerType
+                    actual_arg = if value_type(arg) isa LLVM.PointerType
                         # passed as i8* or ptr
                         bitcast!(builder, arg, actual_typ)
                     else
@@ -90,20 +67,10 @@ end
                     # passed as i8
                     T = eltype(argtyp)
                     actual_typ = LLVM.Int1Type()
-                    actual_arg = if const_arg !== nothing
-                        LLVM.ConstantInt(actual_typ, const_arg)
-                    else
-                        trunc!(builder, arg, actual_typ)
-                    end
+                    actual_arg = trunc!(builder, arg, actual_typ)
                 else
                     actual_typ = convert(LLVMType, argtyp)
-                    actual_arg = if const_arg isa Integer
-                        LLVM.ConstantInt(actual_typ, argval.parameters[1])
-                    elseif const_arg isa AbstractFloat
-                        LLVM.ConstantFP(actual_typ, argval.parameters[1])
-                    else
-                        arg
-                    end
+                    actual_arg = arg
                 end
                 push!(T_actual_args, actual_typ)
                 push!(actual_args, actual_arg)
