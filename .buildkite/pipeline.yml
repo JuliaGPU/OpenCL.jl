@@ -10,12 +10,7 @@ steps:
         using Pkg
 
         println("--- :julia: Instantiating project")
-        try
-          Pkg.instantiate()
-        catch
-          # if we fail to instantiate, assume that we need newer dependencies
-          Pkg.develop(path="lib/intrinsics")
-        end
+        Pkg.develop(path="lib/intrinsics")
 
         println("+++ :julia: Running tests")
         Pkg.test(; coverage=true, test_args=`--platform=cuda`)'
