@@ -14,9 +14,9 @@ macro builtin_ccall(name, ret, argtypes, args...)
             "i"
         elseif T == UInt32
             "j"
-        elseif T == UInt64
-            "l"
         elseif T == Int64
+            "l"
+        elseif T == UInt64
             "m"
         elseif T == Int16
             "s"
