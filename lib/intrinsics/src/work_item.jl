@@ -16,7 +16,7 @@ export get_work_dim,
 @device_function get_global_id(dimindx::Integer = 1u32) = @builtin_ccall("get_global_id", UInt, (UInt32,), dimindx - 1u32) % Int + 1
 
 @device_function get_local_size(dimindx::Integer = 1u32) = @builtin_ccall("get_local_size", UInt, (UInt32,), dimindx - 1u32) % Int
-@device_function get_enqueued_local_size(dimindx::Integer = 1u32) = @builtin_ccall("get_enqueued_local_size", UInt, (UInt32,), dimindx - 1) % Int
+@device_function get_enqueued_local_size(dimindx::Integer = 1u32) = @builtin_ccall("get_enqueued_local_size", UInt, (UInt32,), dimindx - 1u32) % Int
 @device_function get_local_id(dimindx::Integer = 1u32) = @builtin_ccall("get_local_id", UInt, (UInt32,), dimindx - 1u32) % Int + 1
 
 @device_function get_num_groups(dimindx::Integer = 1u32) = @builtin_ccall("get_num_groups", UInt, (UInt32,), dimindx - 1u32) % Int
