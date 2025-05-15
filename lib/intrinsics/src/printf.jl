@@ -42,6 +42,10 @@ end
             entry = BasicBlock(llvm_f, "entry")
             position!(builder, entry)
 
+            # `printf` needs to be invoked very specifically, e.g., the format string needs
+            # to be a pointer to a string, and arguments need to match exactly what is
+            # expected by the format string, so we cannot rely on how the arguments to this
+            # function have been passed in (by `llvmcall`).
             T_actual_args = LLVMType[]
             actual_args = LLVM.Value[]
             for (_, (arg, argtyp)) in enumerate(zip(parameters(llvm_f), arg_types))
