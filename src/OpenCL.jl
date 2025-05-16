@@ -2,7 +2,7 @@ module OpenCL
 
 using GPUCompiler
 using LLVM, LLVM.Interop
-using SPIRV_LLVM_Translator_unified_jll
+using SPIRV_LLVM_Translator_jll
 using Adapt
 using Reexport
 using GPUArrays
