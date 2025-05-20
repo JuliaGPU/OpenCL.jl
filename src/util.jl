@@ -38,7 +38,7 @@ function versioninfo(io::IO=stdout)
 
     println(io, "Toolchain:")
     println(io, " - Julia v$(VERSION)")
-    for jll in [cl.OpenCL_jll, SPIRV_LLVM_Translator_jll]
+    for jll in [cl.OpenCL_jll, SPIRV_LLVM_Backend_jll]
         name = string(jll)
         println(io, " - $(name[1:end-4]): $(pkgversion(jll))")
     end
