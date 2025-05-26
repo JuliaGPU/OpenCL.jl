@@ -1,6 +1,6 @@
 # broadcasting
 
-using Base.Broadcast: BroadcastStyle, Broadcasted
+import Base.Broadcast: BroadcastStyle, Broadcasted
 
 struct CLArrayStyle{N, B} <: AbstractGPUArrayStyle{N} end
 CLArrayStyle{M, B}(::Val{N}) where {N, M, B} = CLArrayStyle{N, B}()
