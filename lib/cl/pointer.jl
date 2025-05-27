@@ -40,8 +40,8 @@ Base.eltype(::Type{<:CLPtr{T}}) where {T} = T
 Base.convert(::Type{T}, x::CLPtr) where {T <: Integer} = T(UInt(x))
 ## integer to pointer
 Base.convert(::Type{CLPtr{T}}, x::Union{Int, UInt}) where {T} = CLPtr{T}(x)
-Int(x::CLPtr) = Base.bitcast(Int, x)
-UInt(x::CLPtr) = Base.bitcast(UInt, x)
+Base.Int(x::CLPtr) = Base.bitcast(Int, x)
+Base.UInt(x::CLPtr) = Base.bitcast(UInt, x)
 
 # between regular and OpenCL pointers
 Base.convert(::Type{<:Ptr}, p::CLPtr) =
