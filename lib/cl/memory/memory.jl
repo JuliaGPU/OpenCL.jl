@@ -1,6 +1,6 @@
 # Raw memory management
 
-export device_alloc, host_alloc, shared_alloc, svm_alloc, free
+export device_alloc, host_alloc, shared_alloc, svm_alloc, free, bda_alloc
 
 #
 # untyped buffers
@@ -17,5 +17,6 @@ Base.convert(T::Type{<:Union{Ptr, CLPtr}}, buf::AbstractMemory) =
 # and not the pointer of the buffer object itself.
 Base.unsafe_convert(P::Type{<:Union{Ptr, CLPtr}}, buf::AbstractMemory) = convert(P, buf)
 
+include("bda.jl")
 include("usm.jl")
 include("svm.jl")

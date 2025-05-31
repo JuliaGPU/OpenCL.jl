@@ -8,8 +8,8 @@ end
 
 function check(f)
     res = retry_reclaim(err -> err == CL_OUT_OF_RESOURCES ||
-                                   err == CL_MEM_OBJECT_ALLOCATION_FAILURE ||
-                                   err == CL_OUT_OF_HOST_MEMORY) do
+                               err == CL_MEM_OBJECT_ALLOCATION_FAILURE ||
+                               err == CL_OUT_OF_HOST_MEMORY) do
         return f()
     end
 
@@ -21,7 +21,7 @@ function check(f)
 end
 
 macro CL_MAKE_VERSION(major, minor, patch)
-    quote
+    return quote
         VersionNumber($major, $minor, $patch)
     end
 end
@@ -1263,424 +1263,6 @@ end
 
 const cl_device_partition_property_ext = cl_ulong
 
-const cl_device_command_buffer_capabilities_khr = cl_bitfield
-
-mutable struct _cl_command_buffer_khr end
-
-const cl_command_buffer_khr = Ptr{_cl_command_buffer_khr}
-
-const cl_sync_point_khr = cl_uint
-
-const cl_command_buffer_info_khr = cl_uint
-
-const cl_command_buffer_state_khr = cl_uint
-
-const cl_command_buffer_properties_khr = cl_properties
-
-const cl_command_buffer_flags_khr = cl_bitfield
-
-const cl_command_properties_khr = cl_properties
-
-mutable struct _cl_mutable_command_khr end
-
-const cl_mutable_command_khr = Ptr{_cl_mutable_command_khr}
-
-# typedef cl_command_buffer_khr CL_API_CALL clCreateCommandBufferKHR_t ( cl_uint num_queues , const cl_command_queue * queues , const cl_command_buffer_properties_khr * properties , cl_int * errcode_ret )
-const clCreateCommandBufferKHR_t = Cvoid
-
-const clCreateCommandBufferKHR_fn = Ptr{clCreateCommandBufferKHR_t}
-
-# typedef cl_int CL_API_CALL clFinalizeCommandBufferKHR_t ( cl_command_buffer_khr command_buffer )
-const clFinalizeCommandBufferKHR_t = Cvoid
-
-const clFinalizeCommandBufferKHR_fn = Ptr{clFinalizeCommandBufferKHR_t}
-
-# typedef cl_int CL_API_CALL clRetainCommandBufferKHR_t ( cl_command_buffer_khr command_buffer )
-const clRetainCommandBufferKHR_t = Cvoid
-
-const clRetainCommandBufferKHR_fn = Ptr{clRetainCommandBufferKHR_t}
-
-# typedef cl_int CL_API_CALL clReleaseCommandBufferKHR_t ( cl_command_buffer_khr command_buffer )
-const clReleaseCommandBufferKHR_t = Cvoid
-
-const clReleaseCommandBufferKHR_fn = Ptr{clReleaseCommandBufferKHR_t}
-
-# typedef cl_int CL_API_CALL clEnqueueCommandBufferKHR_t ( cl_uint num_queues , cl_command_queue * queues , cl_command_buffer_khr command_buffer , cl_uint num_events_in_wait_list , const cl_event * event_wait_list , cl_event * event )
-const clEnqueueCommandBufferKHR_t = Cvoid
-
-const clEnqueueCommandBufferKHR_fn = Ptr{clEnqueueCommandBufferKHR_t}
-
-# typedef cl_int CL_API_CALL clCommandBarrierWithWaitListKHR_t ( cl_command_buffer_khr command_buffer , cl_command_queue command_queue , const cl_command_properties_khr * properties , cl_uint num_sync_points_in_wait_list , const cl_sync_point_khr * sync_point_wait_list , cl_sync_point_khr * sync_point , cl_mutable_command_khr * mutable_handle )
-const clCommandBarrierWithWaitListKHR_t = Cvoid
-
-const clCommandBarrierWithWaitListKHR_fn = Ptr{clCommandBarrierWithWaitListKHR_t}
-
-# typedef cl_int CL_API_CALL clCommandCopyBufferKHR_t ( cl_command_buffer_khr command_buffer , cl_command_queue command_queue , const cl_command_properties_khr * properties , cl_mem src_buffer , cl_mem dst_buffer , size_t src_offset , size_t dst_offset , size_t size , cl_uint num_sync_points_in_wait_list , const cl_sync_point_khr * sync_point_wait_list , cl_sync_point_khr * sync_point , cl_mutable_command_khr * mutable_handle )
-const clCommandCopyBufferKHR_t = Cvoid
-
-const clCommandCopyBufferKHR_fn = Ptr{clCommandCopyBufferKHR_t}
-
-# typedef cl_int CL_API_CALL clCommandCopyBufferRectKHR_t ( cl_command_buffer_khr command_buffer , cl_command_queue command_queue , const cl_command_properties_khr * properties , cl_mem src_buffer , cl_mem dst_buffer , const size_t * src_origin , const size_t * dst_origin , const size_t * region , size_t src_row_pitch , size_t src_slice_pitch , size_t dst_row_pitch , size_t dst_slice_pitch , cl_uint num_sync_points_in_wait_list , const cl_sync_point_khr * sync_point_wait_list , cl_sync_point_khr * sync_point , cl_mutable_command_khr * mutable_handle )
-const clCommandCopyBufferRectKHR_t = Cvoid
-
-const clCommandCopyBufferRectKHR_fn = Ptr{clCommandCopyBufferRectKHR_t}
-
-# typedef cl_int CL_API_CALL clCommandCopyBufferToImageKHR_t ( cl_command_buffer_khr command_buffer , cl_command_queue command_queue , const cl_command_properties_khr * properties , cl_mem src_buffer , cl_mem dst_image , size_t src_offset , const size_t * dst_origin , const size_t * region , cl_uint num_sync_points_in_wait_list , const cl_sync_point_khr * sync_point_wait_list , cl_sync_point_khr * sync_point , cl_mutable_command_khr * mutable_handle )
-const clCommandCopyBufferToImageKHR_t = Cvoid
-
-const clCommandCopyBufferToImageKHR_fn = Ptr{clCommandCopyBufferToImageKHR_t}
-
-# typedef cl_int CL_API_CALL clCommandCopyImageKHR_t ( cl_command_buffer_khr command_buffer , cl_command_queue command_queue , const cl_command_properties_khr * properties , cl_mem src_image , cl_mem dst_image , const size_t * src_origin , const size_t * dst_origin , const size_t * region , cl_uint num_sync_points_in_wait_list , const cl_sync_point_khr * sync_point_wait_list , cl_sync_point_khr * sync_point , cl_mutable_command_khr * mutable_handle )
-const clCommandCopyImageKHR_t = Cvoid
-
-const clCommandCopyImageKHR_fn = Ptr{clCommandCopyImageKHR_t}
-
-# typedef cl_int CL_API_CALL clCommandCopyImageToBufferKHR_t ( cl_command_buffer_khr command_buffer , cl_command_queue command_queue , const cl_command_properties_khr * properties , cl_mem src_image , cl_mem dst_buffer , const size_t * src_origin , const size_t * region , size_t dst_offset , cl_uint num_sync_points_in_wait_list , const cl_sync_point_khr * sync_point_wait_list , cl_sync_point_khr * sync_point , cl_mutable_command_khr * mutable_handle )
-const clCommandCopyImageToBufferKHR_t = Cvoid
-
-const clCommandCopyImageToBufferKHR_fn = Ptr{clCommandCopyImageToBufferKHR_t}
-
-# typedef cl_int CL_API_CALL clCommandFillBufferKHR_t ( cl_command_buffer_khr command_buffer , cl_command_queue command_queue , const cl_command_properties_khr * properties , cl_mem buffer , const void * pattern , size_t pattern_size , size_t offset , size_t size , cl_uint num_sync_points_in_wait_list , const cl_sync_point_khr * sync_point_wait_list , cl_sync_point_khr * sync_point , cl_mutable_command_khr * mutable_handle )
-const clCommandFillBufferKHR_t = Cvoid
-
-const clCommandFillBufferKHR_fn = Ptr{clCommandFillBufferKHR_t}
-
-# typedef cl_int CL_API_CALL clCommandFillImageKHR_t ( cl_command_buffer_khr command_buffer , cl_command_queue command_queue , const cl_command_properties_khr * properties , cl_mem image , const void * fill_color , const size_t * origin , const size_t * region , cl_uint num_sync_points_in_wait_list , const cl_sync_point_khr * sync_point_wait_list , cl_sync_point_khr * sync_point , cl_mutable_command_khr * mutable_handle )
-const clCommandFillImageKHR_t = Cvoid
-
-const clCommandFillImageKHR_fn = Ptr{clCommandFillImageKHR_t}
-
-# typedef cl_int CL_API_CALL clCommandNDRangeKernelKHR_t ( cl_command_buffer_khr command_buffer , cl_command_queue command_queue , const cl_command_properties_khr * properties , cl_kernel kernel , cl_uint work_dim , const size_t * global_work_offset , const size_t * global_work_size , const size_t * local_work_size , cl_uint num_sync_points_in_wait_list , const cl_sync_point_khr * sync_point_wait_list , cl_sync_point_khr * sync_point , cl_mutable_command_khr * mutable_handle )
-const clCommandNDRangeKernelKHR_t = Cvoid
-
-const clCommandNDRangeKernelKHR_fn = Ptr{clCommandNDRangeKernelKHR_t}
-
-# typedef cl_int CL_API_CALL clGetCommandBufferInfoKHR_t ( cl_command_buffer_khr command_buffer , cl_command_buffer_info_khr param_name , size_t param_value_size , void * param_value , size_t * param_value_size_ret )
-const clGetCommandBufferInfoKHR_t = Cvoid
-
-const clGetCommandBufferInfoKHR_fn = Ptr{clGetCommandBufferInfoKHR_t}
-
-function clCreateCommandBufferKHR(num_queues, queues, properties, errcode_ret)
-    @ext_ccall libopencl.clCreateCommandBufferKHR(num_queues::cl_uint,
-                                                  queues::Ptr{cl_command_queue},
-                                                  properties::Ptr{cl_command_buffer_properties_khr},
-                                                  errcode_ret::Ptr{cl_int})::cl_command_buffer_khr
-end
-
-@checked function clFinalizeCommandBufferKHR(command_buffer)
-    @ext_ccall libopencl.clFinalizeCommandBufferKHR(command_buffer::cl_command_buffer_khr)::cl_int
-end
-
-@checked function clRetainCommandBufferKHR(command_buffer)
-    @ext_ccall libopencl.clRetainCommandBufferKHR(command_buffer::cl_command_buffer_khr)::cl_int
-end
-
-@checked function clReleaseCommandBufferKHR(command_buffer)
-    @ext_ccall libopencl.clReleaseCommandBufferKHR(command_buffer::cl_command_buffer_khr)::cl_int
-end
-
-@checked function clEnqueueCommandBufferKHR(num_queues, queues, command_buffer,
-                                            num_events_in_wait_list, event_wait_list, event)
-    @ext_ccall libopencl.clEnqueueCommandBufferKHR(num_queues::cl_uint,
-                                                   queues::Ptr{cl_command_queue},
-                                                   command_buffer::cl_command_buffer_khr,
-                                                   num_events_in_wait_list::cl_uint,
-                                                   event_wait_list::Ptr{cl_event},
-                                                   event::Ptr{cl_event})::cl_int
-end
-
-@checked function clCommandBarrierWithWaitListKHR(command_buffer, command_queue, properties,
-                                                  num_sync_points_in_wait_list,
-                                                  sync_point_wait_list, sync_point,
-                                                  mutable_handle)
-    @ext_ccall libopencl.clCommandBarrierWithWaitListKHR(command_buffer::cl_command_buffer_khr,
-                                                         command_queue::cl_command_queue,
-                                                         properties::Ptr{cl_command_properties_khr},
-                                                         num_sync_points_in_wait_list::cl_uint,
-                                                         sync_point_wait_list::Ptr{cl_sync_point_khr},
-                                                         sync_point::Ptr{cl_sync_point_khr},
-                                                         mutable_handle::Ptr{cl_mutable_command_khr})::cl_int
-end
-
-@checked function clCommandCopyBufferKHR(command_buffer, command_queue, properties,
-                                         src_buffer, dst_buffer, src_offset, dst_offset,
-                                         size, num_sync_points_in_wait_list,
-                                         sync_point_wait_list, sync_point, mutable_handle)
-    @ext_ccall libopencl.clCommandCopyBufferKHR(command_buffer::cl_command_buffer_khr,
-                                                command_queue::cl_command_queue,
-                                                properties::Ptr{cl_command_properties_khr},
-                                                src_buffer::cl_mem, dst_buffer::cl_mem,
-                                                src_offset::Csize_t, dst_offset::Csize_t,
-                                                size::Csize_t,
-                                                num_sync_points_in_wait_list::cl_uint,
-                                                sync_point_wait_list::Ptr{cl_sync_point_khr},
-                                                sync_point::Ptr{cl_sync_point_khr},
-                                                mutable_handle::Ptr{cl_mutable_command_khr})::cl_int
-end
-
-@checked function clCommandCopyBufferRectKHR(command_buffer, command_queue, properties,
-                                             src_buffer, dst_buffer, src_origin, dst_origin,
-                                             region, src_row_pitch, src_slice_pitch,
-                                             dst_row_pitch, dst_slice_pitch,
-                                             num_sync_points_in_wait_list,
-                                             sync_point_wait_list, sync_point,
-                                             mutable_handle)
-    @ext_ccall libopencl.clCommandCopyBufferRectKHR(command_buffer::cl_command_buffer_khr,
-                                                    command_queue::cl_command_queue,
-                                                    properties::Ptr{cl_command_properties_khr},
-                                                    src_buffer::cl_mem, dst_buffer::cl_mem,
-                                                    src_origin::Ptr{Csize_t},
-                                                    dst_origin::Ptr{Csize_t},
-                                                    region::Ptr{Csize_t},
-                                                    src_row_pitch::Csize_t,
-                                                    src_slice_pitch::Csize_t,
-                                                    dst_row_pitch::Csize_t,
-                                                    dst_slice_pitch::Csize_t,
-                                                    num_sync_points_in_wait_list::cl_uint,
-                                                    sync_point_wait_list::Ptr{cl_sync_point_khr},
-                                                    sync_point::Ptr{cl_sync_point_khr},
-                                                    mutable_handle::Ptr{cl_mutable_command_khr})::cl_int
-end
-
-@checked function clCommandCopyBufferToImageKHR(command_buffer, command_queue, properties,
-                                                src_buffer, dst_image, src_offset,
-                                                dst_origin, region,
-                                                num_sync_points_in_wait_list,
-                                                sync_point_wait_list, sync_point,
-                                                mutable_handle)
-    @ext_ccall libopencl.clCommandCopyBufferToImageKHR(command_buffer::cl_command_buffer_khr,
-                                                       command_queue::cl_command_queue,
-                                                       properties::Ptr{cl_command_properties_khr},
-                                                       src_buffer::cl_mem,
-                                                       dst_image::cl_mem,
-                                                       src_offset::Csize_t,
-                                                       dst_origin::Ptr{Csize_t},
-                                                       region::Ptr{Csize_t},
-                                                       num_sync_points_in_wait_list::cl_uint,
-                                                       sync_point_wait_list::Ptr{cl_sync_point_khr},
-                                                       sync_point::Ptr{cl_sync_point_khr},
-                                                       mutable_handle::Ptr{cl_mutable_command_khr})::cl_int
-end
-
-@checked function clCommandCopyImageKHR(command_buffer, command_queue, properties,
-                                        src_image, dst_image, src_origin, dst_origin,
-                                        region, num_sync_points_in_wait_list,
-                                        sync_point_wait_list, sync_point, mutable_handle)
-    @ext_ccall libopencl.clCommandCopyImageKHR(command_buffer::cl_command_buffer_khr,
-                                               command_queue::cl_command_queue,
-                                               properties::Ptr{cl_command_properties_khr},
-                                               src_image::cl_mem, dst_image::cl_mem,
-                                               src_origin::Ptr{Csize_t},
-                                               dst_origin::Ptr{Csize_t},
-                                               region::Ptr{Csize_t},
-                                               num_sync_points_in_wait_list::cl_uint,
-                                               sync_point_wait_list::Ptr{cl_sync_point_khr},
-                                               sync_point::Ptr{cl_sync_point_khr},
-                                               mutable_handle::Ptr{cl_mutable_command_khr})::cl_int
-end
-
-@checked function clCommandCopyImageToBufferKHR(command_buffer, command_queue, properties,
-                                                src_image, dst_buffer, src_origin, region,
-                                                dst_offset, num_sync_points_in_wait_list,
-                                                sync_point_wait_list, sync_point,
-                                                mutable_handle)
-    @ext_ccall libopencl.clCommandCopyImageToBufferKHR(command_buffer::cl_command_buffer_khr,
-                                                       command_queue::cl_command_queue,
-                                                       properties::Ptr{cl_command_properties_khr},
-                                                       src_image::cl_mem,
-                                                       dst_buffer::cl_mem,
-                                                       src_origin::Ptr{Csize_t},
-                                                       region::Ptr{Csize_t},
-                                                       dst_offset::Csize_t,
-                                                       num_sync_points_in_wait_list::cl_uint,
-                                                       sync_point_wait_list::Ptr{cl_sync_point_khr},
-                                                       sync_point::Ptr{cl_sync_point_khr},
-                                                       mutable_handle::Ptr{cl_mutable_command_khr})::cl_int
-end
-
-@checked function clCommandFillBufferKHR(command_buffer, command_queue, properties, buffer,
-                                         pattern, pattern_size, offset, size,
-                                         num_sync_points_in_wait_list, sync_point_wait_list,
-                                         sync_point, mutable_handle)
-    @ext_ccall libopencl.clCommandFillBufferKHR(command_buffer::cl_command_buffer_khr,
-                                                command_queue::cl_command_queue,
-                                                properties::Ptr{cl_command_properties_khr},
-                                                buffer::cl_mem, pattern::Ptr{Cvoid},
-                                                pattern_size::Csize_t, offset::Csize_t,
-                                                size::Csize_t,
-                                                num_sync_points_in_wait_list::cl_uint,
-                                                sync_point_wait_list::Ptr{cl_sync_point_khr},
-                                                sync_point::Ptr{cl_sync_point_khr},
-                                                mutable_handle::Ptr{cl_mutable_command_khr})::cl_int
-end
-
-@checked function clCommandFillImageKHR(command_buffer, command_queue, properties, image,
-                                        fill_color, origin, region,
-                                        num_sync_points_in_wait_list, sync_point_wait_list,
-                                        sync_point, mutable_handle)
-    @ext_ccall libopencl.clCommandFillImageKHR(command_buffer::cl_command_buffer_khr,
-                                               command_queue::cl_command_queue,
-                                               properties::Ptr{cl_command_properties_khr},
-                                               image::cl_mem, fill_color::Ptr{Cvoid},
-                                               origin::Ptr{Csize_t}, region::Ptr{Csize_t},
-                                               num_sync_points_in_wait_list::cl_uint,
-                                               sync_point_wait_list::Ptr{cl_sync_point_khr},
-                                               sync_point::Ptr{cl_sync_point_khr},
-                                               mutable_handle::Ptr{cl_mutable_command_khr})::cl_int
-end
-
-@checked function clCommandNDRangeKernelKHR(command_buffer, command_queue, properties,
-                                            kernel, work_dim, global_work_offset,
-                                            global_work_size, local_work_size,
-                                            num_sync_points_in_wait_list,
-                                            sync_point_wait_list, sync_point,
-                                            mutable_handle)
-    @ext_ccall libopencl.clCommandNDRangeKernelKHR(command_buffer::cl_command_buffer_khr,
-                                                   command_queue::cl_command_queue,
-                                                   properties::Ptr{cl_command_properties_khr},
-                                                   kernel::cl_kernel, work_dim::cl_uint,
-                                                   global_work_offset::Ptr{Csize_t},
-                                                   global_work_size::Ptr{Csize_t},
-                                                   local_work_size::Ptr{Csize_t},
-                                                   num_sync_points_in_wait_list::cl_uint,
-                                                   sync_point_wait_list::Ptr{cl_sync_point_khr},
-                                                   sync_point::Ptr{cl_sync_point_khr},
-                                                   mutable_handle::Ptr{cl_mutable_command_khr})::cl_int
-end
-
-@checked function clGetCommandBufferInfoKHR(command_buffer, param_name, param_value_size,
-                                            param_value, param_value_size_ret)
-    @ext_ccall libopencl.clGetCommandBufferInfoKHR(command_buffer::cl_command_buffer_khr,
-                                                   param_name::cl_command_buffer_info_khr,
-                                                   param_value_size::Csize_t,
-                                                   param_value::Ptr{Cvoid},
-                                                   param_value_size_ret::Ptr{Csize_t})::cl_int
-end
-
-# typedef cl_int CL_API_CALL clCommandSVMMemcpyKHR_t ( cl_command_buffer_khr command_buffer , cl_command_queue command_queue , const cl_command_properties_khr * properties , void * dst_ptr , const void * src_ptr , size_t size , cl_uint num_sync_points_in_wait_list , const cl_sync_point_khr * sync_point_wait_list , cl_sync_point_khr * sync_point , cl_mutable_command_khr * mutable_handle )
-const clCommandSVMMemcpyKHR_t = Cvoid
-
-const clCommandSVMMemcpyKHR_fn = Ptr{clCommandSVMMemcpyKHR_t}
-
-# typedef cl_int CL_API_CALL clCommandSVMMemFillKHR_t ( cl_command_buffer_khr command_buffer , cl_command_queue command_queue , const cl_command_properties_khr * properties , void * svm_ptr , const void * pattern , size_t pattern_size , size_t size , cl_uint num_sync_points_in_wait_list , const cl_sync_point_khr * sync_point_wait_list , cl_sync_point_khr * sync_point , cl_mutable_command_khr * mutable_handle )
-const clCommandSVMMemFillKHR_t = Cvoid
-
-const clCommandSVMMemFillKHR_fn = Ptr{clCommandSVMMemFillKHR_t}
-
-@checked function clCommandSVMMemcpyKHR(command_buffer, command_queue, properties, dst_ptr,
-                                        src_ptr, size, num_sync_points_in_wait_list,
-                                        sync_point_wait_list, sync_point, mutable_handle)
-    @ext_ccall libopencl.clCommandSVMMemcpyKHR(command_buffer::cl_command_buffer_khr,
-                                               command_queue::cl_command_queue,
-                                               properties::Ptr{cl_command_properties_khr},
-                                               dst_ptr::Ptr{Cvoid}, src_ptr::Ptr{Cvoid},
-                                               size::Csize_t,
-                                               num_sync_points_in_wait_list::cl_uint,
-                                               sync_point_wait_list::Ptr{cl_sync_point_khr},
-                                               sync_point::Ptr{cl_sync_point_khr},
-                                               mutable_handle::Ptr{cl_mutable_command_khr})::cl_int
-end
-
-@checked function clCommandSVMMemFillKHR(command_buffer, command_queue, properties, svm_ptr,
-                                         pattern, pattern_size, size,
-                                         num_sync_points_in_wait_list, sync_point_wait_list,
-                                         sync_point, mutable_handle)
-    @ext_ccall libopencl.clCommandSVMMemFillKHR(command_buffer::cl_command_buffer_khr,
-                                                command_queue::cl_command_queue,
-                                                properties::Ptr{cl_command_properties_khr},
-                                                svm_ptr::Ptr{Cvoid}, pattern::Ptr{Cvoid},
-                                                pattern_size::Csize_t, size::Csize_t,
-                                                num_sync_points_in_wait_list::cl_uint,
-                                                sync_point_wait_list::Ptr{cl_sync_point_khr},
-                                                sync_point::Ptr{cl_sync_point_khr},
-                                                mutable_handle::Ptr{cl_mutable_command_khr})::cl_int
-end
-
-const cl_platform_command_buffer_capabilities_khr = cl_bitfield
-
-# typedef cl_command_buffer_khr CL_API_CALL clRemapCommandBufferKHR_t ( cl_command_buffer_khr command_buffer , cl_bool automatic , cl_uint num_queues , const cl_command_queue * queues , cl_uint num_handles , const cl_mutable_command_khr * handles , cl_mutable_command_khr * handles_ret , cl_int * errcode_ret )
-const clRemapCommandBufferKHR_t = Cvoid
-
-const clRemapCommandBufferKHR_fn = Ptr{clRemapCommandBufferKHR_t}
-
-function clRemapCommandBufferKHR(command_buffer, automatic, num_queues, queues, num_handles,
-                                 handles, handles_ret, errcode_ret)
-    @ext_ccall libopencl.clRemapCommandBufferKHR(command_buffer::cl_command_buffer_khr,
-                                                 automatic::cl_bool, num_queues::cl_uint,
-                                                 queues::Ptr{cl_command_queue},
-                                                 num_handles::cl_uint,
-                                                 handles::Ptr{cl_mutable_command_khr},
-                                                 handles_ret::Ptr{cl_mutable_command_khr},
-                                                 errcode_ret::Ptr{cl_int})::cl_command_buffer_khr
-end
-
-const cl_command_buffer_update_type_khr = cl_uint
-
-const cl_mutable_dispatch_fields_khr = cl_bitfield
-
-const cl_mutable_command_info_khr = cl_uint
-
-struct _cl_mutable_dispatch_arg_khr
-    arg_index::cl_uint
-    arg_size::Csize_t
-    arg_value::Ptr{Cvoid}
-end
-
-const cl_mutable_dispatch_arg_khr = _cl_mutable_dispatch_arg_khr
-
-struct _cl_mutable_dispatch_exec_info_khr
-    param_name::cl_uint
-    param_value_size::Csize_t
-    param_value::Ptr{Cvoid}
-end
-
-const cl_mutable_dispatch_exec_info_khr = _cl_mutable_dispatch_exec_info_khr
-
-struct _cl_mutable_dispatch_config_khr
-    command::cl_mutable_command_khr
-    num_args::cl_uint
-    num_svm_args::cl_uint
-    num_exec_infos::cl_uint
-    work_dim::cl_uint
-    arg_list::Ptr{cl_mutable_dispatch_arg_khr}
-    arg_svm_list::Ptr{cl_mutable_dispatch_arg_khr}
-    exec_info_list::Ptr{cl_mutable_dispatch_exec_info_khr}
-    global_work_offset::Ptr{Csize_t}
-    global_work_size::Ptr{Csize_t}
-    local_work_size::Ptr{Csize_t}
-end
-
-const cl_mutable_dispatch_config_khr = _cl_mutable_dispatch_config_khr
-
-const cl_mutable_dispatch_asserts_khr = cl_bitfield
-
-# typedef cl_int CL_API_CALL clUpdateMutableCommandsKHR_t ( cl_command_buffer_khr command_buffer , cl_uint num_configs , const cl_command_buffer_update_type_khr * config_types , const void * * configs )
-const clUpdateMutableCommandsKHR_t = Cvoid
-
-const clUpdateMutableCommandsKHR_fn = Ptr{clUpdateMutableCommandsKHR_t}
-
-# typedef cl_int CL_API_CALL clGetMutableCommandInfoKHR_t ( cl_mutable_command_khr command , cl_mutable_command_info_khr param_name , size_t param_value_size , void * param_value , size_t * param_value_size_ret )
-const clGetMutableCommandInfoKHR_t = Cvoid
-
-const clGetMutableCommandInfoKHR_fn = Ptr{clGetMutableCommandInfoKHR_t}
-
-@checked function clUpdateMutableCommandsKHR(command_buffer, num_configs, config_types,
-                                             configs)
-    @ext_ccall libopencl.clUpdateMutableCommandsKHR(command_buffer::cl_command_buffer_khr,
-                                                    num_configs::cl_uint,
-                                                    config_types::Ptr{cl_command_buffer_update_type_khr},
-                                                    configs::Ptr{Ptr{Cvoid}})::cl_int
-end
-
-@checked function clGetMutableCommandInfoKHR(command, param_name, param_value_size,
-                                             param_value, param_value_size_ret)
-    @ext_ccall libopencl.clGetMutableCommandInfoKHR(command::cl_mutable_command_khr,
-                                                    param_name::cl_mutable_command_info_khr,
-                                                    param_value_size::Csize_t,
-                                                    param_value::Ptr{Cvoid},
-                                                    param_value_size_ret::Ptr{Csize_t})::cl_int
-end
-
 # typedef cl_int CL_API_CALL clSetMemObjectDestructorAPPLE_t ( cl_mem memobj , void ( CL_CALLBACK * pfn_notify ) ( cl_mem memobj , void * user_data ) , void * user_data )
 const clSetMemObjectDestructorAPPLE_t = Cvoid
 
@@ -1731,10 +1313,30 @@ const clIcdGetPlatformIDsKHR_t = Cvoid
 
 const clIcdGetPlatformIDsKHR_fn = Ptr{clIcdGetPlatformIDsKHR_t}
 
+# typedef void * CL_API_CALL clIcdGetFunctionAddressForPlatformKHR_t ( cl_platform_id platform , const char * func_name )
+const clIcdGetFunctionAddressForPlatformKHR_t = Cvoid
+
+const clIcdGetFunctionAddressForPlatformKHR_fn = Ptr{clIcdGetFunctionAddressForPlatformKHR_t}
+
+# typedef cl_int CL_API_CALL clIcdSetPlatformDispatchDataKHR_t ( cl_platform_id platform , void * dispatch_data )
+const clIcdSetPlatformDispatchDataKHR_t = Cvoid
+
+const clIcdSetPlatformDispatchDataKHR_fn = Ptr{clIcdSetPlatformDispatchDataKHR_t}
+
 @checked function clIcdGetPlatformIDsKHR(num_entries, platforms, num_platforms)
     @ext_ccall libopencl.clIcdGetPlatformIDsKHR(num_entries::cl_uint,
                                                 platforms::Ptr{cl_platform_id},
                                                 num_platforms::Ptr{cl_uint})::cl_int
+end
+
+function clIcdGetFunctionAddressForPlatformKHR(platform, func_name)
+    @ext_ccall libopencl.clIcdGetFunctionAddressForPlatformKHR(platform::cl_platform_id,
+                                                               func_name::Ptr{Cchar})::Ptr{Cvoid}
+end
+
+@checked function clIcdSetPlatformDispatchDataKHR(platform, dispatch_data)
+    @ext_ccall libopencl.clIcdSetPlatformDispatchDataKHR(platform::cl_platform_id,
+                                                         dispatch_data::Ptr{Cvoid})::cl_int
 end
 
 # typedef cl_program CL_API_CALL clCreateProgramWithILKHR_t ( cl_context context , const void * il , size_t length , cl_int * errcode_ret )
@@ -2452,7 +2054,7 @@ end
 
 @checked function clGetMemAllocInfoINTEL(context, ptr, param_name, param_value_size,
                                          param_value, param_value_size_ret)
-    @ext_ccall libopencl.clGetMemAllocInfoINTEL(context::cl_context, ptr::CLPtr{Cvoid},
+    @ext_ccall libopencl.clGetMemAllocInfoINTEL(context::cl_context, ptr::PtrOrCLPtr{Cvoid},
                                                 param_name::cl_mem_info_intel,
                                                 param_value_size::Csize_t,
                                                 param_value::Ptr{Cvoid},
@@ -2462,14 +2064,15 @@ end
 @checked function clSetKernelArgMemPointerINTEL(kernel, arg_index, arg_value)
     @ext_ccall libopencl.clSetKernelArgMemPointerINTEL(kernel::cl_kernel,
                                                        arg_index::cl_uint,
-                                                       arg_value::CLPtr{Cvoid})::cl_int
+                                                       arg_value::PtrOrCLPtr{Cvoid})::cl_int
 end
 
 @checked function clEnqueueMemFillINTEL(command_queue, dst_ptr, pattern, pattern_size, size,
                                         num_events_in_wait_list, event_wait_list, event)
     @ext_ccall libopencl.clEnqueueMemFillINTEL(command_queue::cl_command_queue,
-                                               dst_ptr::CLPtr{Cvoid}, pattern::Ptr{Cvoid},
-                                               pattern_size::Csize_t, size::Csize_t,
+                                               dst_ptr::PtrOrCLPtr{Cvoid},
+                                               pattern::Ptr{Cvoid}, pattern_size::Csize_t,
+                                               size::Csize_t,
                                                num_events_in_wait_list::cl_uint,
                                                event_wait_list::Ptr{cl_event},
                                                event::Ptr{cl_event})::cl_int
@@ -2488,7 +2091,7 @@ end
 @checked function clEnqueueMemAdviseINTEL(command_queue, ptr, size, advice,
                                           num_events_in_wait_list, event_wait_list, event)
     @ext_ccall libopencl.clEnqueueMemAdviseINTEL(command_queue::cl_command_queue,
-                                                 ptr::CLPtr{Cvoid}, size::Csize_t,
+                                                 ptr::PtrOrCLPtr{Cvoid}, size::Csize_t,
                                                  advice::cl_mem_advice_intel,
                                                  num_events_in_wait_list::cl_uint,
                                                  event_wait_list::Ptr{cl_event},
@@ -2503,7 +2106,7 @@ const clEnqueueMigrateMemINTEL_fn = Ptr{clEnqueueMigrateMemINTEL_t}
 @checked function clEnqueueMigrateMemINTEL(command_queue, ptr, size, flags,
                                            num_events_in_wait_list, event_wait_list, event)
     @ext_ccall libopencl.clEnqueueMigrateMemINTEL(command_queue::cl_command_queue,
-                                                  ptr::CLPtr{Cvoid}, size::Csize_t,
+                                                  ptr::PtrOrCLPtr{Cvoid}, size::Csize_t,
                                                   flags::cl_mem_migration_flags,
                                                   num_events_in_wait_list::cl_uint,
                                                   event_wait_list::Ptr{cl_event},
@@ -2637,7 +2240,18 @@ const clSetContentSizeBufferPoCL_fn = Ptr{clSetContentSizeBufferPoCL_t}
                                                     content_size_buffer::cl_mem)::cl_int
 end
 
-const cl_device_kernel_clock_capabilities_khr = cl_bitfield
+const cl_mem_device_address_ext = cl_ulong
+
+# typedef cl_int CL_API_CALL clSetKernelArgDevicePointerEXT_t ( cl_kernel kernel , cl_uint arg_index , cl_mem_device_address_ext arg_value )
+const clSetKernelArgDevicePointerEXT_t = Cvoid
+
+const clSetKernelArgDevicePointerEXT_fn = Ptr{clSetKernelArgDevicePointerEXT_t}
+
+@checked function clSetKernelArgDevicePointerEXT(kernel, arg_index, arg_value)
+    @ext_ccall libopencl.clSetKernelArgDevicePointerEXT(kernel::cl_kernel,
+                                                        arg_index::cl_uint,
+                                                        arg_value::cl_mem_device_address_ext)::cl_int
+end
 
 # typedef cl_int CL_API_CALL clCancelCommandsIMG_t ( const cl_event * event_list , size_t num_events_in_list )
 const clCancelCommandsIMG_t = Cvoid
@@ -2647,6 +2261,18 @@ const clCancelCommandsIMG_fn = Ptr{clCancelCommandsIMG_t}
 @checked function clCancelCommandsIMG(event_list, num_events_in_list)
     @ext_ccall libopencl.clCancelCommandsIMG(event_list::Ptr{cl_event},
                                              num_events_in_list::Csize_t)::cl_int
+end
+
+const cl_perf_hint_qcom = cl_uint
+
+# typedef cl_int CL_API_CALL clSetPerfHintQCOM_t ( cl_context context , cl_perf_hint_qcom perf_hint )
+const clSetPerfHintQCOM_t = Cvoid
+
+const clSetPerfHintQCOM_fn = Ptr{clSetPerfHintQCOM_t}
+
+@checked function clSetPerfHintQCOM(context, perf_hint)
+    @ext_ccall libopencl.clSetPerfHintQCOM(context::cl_context,
+                                           perf_hint::cl_perf_hint_qcom)::cl_int
 end
 
 const CL_NAME_VERSION_MAX_NAME_SIZE = 64
@@ -3647,126 +3273,6 @@ const CL_INTEL_SHARING_FORMAT_QUERY_GL_EXTENSION_NAME = "cl_intel_sharing_format
 
 const CL_INTEL_SHARING_FORMAT_QUERY_GL_EXTENSION_VERSION = @CL_MAKE_VERSION(0, 0, 0)
 
-const cl_khr_command_buffer = 1
-
-const CL_KHR_COMMAND_BUFFER_EXTENSION_NAME = "cl_khr_command_buffer"
-
-const CL_KHR_COMMAND_BUFFER_EXTENSION_VERSION = @CL_MAKE_VERSION(0, 9, 5)
-
-const CL_DEVICE_COMMAND_BUFFER_CAPABILITIES_KHR = 0x12a9
-
-const CL_DEVICE_COMMAND_BUFFER_REQUIRED_QUEUE_PROPERTIES_KHR = 0x12aa
-
-const CL_COMMAND_BUFFER_CAPABILITY_KERNEL_PRINTF_KHR = 1 << 0
-
-const CL_COMMAND_BUFFER_CAPABILITY_DEVICE_SIDE_ENQUEUE_KHR = 1 << 1
-
-const CL_COMMAND_BUFFER_CAPABILITY_SIMULTANEOUS_USE_KHR = 1 << 2
-
-const CL_COMMAND_BUFFER_CAPABILITY_OUT_OF_ORDER_KHR = 1 << 3
-
-const CL_COMMAND_BUFFER_FLAGS_KHR = 0x1293
-
-const CL_COMMAND_BUFFER_SIMULTANEOUS_USE_KHR = 1 << 0
-
-const CL_INVALID_COMMAND_BUFFER_KHR = -1138
-
-const CL_INVALID_SYNC_POINT_WAIT_LIST_KHR = -1139
-
-const CL_INCOMPATIBLE_COMMAND_QUEUE_KHR = -1140
-
-const CL_COMMAND_BUFFER_QUEUES_KHR = 0x1294
-
-const CL_COMMAND_BUFFER_NUM_QUEUES_KHR = 0x1295
-
-const CL_COMMAND_BUFFER_REFERENCE_COUNT_KHR = 0x1296
-
-const CL_COMMAND_BUFFER_STATE_KHR = 0x1297
-
-const CL_COMMAND_BUFFER_PROPERTIES_ARRAY_KHR = 0x1298
-
-const CL_COMMAND_BUFFER_CONTEXT_KHR = 0x1299
-
-const CL_COMMAND_BUFFER_STATE_RECORDING_KHR = 0
-
-const CL_COMMAND_BUFFER_STATE_EXECUTABLE_KHR = 1
-
-const CL_COMMAND_BUFFER_STATE_PENDING_KHR = 2
-
-const CL_COMMAND_COMMAND_BUFFER_KHR = 0x12a8
-
-const cl_khr_command_buffer_multi_device = 1
-
-const CL_KHR_COMMAND_BUFFER_MULTI_DEVICE_EXTENSION_NAME = "cl_khr_command_buffer_multi_device"
-
-const CL_KHR_COMMAND_BUFFER_MULTI_DEVICE_EXTENSION_VERSION = @CL_MAKE_VERSION(0, 9, 1)
-
-const CL_PLATFORM_COMMAND_BUFFER_CAPABILITIES_KHR = 0x0908
-
-const CL_COMMAND_BUFFER_PLATFORM_UNIVERSAL_SYNC_KHR = 1 << 0
-
-const CL_COMMAND_BUFFER_PLATFORM_REMAP_QUEUES_KHR = 1 << 1
-
-const CL_COMMAND_BUFFER_PLATFORM_AUTOMATIC_REMAP_KHR = 1 << 2
-
-const CL_DEVICE_COMMAND_BUFFER_NUM_SYNC_DEVICES_KHR = 0x12ab
-
-const CL_DEVICE_COMMAND_BUFFER_SYNC_DEVICES_KHR = 0x12ac
-
-const CL_COMMAND_BUFFER_CAPABILITY_MULTIPLE_QUEUE_KHR = 1 << 4
-
-const CL_COMMAND_BUFFER_DEVICE_SIDE_SYNC_KHR = 1 << 2
-
-const cl_khr_command_buffer_mutable_dispatch = 1
-
-const CL_KHR_COMMAND_BUFFER_MUTABLE_DISPATCH_EXTENSION_NAME = "cl_khr_command_buffer_mutable_dispatch"
-
-const CL_KHR_COMMAND_BUFFER_MUTABLE_DISPATCH_EXTENSION_VERSION = @CL_MAKE_VERSION(0, 9, 3)
-
-const CL_COMMAND_BUFFER_MUTABLE_KHR = 1 << 1
-
-const CL_INVALID_MUTABLE_COMMAND_KHR = -1141
-
-const CL_DEVICE_MUTABLE_DISPATCH_CAPABILITIES_KHR = 0x12b0
-
-const CL_MUTABLE_DISPATCH_UPDATABLE_FIELDS_KHR = 0x12b1
-
-const CL_MUTABLE_DISPATCH_GLOBAL_OFFSET_KHR = 1 << 0
-
-const CL_MUTABLE_DISPATCH_GLOBAL_SIZE_KHR = 1 << 1
-
-const CL_MUTABLE_DISPATCH_LOCAL_SIZE_KHR = 1 << 2
-
-const CL_MUTABLE_DISPATCH_ARGUMENTS_KHR = 1 << 3
-
-const CL_MUTABLE_DISPATCH_EXEC_INFO_KHR = 1 << 4
-
-const CL_MUTABLE_COMMAND_COMMAND_QUEUE_KHR = 0x12a0
-
-const CL_MUTABLE_COMMAND_COMMAND_BUFFER_KHR = 0x12a1
-
-const CL_MUTABLE_COMMAND_COMMAND_TYPE_KHR = 0x12ad
-
-const CL_MUTABLE_COMMAND_PROPERTIES_ARRAY_KHR = 0x12a2
-
-const CL_MUTABLE_DISPATCH_KERNEL_KHR = 0x12a3
-
-const CL_MUTABLE_DISPATCH_DIMENSIONS_KHR = 0x12a4
-
-const CL_MUTABLE_DISPATCH_GLOBAL_WORK_OFFSET_KHR = 0x12a5
-
-const CL_MUTABLE_DISPATCH_GLOBAL_WORK_SIZE_KHR = 0x12a6
-
-const CL_MUTABLE_DISPATCH_LOCAL_WORK_SIZE_KHR = 0x12a7
-
-const CL_STRUCTURE_TYPE_MUTABLE_DISPATCH_CONFIG_KHR = 0
-
-const CL_COMMAND_BUFFER_MUTABLE_DISPATCH_ASSERTS_KHR = 0x12b7
-
-const CL_MUTABLE_DISPATCH_ASSERTS_KHR = 0x12b8
-
-const CL_MUTABLE_DISPATCH_ASSERT_NO_ADDITIONAL_WORK_GROUPS_KHR = 1 << 0
-
 const cl_khr_fp64 = 1
 
 const CL_KHR_FP64_EXTENSION_NAME = "cl_khr_fp64"
@@ -3797,11 +3303,13 @@ const cl_khr_icd = 1
 
 const CL_KHR_ICD_EXTENSION_NAME = "cl_khr_icd"
 
-const CL_KHR_ICD_EXTENSION_VERSION = @CL_MAKE_VERSION(1, 0, 0)
+const CL_KHR_ICD_EXTENSION_VERSION = @CL_MAKE_VERSION(2, 0, 0)
 
 const CL_PLATFORM_ICD_SUFFIX_KHR = 0x0920
 
 const CL_PLATFORM_NOT_FOUND_KHR = -1001
+
+const CL_ICD2_TAG_KHR = intptr_t(0x4f50454e434c3331)
 
 const cl_khr_il_program = 1
 
@@ -4350,18 +3858,6 @@ const CL_KHR_EXTERNAL_SEMAPHORE_SYNC_FD_EXTENSION_NAME = "cl_khr_external_semaph
 const CL_KHR_EXTERNAL_SEMAPHORE_SYNC_FD_EXTENSION_VERSION = @CL_MAKE_VERSION(1, 0, 0)
 
 const CL_SEMAPHORE_HANDLE_SYNC_FD_KHR = 0x2058
-
-const cl_khr_external_semaphore_win32 = 1
-
-const CL_KHR_EXTERNAL_SEMAPHORE_WIN32_EXTENSION_NAME = "cl_khr_external_semaphore_win32"
-
-const CL_KHR_EXTERNAL_SEMAPHORE_WIN32_EXTENSION_VERSION = @CL_MAKE_VERSION(0, 9, 1)
-
-const CL_SEMAPHORE_HANDLE_OPAQUE_WIN32_KHR = 0x2056
-
-const CL_SEMAPHORE_HANDLE_OPAQUE_WIN32_KMT_KHR = 0x2057
-
-const CL_SEMAPHORE_HANDLE_OPAQUE_WIN32_NAME_KHR = 0x2068
 
 const cl_khr_semaphore = 1
 
@@ -5350,20 +4846,6 @@ const CL_KHR_INT64_EXTENDED_ATOMICS_EXTENSION_NAME = "cl_khr_int64_extended_atom
 
 const CL_KHR_INT64_EXTENDED_ATOMICS_EXTENSION_VERSION = @CL_MAKE_VERSION(1, 0, 0)
 
-const cl_khr_kernel_clock = 1
-
-const CL_KHR_KERNEL_CLOCK_EXTENSION_NAME = "cl_khr_kernel_clock"
-
-const CL_KHR_KERNEL_CLOCK_EXTENSION_VERSION = @CL_MAKE_VERSION(0, 9, 0)
-
-const CL_DEVICE_KERNEL_CLOCK_CAPABILITIES_KHR = 0x1076
-
-const CL_DEVICE_KERNEL_CLOCK_SCOPE_DEVICE_KHR = 1 << 0
-
-const CL_DEVICE_KERNEL_CLOCK_SCOPE_WORK_GROUP_KHR = 1 << 1
-
-const CL_DEVICE_KERNEL_CLOCK_SCOPE_SUB_GROUP_KHR = 1 << 2
-
 const cl_khr_local_int32_base_atomics = 1
 
 const CL_KHR_LOCAL_INT32_BASE_ATOMICS_EXTENSION_NAME = "cl_khr_local_int32_base_atomics"
@@ -5466,6 +4948,18 @@ const CL_KHR_WORK_GROUP_UNIFORM_ARITHMETIC_EXTENSION_NAME = "cl_khr_work_group_u
 
 const CL_KHR_WORK_GROUP_UNIFORM_ARITHMETIC_EXTENSION_VERSION = @CL_MAKE_VERSION(1, 0, 0)
 
+const cl_ext_buffer_device_address = 1
+
+const CL_EXT_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME = "cl_ext_buffer_device_address"
+
+const CL_EXT_BUFFER_DEVICE_ADDRESS_EXTENSION_VERSION = @CL_MAKE_VERSION(1, 0, 2)
+
+const CL_MEM_DEVICE_PRIVATE_ADDRESS_EXT = 0x5000
+
+const CL_MEM_DEVICE_ADDRESS_EXT = 0x5001
+
+const CL_KERNEL_EXEC_INFO_DEVICE_PTRS_EXT = 0x5002
+
 const cl_ext_image_unorm_int_2_101010 = 1
 
 const CL_EXT_IMAGE_UNORM_INT_2_101010_EXTENSION_NAME = "cl_ext_image_unorm_int_2_101010"
@@ -5474,6 +4968,32 @@ const CL_EXT_IMAGE_UNORM_INT_2_101010_EXTENSION_VERSION = @CL_MAKE_VERSION(1, 0,
 
 const CL_UNORM_INT_2_101010_EXT = 0x10e5
 
+const cl_ext_image_unsigned_10x6_12x4_14x2 = 1
+
+const CL_EXT_IMAGE_UNSIGNED_10X6_12X4_14X2_EXTENSION_NAME = "cl_ext_image_unsigned_10x6_12x4_14x2"
+
+const CL_EXT_IMAGE_UNSIGNED_10X6_12X4_14X2_EXTENSION_VERSION = @CL_MAKE_VERSION(1, 0, 0)
+
+const CL_UNSIGNED_INT10X6_EXT = 0x10e6
+
+const CL_UNSIGNED_INT12X4_EXT = 0x10e7
+
+const CL_UNSIGNED_INT14X2_EXT = 0x10e8
+
+const CL_UNORM_INT10X6_EXT = 0x10e1
+
+const CL_UNORM_INT12X4_EXT = 0x10e9
+
+const CL_UNORM_INT14X2_EXT = 0x10ea
+
+const cl_ext_immutable_memory_objects = 1
+
+const CL_EXT_IMMUTABLE_MEMORY_OBJECTS_EXTENSION_NAME = "cl_ext_immutable_memory_objects"
+
+const CL_EXT_IMMUTABLE_MEMORY_OBJECTS_EXTENSION_VERSION = @CL_MAKE_VERSION(1, 0, 0)
+
+const CL_MEM_IMMUTABLE_EXT = 1 << 6
+
 const cl_img_cancel_command = 1
 
 const CL_IMG_CANCEL_COMMAND_EXTENSION_NAME = "cl_img_cancel_command"
@@ -5481,3 +5001,17 @@ const CL_IMG_CANCEL_COMMAND_EXTENSION_NAME = "cl_img_cancel_command"
 const CL_IMG_CANCEL_COMMAND_EXTENSION_VERSION = @CL_MAKE_VERSION(0, 0, 0)
 
 const CL_CANCELLED_IMG = -1126
+
+const cl_qcom_perf_hint = 1
+
+const CL_QCOM_PERF_HINT_EXTENSION_NAME = "cl_qcom_perf_hint"
+
+const CL_QCOM_PERF_HINT_EXTENSION_VERSION = @CL_MAKE_VERSION(1, 0, 5)
+
+const CL_PERF_HINT_HIGH_QCOM = 0x40c3
+
+const CL_PERF_HINT_NORMAL_QCOM = 0x40c4
+
+const CL_PERF_HINT_LOW_QCOM = 0x40c5
+
+const CL_CONTEXT_PERF_HINT_QCOM = 0x40c2
