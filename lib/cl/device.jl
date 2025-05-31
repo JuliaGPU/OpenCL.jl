@@ -190,6 +190,11 @@ function exec_capabilities(d::Device)
     )
 end
 
+function bda_supported(d::Device)
+    "cl_ext_buffer_device_address" in d.extensions || return false
+    return true
+end
+
 function usm_supported(d::Device)
     "cl_intel_unified_shared_memory" in d.extensions || return false
     return true
