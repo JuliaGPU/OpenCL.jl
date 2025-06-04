@@ -23,11 +23,13 @@ jobs:
       fail-fast: false
       matrix:
         version: ['1.10', '1.11']
-        os: [ubuntu-24.04, ubuntu-24.04-arm, macOS-13, macOS-15]
+        os: [ubuntu-24.04, ubuntu-24.04-arm, macOS-13, macOS-15, windows-2025]
         arch: [x64, arm64]
         pocl: [jll, local]
         exclude:
           - os: ubuntu-24.04
+            arch: arm64
+          - os: windows-2025
             arch: arm64
           - os: ubuntu-24.04-arm
             arch: x64
@@ -36,10 +38,12 @@ jobs:
             arch: x64
           - os: macOS-13
             arch: arm64
-          # we only tested building PoCL on Linux
+          # we only test building PoCL on Linux
           - os: macOS-13
             pocl: local
           - os: macOS-15
+            pocl: local
+          - os: windows-2025
             pocl: local
     steps:
       - name: Checkout OpenCL.jl
