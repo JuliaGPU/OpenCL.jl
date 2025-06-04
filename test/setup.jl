@@ -114,6 +114,7 @@ function runtests(f, name, platform_filter)
 
         # process results
         cpu_rss = Sys.maxrss()
+        compilations = OpenCL.compilations[]
         if VERSION >= v"1.11.0-DEV.1529"
             tc = Test.get_test_counts(data[1])
             passes,fails,error,broken,c_passes,c_fails,c_errors,c_broken =
@@ -130,7 +131,7 @@ function runtests(f, name, platform_filter)
                     data[4],
                     data[5])
         end
-        res = vcat(collect(data), cpu_rss)
+        res = vcat(collect(data), cpu_rss, compilations)
 
         GC.gc(true)
         res

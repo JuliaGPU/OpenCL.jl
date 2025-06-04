@@ -53,11 +53,13 @@ end
 end
 
 # compile to executable machine code
+const compilations = Threads.Atomic{Int}(0)
 function compile(@nospecialize(job::CompilerJob))
     # TODO: this creates a context; cache those.
     obj, meta = JuliaContext() do ctx
         GPUCompiler.compile(:obj, job)
     end
+    compilations[] += 1
 
     (obj, entry=LLVM.name(meta.entry))
 end
