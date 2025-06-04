@@ -280,6 +280,14 @@ try
                         p = recycle_worker(p)
                     else
                         print_testworker_stats(test, wrkr, resp)
+
+                        compilations = resp[7]
+                        if Sys.iswindows() && compilations > 100
+                            # XXX: restart to avoid handle exhaustion
+                            #      (see pocl/pocl#1941)
+                            @warn "Restarting worker $wrkr to avoid handle exhaustion"
+                            p = recycle_worker(p)
+                        end
                     end
                 end
 

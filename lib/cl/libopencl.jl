@@ -26,7 +26,7 @@ macro CL_MAKE_VERSION(major, minor, patch)
     end
 end
 
-const intptr_t = Clong
+const intptr_t = Cssize_t
 
 const cl_int = Int32
 

@@ -23,11 +23,13 @@ jobs:
       fail-fast: false
       matrix:
         version: ['1.10', '1.11']
-        os: [ubuntu-24.04, ubuntu-24.04-arm, macOS-13, macOS-15]
+        os: [ubuntu-24.04, ubuntu-24.04-arm, macOS-13, macOS-15, windows-2025]
         arch: [x64, arm64]
         pocl: [jll, local]
         exclude:
           - os: ubuntu-24.04
+            arch: arm64
+          - os: windows-2025
             arch: arm64
           - os: ubuntu-24.04-arm
             arch: x64
@@ -36,10 +38,12 @@ jobs:
             arch: x64
           - os: macOS-13
             arch: arm64
-          # we only tested building PoCL on Linux
+          # we only test building PoCL on Linux
           - os: macOS-13
             pocl: local
           - os: macOS-15
+            pocl: local
+          - os: windows-2025
             pocl: local
     steps:
       - name: Checkout OpenCL.jl
@@ -132,8 +136,21 @@ jobs:
 
       - name: Test OpenCL.jl
         uses: julia-actions/julia-runtest@v1
+        if: runner.os != 'Windows'
         with:
           test_args: '--platform=pocl'
+
+      - name: Setup BusyBox
+        if: runner.os == 'Windows'
+        run: |
+          Invoke-WebRequest https://frippery.org/files/busybox/busybox64.exe -OutFile C:\Windows\drop.exe
+      - name: Test OpenCL.jl (de-escalated)
+        if: runner.os == 'Windows'
+        shell: drop -c "julia '{0}'"
+        run: |
+          using Pkg
+          Pkg.activate(".")
+          Pkg.test(; test_args=`--platform=pocl`)
 
       - uses: julia-actions/julia-processcoverage@v1
       - uses: codecov/codecov-action@v5
