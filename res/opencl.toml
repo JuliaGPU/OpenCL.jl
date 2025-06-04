@@ -7,6 +7,7 @@ print_using_CEnum = false
 output_ignorelist = [
     "CL_PARTITION_BY_NAMES_LIST_END_EXT",
     "CL_IMPORT_MEMORY_WHOLE_ALLOCATION_ARM",
+    "intptr_t"
 ]
 
 
