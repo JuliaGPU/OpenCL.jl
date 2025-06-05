@@ -1,5 +1,5 @@
 steps:
-  - label: "CUDA"
+  - label: "MacOS"
     plugins:
       - JuliaCI/julia#v1:
           version: "1.11"
@@ -13,10 +13,11 @@ steps:
         Pkg.develop(path="lib/intrinsics")
 
         println("+++ :julia: Running tests")
-        Pkg.test(; coverage=true, test_args=`--platform=cuda`)'
+        Pkg.test(; coverage=true)'
     agents:
-      queue: "juliagpu"
-      cuda: "*"
+      queue: "juliaecosystem"
+      os: "macos"
+      arch: "aarch64"
     if: build.message !~ /\[skip tests\]/
     env:
       OCL_ICD_FILENAMES: "libnvidia-opencl.so.1"
