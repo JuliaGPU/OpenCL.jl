@@ -92,7 +92,7 @@ function Adapt.adapt_storage(to::KernelAdaptor, buf::cl.AbstractMemory)
 end
 function Adapt.adapt_storage(to::KernelAdaptor, arr::CLArray{T, N}) where {T, N}
     push!(to.indirect_memory, arr.data[].mem)
-    return Base.unsafe_convert(CLDeviceArray{T, N, AS.Global}, arr)
+    return Base.unsafe_convert(CLDeviceArray{T, N, AS.CrossWorkgroup}, arr)
 end
 
 # Base.RefValue isn't GPU compatible, so provide a compatible alternative

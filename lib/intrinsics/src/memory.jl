@@ -5,7 +5,7 @@
     Context() do ctx
         # XXX: as long as LLVMPtr is emitted as i8*, it doesn't make sense to type the GV
         eltyp = convert(LLVMType, LLVM.Int8Type())
-        T_ptr = convert(LLVMType, LLVMPtr{T,AS.Local})
+        T_ptr = convert(LLVMType, LLVMPtr{T,AS.Workgroup})
 
         # create a function
         llvm_f, _ = create_function(T_ptr)
@@ -13,7 +13,7 @@
         # create the global variable
         mod = LLVM.parent(llvm_f)
         gv_typ = LLVM.ArrayType(eltyp, len * sizeof(T))
-        gv = GlobalVariable(mod, gv_typ, "local_memory", AS.Local)
+        gv = GlobalVariable(mod, gv_typ, "local_memory", AS.Workgroup)
         if len > 0
             linkage!(gv, LLVM.API.LLVMInternalLinkage)
             initializer!(gv, null(gv_typ))
@@ -33,6 +33,6 @@
             ret!(builder, untyped_ptr)
         end
 
-        call_function(llvm_f, LLVMPtr{T,AS.Local})
+        call_function(llvm_f, LLVMPtr{T,AS.Workgroup})
     end
 end

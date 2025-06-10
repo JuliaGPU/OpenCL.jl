@@ -299,9 +299,10 @@ end
 
 ## interop with GPU arrays
 
-function Base.unsafe_convert(::Type{CLDeviceArray{T, N, AS.Global}}, a::CLArray{T, N}) where {T, N}
-    return CLDeviceArray{T, N, AS.Global}(
-        size(a), reinterpret(LLVMPtr{T, AS.Global}, pointer(a)),
+function Base.unsafe_convert(::Type{CLDeviceArray{T, N, AS.CrossWorkgroup}},
+                             a::CLArray{T, N}) where {T, N}
+    return CLDeviceArray{T, N, AS.CrossWorkgroup}(
+        size(a), reinterpret(LLVMPtr{T, AS.CrossWorkgroup}, pointer(a)),
         a.maxsize - a.offset * Base.elsize(a)
     )
 end
