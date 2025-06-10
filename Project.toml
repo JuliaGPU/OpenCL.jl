@@ -17,6 +17,7 @@ SPIRVIntrinsics = "71d1d633-e7e8-4a92-83a1-de8814b09ba8"
 SPIRV_LLVM_Backend_jll = "4376b9bf-cff8-51b6-bb48-39421dff0d0c"
 SPIRV_Tools_jll = "6ac6d60f-d740-5983-97d7-a4482c0689f4"
 StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
+spirv2clc_jll = "f0274c0c-8c8a-59f1-85b7-f7d60330c5fb"
 
 [compat]
 Adapt = "4"
@@ -34,3 +35,4 @@ SPIRV_LLVM_Backend_jll = "20"
 SPIRV_Tools_jll = "2024.4"
 StaticArrays = "1"
 julia = "1.10"
+spirv2clc_jll = "0.1.0"
