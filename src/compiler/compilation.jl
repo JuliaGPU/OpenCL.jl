@@ -64,21 +64,64 @@ function compile(@nospecialize(job::CompilerJob))
     (obj, entry=LLVM.name(meta.entry))
 end
 
+function run_and_collect(cmd)
+    stdout = Pipe()
+    proc = run(pipeline(ignorestatus(cmd); stdout, stderr=stdout), wait=false)
+    close(stdout.in)
+
+    reader = Threads.@spawn String(read(stdout))
+    Base.wait(proc)
+    log = strip(fetch(reader))
+
+    return proc, log
+end
+
 # link into an executable kernel
 function link(@nospecialize(job::CompilerJob), compiled)
+    spirv_bitcode = compiled.obj
+    clc_source = nothing
+
     prog = if "cl_khr_il_program" in cl.device().extensions
-        cl.Program(; il=compiled.obj)
+        cl.Program(; il=spirv_bitcode)
     else
-        error("Your device does not support SPIR-V, which is currently required for native execution.")
-        # XXX: kpet/spirv2clc#87, caused by KhronosGroup/SPIRV-LLVM-Translator#2029
-        source = mktempdir() do dir
-            il = joinpath(dir, "kernel.spv")
-            write(il, compiled.obj)
-            cmd = `spirv2clc $il`
-            read(cmd, String)
+        @warn """The current active OpenCL device '$(cl.device().name)' does not support IL programs.
+                 Falling back to experimental SPIR-V to OpenCL C translation.""" maxlog=1 _id=Symbol(cl.device().name)
+        spirv_path = tempname(cleanup=false) * ".spv"
+        write(spirv_path, spirv_bitcode)
+        proc, log = run_and_collect(`$(spirv2clc_jll.spirv2clc()) $spirv_path`)
+        if !success(proc)
+            msg = "Failed to translate SPIR-V to OpenCL C source code:\n$(log)"
+            msg *= "\nIf you think this is a bug, please file an issue and attach $spirv_path"
+            if parse(Bool, get(ENV, "BUILDKITE", "false"))
+                run(`buildkite-agent artifact upload $spirv_path`)
+            end
+            error(msg)
         end
-        cl.Program(; source)
+        rm(spirv_path)
+        clc_source = strip(log)
+        cl.Program(; source=clc_source)
     end
-    cl.build!(prog)
+
+    try
+        cl.build!(prog)
+    catch e
+        spirv_path = tempname(cleanup=false) * ".spv"
+        write(spirv_path, spirv_bitcode)
+        files = [spirv_path]
+        if clc_source !== nothing
+            clc_path = tempname(cleanup=false) * ".cl"
+            write(clc_path, clc_source)
+            push!(files, clc_path)
+        end
+
+        msg = "Failed to compile OpenCL program"
+        msg *= "\nIf you think this is a bug, please file an issue and attach $(join(files, " and "))"
+        if parse(Bool, get(ENV, "BUILDKITE", "false"))
+            for file in files
+                run(`buildkite-agent artifact upload $file`)
+            end
+        end
+        error(msg)
+    end
     cl.Kernel(prog, compiled.entry)
 end
