@@ -46,7 +46,7 @@ end
 
 Base.ndims(l::LocalMem) = 1
 Base.eltype(l::LocalMem{T}) where {T} = T
-Base.sizeof(l::LocalMem{T}) where {T} = l.nbytes
+Base.sizeof(l::LocalMem{T}) where {T} = Int(l.nbytes)
 Base.length(l::LocalMem{T}) where {T} = Int(l.nbytes ÷ sizeof(T))
 
 # preserve the LocalMem; it will be handled by `set_arg!`
