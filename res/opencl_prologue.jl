@@ -22,3 +22,5 @@ macro CL_MAKE_VERSION(major, minor, patch)
         VersionNumber($major, $minor, $patch)
     end
 end
+
+const intptr_t = Cssize_t

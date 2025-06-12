@@ -8,7 +8,7 @@
 const atomic_integer_types = [UInt32, Int32]
 # TODO: 64-bit atomics with ZE_DEVICE_MODULE_FLAG_INT64_ATOMICS
 # TODO: additional floating-point atomics with ZE_extension_float_atomics
-const atomic_memory_types = [AS.Local, AS.Global]
+const atomic_memory_types = [AS.Workgroup, AS.CrossWorkgroup]
 
 
 # generically typed

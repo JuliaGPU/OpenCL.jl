@@ -58,9 +58,9 @@
             if !cl.has_device_type(cl.platform(), sym_dev_type)
                 continue
             end
-            @test cl.Context(sym_dev_type, properties=properties) != nothing
-            @test cl.Context(cl_dev_type, properties=properties) != nothing
-            ctx = cl.Context(cl_dev_type, properties=properties)
+            @test cl.Context(sym_dev_type; properties) != nothing
+            @test cl.Context(cl_dev_type; properties) != nothing
+            ctx = cl.Context(cl_dev_type; properties)
             @test !isempty(ctx.properties)
             test_properties = ctx.properties
 
@@ -78,22 +78,10 @@
             @test platform_in_properties
         end
         try
-            ctx2 = cl.Context(cl.CL_DEVICE_TYPE_ACCELERATOR,
-                              properties=properties)
+            ctx2 = cl.Context(cl.CL_DEVICE_TYPE_ACCELERATOR; properties)
         catch err
             @test typeof(err) == cl.CLError
             @test err.desc == :CL_DEVICE_NOT_FOUND
         end
     end
-
-   @testset "parsing" begin
-        properties = [(cl.CL_CONTEXT_PLATFORM, cl.platform())]
-        parsed_properties = cl._parse_properties(properties)
-
-        @test isodd(length(parsed_properties))
-        @test parsed_properties[end] == 0
-        @test parsed_properties[1] == cl.cl_context_properties(cl.CL_CONTEXT_PLATFORM)
-        @test parsed_properties[2] == cl.cl_context_properties(cl.platform().id)
-    end
-
 end

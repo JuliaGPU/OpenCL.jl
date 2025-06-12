@@ -66,7 +66,7 @@ function Context(devs::Vector{Device};
         ArgumentError("No devices specified for context")
     end
     if properties !== nothing
-        ctx_properties = _parse_properties(properties)
+        ctx_properties = encode_properties(properties)
     else
         ctx_properties = C_NULL
     end
@@ -95,7 +95,7 @@ Context(d::Device; properties=nothing, callback=nothing) =
 
 function Context(dev_type; properties = nothing, callback = nothing)
     if properties !== nothing
-        ctx_properties = _parse_properties(properties)
+        ctx_properties = encode_properties(properties)
     else
         ctx_properties = C_NULL
     end
@@ -178,11 +178,9 @@ function Base.getproperty(ctx::Context, s::Symbol)
     end
 end
 
-#Note: properties list needs to be terminated with a NULL value!
-function _parse_properties(props)
-    if isempty(props)
-        return C_NULL
-    end
+function encode_properties(props)
+    isempty(props) && return C_NULL
+
     cl_props = cl_context_properties[]
     for prop_tuple in props
         if length(prop_tuple) != 2
@@ -195,7 +193,7 @@ function _parse_properties(props)
             push!(cl_props, cl_context_properties(val))
         elseif prop == CL_WGL_HDC_KHR
             push!(cl_props, cl_context_properties(val))
-        elseif Sys.isapple() ? (prop == CL_CONTEXT_PROPERTY_USE_CGL_SHAREGROUP_APPLE) : false
+        elseif Sys.isapple() && prop == CL_CONTEXT_PROPERTY_USE_CGL_SHAREGROUP_APPLE
             push!(cl_props, cl_context_properties(val))
         elseif prop == CL_GL_CONTEXT_KHR ||
             prop == CL_EGL_DISPLAY_KHR ||
@@ -203,10 +201,13 @@ function _parse_properties(props)
             prop == CL_CGL_SHAREGROUP_KHR
             push!(cl_props, cl_context_properties(val))
         else
-            throw(OpenCLException("Invalid OpenCL Context property"))
+            throw(OpenCLException("Invalid OpenCL context property '$prop'"))
         end
     end
+
+    # terminate with NULL
     push!(cl_props, cl_context_properties(C_NULL))
+
     return cl_props
 end
 

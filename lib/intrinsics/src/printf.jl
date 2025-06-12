@@ -31,7 +31,7 @@ end
     Context() do ctx
         T_void = LLVM.VoidType()
         T_int32 = LLVM.Int32Type()
-        T_pint8 = LLVM.PointerType(LLVM.Int8Type(), AS.Constant)
+        T_pint8 = LLVM.PointerType(LLVM.Int8Type(), AS.UniformConstant)
 
         # create functions
         param_types = LLVMType[convert(LLVMType, typ) for typ in arg_types]
@@ -80,7 +80,7 @@ end
                 push!(actual_args, actual_arg)
             end
 
-            str = globalstring_ptr!(builder, String(fmt); addrspace=AS.Constant)
+            str = globalstring_ptr!(builder, String(fmt); addrspace=AS.UniformConstant)
 
             # invoke printf and return
             printf_typ = LLVM.FunctionType(T_int32, [T_pint8]; vararg=true)

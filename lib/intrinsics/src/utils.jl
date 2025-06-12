@@ -34,22 +34,22 @@ macro builtin_ccall(name, ret, argtypes, args...)
             elt, as = T.parameters
 
             # mangle address space
-            ASstr = if as == AS.Global
+            ASstr = if as == AS.CrossWorkgroup
                 "CLglobal"
             #elseif as == AS.Global_device
             #    "CLdevice"
             #elseif as == AS.Global_host
             #    "CLhost"
-            elseif as == AS.Local
+            elseif as == AS.Workgroup
                 "CLlocal"
-            elseif as == AS.Constant
+            elseif as == AS.UniformConstant
                 "CLconstant"
-            elseif as == AS.Private
+            elseif as == AS.Function
                 "CLprivate"
             elseif as == AS.Generic
                 "CLgeneric"
             else
-                error("Unknown address space $AS")
+                error("Unknown address space $as")
             end
 
             # encode as vendor qualifier
