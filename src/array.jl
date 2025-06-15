@@ -510,7 +510,6 @@ function Base.resize!(a::CLVector{T}, n::Integer) where {T}
                 if memtype(a) == cl.SharedVirtualMemory
                     cl.enqueue_svm_copy(ptr, pointer(a), m*sizeof(T); blocking=false)
                 elseif memtype(a) == cl.BufferDeviceMemory
-                    @warn "resizing"
                     cl.enqueue_bda_copy(mem.id, a.data[].mem.id, nbytes; blocking)
                 else
                     cl.enqueue_usm_copy(ptr, pointer(a), m*sizeof(T); blocking=false)
