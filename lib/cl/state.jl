@@ -161,6 +161,7 @@ end
 abstract type AbstractMemoryBackend end
 struct SVMBackend <: AbstractMemoryBackend end
 struct USMBackend <: AbstractMemoryBackend end
+struct BDABackend <: AbstractMemoryBackend end
 
 function default_memory_backend(dev::Device)
     # determine if USM is supported
@@ -171,15 +172,17 @@ function default_memory_backend(dev::Device)
         false
     end
 
+    bda = bda_supported(dev)
+    
     # determine if SVM is available (if needed)
-    if !usm
+    if !usm && !bda
         caps = svm_capabilities(dev)
         if !caps.coarse_grain_buffer
-            error("Device $dev does not support USM or coarse-grained SVM, either of which is required by OpenCL.jl")
+            error("Device $dev does not support USM, coarse-grained SVM, or Buffer Device Address, one of which is required by OpenCL.jl")
         end
     end
 
-    usm ? USMBackend() : SVMBackend()
+    usm ? USMBackend() : (bda ? BDABackend : SVMBackend())
 end
 
 function memory_backend()

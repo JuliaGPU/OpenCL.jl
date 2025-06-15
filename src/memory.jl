@@ -134,6 +134,11 @@ function alloc(::Type{cl.SharedVirtualMemory}, bytes::Int; alignment::Int = 0)
     return Managed(mem)
 end
 
+function alloc(::Type{cl.BufferDeviceMemory}, bytes::Int; alignment::Int = 0)
+    mem = cl.bda_alloc(bytes; alignment)
+    return Managed(mem)
+end
+
 function free(managed::Managed{<:cl.AbstractMemory})
     mem = managed.mem
     cl.context!(cl.context(mem)) do
@@ -148,6 +153,8 @@ function free(managed::Managed{<:cl.AbstractMemory})
 
         if mem isa cl.SharedVirtualMemory
             cl.svm_free(mem)
+        elseif mem isa cl.BufferDeviceMemory
+            cl.bda_free(mem)
         else
             cl.usm_free(mem)
         end
