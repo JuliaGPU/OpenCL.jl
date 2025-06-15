@@ -71,6 +71,8 @@ function versioninfo(io::IO=stdout)
             backend = cl.default_memory_backend(device)
             if backend == cl.SVMBackend()
                 push!(tags, "svm")
+            elseif backend == cl.BDABackend()
+                push!(tags, "bda")
             elseif backend == cl.USMBackend()
                 push!(tags, "usm")
             end

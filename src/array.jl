@@ -96,8 +96,10 @@ const CLVecOrMat{T} = Union{CLVector{T}, CLMatrix{T}}
 function memory_type()
     if cl.memory_backend() == cl.USMBackend()
         return cl.UnifiedDeviceMemory
-    else
+    elseif cl.memory_backend() == cl.SVMBackend()
         return cl.SharedVirtualMemory
+    else
+        return cl.BufferDeviceMemory
     end
 end
 CLArray{T, N}(::UndefInitializer, dims::Dims{N}) where {T, N} =
@@ -177,6 +179,7 @@ is_device(a::CLArray) = memtype(a) == cl.UnifiedDeviceMemory
 is_shared(a::CLArray) = memtype(a) == cl.UnifiedSharedMemory
 is_host(a::CLArray) = memtype(a) == cl.UnifiedHostMemory
 is_svm(a::CLArray) = memtype(a) == cl.SharedVirtualMemory
+is_bda(a::CLArray) = memtype(a) == cl.BufferDeviceMemory
 
 ## derived types
 
@@ -379,6 +382,10 @@ for (srcty, dstty) in [(:Array, :CLArray), (:CLArray, :Array), (:CLArray, :CLArr
             cl.context!(context(device_array)) do
                 if memtype(device_array) == cl.SharedVirtualMemory
                     cl.enqueue_svm_copy(pointer(dst, dst_off), pointer(src, src_off), nbytes; blocking)
+                elseif memtype(device_array) == cl.BufferDeviceMemory
+                    dstptr = dst isa Array ? pointer(dst, dst_off) : dst.data[].mem.id
+                    srcptr = src isa Array ? pointer(src, src_off) : src.data[].mem.id
+                    cl.enqueue_bda_copy(dstptr, 0, srcptr, 0, nbytes; blocking)
                 else
                     cl.enqueue_usm_copy(pointer(dst, dst_off), pointer(src, src_off), nbytes; blocking)
                 end
@@ -421,6 +428,8 @@ function Base.fill!(A::DenseCLArray{T}, val) where {T}
         GC.@preserve A begin
             if memtype(A) == cl.SharedVirtualMemory
                 cl.enqueue_svm_fill(pointer(A), convert(T, val), length(A))
+            elseif memtype(A) == cl.BufferDeviceMemory
+                cl.enqueue_fill(A.data[].mem.id, convert(T, val), length(A))
             else
                 cl.enqueue_usm_fill(pointer(A), convert(T, val), length(A))
             end
@@ -500,6 +509,9 @@ function Base.resize!(a::CLVector{T}, n::Integer) where {T}
             GC.@preserve a begin
                 if memtype(a) == cl.SharedVirtualMemory
                     cl.enqueue_svm_copy(ptr, pointer(a), m*sizeof(T); blocking=false)
+                elseif memtype(a) == cl.BufferDeviceMemory
+                    @warn "resizing"
+                    cl.enqueue_bda_copy(mem.id, a.data[].mem.id, nbytes; blocking)
                 else
                     cl.enqueue_usm_copy(ptr, pointer(a), m*sizeof(T); blocking=false)
                 end
