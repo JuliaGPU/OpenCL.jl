@@ -383,9 +383,9 @@ for (srcty, dstty) in [(:Array, :CLArray), (:CLArray, :Array), (:CLArray, :CLArr
                 if memtype(device_array) == cl.SharedVirtualMemory
                     cl.enqueue_svm_copy(pointer(dst, dst_off), pointer(src, src_off), nbytes; blocking)
                 elseif memtype(device_array) == cl.BufferDeviceMemory
-                    dstptr = dst isa Array ? pointer(dst, dst_off) : dst.data[].mem.id
-                    srcptr = src isa Array ? pointer(src, src_off) : src.data[].mem.id
-                    cl.enqueue_bda_copy(dstptr, 0, srcptr, 0, nbytes; blocking)
+                    dstptr = dst isa Array ? pointer(dst) : dst.data[].mem.id
+                    srcptr = src isa Array ? pointer(src) : src.data[].mem.id
+                    cl.enqueue_bda_copy(dstptr, (dst_off - 1) * sizeof(T), srcptr, (src_off - 1) * sizeof(T), nbytes; blocking)
                 else
                     cl.enqueue_usm_copy(pointer(dst, dst_off), pointer(src, src_off), nbytes; blocking)
                 end
