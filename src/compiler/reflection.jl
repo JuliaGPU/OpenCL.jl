@@ -60,7 +60,7 @@ export @device_code_lowered, @device_code_typed, @device_code_warntype, @device_
 #
 
 """
-    Metal.return_type(f, tt) -> r::Type
+    OpenCL.return_type(f, tt) -> r::Type
 
 Return a type `r` such that `f(args...)::r` where `args::tt`.
 """
