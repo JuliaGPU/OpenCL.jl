@@ -10,7 +10,6 @@ BufferDeviceMemory() = BufferDeviceMemory(C_NULL, CL_NULL, 0, context())
 function bda_alloc(bytesize::Integer;
         alignment::Integer = 0, device_access::Symbol = :rw, host_access::Symbol = :rw
     )
-    bytesize == 0 && return BufferDeviceMemory()
 
     flags = if device_access == :rw
         CL_MEM_READ_WRITE

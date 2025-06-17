@@ -112,6 +112,13 @@ end
 
 
 ## public interface
+function managed_alloc(t::Type{T}, bytes::Int; kwargs...) where T <: cl.AbstractMemory
+    if bytes == 0
+        return Managed(T())
+    else
+        alloc(t, bytes; kwargs...)
+    end
+end
 
 function alloc(::Type{cl.UnifiedDeviceMemory}, bytes::Int; alignment::Int = 0)
     mem = cl.device_alloc(bytes; alignment)

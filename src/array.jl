@@ -52,7 +52,7 @@ mutable struct CLArray{T, N, M} <: AbstractGPUArray{T, N}
             maxsize
         end
         data = GPUArrays.cached_alloc((CLArray, cl.context(), M, bufsize)) do
-            buf = alloc(M, bufsize; alignment=Base.datatype_alignment(T))
+            buf = managed_alloc(M, bufsize; alignment=Base.datatype_alignment(T))
             DataRef(free, buf)
         end
         obj = new{T, N, M}(data, maxsize, 0, dims)
@@ -506,7 +506,7 @@ function Base.resize!(a::CLVector{T}, n::Integer) where {T}
     # replace the data with a new CL. this 'unshares' the array.
     # as a result, we can safely support resizing unowned buffers.
     new_data = cl.context!(context(a)) do
-        mem = alloc(memtype(a), bufsize; alignment=Base.datatype_alignment(T))
+        mem = managed_alloc(memtype(a), bufsize; alignment=Base.datatype_alignment(T))
         ptr = convert(CLPtr{T}, mem)
         m = min(length(a), n)
         if m > 0

@@ -31,7 +31,6 @@ UnifiedDeviceMemory() = UnifiedDeviceMemory(CL_NULL, 0, context())
 function device_alloc(bytesize::Integer;
         alignment::Integer = 0, write_combined::Bool = false
     )
-    bytesize == 0 && return UnifiedDeviceMemory()
 
     flags = 0
     if write_combined
@@ -78,7 +77,6 @@ UnifiedHostMemory() = UnifiedHostMemory(C_NULL, 0, context())
 function host_alloc(bytesize::Integer;
         alignment::Integer = 0, write_combined::Bool = false
     )
-    bytesize == 0 && return UnifiedHostMemory()
 
     flags = 0
     if write_combined
@@ -124,7 +122,6 @@ UnifiedSharedMemory() = UnifiedSharedMemory(CL_NULL, 0, context())
 function shared_alloc(bytesize::Integer;
         alignment::Integer = 0, write_combined = false, placement = nothing
     )
-    bytesize == 0 && return UnifiedSharedMemory()
 
     flags = 0
     if write_combined

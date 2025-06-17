@@ -9,7 +9,6 @@ SharedVirtualMemory() = SharedVirtualMemory(CL_NULL, 0, context())
 function svm_alloc(bytesize::Integer;
         alignment::Integer = 0, access::Symbol = :rw, fine_grained = false
     )
-    bytesize == 0 && return SharedVirtualMemory()
 
     flags = if access == :rw
         CL_MEM_READ_WRITE
