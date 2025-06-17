@@ -1,5 +1,5 @@
 using Distributed, Test
-using OpenCL, pocl_jll
+using OpenCL
 using IOCapture
 
 # KernelAbstractions has a testsuite that isn't part of the main package.

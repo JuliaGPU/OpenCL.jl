@@ -175,14 +175,22 @@ function default_memory_backend(dev::Device)
     bda = bda_supported(dev)
     
     # determine if SVM is available (if needed)
-    if !usm && !bda
+    svm = let
         caps = svm_capabilities(dev)
-        if !caps.coarse_grain_buffer
+        caps.coarse_grain_buffer
+    end
+
+    if usm
+        USMBackend()
+    else
+        if svm
+            SVMBackend()
+        elseif bda
+            BDABackend()
+        else
             error("Device $dev does not support USM, coarse-grained SVM, or Buffer Device Address, one of which is required by OpenCL.jl")
         end
     end
-
-    usm ? USMBackend() : (bda ? BDABackend : SVMBackend())
 end
 
 function memory_backend()

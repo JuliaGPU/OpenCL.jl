@@ -38,9 +38,9 @@ function maybe_synchronize(managed::Managed)
     return nothing
 end
 
-function Base.convert(::Type{CLPtr{T}}, managed::Managed{M}) where {T, M}
+function Base.convert(t::Union{Type{CLPtr{T}}, Type{cl.cl_mem}}, managed::Managed{M}) where {T, M}
     # let null pointers pass through as-is
-    ptr = convert(CLPtr{T}, managed.mem)
+    ptr = convert(t, managed.mem)
     if ptr == cl.CL_NULL
         return ptr
     end
