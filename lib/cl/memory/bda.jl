@@ -5,10 +5,12 @@ struct BufferDeviceMemory <: AbstractMemory
     context::Context
 end
 
+BufferDeviceMemory() = BufferDeviceMemory(C_NULL, CL_NULL, 0, context())
+
 function bda_alloc(bytesize::Integer;
         alignment::Integer = 0, device_access::Symbol = :rw, host_access::Symbol = :rw
     )
-    bytesize == 0 && error("size 0 is not supported for BufferDeviceMemory.")
+    bytesize == 0 && return BufferDeviceMemory()
 
     flags = if device_access == :rw
         CL_MEM_READ_WRITE
@@ -67,3 +69,35 @@ Base.convert(::Type{CLPtr{T}}, buf::BufferDeviceMemory) where {T} =
     reinterpret(CLPtr{T}, pointer(buf))
 
 Base.convert(::Type{cl_mem}, buf::BufferDeviceMemory) = buf.id
+
+function enqueue_bda_copy(dst, dst_off, src, src_off, nbytes; kwargs...)
+    if nbytes == 0 || dst == C_NULL || src == C_NULL
+        return nothing
+    else
+        enqueue_copy(dst, dst_off, src, src_off, nbytes; kwargs...)
+    end
+end
+
+function enqueue_bda_read(dst, src, src_off, nbytes; kwargs...)
+    if nbytes == 0 || src == C_NULL
+        return nothing
+    else
+        enqueue_read(dst, src, src_off, nbytes; kwargs...)
+    end
+end
+
+function enqueue_bda_write(dst, dst_off, src, nbytes; kwargs...)
+    if nbytes == 0 || dst == C_NULL
+        return nothing
+    else
+        enqueue_write(dst, dst_off, src, nbytes; kwargs...)
+    end
+end
+
+function enqueue_bda_fill(b, offset, pattern, N; kwargs...)
+    if b == C_NULL
+        return nothing
+    else
+        enqueue_fill(b, offset, pattern, N; kwargs...)
+    end
+end
