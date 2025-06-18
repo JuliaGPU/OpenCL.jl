@@ -32,6 +32,7 @@ macro import_all()
         # bring all the names of this module in scope
         name in (:SPIRVIntrinsics, :eval, :include) && continue
         startswith(string(name), "#") && continue
+        name in (:method_table, :@device_function, :@device_override) && continue
         push!(code.args, :(using .SPIRVIntrinsics: $name))
     end
 
