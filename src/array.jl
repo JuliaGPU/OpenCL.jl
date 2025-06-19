@@ -382,16 +382,25 @@ for (srcty, dstty) in [(:Array, :CLArray), (:CLArray, :Array), (:CLArray, :CLArr
             cl.context!(context(device_array)) do
                 if memtype(device_array) == cl.SharedVirtualMemory
                     cl.enqueue_svm_copy(pointer(dst, dst_off), pointer(src, src_off), nbytes; blocking)
-                elseif memtype(device_array) == cl.BufferDeviceMemory
-                    if src isa CLArray && dst isa CLArray
-                        cl.enqueue_copy(convert(cl.Buffer{UInt8}, dst.data[]), (dst.offset * Base.elsize(dst)) + (dst_off - 1) * sizeof(T), convert(cl.Buffer{UInt8}, src.data[]), (src.offset * Base.elsize(src)) + (src_off - 1) * sizeof(T), nbytes; blocking)
-                    elseif dst isa CLArray
-                        cl.enqueue_write(convert(cl.Buffer{UInt8}, dst.data[]), (dst.offset * Base.elsize(dst)) + (dst_off - 1) * sizeof(T), pointer(src, src_off), nbytes; blocking)
-                    elseif src isa CLArray
-                        cl.enqueue_read(pointer(dst, dst_off), convert(cl.Buffer{UInt8}, src.data[]), (src.offset * Base.elsize(src)) + (src_off - 1) * sizeof(T), nbytes; blocking)
-                    end
-                else
+                elseif memtype(device_array) <: cl.UnifiedMemory
                     cl.enqueue_usm_copy(pointer(dst, dst_off), pointer(src, src_off), nbytes; blocking)
+                else
+                    if src isa CLArray && dst isa CLArray
+                        cl.enqueue_copy(convert(cl.Buffer{UInt8}, dst.data[]),
+                            (dst.offset * Base.elsize(dst)) + (dst_off - 1) * sizeof(T),
+                            convert(cl.Buffer{UInt8}, src.data[]),
+                            (src.offset * Base.elsize(src)) + (src_off - 1) * sizeof(T),
+                            nbytes; blocking)
+                    elseif dst isa CLArray
+                        cl.enqueue_write(convert(cl.Buffer{UInt8}, dst.data[]),
+                            (dst.offset * Base.elsize(dst)) + (dst_off - 1) * sizeof(T),
+                            pointer(src, src_off), nbytes; blocking)
+                    elseif src isa CLArray
+                        cl.enqueue_read(pointer(dst, dst_off),
+                            convert(cl.Buffer{UInt8}, src.data[]),
+                            (src.offset * Base.elsize(src)) + (src_off - 1) * sizeof(T),
+                            nbytes; blocking)
+                    end
                 end
             end
         end
@@ -433,10 +442,10 @@ function Base.fill!(A::DenseCLArray{T}, val) where {T}
         GC.@preserve A begin
             if memtype(A) == cl.SharedVirtualMemory
                 cl.enqueue_svm_fill(pointer(A), convert(T, val), length(A))
-            elseif memtype(A) == cl.BufferDeviceMemory
-                cl.enqueue_fill(convert(cl.Buffer{UInt8}, A.data[]), A.offset * Base.elsize(A), convert(T, val), length(A))
-            else
+            elseif memtype(A) <: cl.UnifiedMemory
                 cl.enqueue_usm_fill(pointer(A), convert(T, val), length(A))
+            else
+                cl.enqueue_fill(convert(cl.Buffer{UInt8}, A.data[]), A.offset * Base.elsize(A), convert(T, val), length(A))
             end
         end
     end
@@ -514,10 +523,10 @@ function Base.resize!(a::CLVector{T}, n::Integer) where {T}
             GC.@preserve a begin
                 if memtype(a) == cl.SharedVirtualMemory
                     cl.enqueue_svm_copy(ptr, pointer(a), m*sizeof(T); blocking=false)
-                elseif memtype(a) == cl.BufferDeviceMemory
-                    cl.enqueue_copy(convert(cl.Buffer{UInt8}, mem), 0, convert(cl.Buffer{UInt8}, a.data[]), a.offset * Base.elsize(a), m*sizeof(T); blocking=false)
-                else
+                elseif memtype(a) <: cl.UnifiedMemory
                     cl.enqueue_usm_copy(ptr, pointer(a), m*sizeof(T); blocking=false)
+                else
+                    cl.enqueue_copy(convert(cl.Buffer{UInt8}, mem), 0, convert(cl.Buffer{UInt8}, a.data[]), a.offset * Base.elsize(a), m*sizeof(T); blocking=false)
                 end
             end
         end
