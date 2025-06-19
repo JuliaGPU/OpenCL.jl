@@ -2240,6 +2240,8 @@ const clSetContentSizeBufferPoCL_fn = Ptr{clSetContentSizeBufferPoCL_t}
                                                     content_size_buffer::cl_mem)::cl_int
 end
 
+const cl_device_kernel_clock_capabilities_khr = cl_bitfield
+
 const cl_mem_device_address_ext = cl_ulong
 
 # typedef cl_int CL_API_CALL clSetKernelArgDevicePointerEXT_t ( cl_kernel kernel , cl_uint arg_index , cl_mem_device_address_ext arg_value )
@@ -4846,6 +4848,20 @@ const CL_KHR_INT64_EXTENDED_ATOMICS_EXTENSION_NAME = "cl_khr_int64_extended_atom
 
 const CL_KHR_INT64_EXTENDED_ATOMICS_EXTENSION_VERSION = @CL_MAKE_VERSION(1, 0, 0)
 
+const cl_khr_kernel_clock = 1
+
+const CL_KHR_KERNEL_CLOCK_EXTENSION_NAME = "cl_khr_kernel_clock"
+
+const CL_KHR_KERNEL_CLOCK_EXTENSION_VERSION = @CL_MAKE_VERSION(1, 0, 0)
+
+const CL_DEVICE_KERNEL_CLOCK_CAPABILITIES_KHR = 0x1076
+
+const CL_DEVICE_KERNEL_CLOCK_SCOPE_DEVICE_KHR = 1 << 0
+
+const CL_DEVICE_KERNEL_CLOCK_SCOPE_WORK_GROUP_KHR = 1 << 1
+
+const CL_DEVICE_KERNEL_CLOCK_SCOPE_SUB_GROUP_KHR = 1 << 2
+
 const cl_khr_local_int32_base_atomics = 1
 
 const CL_KHR_LOCAL_INT32_BASE_ATOMICS_EXTENSION_NAME = "cl_khr_local_int32_base_atomics"
@@ -4887,6 +4903,18 @@ const cl_khr_spirv_no_integer_wrap_decoration = 1
 const CL_KHR_SPIRV_NO_INTEGER_WRAP_DECORATION_EXTENSION_NAME = "cl_khr_spirv_no_integer_wrap_decoration"
 
 const CL_KHR_SPIRV_NO_INTEGER_WRAP_DECORATION_EXTENSION_VERSION = @CL_MAKE_VERSION(1, 0, 0)
+
+const cl_khr_spirv_queries = 1
+
+const CL_KHR_SPIRV_QUERIES_EXTENSION_NAME = "cl_khr_spirv_queries"
+
+const CL_KHR_SPIRV_QUERIES_EXTENSION_VERSION = @CL_MAKE_VERSION(1, 0, 0)
+
+const CL_DEVICE_SPIRV_EXTENDED_INSTRUCTION_SETS_KHR = 0x12b9
+
+const CL_DEVICE_SPIRV_EXTENSIONS_KHR = 0x12ba
+
+const CL_DEVICE_SPIRV_CAPABILITIES_KHR = 0x12bb
 
 const cl_khr_srgb_image_writes = 1
 
