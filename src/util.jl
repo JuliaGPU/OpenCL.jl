@@ -87,8 +87,8 @@ function versioninfo(io::IO=stdout)
                     push!(tags, "svm"*suffix)
                 elseif backend isa cl.USMBackend
                     push!(tags, "usm"*suffix)
-                elseif backend isa cl.BDABackend
-                    push!(tags, "bda"*suffix)
+                elseif backend isa cl.BufferBackend
+                    push!(tags, "buffer"*suffix)
                 end
             end
             ## relevant extensions

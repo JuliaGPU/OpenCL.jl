@@ -83,9 +83,6 @@ Base.unsafe_convert(::Type{cl_mem}, mem::AbstractMemoryObject) = mem.id
 # for passing buffers to kernels: pass the private device pointer
 Base.convert(::Type{CLPtr{T}}, mem::AbstractMemoryObject) where {T} =
     convert(CLPtr{T}, pointer(mem))
-# XXX: for passing buffers directly, we can support non-BDA drivers
-#      by postponing the conversion to `cl.set_arg!`
-#Base.unsafe_convert(::Type{<:Ptr}, mem::AbstractMemoryObject) = mem
 
 include("memory/buffer.jl")
 

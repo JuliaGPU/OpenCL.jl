@@ -144,7 +144,7 @@ end
 
 function alloc(::Type{cl.Buffer}, bytes::Int; alignment::Int = 0)
     # TODO: use alignment
-    buf = cl.Buffer(bytes; device_private_address = true)
+    buf = cl.Buffer(bytes)
     return Managed(buf)
 end
 

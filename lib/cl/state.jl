@@ -161,7 +161,7 @@ end
 abstract type AbstractMemoryBackend end
 struct SVMBackend <: AbstractMemoryBackend end
 struct USMBackend <: AbstractMemoryBackend end
-struct BDABackend <: AbstractMemoryBackend end
+struct BufferBackend <: AbstractMemoryBackend end
 
 function supported_memory_backends(dev::Device)
     backends = AbstractMemoryBackend[]
@@ -175,10 +175,10 @@ function supported_memory_backends(dev::Device)
         end
     end
 
-    # plain old device buffers are second choice, but require an extension to support being
-    # referenced by raw pointers.
+    # plain old buffers are always supported, but we only want to use them if we have the
+    # buffer device address extension, which allows us to reference them by raw pointers.
     if bda_supported(dev)
-        push!(backends, BDABackend())
+        push!(backends, BufferBackend())
     end
 
     # shared virtual memory is last, because it comes at a performance cost.
@@ -187,12 +187,17 @@ function supported_memory_backends(dev::Device)
         push!(backends, SVMBackend())
     end
 
+    if isempty(backends)
+        # as a last resort, use plain buffers without the ability to reference by pointer.
+        # this severely limits compatibility, but it's better than nothing.
+        push!(backends, BufferBackend())
+    end
+
     return backends
 end
 
 function default_memory_backend(dev::Device)
     supported_backends = supported_memory_backends(dev)
-    isempty(supported_backends) && return nothing
 
     backend_str = load_preference(OpenCL, "default_memory_backend")
     backend_str === nothing && return first(supported_backends)
@@ -201,8 +206,8 @@ function default_memory_backend(dev::Device)
         USMBackend()
     elseif backend_str == "svm"
         SVMBackend()
-    elseif backend_str == "bda"
-        BDABackend()
+    elseif backend_str == "buffer"
+        BufferBackend()
     else
         error("Unknown memory backend '$backend_str' requested")
     end
@@ -212,9 +217,14 @@ end
 
 function memory_backend()
     return get!(task_local_storage(), :CLMemoryBackend) do
-        backend = default_memory_backend(device())
+        dev = device()
+        backend = default_memory_backend(dev)
         if backend === nothing
-            error("Device $(device()) does not support any of the available memory backends")
+            error("Device $(dev) does not support any of the available memory backends")
+        end
+        if backend === BufferBackend() && !bda_supported(dev)
+            @warn """Your device $(dev.name) does not support the necessary extensions for OpenCL.jl's memory management (requiring either USM, coarse-grained SVM, or BDA).
+                     Falling back to plain OpenCL buffers, which severely limits compatibility with other OpenCL.jl, only supporting OpenCL C kernels.""" maxlog=1 _id="memory_backend_$(dev.name)"
         end
         backend
     end

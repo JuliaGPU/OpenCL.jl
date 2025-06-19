@@ -9,7 +9,7 @@ end
 
 Buffer() = Buffer(C_NULL, CL_NULL, 0, context())
 
-Base.pointer(buf::Buffer) = @something buf.ptr error("Buffer does not have a device private address")
+Base.pointer(buf::Buffer) = @something buf.ptr error("Conversion of a buffer to a pointer is not supported by this device")
 Base.sizeof(buf::Buffer) = buf.bytesize
 context(buf::Buffer) = buf.context
 
@@ -18,7 +18,7 @@ context(buf::Buffer) = buf.context
 
 # for internal use
 function Buffer(sz::Int, flags::Integer, hostbuf=nothing;
-                device=:rw, host=:rw, device_private_address=false)
+                device=:rw, host=:rw, device_private_address=bda_supported(cl.device()))
     if device == :rw
         flags |= CL_MEM_READ_WRITE
     elseif device == :r

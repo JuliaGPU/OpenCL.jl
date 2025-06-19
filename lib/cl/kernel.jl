@@ -69,7 +69,7 @@ function set_arg!(k::Kernel, idx::Integer, arg::CLPtr{T}) where {T}
 end
 
 # raw memory
-function set_arg!(k::Kernel, idx::Integer, arg::AbstractMemory)
+function set_arg!(k::Kernel, idx::Integer, arg::AbstractPointerMemory)
     # XXX: this assumes that the receiving argument is pointer-typed, which is not the case
     #      with Julia's `Ptr` ABI. Instead, one should reinterpret the pointer as a
     #      `Core.LLVMPtr`, which _is_ pointer-valued. We retain this handling for `Ptr` for

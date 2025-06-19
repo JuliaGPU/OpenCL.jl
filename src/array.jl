@@ -98,7 +98,7 @@ function memory_type()
         return cl.UnifiedDeviceMemory
     elseif cl.memory_backend() == cl.SVMBackend()
         return cl.SharedVirtualMemory
-    elseif cl.memory_backend() == cl.BDABackend()
+    elseif cl.memory_backend() == cl.BufferBackend()
         return cl.Buffer
     end
 end

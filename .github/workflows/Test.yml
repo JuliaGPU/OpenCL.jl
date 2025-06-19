@@ -26,7 +26,7 @@ jobs:
         os: [ubuntu-24.04, ubuntu-24.04-arm, macOS-13, macOS-15, windows-2025]
         arch: [x64, arm64]
         pocl: [jll, local]
-        memory_backend: [usm, bda, svm]
+        memory_backend: [usm, svm, buffer]
         exclude:
           # unsupported combinations
           - os: ubuntu-24.04
