@@ -21,11 +21,7 @@ function bda_alloc(bytesize::Integer;
     return BufferDeviceMemory(buf, ptr, bytesize, context())
 end
 
-function bda_free(mem::BufferDeviceMemory)
-    # XXX: Buffer is separately GCd
-    #clReleaseMemObject(mem.buf)
-    return
-end
+bda_free(mem::BufferDeviceMemory) = release(mem.buf)
 
 Base.pointer(mem::BufferDeviceMemory) = mem.ptr
 Base.sizeof(mem::BufferDeviceMemory) = mem.bytesize

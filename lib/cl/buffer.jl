@@ -18,6 +18,8 @@ Base.sizeof(mem::AbstractMemoryObject) = mem.size
 
 context(mem::AbstractMemoryObject) = mem.context
 
+release(mem::AbstractMemoryObject) = clReleaseMemObject(mem)
+
 function Base.getproperty(mem::AbstractMemoryObject, s::Symbol)
     if s == :context
         param = Ref{cl_context}()
