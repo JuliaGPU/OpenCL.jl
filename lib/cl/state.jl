@@ -173,34 +173,37 @@ function default_memory_backend(dev::Device)
     end
 
     bda = bda_supported(dev)
-    
+
     # determine if SVM is available (if needed)
     svm = let
         caps = svm_capabilities(dev)
         caps.coarse_grain_buffer
     end
 
-    if haskey(ENV, "JULIA_OPENCL_BACKEND") && ENV["JULIA_OPENCL_BACKEND"] in ["usm", "bda", "svm"]
-        user_backend = ENV["JULIA_OPENCL_BACKEND"]
-        if user_backend == "usm" && usm
-            return USMBackend()
-        elseif user_backend == "bda" && bda
-            return BDABackend()
-        elseif user_backend == "svm" && svm
-            return SVMBackend()
-        end
-    end
-     
-    if usm
-        USMBackend()
-    else
-        if svm
-            SVMBackend()
-        elseif bda
-            BDABackend()
+    preferred_backend = load_preference(OpenCL, "memory_backend", "auto")
+    if preferred_backend == "auto"
+        if usm
+            USMBackend()
         else
-            error("Device $dev does not support USM, coarse-grained SVM, or Buffer Device Address, one of which is required by OpenCL.jl")
+            if svm
+                SVMBackend()
+            elseif bda
+                BDABackend()
+            else
+                error("Device $dev does not support USM, coarse-grained SVM, or Buffer Device Address, one of which is required by OpenCL.jl")
+            end
         end
+    elseif preferred_backend == "usm"
+        usm || error("Use of USM memory backend requested, which is not supported by device $dev")
+        USMBackend()
+    elseif preferred_backend == "bda"
+        bda || error("Use of Buffer Device Address memory backend requested, which is not supported by device $dev")
+        BDABackend()
+    elseif preferred_backend == "svm"
+        svm || error("Use of coarse-grained SVM memory backend requested, which is not supported by device $dev")
+        SVMBackend()
+    else
+        error("Unknown memory backend '$preferred_backend' requested")
     end
 end
 

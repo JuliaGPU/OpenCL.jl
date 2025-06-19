@@ -1,6 +1,8 @@
 module cl
 
+import ..OpenCL
 using Printf
+using Preferences
 
 include("pointer.jl")
 include("api.jl")

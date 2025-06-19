@@ -7,6 +7,7 @@ using Adapt
 using Reexport
 using GPUArrays
 using Random
+using Preferences
 
 using Core: LLVMPtr
 

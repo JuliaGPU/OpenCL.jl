@@ -53,6 +53,19 @@ function versioninfo(io::IO=stdout)
         println(io)
     end
 
+    prefs = [
+        "memory_backend" => load_preference(OpenCL, "memory_backend"),
+    ]
+    if any(x->!isnothing(x[2]), prefs)
+        println(io, "Preferences:")
+        for (key, val) in prefs
+            if !isnothing(val)
+                println(io, "- $key: $val")
+            end
+        end
+        println(io)
+    end
+
     println(io, "Available platforms: ", length(cl.platforms()))
     for platform in cl.platforms()
         println(io, " - $(platform.name)")
