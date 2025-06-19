@@ -38,7 +38,7 @@ function maybe_synchronize(managed::Managed)
     return nothing
 end
 
-function Base.convert(t::Union{Type{CLPtr{T}}, Type{cl.cl_mem}}, managed::Managed{M}) where {T, M}
+function Base.convert(t::Union{Type{CLPtr{T}}, Type{cl.Buffer{T}}}, managed::Managed{M}) where {T, M}
     # let null pointers pass through as-is
     ptr = convert(t, managed.mem)
     if ptr == cl.CL_NULL
@@ -147,6 +147,7 @@ function alloc(::Type{cl.BufferDeviceMemory}, bytes::Int; alignment::Int = 0)
 end
 
 function free(managed::Managed{<:cl.AbstractMemory})
+    sizeof(managed) == 0 && return
     mem = managed.mem
     cl.context!(cl.context(mem)) do
         # "`clSVMFree` does not wait for previously enqueued commands that may be using

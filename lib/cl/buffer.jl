@@ -95,7 +95,7 @@ Base.sizeof(b::Buffer{T}) where {T} = b.len * sizeof(T)
 
 # for internal use
 function Buffer{T}(len::Int, flags::Integer, hostbuf=nothing;
-                   device=:rw, host=:rw) where {T}
+                   device=:rw, host=:rw, device_private_address=false) where {T}
     sz = len * sizeof(T)
 
     if device == :rw
@@ -121,7 +121,16 @@ function Buffer{T}(len::Int, flags::Integer, hostbuf=nothing;
     end
 
     err_code = Ref{Cint}()
-    mem_id = clCreateBuffer(context(), flags, sz, something(hostbuf, C_NULL), err_code)
+    properties = cl_mem_properties[]
+    if device_private_address
+        append!(properties, [CL_MEM_DEVICE_PRIVATE_ADDRESS_EXT, CL_TRUE])
+    end
+    mem_id = if isempty(properties)
+        clCreateBuffer(context(), flags, sz, something(hostbuf, C_NULL), err_code)
+    else
+        push!(properties, 0)
+        clCreateBufferWithProperties(context(), properties, flags, sz, something(hostbuf, C_NULL), err_code)
+    end
     if err_code[] != CL_SUCCESS
         throw(CLError(err_code[]))
     end
@@ -144,7 +153,7 @@ end
 ## memory operations
 
 # reading from buffer to host array, return an event
-function enqueue_read(dst::Ptr, src::Union{Buffer, cl_mem}, src_off::Int, nbytes::Int;
+function enqueue_read(dst::Ptr, src::Buffer, src_off::Int, nbytes::Int;
                       blocking::Bool=false, wait_for::Vector{Event}=Event[])
     n_evts  = length(wait_for)
     evt_ids = isempty(wait_for) ? C_NULL : [pointer(evt) for evt in wait_for]
@@ -155,11 +164,11 @@ function enqueue_read(dst::Ptr, src::Union{Buffer, cl_mem}, src_off::Int, nbytes
         @return_nanny_event(ret_evt[], dst)
     end
 end
-enqueue_read(dst::Ptr, src::Union{Buffer, cl_mem}, nbytes; kwargs...) =
+enqueue_read(dst::Ptr, src::Buffer, nbytes; kwargs...) =
     enqueue_read(dst, src, 0, nbytes; kwargs...)
 
 # writing from host array to buffer, return an event
-function enqueue_write(dst::Union{Buffer, cl_mem}, dst_off::Int, src::Ptr, nbytes::Int;
+function enqueue_write(dst::Buffer, dst_off::Int, src::Ptr, nbytes::Int;
                        blocking::Bool=false, wait_for::Vector{Event}=Event[])
     n_evts  = length(wait_for)
     evt_ids = isempty(wait_for) ? C_NULL : [pointer(evt) for evt in wait_for]
@@ -170,11 +179,11 @@ function enqueue_write(dst::Union{Buffer, cl_mem}, dst_off::Int, src::Ptr, nbyte
         @return_nanny_event(ret_evt[], dst)
     end
 end
-enqueue_write(dst::Union{Buffer, cl_mem}, src::Ptr, nbytes; kwargs...) =
+enqueue_write(dst::Buffer, src::Ptr, nbytes; kwargs...) =
     enqueue_write(dst, 0, src, nbytes; kwargs...)
 
 # copying between two buffers, return an event
-function enqueue_copy(dst::Union{Buffer, cl_mem}, dst_off::Int, src::Union{Buffer, cl_mem}, src_off::Int,
+function enqueue_copy(dst::Buffer, dst_off::Int, src::Buffer, src_off::Int,
                       nbytes::Int; blocking::Bool=false,
                       wait_for::Vector{Event}=Event[])
     n_evts  = length(wait_for)
@@ -186,7 +195,7 @@ function enqueue_copy(dst::Union{Buffer, cl_mem}, dst_off::Int, src::Union{Buffe
         @return_event ret_evt[]
     end
 end
-enqueue_copy(dst::Union{Buffer, cl_mem}, src::Union{Buffer, cl_mem}, N; kwargs...) =
+enqueue_copy(dst::Buffer, src::Buffer, N; kwargs...) =
     enqueue_copy(dst, 0, src, 0, N; kwargs...)
 
 # map a buffer into the host address space, returning a pointer and an event
@@ -231,7 +240,7 @@ function enqueue_unmap(b::Buffer, ptr::Ptr; wait_for::Vector{Event}=Event[])
 end
 
 # fill a buffer with a pattern, returning an event
-function enqueue_fill(b::Union{Buffer, cl_mem}, offset::Integer, pattern::T, N::Integer;
+function enqueue_fill(b::Buffer, offset::Integer, pattern::T, N::Integer;
                       wait_for::Vector{Event}=Event[]) where {T}
     nbytes = N * sizeof(T)
     nbytes_pattern = sizeof(T)
@@ -246,4 +255,4 @@ function enqueue_fill(b::Union{Buffer, cl_mem}, offset::Integer, pattern::T, N::
         @return_event ret_evt[]
     end
 end
-enqueue_fill(b::Union{Buffer, cl_mem}, pattern, N::Integer) = enqueue_fill(b, 0, pattern, N)
+enqueue_fill(b::Buffer, pattern, N::Integer) = enqueue_fill(b, 0, pattern, N)
