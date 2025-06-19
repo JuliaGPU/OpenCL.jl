@@ -1,4 +1,4 @@
-struct SharedVirtualMemory <: AbstractMemory
+struct SharedVirtualMemory <: AbstractPointerMemory
     ptr::CLPtr{Cvoid}
     bytesize::Int
     context::Context

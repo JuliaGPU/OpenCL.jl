@@ -85,10 +85,10 @@ function versioninfo(io::IO=stdout)
                 suffix = backend == cl.default_memory_backend(device) ? "*" : ""
                 if backend isa cl.SVMBackend
                     push!(tags, "svm"*suffix)
-                elseif backend isa cl.BDABackend
-                    push!(tags, "bda"*suffix)
                 elseif backend isa cl.USMBackend
                     push!(tags, "usm"*suffix)
+                elseif backend isa cl.BDABackend
+                    push!(tags, "bda"*suffix)
                 end
             end
             ## relevant extensions

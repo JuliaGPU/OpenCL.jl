@@ -1,4 +1,4 @@
-abstract type UnifiedMemory <: AbstractMemory end
+abstract type UnifiedMemory <: AbstractPointerMemory end
 
 function usm_free(mem::UnifiedMemory; blocking::Bool = false)
     if blocking

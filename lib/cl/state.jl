@@ -199,10 +199,10 @@ function default_memory_backend(dev::Device)
 
     backend = if backend_str == "usm"
         USMBackend()
-    elseif backend_str == "bda"
-        BDABackend()
     elseif backend_str == "svm"
         SVMBackend()
+    elseif backend_str == "bda"
+        BDABackend()
     else
         error("Unknown memory backend '$backend_str' requested")
     end

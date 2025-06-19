@@ -99,7 +99,7 @@ function memory_type()
     elseif cl.memory_backend() == cl.SVMBackend()
         return cl.SharedVirtualMemory
     elseif cl.memory_backend() == cl.BDABackend()
-        return cl.BufferDeviceMemory
+        return cl.Buffer
     end
 end
 CLArray{T, N}(::UndefInitializer, dims::Dims{N}) where {T, N} =
@@ -175,11 +175,14 @@ context(A::CLArray) = cl.context(A.data[].mem)
 memtype(x::CLArray) = memtype(typeof(x))
 memtype(::Type{<:CLArray{<:Any, <:Any, M}}) where {M} = @isdefined(M) ? M : Any
 
-is_device(a::CLArray) = memtype(a) == cl.UnifiedDeviceMemory
-is_shared(a::CLArray) = memtype(a) == cl.UnifiedSharedMemory
-is_host(a::CLArray) = memtype(a) == cl.UnifiedHostMemory
-is_svm(a::CLArray) = memtype(a) == cl.SharedVirtualMemory
-is_bda(a::CLArray) = memtype(a) == cl.BufferDeviceMemory
+# can we read this array from the device (i.e. derive a CLPtr)?
+is_device(a::CLArray) =
+    memtype(a) in (cl.UnifiedDeviceMemory, cl.UnifiedSharedMemory, cl.SharedVirtualMemory, cl.Buffer)
+is_shared(a::CLArray) =
+    memtype(a) in (cl.UnifiedSharedMemory, cl.SharedVirtualMemory)
+is_host(a::CLArray) =
+    memtype(a) in (cl.UnifiedHostMemory, cl.UnifiedSharedMemory, cl.SharedVirtualMemory)
+
 
 ## derived types
 
@@ -283,13 +286,16 @@ end
 ## interop with libraries
 
 function Base.unsafe_convert(::Type{Ptr{T}}, x::CLArray{T}) where {T}
-    if is_device(x)
+    if !is_host(x)
         throw(ArgumentError("cannot take the CPU address of a $(typeof(x))"))
     end
     return convert(Ptr{T}, x.data[]) + x.offset * Base.elsize(x)
 end
 
 function Base.unsafe_convert(::Type{CLPtr{T}}, x::CLArray{T}) where {T}
+    if !is_device(x)
+        throw(ArgumentError("cannot take the device address of a $(typeof(x))"))
+    end
     return convert(CLPtr{T}, x.data[]) + x.offset * Base.elsize(x)
 end
 

@@ -79,7 +79,7 @@ function set_arg!(k::Kernel, idx::Integer, arg::AbstractMemory)
         clSetKernelArgSVMPointer(k, idx - 1, pointer(arg))
     elseif arg isa UnifiedMemory
         clSetKernelArgMemPointerINTEL(k, idx - 1, pointer(arg))
-    elseif arg isa BufferDeviceMemory
+    elseif arg isa Buffer
         clSetKernelArgDevicePointerEXT(k, idx - 1, pointer(arg))
     else
         error("Unknown memory type")
@@ -203,7 +203,7 @@ function call(
 
             if memory isa SharedVirtualMemory
                 push!(svm_pointers, ptr)
-            elseif memory isa BufferDeviceMemory
+            elseif memory isa Buffer
                 push!(bda_pointers, ptr)
             elseif memory isa UnifiedDeviceMemory
                 device_access = true

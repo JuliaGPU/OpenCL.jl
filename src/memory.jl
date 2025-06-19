@@ -113,7 +113,7 @@ end
 
 
 ## public interface
-function managed_alloc(t::Type{T}, bytes::Int; kwargs...) where T <: cl.AbstractMemory
+function managed_alloc(t::Type{T}, bytes::Int; kwargs...) where T
     if bytes == 0
         return Managed(T())
     else
@@ -142,12 +142,13 @@ function alloc(::Type{cl.SharedVirtualMemory}, bytes::Int; alignment::Int = 0)
     return Managed(mem)
 end
 
-function alloc(::Type{cl.BufferDeviceMemory}, bytes::Int; alignment::Int = 0)
-    mem = cl.bda_alloc(bytes; alignment)
-    return Managed(mem)
+function alloc(::Type{cl.Buffer}, bytes::Int; alignment::Int = 0)
+    # TODO: use alignment
+    buf = cl.Buffer(bytes; device_private_address = true)
+    return Managed(buf)
 end
 
-function free(managed::Managed{<:cl.AbstractMemory})
+function free(managed::Managed)
     sizeof(managed) == 0 && return
     mem = managed.mem
     cl.context!(cl.context(mem)) do
@@ -162,10 +163,10 @@ function free(managed::Managed{<:cl.AbstractMemory})
 
         if mem isa cl.SharedVirtualMemory
             cl.svm_free(mem)
-        elseif mem isa cl.BufferDeviceMemory
-            cl.bda_free(mem)
-        else
+        elseif mem isa cl.UnifiedMemory
             cl.usm_free(mem)
+        else
+            cl.release(mem)
         end
     end
 
