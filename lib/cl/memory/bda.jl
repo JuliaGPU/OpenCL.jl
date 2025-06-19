@@ -1,5 +1,5 @@
 struct BufferDeviceMemory <: AbstractMemory
-    buf::Union{Buffer{UInt8}, Nothing}
+    buf::Union{Buffer, Nothing}
     ptr::CLPtr{Cvoid}
     bytesize::Int
     context::Context
@@ -12,7 +12,7 @@ function bda_alloc(bytesize::Integer;
     )
 
     # TODO: use alignment
-    buf = Buffer{UInt8}(bytesize; device, host, device_private_address=true)
+    buf = Buffer(bytesize; device, host, device_private_address=true)
 
     addr = Ref{cl_mem_device_address_ext}()
     clGetMemObjectInfo(buf, CL_MEM_DEVICE_ADDRESS_EXT, sizeof(cl_mem_device_address_ext), addr, C_NULL)
@@ -40,4 +40,4 @@ Base.convert(::Type{Ptr{T}}, mem::BufferDeviceMemory) where {T} =
 Base.convert(::Type{CLPtr{T}}, mem::BufferDeviceMemory) where {T} =
     reinterpret(CLPtr{T}, pointer(mem))
 
-Base.convert(::Type{Buffer{UInt8}}, mem::BufferDeviceMemory) = mem.buf
+Base.convert(::Type{Buffer}, mem::BufferDeviceMemory) = mem.buf

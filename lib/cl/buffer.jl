@@ -73,31 +73,19 @@ end
 
 # OpenCL.Buffer
 
-mutable struct Buffer{T} <: AbstractMemoryObject
-    const id::cl_mem
-    const len::Int
-
-    function Buffer{T}(mem_id::cl_mem, len::Integer; retain::Bool=false) where {T}
-        buff = new{T}(mem_id, len)
-        retain && clRetainMemObject(buff)
-        finalizer(clReleaseMemObject, buff)
-        return buff
-    end
+struct Buffer <: AbstractMemoryObject
+    id::cl_mem
+    bytesize::Int
 end
 
-Base.ndims(b::Buffer) = 1
-Base.eltype(b::Buffer{T}) where {T} = T
-Base.length(b::Buffer{T}) where {T} = b.len
-Base.sizeof(b::Buffer{T}) where {T} = b.len * sizeof(T)
+Base.sizeof(buf::Buffer) = buf.bytesize
 
 
 ## constructors
 
 # for internal use
-function Buffer{T}(len::Int, flags::Integer, hostbuf=nothing;
-                   device=:rw, host=:rw, device_private_address=false) where {T}
-    sz = len * sizeof(T)
-
+function Buffer(sz::Int, flags::Integer, hostbuf=nothing;
+                device=:rw, host=:rw, device_private_address=false)
     if device == :rw
         flags |= CL_MEM_READ_WRITE
     elseif device == :r
@@ -134,19 +122,19 @@ function Buffer{T}(len::Int, flags::Integer, hostbuf=nothing;
     if err_code[] != CL_SUCCESS
         throw(CLError(err_code[]))
     end
-    return Buffer{T}(mem_id, len)
+    return Buffer(mem_id, sz)
 end
 
 # allocated buffer
-function Buffer{T}(len::Integer; host_accessible=false, kwargs...) where {T}
+function Buffer(sz::Integer; host_accessible=false, kwargs...)
     flags = host_accessible ? CL_MEM_ALLOC_HOST_PTR : 0
-    Buffer{T}(len, flags, nothing; kwargs...)
+    Buffer(sz, flags, nothing; kwargs...)
 end
 
 # from host memory
-function Buffer(hostbuf::Array{T}; copy::Bool=true, kwargs...) where {T}
+function Buffer(hostbuf::Array; copy::Bool=true, kwargs...)
     flags = copy ? CL_MEM_COPY_HOST_PTR : CL_MEM_USE_HOST_PTR
-    Buffer{T}(length(hostbuf), flags, hostbuf; kwargs...)
+    Buffer(sizeof(hostbuf), flags, hostbuf; kwargs...)
 end
 
 
@@ -199,7 +187,7 @@ enqueue_copy(dst::Buffer, src::Buffer, N; kwargs...) =
     enqueue_copy(dst, 0, src, 0, N; kwargs...)
 
 # map a buffer into the host address space, returning a pointer and an event
-function enqueue_map(b::Buffer, offset::Integer, nbytes::Int, flags=:rw;
+function enqueue_map(buf::Buffer, offset::Integer, nbytes::Int, flags=:rw;
                      blocking::Bool=false, wait_for::Vector{Event}=Event[])
     flags = if flags == :rw
         CL_MAP_READ | CL_MAP_WRITE
@@ -216,7 +204,7 @@ function enqueue_map(b::Buffer, offset::Integer, nbytes::Int, flags=:rw;
     evt_ids = isempty(wait_for) ? C_NULL : [pointer(evt) for evt in wait_for]
     GC.@preserve wait_for begin
         status  = Ref{Cint}()
-        ptr = clEnqueueMapBuffer(queue(), b, blocking, flags, offset, nbytes,
+        ptr = clEnqueueMapBuffer(queue(), buf, blocking, flags, offset, nbytes,
                                  n_evts, evt_ids, ret_evt, status)
         if status[] != CL_SUCCESS
             throw(CLError(status[]))
@@ -225,22 +213,22 @@ function enqueue_map(b::Buffer, offset::Integer, nbytes::Int, flags=:rw;
         return ptr, Event(ret_evt[])
     end
 end
-enqueue_map(b::Buffer, nbytes::Int, flags=:rw; kwargs...) =
-    enqueue_map(b, 0, nbytes, flags; kwargs...)
+enqueue_map(buf::Buffer, nbytes::Int, flags=:rw; kwargs...) =
+    enqueue_map(buf, 0, nbytes, flags; kwargs...)
 
 # unmap a buffer, return an event
-function enqueue_unmap(b::Buffer, ptr::Ptr; wait_for::Vector{Event}=Event[])
+function enqueue_unmap(buf::Buffer, ptr::Ptr; wait_for::Vector{Event}=Event[])
     n_evts  = length(wait_for)
     evt_ids = isempty(wait_for) ? C_NULL : [pointer(evt) for evt in wait_for]
     GC.@preserve wait_for begin
         ret_evt = Ref{cl_event}()
-        clEnqueueUnmapMemObject(queue(), b, ptr, n_evts, evt_ids, ret_evt)
+        clEnqueueUnmapMemObject(queue(), buf, ptr, n_evts, evt_ids, ret_evt)
         return Event(ret_evt[])
     end
 end
 
 # fill a buffer with a pattern, returning an event
-function enqueue_fill(b::Buffer, offset::Integer, pattern::T, N::Integer;
+function enqueue_fill(buf::Buffer, offset::Integer, pattern::T, N::Integer;
                       wait_for::Vector{Event}=Event[]) where {T}
     nbytes = N * sizeof(T)
     nbytes_pattern = sizeof(T)
@@ -249,10 +237,10 @@ function enqueue_fill(b::Buffer, offset::Integer, pattern::T, N::Integer;
     evt_ids = isempty(wait_for) ? C_NULL : [pointer(evt) for evt in wait_for]
     GC.@preserve begin
         ret_evt = Ref{cl_event}()
-        clEnqueueFillBuffer(queue(), b, [pattern],
+        clEnqueueFillBuffer(queue(), buf, [pattern],
                             nbytes_pattern, offset, nbytes,
                             n_evts, evt_ids, ret_evt)
         @return_event ret_evt[]
     end
 end
-enqueue_fill(b::Buffer, pattern, N::Integer) = enqueue_fill(b, 0, pattern, N)
+enqueue_fill(buf::Buffer, pattern, N::Integer) = enqueue_fill(buf, 0, pattern, N)

@@ -1,14 +1,11 @@
 @testset "Buffer" begin
     # simple buffer
-    let buf = cl.Buffer{Int}(1)
-        @test ndims(buf) == 1
-        @test eltype(buf) == Int
-        @test length(buf) == 1
+    let buf = cl.Buffer(sizeof(Int))
         @test sizeof(buf) == sizeof(Int)
     end
 
     # memory copy
-    let buf = cl.Buffer{Int}(1)
+    let buf = cl.Buffer(sizeof(Int))
         src = [42]
         cl.enqueue_write(buf, pointer(src), sizeof(src); blocking=true)
 
@@ -18,7 +15,7 @@
     end
 
     # host accessible, mapped
-    let buf = cl.Buffer{Int}(1; host_accessible=true)
+    let buf = cl.Buffer(sizeof(Int); host_accessible=true)
         src = [42]
         cl.enqueue_write(buf, pointer(src), sizeof(src); blocking=true)
 
@@ -68,7 +65,7 @@
     end
 
     # fill
-    let buf = cl.Buffer{Int}(3)
+    let buf = cl.Buffer(3*sizeof(Int))
         cl.enqueue_fill(buf, 42, 3)
 
         arr = Vector{Int}(undef, 3)

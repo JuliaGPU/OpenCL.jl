@@ -38,9 +38,10 @@ function maybe_synchronize(managed::Managed)
     return nothing
 end
 
-function Base.convert(t::Union{Type{CLPtr{T}}, Type{cl.Buffer{T}}}, managed::Managed{M}) where {T, M}
+function Base.convert(typ::Union{Type{<:CLPtr}, Type{cl.Buffer}}, managed::Managed)
     # let null pointers pass through as-is
-    ptr = convert(t, managed.mem)
+    # XXX: does not work for buffers
+    ptr = convert(typ, managed.mem)
     if ptr == cl.CL_NULL
         return ptr
     end
@@ -55,9 +56,9 @@ function Base.convert(t::Union{Type{CLPtr{T}}, Type{cl.Buffer{T}}}, managed::Man
     return ptr
 end
 
-function Base.convert(::Type{Ptr{T}}, managed::Managed{M}) where {T, M}
+function Base.convert(typ::Type{<:Ptr}, managed::Managed{M}) where {M}
     # let null pointers pass through as-is
-    ptr = convert(Ptr{T}, managed.mem)
+    ptr = convert(typ, managed.mem)
     if ptr == C_NULL
         return ptr
     end
