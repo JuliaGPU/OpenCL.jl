@@ -54,7 +54,7 @@ function versioninfo(io::IO=stdout)
     end
 
     prefs = [
-        "memory_backend" => load_preference(OpenCL, "memory_backend"),
+        "default_memory_backend" => load_preference(OpenCL, "default_memory_backend"),
     ]
     if any(x->!isnothing(x[2]), prefs)
         println(io, "Preferences:")

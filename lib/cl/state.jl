@@ -194,22 +194,20 @@ function default_memory_backend(dev::Device)
     supported_backends = supported_memory_backends(dev)
     isempty(supported_backends) && return nothing
 
-    preferred_backend = load_preference(OpenCL, "memory_backend", "auto")
-    if preferred_backend == "auto"
-        first(supported_backends)
+    backend_str = load_preference(OpenCL, "default_memory_backend")
+    backend_str === nothing && return first(supported_backends)
+
+    backend = if backend_str == "usm"
+        USMBackend()
+    elseif backend_str == "bda"
+        BDABackend()
+    elseif backend_str == "svm"
+        SVMBackend()
     else
-        backend = if preferred_backend == "usm"
-            USMBackend()
-        elseif preferred_backend == "bda"
-            BDABackend()
-        elseif preferred_backend == "svm"
-            SVMBackend()
-        else
-            error("Unknown memory backend '$preferred_backend' requested")
-        end
-        in(backend, supported_backends) || return nothing
-        backend
+        error("Unknown memory backend '$backend_str' requested")
     end
+    in(backend, supported_backends) ? backend : nothing
+    backend
 end
 
 function memory_backend()

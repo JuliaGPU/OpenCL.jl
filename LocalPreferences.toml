@@ -1,7 +1,7 @@
 [OpenCL]
-# which memory back-end to use for CLArray allocations. This can be:
-# - "auto" (default): automatically selects the best available backend
+# Which memory back-end to use for unspecified CLArray allocations. This can be:
 # - "usm": Unified Shared Memory (`cl_intel_unified_shared_memory`)
 # - "bda": Buffer Device Address (`cl_mem` + `cl_ext_buffer_device_address`)
 # - "svm": Shared Virtual Memory (coarse-grained)
-#memory_backend="auto"
+# If unspecified, the default will be used based on the platform and device capabilities.
+#default_memory_backend="..."
