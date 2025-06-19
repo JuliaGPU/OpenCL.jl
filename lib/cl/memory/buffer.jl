@@ -7,7 +7,7 @@ struct Buffer <: AbstractMemoryObject
     context::Context
 end
 
-Buffer() = Buffer(C_NULL, nothing, 0, context())
+Buffer() = Buffer(C_NULL, CL_NULL, 0, context())
 
 Base.pointer(buf::Buffer) = @something buf.ptr error("Buffer does not have a device private address")
 Base.sizeof(buf::Buffer) = buf.bytesize
