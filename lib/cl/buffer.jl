@@ -16,8 +16,6 @@ Base.unsafe_convert(::Type{<:Ptr}, mem::AbstractMemoryObject) = mem
 
 Base.sizeof(mem::AbstractMemoryObject) = mem.size
 
-context(mem::AbstractMemoryObject) = mem.context
-
 release(mem::AbstractMemoryObject) = clReleaseMemObject(mem)
 
 function Base.getproperty(mem::AbstractMemoryObject, s::Symbol)
@@ -65,10 +63,18 @@ function Base.getproperty(mem::AbstractMemoryObject, s::Symbol)
         result = Ref{Cuint}()
         clGetMemObjectInfo(mem, CL_MEM_MAP_COUNT, sizeof(Cuint), result, C_NULL)
         return Int(result[])
+    elseif s == :device_address
+        result = Ref{cl_mem_device_address_ext}()
+        clGetMemObjectInfo(mem, CL_MEM_DEVICE_ADDRESS_EXT, sizeof(cl_mem_device_address_ext), result, C_NULL)
+        return CLPtr{Cvoid}(result[])
     else
         return getfield(mem, s)
     end
 end
+
+# convenience functions
+context(mem::AbstractMemoryObject) = mem.context
+Base.pointer(mem::AbstractMemoryObject) = mem.pointer
 
 #TODO: enqueue_migrate_mem_objects(queue, mem_objects, flags=0, wait_for=None)
 #TODO: enqueue_migrate_mem_objects_ext(queue, mem_objects, flags=0, wait_for=None)
