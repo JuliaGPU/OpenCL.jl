@@ -253,7 +253,7 @@ function svm_capabilities(d::Device)
     )
 end
 
-bda_supported(d::Device) = false#"cl_ext_buffer_device_address" in d.extensions
+bda_supported(d::Device) = "cl_ext_buffer_device_address" in d.extensions
 
 function cl_device_type(dtype::Symbol)
     if dtype == :all
