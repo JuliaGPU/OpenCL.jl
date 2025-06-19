@@ -180,6 +180,17 @@ function default_memory_backend(dev::Device)
         caps.coarse_grain_buffer
     end
 
+    if haskey(ENV, "JULIA_OPENCL_BACKEND") && ENV["JULIA_OPENCL_BACKEND"] in ["usm", "bda", "svm"]
+        user_backend = ENV["JULIA_OPENCL_BACKEND"]
+        if user_backend == "usm" && usm
+            return USMBackend()
+        elseif user_backend == "bda" && bda
+            return BDABackend()
+        elseif user_backend == "svm" && svm
+            return SVMBackend()
+        end
+    end
+     
     if usm
         USMBackend()
     else
