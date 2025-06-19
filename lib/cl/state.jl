@@ -163,53 +163,62 @@ struct SVMBackend <: AbstractMemoryBackend end
 struct USMBackend <: AbstractMemoryBackend end
 struct BDABackend <: AbstractMemoryBackend end
 
+function supported_memory_backends(dev::Device)
+    backends = AbstractMemoryBackend[]
+
+    # unified shared memory is the first choice, as it gives us separate host and device
+    # memory spaces that can be directly referenced by raw pointers.
+    if usm_supported(dev)
+        usm_caps = usm_capabilities(dev)
+        if usm_caps.host.access && usm_caps.device.access
+            push!(backends, USMBackend())
+        end
+    end
+
+    # plain old device buffers are second choice, but require an extension to support being
+    # referenced by raw pointers.
+    if bda_supported(dev)
+        push!(backends, BDABackend())
+    end
+
+    # shared virtual memory is last, because it comes at a performance cost.
+    svm_caps = svm_capabilities(dev)
+    if svm_caps.coarse_grain_buffer
+        push!(backends, SVMBackend())
+    end
+
+    return backends
+end
+
 function default_memory_backend(dev::Device)
-    # determine if USM is supported
-    usm = if usm_supported(dev)
-        caps = usm_capabilities(dev)
-        caps.host.access && caps.device.access
-    else
-        false
-    end
-
-    bda = bda_supported(dev)
-
-    # determine if SVM is available (if needed)
-    svm = let
-        caps = svm_capabilities(dev)
-        caps.coarse_grain_buffer
-    end
+    supported_backends = supported_memory_backends(dev)
+    isempty(supported_backends) && return nothing
 
     preferred_backend = load_preference(OpenCL, "memory_backend", "auto")
     if preferred_backend == "auto"
-        if usm
-            USMBackend()
-        else
-            if svm
-                SVMBackend()
-            elseif bda
-                BDABackend()
-            else
-                error("Device $dev does not support USM, coarse-grained SVM, or Buffer Device Address, one of which is required by OpenCL.jl")
-            end
-        end
-    elseif preferred_backend == "usm"
-        usm || error("Use of USM memory backend requested, which is not supported by device $dev")
-        USMBackend()
-    elseif preferred_backend == "bda"
-        bda || error("Use of Buffer Device Address memory backend requested, which is not supported by device $dev")
-        BDABackend()
-    elseif preferred_backend == "svm"
-        svm || error("Use of coarse-grained SVM memory backend requested, which is not supported by device $dev")
-        SVMBackend()
+        first(supported_backends)
     else
-        error("Unknown memory backend '$preferred_backend' requested")
+        backend = if preferred_backend == "usm"
+            USMBackend()
+        elseif preferred_backend == "bda"
+            BDABackend()
+        elseif preferred_backend == "svm"
+            SVMBackend()
+        else
+            error("Unknown memory backend '$preferred_backend' requested")
+        end
+        in(backend, supported_backends) || return nothing
+        backend
     end
 end
 
 function memory_backend()
     return get!(task_local_storage(), :CLMemoryBackend) do
-        default_memory_backend(device())
+        backend = default_memory_backend(device())
+        if backend === nothing
+            error("Device $(device()) does not support any of the available memory backends")
+        end
+        backend
     end
 end
 

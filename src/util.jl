@@ -81,13 +81,15 @@ function versioninfo(io::IO=stdout)
             # show a list of tags
             tags = []
             ## memory back-end
-            backend = cl.default_memory_backend(device)
-            if backend == cl.SVMBackend()
-                push!(tags, "svm")
-            elseif backend == cl.BDABackend()
-                push!(tags, "bda")
-            elseif backend == cl.USMBackend()
-                push!(tags, "usm")
+            for backend in cl.supported_memory_backends(device)
+                suffix = backend == cl.default_memory_backend(device) ? "*" : ""
+                if backend isa cl.SVMBackend
+                    push!(tags, "svm"*suffix)
+                elseif backend isa cl.BDABackend
+                    push!(tags, "bda"*suffix)
+                elseif backend isa cl.USMBackend
+                    push!(tags, "usm"*suffix)
+                end
             end
             ## relevant extensions
             if in("cl_khr_fp16", device.extensions)
