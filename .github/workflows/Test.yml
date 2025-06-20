@@ -127,13 +127,13 @@ jobs:
                   run(```$(cmake()) --build $builddir --parallel $(Sys.CPU_THREADS) --target install```)
               end'
 
-            echo '[pocl_jll]' > test/LocalPreferences.toml
+            echo '[pocl_jll]' >> test/LocalPreferences.toml
             echo 'libpocl_path="${{ github.workspace }}/target/lib/libpocl.so"' >> test/LocalPreferences.toml
 
       - name: Setup OpenCL.jl
         run: |
-          echo '[OpenCL]' > test/LocalPreferences.toml
-          echo 'memory_backend="${{ matrix.memory_backend }}"' >> test/LocalPreferences.toml
+          echo '[OpenCL]' >> test/LocalPreferences.toml
+          echo 'default_memory_backend="${{ matrix.memory_backend }}"' >> test/LocalPreferences.toml
           julia --project -e '
             using Pkg
             Pkg.develop(path="lib/intrinsics")'
