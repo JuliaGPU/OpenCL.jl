@@ -13,7 +13,7 @@ concurrency:
 
 jobs:
   test:
-    name: Julia ${{ matrix.version }} - ${{ matrix.os }} - ${{ matrix.arch }} - PoCL ${{ matrix.pocl }}
+    name: Julia ${{ matrix.version }} - ${{ matrix.os }} - ${{ matrix.arch }} - ${{ matrix.memory_backend }} - PoCL ${{ matrix.pocl }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 180
     permissions: # needed to allow julia-actions/cache to proactively delete old caches that it has created
@@ -26,7 +26,9 @@ jobs:
         os: [ubuntu-24.04, ubuntu-24.04-arm, macOS-13, macOS-15, windows-2025]
         arch: [x64, arm64]
         pocl: [jll, local]
+        memory_backend: [usm, svm, buffer]
         exclude:
+          # unsupported combinations
           - os: ubuntu-24.04
             arch: arm64
           - os: windows-2025
@@ -125,11 +127,13 @@ jobs:
                   run(```$(cmake()) --build $builddir --parallel $(Sys.CPU_THREADS) --target install```)
               end'
 
-            echo '[pocl_jll]' > test/LocalPreferences.toml
+            echo '[pocl_jll]' >> test/LocalPreferences.toml
             echo 'libpocl_path="${{ github.workspace }}/target/lib/libpocl.so"' >> test/LocalPreferences.toml
 
       - name: Setup OpenCL.jl
         run: |
+          echo '[OpenCL]' >> test/LocalPreferences.toml
+          echo 'default_memory_backend="${{ matrix.memory_backend }}"' >> test/LocalPreferences.toml
           julia --project -e '
             using Pkg
             Pkg.develop(path="lib/intrinsics")'

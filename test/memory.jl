@@ -17,8 +17,8 @@
         buf = create_test_buffer()
 
         expectations = [
-            (:mem_type, cl.CL_MEM_OBJECT_BUFFER),
-            (:mem_flags, (:rw, :copy)),
+            (:type, cl.CL_MEM_OBJECT_BUFFER),
+            (:flags, (:rw, :copy)),
             (:size, sizeof(buf)),
             (:reference_count, 1),
             (:map_count, 0)

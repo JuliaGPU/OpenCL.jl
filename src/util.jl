@@ -53,6 +53,19 @@ function versioninfo(io::IO=stdout)
         println(io)
     end
 
+    prefs = [
+        "default_memory_backend" => load_preference(OpenCL, "default_memory_backend"),
+    ]
+    if any(x->!isnothing(x[2]), prefs)
+        println(io, "Preferences:")
+        for (key, val) in prefs
+            if !isnothing(val)
+                println(io, "- $key: $val")
+            end
+        end
+        println(io)
+    end
+
     println(io, "Available platforms: ", length(cl.platforms()))
     for platform in cl.platforms()
         println(io, " - $(platform.name)")
@@ -67,12 +80,31 @@ function versioninfo(io::IO=stdout)
 
             # show a list of tags
             tags = []
-            ## memory back-end
-            backend = cl.default_memory_backend(device)
-            if backend == cl.SVMBackend()
-                push!(tags, "svm")
-            elseif backend == cl.USMBackend()
-                push!(tags, "usm")
+            ## memory back-ends
+            let
+                svm_tags = []
+                svm_caps = cl.svm_capabilities(device)
+                if svm_caps.coarse_grain_buffer
+                    push!(svm_tags, "c")
+                end
+                if svm_caps.fine_grain_buffer
+                    push!(svm_tags, "f")
+                end
+                push!(tags, "svm:"*join(svm_tags, "+"))
+            end
+            if cl.usm_supported(device)
+                usm_tags = []
+                usm_caps = cl.usm_capabilities(device)
+                if usm_caps.host.access
+                    push!(usm_tags, "h")
+                end
+                if usm_caps.device.access
+                    push!(usm_tags, "d")
+                end
+                push!(tags, "usm:"*join(usm_tags, "+"))
+            end
+            if cl.bda_supported(device)
+                push!(tags, "bda")
             end
             ## relevant extensions
             if in("cl_khr_fp16", device.extensions)

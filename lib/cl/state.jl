@@ -161,30 +161,72 @@ end
 abstract type AbstractMemoryBackend end
 struct SVMBackend <: AbstractMemoryBackend end
 struct USMBackend <: AbstractMemoryBackend end
+struct BufferBackend <: AbstractMemoryBackend end
 
-function default_memory_backend(dev::Device)
-    # determine if USM is supported
-    usm = if usm_supported(dev)
-        caps = usm_capabilities(dev)
-        caps.host.access && caps.device.access
-    else
-        false
-    end
+function supported_memory_backends(dev::Device)
+    backends = AbstractMemoryBackend[]
 
-    # determine if SVM is available (if needed)
-    if !usm
-        caps = svm_capabilities(dev)
-        if !caps.coarse_grain_buffer
-            error("Device $dev does not support USM or coarse-grained SVM, either of which is required by OpenCL.jl")
+    # unified shared memory is the first choice, as it gives us separate host and device
+    # memory spaces that can be directly referenced by raw pointers.
+    if usm_supported(dev)
+        usm_caps = usm_capabilities(dev)
+        if usm_caps.host.access && usm_caps.device.access
+            push!(backends, USMBackend())
         end
     end
 
-    usm ? USMBackend() : SVMBackend()
+    # plain old buffers are always supported, but we only want to use them if we have the
+    # buffer device address extension, which allows us to reference them by raw pointers.
+    if bda_supported(dev)
+        push!(backends, BufferBackend())
+    end
+
+    # shared virtual memory is last, because it comes at a performance cost.
+    svm_caps = svm_capabilities(dev)
+    if svm_caps.coarse_grain_buffer
+        push!(backends, SVMBackend())
+    end
+
+    if isempty(backends)
+        # as a last resort, use plain buffers without the ability to reference by pointer.
+        # this severely limits compatibility, but it's better than nothing.
+        push!(backends, BufferBackend())
+    end
+
+    return backends
+end
+
+function default_memory_backend(dev::Device)
+    supported_backends = supported_memory_backends(dev)
+
+    backend_str = load_preference(OpenCL, "default_memory_backend")
+    backend_str === nothing && return first(supported_backends)
+
+    backend = if backend_str == "usm"
+        USMBackend()
+    elseif backend_str == "svm"
+        SVMBackend()
+    elseif backend_str == "buffer"
+        BufferBackend()
+    else
+        error("Unknown memory backend '$backend_str' requested")
+    end
+    in(backend, supported_backends) ? backend : nothing
+    backend
 end
 
 function memory_backend()
     return get!(task_local_storage(), :CLMemoryBackend) do
-        default_memory_backend(device())
+        dev = device()
+        backend = default_memory_backend(dev)
+        if backend === nothing
+            error("Device $(dev) does not support any of the available memory backends")
+        end
+        if backend === BufferBackend() && !bda_supported(dev)
+            @warn """Your device $(dev.name) does not support the necessary extensions for OpenCL.jl's memory management (requiring either USM, coarse-grained SVM, or BDA).
+                     Falling back to plain OpenCL buffers, which severely limits compatibility with other OpenCL.jl, only supporting OpenCL C kernels.""" maxlog=1 _id="memory_backend_$(dev.name)"
+        end
+        backend
     end
 end
 

@@ -52,7 +52,7 @@ mutable struct CLArray{T, N, M} <: AbstractGPUArray{T, N}
             maxsize
         end
         data = GPUArrays.cached_alloc((CLArray, cl.context(), M, bufsize)) do
-            buf = alloc(M, bufsize; alignment=Base.datatype_alignment(T))
+            buf = managed_alloc(M, bufsize; alignment=Base.datatype_alignment(T))
             DataRef(free, buf)
         end
         obj = new{T, N, M}(data, maxsize, 0, dims)
@@ -96,8 +96,10 @@ const CLVecOrMat{T} = Union{CLVector{T}, CLMatrix{T}}
 function memory_type()
     if cl.memory_backend() == cl.USMBackend()
         return cl.UnifiedDeviceMemory
-    else
+    elseif cl.memory_backend() == cl.SVMBackend()
         return cl.SharedVirtualMemory
+    elseif cl.memory_backend() == cl.BufferBackend()
+        return cl.Buffer
     end
 end
 CLArray{T, N}(::UndefInitializer, dims::Dims{N}) where {T, N} =
@@ -173,10 +175,14 @@ context(A::CLArray) = cl.context(A.data[].mem)
 memtype(x::CLArray) = memtype(typeof(x))
 memtype(::Type{<:CLArray{<:Any, <:Any, M}}) where {M} = @isdefined(M) ? M : Any
 
-is_device(a::CLArray) = memtype(a) == cl.UnifiedDeviceMemory
-is_shared(a::CLArray) = memtype(a) == cl.UnifiedSharedMemory
-is_host(a::CLArray) = memtype(a) == cl.UnifiedHostMemory
-is_svm(a::CLArray) = memtype(a) == cl.SharedVirtualMemory
+# can we read this array from the device (i.e. derive a CLPtr)?
+is_device(a::CLArray) =
+    memtype(a) in (cl.UnifiedDeviceMemory, cl.UnifiedSharedMemory, cl.SharedVirtualMemory, cl.Buffer)
+is_shared(a::CLArray) =
+    memtype(a) in (cl.UnifiedSharedMemory, cl.SharedVirtualMemory)
+is_host(a::CLArray) =
+    memtype(a) in (cl.UnifiedHostMemory, cl.UnifiedSharedMemory, cl.SharedVirtualMemory)
+
 
 ## derived types
 
@@ -280,13 +286,16 @@ end
 ## interop with libraries
 
 function Base.unsafe_convert(::Type{Ptr{T}}, x::CLArray{T}) where {T}
-    if is_device(x)
+    if !is_host(x)
         throw(ArgumentError("cannot take the CPU address of a $(typeof(x))"))
     end
     return convert(Ptr{T}, x.data[]) + x.offset * Base.elsize(x)
 end
 
 function Base.unsafe_convert(::Type{CLPtr{T}}, x::CLArray{T}) where {T}
+    if !is_device(x)
+        throw(ArgumentError("cannot take the device address of a $(typeof(x))"))
+    end
     return convert(CLPtr{T}, x.data[]) + x.offset * Base.elsize(x)
 end
 
@@ -379,8 +388,25 @@ for (srcty, dstty) in [(:Array, :CLArray), (:CLArray, :Array), (:CLArray, :CLArr
             cl.context!(context(device_array)) do
                 if memtype(device_array) == cl.SharedVirtualMemory
                     cl.enqueue_svm_copy(pointer(dst, dst_off), pointer(src, src_off), nbytes; blocking)
-                else
+                elseif memtype(device_array) <: cl.UnifiedMemory
                     cl.enqueue_usm_copy(pointer(dst, dst_off), pointer(src, src_off), nbytes; blocking)
+                else
+                    if src isa CLArray && dst isa CLArray
+                        cl.enqueue_copy(convert(cl.Buffer, dst.data[]),
+                            (dst.offset * Base.elsize(dst)) + (dst_off - 1) * sizeof(T),
+                            convert(cl.Buffer, src.data[]),
+                            (src.offset * Base.elsize(src)) + (src_off - 1) * sizeof(T),
+                            nbytes; blocking)
+                    elseif dst isa CLArray
+                        cl.enqueue_write(convert(cl.Buffer, dst.data[]),
+                            (dst.offset * Base.elsize(dst)) + (dst_off - 1) * sizeof(T),
+                            pointer(src, src_off), nbytes; blocking)
+                    elseif src isa CLArray
+                        cl.enqueue_read(pointer(dst, dst_off),
+                            convert(cl.Buffer, src.data[]),
+                            (src.offset * Base.elsize(src)) + (src_off - 1) * sizeof(T),
+                            nbytes; blocking)
+                    end
                 end
             end
         end
@@ -417,12 +443,15 @@ fill(v, dims...) = fill!(CLArray{typeof(v)}(undef, dims...), v)
 fill(v, dims::Dims) = fill!(CLArray{typeof(v)}(undef, dims...), v)
 
 function Base.fill!(A::DenseCLArray{T}, val) where {T}
+    isempty(A) && return A
     cl.context!(context(A)) do
         GC.@preserve A begin
             if memtype(A) == cl.SharedVirtualMemory
                 cl.enqueue_svm_fill(pointer(A), convert(T, val), length(A))
-            else
+            elseif memtype(A) <: cl.UnifiedMemory
                 cl.enqueue_usm_fill(pointer(A), convert(T, val), length(A))
+            else
+                cl.enqueue_fill(convert(cl.Buffer, A.data[]), A.offset * Base.elsize(A), convert(T, val), length(A))
             end
         end
     end
@@ -493,15 +522,17 @@ function Base.resize!(a::CLVector{T}, n::Integer) where {T}
     # replace the data with a new CL. this 'unshares' the array.
     # as a result, we can safely support resizing unowned buffers.
     new_data = cl.context!(context(a)) do
-        mem = alloc(memtype(a), bufsize; alignment=Base.datatype_alignment(T))
+        mem = managed_alloc(memtype(a), bufsize; alignment=Base.datatype_alignment(T))
         ptr = convert(CLPtr{T}, mem)
         m = min(length(a), n)
         if m > 0
             GC.@preserve a begin
                 if memtype(a) == cl.SharedVirtualMemory
                     cl.enqueue_svm_copy(ptr, pointer(a), m*sizeof(T); blocking=false)
-                else
+                elseif memtype(a) <: cl.UnifiedMemory
                     cl.enqueue_usm_copy(ptr, pointer(a), m*sizeof(T); blocking=false)
+                else
+                    cl.enqueue_copy(convert(cl.Buffer, mem), 0, convert(cl.Buffer, a.data[]), a.offset * Base.elsize(a), m*sizeof(T); blocking=false)
                 end
             end
         end

@@ -190,10 +190,7 @@ function exec_capabilities(d::Device)
     )
 end
 
-function usm_supported(d::Device)
-    "cl_intel_unified_shared_memory" in d.extensions || return false
-    return true
-end
+usm_supported(d::Device) = "cl_intel_unified_shared_memory" in d.extensions
 
 function usm_capabilities(d::Device)
     usm_supported(d) || throw(ArgumentError("Unified Shared Memory not supported on this device"))
@@ -255,6 +252,8 @@ function svm_capabilities(d::Device)
         fine_grain_system = mask & CL_DEVICE_SVM_FINE_GRAIN_SYSTEM != 0,
     )
 end
+
+bda_supported(d::Device) = "cl_ext_buffer_device_address" in d.extensions
 
 function cl_device_type(dtype::Symbol)
     if dtype == :all

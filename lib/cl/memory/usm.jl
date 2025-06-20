@@ -1,14 +1,11 @@
-abstract type UnifiedMemory <: AbstractMemory end
+abstract type UnifiedMemory <: AbstractPointerMemory end
 
-function usm_free(buf::UnifiedMemory; blocking::Bool = false)
-    if sizeof(buf) != 0
-        if blocking
-            clMemBlockingFreeINTEL(context(buf), buf)
-        else
-            clMemFreeINTEL(context(buf), buf)
-        end
+function usm_free(mem::UnifiedMemory; blocking::Bool = false)
+    if blocking
+        clMemBlockingFreeINTEL(context(mem), mem)
+    else
+        clMemFreeINTEL(context(mem), mem)
     end
-    return
 end
 
 
@@ -31,7 +28,6 @@ UnifiedDeviceMemory() = UnifiedDeviceMemory(CL_NULL, 0, context())
 function device_alloc(bytesize::Integer;
         alignment::Integer = 0, write_combined::Bool = false
     )
-    bytesize == 0 && return UnifiedDeviceMemory()
 
     flags = 0
     if write_combined
@@ -48,15 +44,15 @@ function device_alloc(bytesize::Integer;
     return UnifiedDeviceMemory(ptr, bytesize, context())
 end
 
-Base.pointer(buf::UnifiedDeviceMemory) = buf.ptr
-Base.sizeof(buf::UnifiedDeviceMemory) = buf.bytesize
-context(buf::UnifiedDeviceMemory) = buf.context
+Base.pointer(mem::UnifiedDeviceMemory) = mem.ptr
+Base.sizeof(mem::UnifiedDeviceMemory) = mem.bytesize
+context(mem::UnifiedDeviceMemory) = mem.context
 
-Base.show(io::IO, buf::UnifiedDeviceMemory) =
-    @printf(io, "UnifiedDeviceMemory(%s at %p)", Base.format_bytes(sizeof(buf)), pointer(buf))
+Base.show(io::IO, mem::UnifiedDeviceMemory) =
+    @printf(io, "UnifiedDeviceMemory(%s at %p)", Base.format_bytes(sizeof(mem)), pointer(mem))
 
-Base.convert(::Type{CLPtr{T}}, buf::UnifiedDeviceMemory) where {T} =
-    convert(CLPtr{T}, pointer(buf))
+Base.convert(::Type{CLPtr{T}}, mem::UnifiedDeviceMemory) where {T} =
+    convert(CLPtr{T}, pointer(mem))
 
 
 ## host buffer
@@ -78,7 +74,6 @@ UnifiedHostMemory() = UnifiedHostMemory(C_NULL, 0, context())
 function host_alloc(bytesize::Integer;
         alignment::Integer = 0, write_combined::Bool = false
     )
-    bytesize == 0 && return UnifiedHostMemory()
 
     flags = 0
     if write_combined
@@ -95,15 +90,15 @@ function host_alloc(bytesize::Integer;
     return UnifiedHostMemory(ptr, bytesize, context())
 end
 
-Base.pointer(buf::UnifiedHostMemory) = buf.ptr
-Base.sizeof(buf::UnifiedHostMemory) = buf.bytesize
-context(buf::UnifiedHostMemory) = buf.context
+Base.pointer(mem::UnifiedHostMemory) = mem.ptr
+Base.sizeof(mem::UnifiedHostMemory) = mem.bytesize
+context(mem::UnifiedHostMemory) = mem.context
 
-Base.show(io::IO, buf::UnifiedHostMemory) =
-    @printf(io, "UnifiedHostMemory(%s at %p)", Base.format_bytes(sizeof(buf)), Int(pointer(buf)))
+Base.show(io::IO, mem::UnifiedHostMemory) =
+    @printf(io, "UnifiedHostMemory(%s at %p)", Base.format_bytes(sizeof(mem)), Int(pointer(mem)))
 
-Base.convert(::Type{Ptr{T}}, buf::UnifiedHostMemory) where {T} =
-    convert(Ptr{T}, pointer(buf))
+Base.convert(::Type{Ptr{T}}, mem::UnifiedHostMemory) where {T} =
+    convert(Ptr{T}, pointer(mem))
 
 
 ## shared buffer
@@ -124,7 +119,6 @@ UnifiedSharedMemory() = UnifiedSharedMemory(CL_NULL, 0, context())
 function shared_alloc(bytesize::Integer;
         alignment::Integer = 0, write_combined = false, placement = nothing
     )
-    bytesize == 0 && return UnifiedSharedMemory()
 
     flags = 0
     if write_combined
@@ -150,18 +144,18 @@ function shared_alloc(bytesize::Integer;
     return UnifiedSharedMemory(ptr, bytesize, context())
 end
 
-Base.pointer(buf::UnifiedSharedMemory) = buf.ptr
-Base.sizeof(buf::UnifiedSharedMemory) = buf.bytesize
-context(buf::UnifiedSharedMemory) = buf.context
+Base.pointer(mem::UnifiedSharedMemory) = mem.ptr
+Base.sizeof(mem::UnifiedSharedMemory) = mem.bytesize
+context(mem::UnifiedSharedMemory) = mem.context
 
-Base.show(io::IO, buf::UnifiedSharedMemory) =
-    @printf(io, "UnifiedSharedMemory(%s at %p)", Base.format_bytes(sizeof(buf)), Int(pointer(buf)))
+Base.show(io::IO, mem::UnifiedSharedMemory) =
+    @printf(io, "UnifiedSharedMemory(%s at %p)", Base.format_bytes(sizeof(mem)), Int(pointer(mem)))
 
-Base.convert(::Type{Ptr{T}}, buf::UnifiedSharedMemory) where {T} =
-    convert(Ptr{T}, reinterpret(Ptr{Cvoid}, pointer(buf)))
+Base.convert(::Type{Ptr{T}}, mem::UnifiedSharedMemory) where {T} =
+    convert(Ptr{T}, reinterpret(Ptr{Cvoid}, pointer(mem)))
 
-Base.convert(::Type{CLPtr{T}}, buf::UnifiedSharedMemory) where {T} =
-    convert(CLPtr{T}, pointer(buf))
+Base.convert(::Type{CLPtr{T}}, mem::UnifiedSharedMemory) where {T} =
+    convert(CLPtr{T}, pointer(mem))
 
 
 ## memory operations
@@ -184,7 +178,6 @@ end
 function enqueue_usm_fill(ptr::Union{Ptr, CLPtr}, pattern::T, N::Integer;
                           wait_for::Vector{Event}=Event[]) where {T}
     nbytes = N * sizeof(T)
-    nbytes == 0 && return
     pattern_size = sizeof(T)
     n_evts  = length(wait_for)
     evt_ids = isempty(wait_for) ? C_NULL : [pointer(evt) for evt in wait_for]

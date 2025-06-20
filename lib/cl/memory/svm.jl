@@ -1,4 +1,4 @@
-struct SharedVirtualMemory <: AbstractMemory
+struct SharedVirtualMemory <: AbstractPointerMemory
     ptr::CLPtr{Cvoid}
     bytesize::Int
     context::Context
@@ -9,7 +9,6 @@ SharedVirtualMemory() = SharedVirtualMemory(CL_NULL, 0, context())
 function svm_alloc(bytesize::Integer;
         alignment::Integer = 0, access::Symbol = :rw, fine_grained = false
     )
-    bytesize == 0 && return SharedVirtualMemory()
 
     flags = if access == :rw
         CL_MEM_READ_WRITE
@@ -36,25 +35,20 @@ function svm_alloc(bytesize::Integer;
     return SharedVirtualMemory(ptr, bytesize, context())
 end
 
-function svm_free(buf::SharedVirtualMemory)
-    if sizeof(buf) != 0
-        clSVMFree(context(buf), buf)
-    end
-    return
-end
+svm_free(mem::SharedVirtualMemory) = clSVMFree(context(mem), mem)
 
-Base.pointer(buf::SharedVirtualMemory) = buf.ptr
-Base.sizeof(buf::SharedVirtualMemory) = buf.bytesize
-context(buf::SharedVirtualMemory) = buf.context
+Base.pointer(mem::SharedVirtualMemory) = mem.ptr
+Base.sizeof(mem::SharedVirtualMemory) = mem.bytesize
+context(mem::SharedVirtualMemory) = mem.context
 
-Base.show(io::IO, buf::SharedVirtualMemory) =
-    @printf(io, "SharedVirtualMemory(%s at %p)", Base.format_bytes(sizeof(buf)), Int(pointer(buf)))
+Base.show(io::IO, mem::SharedVirtualMemory) =
+    @printf(io, "SharedVirtualMemory(%s at %p)", Base.format_bytes(sizeof(mem)), Int(pointer(mem)))
 
-Base.convert(::Type{Ptr{T}}, buf::SharedVirtualMemory) where {T} =
-    convert(Ptr{T}, pointer(buf))
+Base.convert(::Type{Ptr{T}}, mem::SharedVirtualMemory) where {T} =
+    convert(Ptr{T}, pointer(mem))
 
-Base.convert(::Type{CLPtr{T}}, buf::SharedVirtualMemory) where {T} =
-    reinterpret(CLPtr{T}, pointer(buf))
+Base.convert(::Type{CLPtr{T}}, mem::SharedVirtualMemory) where {T} =
+    reinterpret(CLPtr{T}, pointer(mem))
 
 
 ## memory operations
@@ -118,7 +112,6 @@ end
 function enqueue_svm_fill(ptr::Union{Ptr, CLPtr}, pattern::T, N::Integer;
                           wait_for::Vector{Event}=Event[]) where {T}
     nbytes = N * sizeof(T)
-    nbytes == 0 && return
     pattern_size = sizeof(T)
     n_evts  = length(wait_for)
     evt_ids = isempty(wait_for) ? C_NULL : [pointer(evt) for evt in wait_for]

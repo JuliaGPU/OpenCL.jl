@@ -69,7 +69,7 @@ function set_arg!(k::Kernel, idx::Integer, arg::CLPtr{T}) where {T}
 end
 
 # raw memory
-function set_arg!(k::Kernel, idx::Integer, arg::AbstractMemory)
+function set_arg!(k::Kernel, idx::Integer, arg::AbstractPointerMemory)
     # XXX: this assumes that the receiving argument is pointer-typed, which is not the case
     #      with Julia's `Ptr` ABI. Instead, one should reinterpret the pointer as a
     #      `Core.LLVMPtr`, which _is_ pointer-valued. We retain this handling for `Ptr` for
@@ -79,6 +79,8 @@ function set_arg!(k::Kernel, idx::Integer, arg::AbstractMemory)
         clSetKernelArgSVMPointer(k, idx - 1, pointer(arg))
     elseif arg isa UnifiedMemory
         clSetKernelArgMemPointerINTEL(k, idx - 1, pointer(arg))
+    elseif arg isa Buffer
+        clSetKernelArgDevicePointerEXT(k, idx - 1, pointer(arg))
     else
         error("Unknown memory type")
     end
@@ -191,6 +193,7 @@ function call(
     if !isempty(indirect_memory)
         svm_pointers = CLPtr{Cvoid}[]
         usm_pointers = CLPtr{Cvoid}[]
+        bda_pointers = CLPtr{Cvoid}[]
         device_access = host_access = shared_access = false
         for memory in indirect_memory
             ptr = pointer(memory)
@@ -200,6 +203,8 @@ function call(
 
             if memory isa SharedVirtualMemory
                 push!(svm_pointers, ptr)
+            elseif memory isa Buffer
+                push!(bda_pointers, ptr)
             elseif memory isa UnifiedDeviceMemory
                 device_access = true
                 push!(usm_pointers, ptr)
@@ -228,6 +233,9 @@ function call(
         # set the pointers
         if !isempty(svm_pointers)
             clSetKernelExecInfo(k, CL_KERNEL_EXEC_INFO_SVM_PTRS, sizeof(svm_pointers), svm_pointers)
+        end
+        if !isempty(bda_pointers)
+            clSetKernelExecInfo(k, CL_KERNEL_EXEC_INFO_DEVICE_PTRS_EXT, sizeof(bda_pointers), bda_pointers)
         end
         if !isempty(usm_pointers)
             clSetKernelExecInfo(k, CL_KERNEL_EXEC_INFO_USM_PTRS_INTEL, sizeof(usm_pointers), usm_pointers)

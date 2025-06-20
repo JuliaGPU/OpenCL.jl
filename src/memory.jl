@@ -38,9 +38,10 @@ function maybe_synchronize(managed::Managed)
     return nothing
 end
 
-function Base.convert(::Type{CLPtr{T}}, managed::Managed{M}) where {T, M}
+function Base.convert(typ::Union{Type{<:CLPtr}, Type{cl.Buffer}}, managed::Managed)
     # let null pointers pass through as-is
-    ptr = convert(CLPtr{T}, managed.mem)
+    # XXX: does not work for buffers
+    ptr = convert(typ, managed.mem)
     if ptr == cl.CL_NULL
         return ptr
     end
@@ -55,9 +56,9 @@ function Base.convert(::Type{CLPtr{T}}, managed::Managed{M}) where {T, M}
     return ptr
 end
 
-function Base.convert(::Type{Ptr{T}}, managed::Managed{M}) where {T, M}
+function Base.convert(typ::Type{<:Ptr}, managed::Managed{M}) where {M}
     # let null pointers pass through as-is
-    ptr = convert(Ptr{T}, managed.mem)
+    ptr = convert(typ, managed.mem)
     if ptr == C_NULL
         return ptr
     end
@@ -112,6 +113,13 @@ end
 
 
 ## public interface
+function managed_alloc(t::Type{T}, bytes::Int; kwargs...) where T
+    if bytes == 0
+        return Managed(T())
+    else
+        alloc(t, bytes; kwargs...)
+    end
+end
 
 function alloc(::Type{cl.UnifiedDeviceMemory}, bytes::Int; alignment::Int = 0)
     mem = cl.device_alloc(bytes; alignment)
@@ -134,7 +142,14 @@ function alloc(::Type{cl.SharedVirtualMemory}, bytes::Int; alignment::Int = 0)
     return Managed(mem)
 end
 
-function free(managed::Managed{<:cl.AbstractMemory})
+function alloc(::Type{cl.Buffer}, bytes::Int; alignment::Int = 0)
+    # TODO: use alignment
+    buf = cl.Buffer(bytes)
+    return Managed(buf)
+end
+
+function free(managed::Managed)
+    sizeof(managed) == 0 && return
     mem = managed.mem
     cl.context!(cl.context(mem)) do
         # "`clSVMFree` does not wait for previously enqueued commands that may be using
@@ -148,8 +163,10 @@ function free(managed::Managed{<:cl.AbstractMemory})
 
         if mem isa cl.SharedVirtualMemory
             cl.svm_free(mem)
-        else
+        elseif mem isa cl.UnifiedMemory
             cl.usm_free(mem)
+        else
+            cl.release(mem)
         end
     end
 

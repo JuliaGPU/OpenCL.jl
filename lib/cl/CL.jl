@@ -1,6 +1,8 @@
 module cl
 
+import ..OpenCL
 using Printf
+using Preferences
 
 include("pointer.jl")
 include("api.jl")
@@ -18,8 +20,7 @@ include("device.jl")
 include("context.jl")
 include("cmdqueue.jl")
 include("event.jl")
-include("memory/memory.jl")
-include("buffer.jl")
+include("memory.jl")
 include("program.jl")
 include("kernel.jl")
 

@@ -1,0 +1,7 @@
+[OpenCL]
+# Which memory back-end to use for unspecified CLArray allocations. This can be:
+# - "buffer": plain buffers (using pointers if `cl_ext_buffer_device_address` is available)
+# - "usm": Unified Shared Memory (requiring `cl_intel_unified_shared_memory`)
+# - "svm": Shared Virtual Memory (requiring coarse-grained SVM support)
+# If unspecified, the default will be used based on the platform and device capabilities.
+#default_memory_backend="..."
