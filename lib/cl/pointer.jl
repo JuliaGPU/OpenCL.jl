@@ -71,8 +71,15 @@ Base.:(==)(x::CLPtr, y::CLPtr) = UInt(x) == UInt(y)
 Base.:(<)(x::CLPtr, y::CLPtr) = UInt(x) < UInt(y)
 Base.:(-)(x::CLPtr, y::CLPtr) = UInt(x) - UInt(y)
 
+if VERSION >= v"1.12.0-DEV.225"
+Base.:(+)(x::CLPtr{T}, y::Integer) where T =
+    reinterpret(CLPtr{T}, Base.add_ptr(reinterpret(Ptr{T}, x), (y % UInt) % UInt))
+Base.:(-)(x::CLPtr{T}, y::Integer) where T =
+    reinterpret(CLPtr{T}, Base.sub_ptr(reinterpret(Ptr{T}, x), (y % UInt) % UInt))
+else
 Base.:(+)(x::CLPtr, y::Integer) = oftype(x, Base.add_ptr(UInt(x), (y % UInt) % UInt))
 Base.:(-)(x::CLPtr, y::Integer) = oftype(x, Base.sub_ptr(UInt(x), (y % UInt) % UInt))
+end
 Base.:(+)(x::Integer, y::CLPtr) = y + x
 
 
