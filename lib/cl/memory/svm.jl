@@ -45,7 +45,7 @@ Base.show(io::IO, mem::SharedVirtualMemory) =
     @printf(io, "SharedVirtualMemory(%s at %p)", Base.format_bytes(sizeof(mem)), Int(pointer(mem)))
 
 Base.convert(::Type{Ptr{T}}, mem::SharedVirtualMemory) where {T} =
-    convert(Ptr{T}, pointer(mem))
+    convert(Ptr{T}, reinterpret(Ptr{Cvoid}, pointer(mem)))
 
 Base.convert(::Type{CLPtr{T}}, mem::SharedVirtualMemory) where {T} =
     reinterpret(CLPtr{T}, pointer(mem))

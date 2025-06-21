@@ -272,12 +272,12 @@ Base.convert(::Type{T}, x::T) where {T <: CLArray} = x
 
 ## indexing
 
-function Base.getindex(x::CLArray{<:Any, <:Any, <:Union{cl.UnifiedHostMemory, cl.UnifiedSharedMemory}}, I::Int)
+function Base.getindex(x::CLArray{<:Any, <:Any, <:Union{cl.UnifiedHostMemory, cl.UnifiedSharedMemory, cl.SharedVirtualMemory}}, I::Int)
     @boundscheck checkbounds(x, I)
     return GC.@preserve x unsafe_load(host_pointer(x, I))
 end
 
-function Base.setindex!(x::CLArray{<:Any, <:Any, <:Union{cl.UnifiedHostMemory, cl.UnifiedSharedMemory}}, v, I::Int)
+function Base.setindex!(x::CLArray{<:Any, <:Any, <:Union{cl.UnifiedHostMemory, cl.UnifiedSharedMemory, cl.SharedVirtualMemory}}, v, I::Int)
     @boundscheck checkbounds(x, I)
     return GC.@preserve x unsafe_store!(host_pointer(x, I), v)
 end
@@ -485,12 +485,12 @@ Base.unsafe_convert(::Type{CLPtr{T}}, A::PermutedDimsArray) where {T} =
 ## unsafe_wrap
 
 """
-    unsafe_wrap(Array, arr::CLArray{_,_,cl.UnifiedSharedMemory})
+    unsafe_wrap(Array, arr::CLArray{_,_,<:Union{cl.SharedVirtualMemory, cl.UnifiedSharedMemory}})
 
 Wrap a Julia `Array` around the buffer that backs a `CLArray`. This is only possible if the
 GPU array is backed by a shared buffer, i.e. if it was created with `CLArray{T}(undef, ...)`.
 """
-function Base.unsafe_wrap(::Type{Array}, arr::CLArray{T, N, cl.UnifiedSharedMemory}) where {T, N}
+function Base.unsafe_wrap(::Type{Array}, arr::CLArray{T, N, <:Union{cl.SharedVirtualMemory, cl.UnifiedSharedMemory}}) where {T, N}
     # TODO: can we make this more convenient by increasing the buffer's refcount and using
     #       a finalizer on the Array? does that work when taking views etc of the Array?
     ptr = reinterpret(Ptr{T}, pointer(arr))
