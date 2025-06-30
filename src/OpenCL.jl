@@ -16,10 +16,40 @@ include("../lib/cl/CL.jl")
 @reexport using .cl
 export cl
 
+## device overrides
+
+# local method table for device functions
+Base.Experimental.@MethodTable(method_table)
+
+macro device_override(ex)
+    esc(quote
+        Base.Experimental.@overlay($method_table, $ex)
+    end)
+end
+
+macro device_function(ex)
+    ex = macroexpand(__module__, ex)
+    def = ExprTools.splitdef(ex)
+
+    # generate a function that errors
+    def[:body] = quote
+        error("This function is not intended for use on the CPU")
+    end
+
+    esc(quote
+        $(ExprTools.combinedef(def))
+        @device_override $ex
+    end)
+end
+
+
 # device functionality
 import SPIRVIntrinsics
 SPIRVIntrinsics.@import_all
 SPIRVIntrinsics.@reexport_public
+
+const spirv_method_table = SPIRVIntrinsics.method_table
+
 include("device/runtime.jl")
 include("device/array.jl")
 include("device/quirks.jl")
