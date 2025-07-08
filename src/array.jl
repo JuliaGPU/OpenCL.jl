@@ -1,4 +1,5 @@
-export CLArray, CLVector, CLMatrix, CLVecOrMat, is_device, is_shared, is_host
+export CLArray, CLVector, CLMatrix, CLVecOrMat,
+       device_accessible, host_accessible
 
 
 ## array type
@@ -176,11 +177,9 @@ memtype(x::CLArray) = memtype(typeof(x))
 memtype(::Type{<:CLArray{<:Any, <:Any, M}}) where {M} = @isdefined(M) ? M : Any
 
 # can we read this array from the device (i.e. derive a CLPtr)?
-is_device(a::CLArray) =
+device_accessible(a::CLArray) =
     memtype(a) in (cl.UnifiedDeviceMemory, cl.UnifiedSharedMemory, cl.SharedVirtualMemory, cl.Buffer)
-is_shared(a::CLArray) =
-    memtype(a) in (cl.UnifiedSharedMemory, cl.SharedVirtualMemory)
-is_host(a::CLArray) =
+host_accessible(a::CLArray) =
     memtype(a) in (cl.UnifiedHostMemory, cl.UnifiedSharedMemory, cl.SharedVirtualMemory)
 
 
@@ -286,14 +285,14 @@ end
 ## interop with libraries
 
 function Base.unsafe_convert(::Type{Ptr{T}}, x::CLArray{T}) where {T}
-    if !is_host(x)
+    if !host_accessible(x)
         throw(ArgumentError("cannot take the CPU address of a $(typeof(x))"))
     end
     return convert(Ptr{T}, x.data[]) + x.offset * Base.elsize(x)
 end
 
 function Base.unsafe_convert(::Type{CLPtr{T}}, x::CLArray{T}) where {T}
-    if !is_device(x)
+    if !device_accessible(x)
         throw(ArgumentError("cannot take the device address of a $(typeof(x))"))
     end
     return convert(CLPtr{T}, x.data[]) + x.offset * Base.elsize(x)
