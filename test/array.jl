@@ -9,8 +9,10 @@ import Adapt
         @test Base.elsize(xs) == sizeof(Int)
         @test CLArray{Int, 2}(xs) === xs
 
-        @test_throws ArgumentError Base.unsafe_convert(Ptr{Int}, xs)
-        @test_throws ArgumentError Base.unsafe_convert(Ptr{Float32}, xs)
+        if !host_accessible(xs)
+            @test_throws ArgumentError Base.unsafe_convert(Ptr{Int}, xs)
+            @test_throws ArgumentError Base.unsafe_convert(Ptr{Float32}, xs)
+        end
 
         @test collect(OpenCL.zeros(Float32, 2, 2)) == zeros(Float32, 2, 2)
         @test collect(OpenCL.ones(Float32, 2, 2)) == ones(Float32, 2, 2)

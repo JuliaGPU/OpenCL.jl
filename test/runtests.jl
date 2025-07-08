@@ -3,6 +3,7 @@ using Dates
 import REPL
 using Printf: @sprintf
 using Base.Filesystem: path_separator
+using Preferences
 
 # parse some command-line arguments
 function extract_flag!(args, flag, default=nothing)
@@ -110,7 +111,18 @@ if !isempty(optlike_args)
     error("Unknown test options `$(join(optlike_args, " "))` (try `--help` for usage instructions)")
 end
 ## the remaining args filter tests
-if !isempty(ARGS)
+if isempty(ARGS)
+  # default to running all tests, except:
+  filter!(tests) do test
+    if load_preference(OpenCL, "default_memory_backend") == "svm" &&
+       test == "gpuarrays/indexing scalar"
+        # GPUArrays' scalar indexing tests assume that indexing is not supported
+        return false
+    end
+
+    return true
+  end
+else
   filter!(tests) do test
     any(arg->startswith(test, arg), ARGS)
   end
