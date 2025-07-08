@@ -1,4 +1,5 @@
-export CLArray, CLVector, CLMatrix, CLVecOrMat, is_device, is_shared, is_host
+export CLArray, CLVector, CLMatrix, CLVecOrMat,
+       device_accessible, host_accessible
 
 
 ## array type
@@ -176,11 +177,9 @@ memtype(x::CLArray) = memtype(typeof(x))
 memtype(::Type{<:CLArray{<:Any, <:Any, M}}) where {M} = @isdefined(M) ? M : Any
 
 # can we read this array from the device (i.e. derive a CLPtr)?
-is_device(a::CLArray) =
+device_accessible(a::CLArray) =
     memtype(a) in (cl.UnifiedDeviceMemory, cl.UnifiedSharedMemory, cl.SharedVirtualMemory, cl.Buffer)
-is_shared(a::CLArray) =
-    memtype(a) in (cl.UnifiedSharedMemory, cl.SharedVirtualMemory)
-is_host(a::CLArray) =
+host_accessible(a::CLArray) =
     memtype(a) in (cl.UnifiedHostMemory, cl.UnifiedSharedMemory, cl.SharedVirtualMemory)
 
 
@@ -272,12 +271,12 @@ Base.convert(::Type{T}, x::T) where {T <: CLArray} = x
 
 ## indexing
 
-function Base.getindex(x::CLArray{<:Any, <:Any, <:Union{cl.UnifiedHostMemory, cl.UnifiedSharedMemory}}, I::Int)
+function Base.getindex(x::CLArray{<:Any, <:Any, <:Union{cl.UnifiedHostMemory, cl.UnifiedSharedMemory, cl.SharedVirtualMemory}}, I::Int)
     @boundscheck checkbounds(x, I)
     return GC.@preserve x unsafe_load(host_pointer(x, I))
 end
 
-function Base.setindex!(x::CLArray{<:Any, <:Any, <:Union{cl.UnifiedHostMemory, cl.UnifiedSharedMemory}}, v, I::Int)
+function Base.setindex!(x::CLArray{<:Any, <:Any, <:Union{cl.UnifiedHostMemory, cl.UnifiedSharedMemory, cl.SharedVirtualMemory}}, v, I::Int)
     @boundscheck checkbounds(x, I)
     return GC.@preserve x unsafe_store!(host_pointer(x, I), v)
 end
@@ -286,14 +285,14 @@ end
 ## interop with libraries
 
 function Base.unsafe_convert(::Type{Ptr{T}}, x::CLArray{T}) where {T}
-    if !is_host(x)
+    if !host_accessible(x)
         throw(ArgumentError("cannot take the CPU address of a $(typeof(x))"))
     end
     return convert(Ptr{T}, x.data[]) + x.offset * Base.elsize(x)
 end
 
 function Base.unsafe_convert(::Type{CLPtr{T}}, x::CLArray{T}) where {T}
-    if !is_device(x)
+    if !device_accessible(x)
         throw(ArgumentError("cannot take the device address of a $(typeof(x))"))
     end
     return convert(CLPtr{T}, x.data[]) + x.offset * Base.elsize(x)
@@ -485,16 +484,14 @@ Base.unsafe_convert(::Type{CLPtr{T}}, A::PermutedDimsArray) where {T} =
 ## unsafe_wrap
 
 """
-    unsafe_wrap(Array, arr::CLArray{_,_,cl.UnifiedSharedMemory})
+    unsafe_wrap(Array, arr::CLArray)
 
 Wrap a Julia `Array` around the buffer that backs a `CLArray`. This is only possible if the
-GPU array is backed by a shared buffer, i.e. if it was created with `CLArray{T}(undef, ...)`.
+GPU array is backed by host memory, such as unified (host or shared) memory, or shared
+virtual memory.
 """
-function Base.unsafe_wrap(::Type{Array}, arr::CLArray{T, N, cl.UnifiedSharedMemory}) where {T, N}
-    # TODO: can we make this more convenient by increasing the buffer's refcount and using
-    #       a finalizer on the Array? does that work when taking views etc of the Array?
-    ptr = reinterpret(Ptr{T}, pointer(arr))
-    return unsafe_wrap(Array, ptr, size(arr))
+function Base.unsafe_wrap(::Type{Array}, arr::CLArray{T, N}) where {T, N}
+    return unsafe_wrap(Array, host_pointer(arr), size(arr))
 end
 
 

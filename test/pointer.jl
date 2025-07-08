@@ -37,7 +37,6 @@ end
 
 
 @testset "GPU or CPU integration" begin
-
     a = [1]
     ccall(:clock, Nothing, (Ptr{Int},), a)
     @test_throws Exception ccall(:clock, Nothing, (CLPtr{Int},), a)
@@ -45,9 +44,10 @@ end
 
     b = CLArray{eltype(a), ndims(a)}(undef, size(a))
     ccall(:clock, Nothing, (CLPtr{Int},), b)
-    @test_throws Exception ccall(:clock, Nothing, (Ptr{Int},), b)
+    if !host_accessible(b)
+        @test_throws Exception ccall(:clock, Nothing, (Ptr{Int},), b)
+    end
     ccall(:clock, Nothing, (PtrOrCLPtr{Int},), b)
-
 end
 
 
