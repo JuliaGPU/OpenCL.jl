@@ -15,10 +15,15 @@ mutable struct Managed{M}
     # whether there are outstanding operations that haven't been synchronized
     dirty::Bool
 
-    function Managed(mem::cl.AbstractMemory; queue = cl.queue(), dirty = true)
+    # who is currently using the memory
+    user::Symbol
+
+    function Managed(mem::cl.AbstractMemory; queue = cl.queue(), dirty = true, user = :device)
         # NOTE: memory starts as dirty, because stream-ordered allocations are only
         #       guaranteed to be physically allocated at a synchronization event.
-        return new{typeof(mem)}(mem, queue, dirty)
+        # NOTE: memory also starts as device-owned, because we need to map it as soon as
+        #       the host accesses it.
+        return new{typeof(mem)}(mem, queue, dirty, user)
     end
 end
 
@@ -38,7 +43,7 @@ function maybe_synchronize(managed::Managed)
     return nothing
 end
 
-function Base.convert(typ::Union{Type{<:CLPtr}, Type{cl.Buffer}}, managed::Managed)
+function Base.convert(typ::Union{Type{<:CLPtr}, Type{cl.Buffer}}, managed::Managed{M}) where {M}
     # let null pointers pass through as-is
     # XXX: does not work for buffers
     ptr = convert(typ, managed.mem)
@@ -50,6 +55,13 @@ function Base.convert(typ::Union{Type{<:CLPtr}, Type{cl.Buffer}}, managed::Manag
     if managed.queue != cl.queue()
         maybe_synchronize(managed)
         managed.queue = cl.queue()
+    end
+
+    # coarse-grained SVM needs to be unmapped when accessing it back from the device
+    # TODO: support fine-grained SVM
+    if M == cl.SharedVirtualMemory && managed.user == :host
+        cl.enqueue_svm_unmap(pointer(managed.mem))
+        managed.user = :device
     end
 
     managed.dirty = true
@@ -74,6 +86,14 @@ function Base.convert(typ::Type{<:Ptr}, managed::Managed{M}) where {M}
 
     # make sure any work on the memory has finished.
     maybe_synchronize(managed)
+
+    # coarse-grained SVM needs to be mapped when initially accessing it from the host
+    # TODO: support fine-grained SVM
+    if M == cl.SharedVirtualMemory && managed.user != :host
+        cl.enqueue_svm_map(pointer(managed.mem), sizeof(managed.mem), :rw; blocking = true)
+        managed.user = :host
+    end
+
     return ptr
 end
 
