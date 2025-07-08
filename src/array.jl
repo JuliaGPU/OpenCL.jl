@@ -484,16 +484,14 @@ Base.unsafe_convert(::Type{CLPtr{T}}, A::PermutedDimsArray) where {T} =
 ## unsafe_wrap
 
 """
-    unsafe_wrap(Array, arr::CLArray{_,_,<:Union{cl.SharedVirtualMemory, cl.UnifiedSharedMemory}})
+    unsafe_wrap(Array, arr::CLArray)
 
 Wrap a Julia `Array` around the buffer that backs a `CLArray`. This is only possible if the
-GPU array is backed by a shared buffer, i.e. if it was created with `CLArray{T}(undef, ...)`.
+GPU array is backed by host memory, such as unified (host or shared) memory, or shared
+virtual memory.
 """
-function Base.unsafe_wrap(::Type{Array}, arr::CLArray{T, N, <:Union{cl.SharedVirtualMemory, cl.UnifiedSharedMemory}}) where {T, N}
-    # TODO: can we make this more convenient by increasing the buffer's refcount and using
-    #       a finalizer on the Array? does that work when taking views etc of the Array?
-    ptr = reinterpret(Ptr{T}, pointer(arr))
-    return unsafe_wrap(Array, ptr, size(arr))
+function Base.unsafe_wrap(::Type{Array}, arr::CLArray{T, N}) where {T, N}
+    return unsafe_wrap(Array, host_pointer(arr), size(arr))
 end
 
 
