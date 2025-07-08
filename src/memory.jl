@@ -182,6 +182,10 @@ function free(managed::Managed)
         end
 
         if mem isa cl.SharedVirtualMemory
+            if managed.user == :host
+                # if the coarse-grained SVM buffer is mapped on the host, unmap it first.
+                cl.enqueue_svm_unmap(pointer(mem))
+            end
             cl.svm_free(mem)
         elseif mem isa cl.UnifiedMemory
             cl.usm_free(mem)
