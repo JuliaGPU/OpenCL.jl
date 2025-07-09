@@ -341,7 +341,7 @@ end
 
 ## memory arguments
 
-# refuse passing pointers directly
+# refuse passing pointers directly, as we don't know the memory type
 function set_arg!(k::Kernel, idx::Integer, arg::Union{Ptr, CLPtr})
     if arg != C_NULL
         error("Cannot pass a pointer directly to a kernel; use a memory object instead")

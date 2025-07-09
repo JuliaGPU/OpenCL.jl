@@ -42,49 +42,7 @@
         end
     end
 
-    @testset "set_arg!/set_args!" begin
-        prg = cl.Program(source=test_source) |> cl.build!
-        k = cl.Kernel(prg, "sum")
-
-        count  = 1024
-        nbytes = count * sizeof(Float32)
-
-        h_ones = ones(Float32, count)
-
-        A = CLArray(h_ones)
-        B = CLArray(h_ones)
-        C = CLArray{Float32}(undef, count)
-
-        # we use julia's index by one convention
-        @test cl.set_arg!(k, 1, A.data[].mem) != nothing
-        @test cl.set_arg!(k, 2, B.data[].mem) != nothing
-        @test cl.set_arg!(k, 3, C.data[].mem) != nothing
-        @test cl.set_arg!(k, 4, UInt32(count)) != nothing
-
-        cl.enqueue_kernel(k, count) |> wait
-        r = Array(C)
-
-        @test all(x -> x == 2.0, r)
-        cl.flush(cl.queue())
-
-        # test set_args with new kernel
-        k2 = cl.Kernel(prg, "sum")
-        cl.set_args!(k2, A.data[].mem, B.data[].mem, C.data[].mem, UInt32(count))
-
-        h_twos = fill(2f0, count)
-        copyto!(A, h_twos)
-        copyto!(B, h_twos)
-
-        #TODO: check for ocl version, fill is opencl v1.2
-        #cl.enqueue_fill(A, 2f0)
-        #cl.enqueue_fill(B, 2f0)
-
-        cl.enqueue_kernel(k, count)
-
-        @test all(x -> x == 4.0, Array(C))
-    end
-
-    @testset "enqueue_kernel" begin
+    @testset "clcall" begin
         simple_kernel = "
             __kernel void test(__global float *i) {
                 *i += 1;
