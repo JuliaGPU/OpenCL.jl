@@ -44,10 +44,12 @@ end
 
     b = CLArray{eltype(a), ndims(a), cl.Buffer}(undef, size(a))
     @test device_accessible(b)
-    ccall(:clock, Nothing, (CLPtr{Int},), b)
     @test !host_accessible(b)
-    @test_throws Exception ccall(:clock, Nothing, (Ptr{Int},), b)
-    ccall(:clock, Nothing, (PtrOrCLPtr{Int},), b)
+    if cl.bda_supported(cl.device())
+        ccall(:clock, Nothing, (CLPtr{Int},), b)
+        @test_throws Exception ccall(:clock, Nothing, (Ptr{Int},), b)
+        ccall(:clock, Nothing, (PtrOrCLPtr{Int},), b)
+    end
 end
 
 
