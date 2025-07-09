@@ -3,16 +3,16 @@ import Adapt
 
 @testset "CLArray" begin
     @testset "constructors" begin
-        xs = CLArray{Int}(undef, 2, 3)
+        xs = CLArray{Int, 2, cl.Buffer}(undef, 2, 3)
         @test collect(CLArray([1 2; 3 4])) == [1 2; 3 4]
         @test testf(vec, rand(Float32, 5, 3))
         @test Base.elsize(xs) == sizeof(Int)
         @test CLArray{Int, 2}(xs) === xs
 
-        if !host_accessible(xs)
-            @test_throws ArgumentError Base.unsafe_convert(Ptr{Int}, xs)
-            @test_throws ArgumentError Base.unsafe_convert(Ptr{Float32}, xs)
-        end
+        @test device_accessible(xs)
+        @test !host_accessible(xs)
+        @test_throws ArgumentError Base.unsafe_convert(Ptr{Int}, xs)
+        @test_throws ArgumentError Base.unsafe_convert(Ptr{Float32}, xs)
 
         @test collect(OpenCL.zeros(Float32, 2, 2)) == zeros(Float32, 2, 2)
         @test collect(OpenCL.ones(Float32, 2, 2)) == ones(Float32, 2, 2)

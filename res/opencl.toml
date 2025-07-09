@@ -37,7 +37,7 @@ rettype = "CLPtr{Cvoid}"
 3 = "Ptr{CLPtr{Cvoid}}"
 
 [api.clSetKernelArgSVMPointer.argtypes]
-3 = "CLPtr{Cvoid}"
+3 = "PtrOrCLPtr{Cvoid}"
 
 [api.clSVMFree.argtypes]
 2 = "PtrOrCLPtr{Cvoid}"

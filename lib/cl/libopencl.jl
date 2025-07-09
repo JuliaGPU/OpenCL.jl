@@ -607,7 +607,7 @@ end
 
 @checked function clSetKernelArgSVMPointer(kernel, arg_index, arg_value)
     @ccall libopencl.clSetKernelArgSVMPointer(kernel::cl_kernel, arg_index::cl_uint,
-                                              arg_value::CLPtr{Cvoid})::cl_int
+                                              arg_value::PtrOrCLPtr{Cvoid})::cl_int
 end
 
 @checked function clSetKernelExecInfo(kernel, param_name, param_value_size, param_value)

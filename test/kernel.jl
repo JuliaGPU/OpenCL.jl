@@ -56,10 +56,10 @@
         C = CLArray{Float32}(undef, count)
 
         # we use julia's index by one convention
-        @test cl.set_arg!(k, 1, A.data[].mem) != nothing
-        @test cl.set_arg!(k, 2, B.data[].mem) != nothing
-        @test cl.set_arg!(k, 3, C.data[].mem) != nothing
-        @test cl.set_arg!(k, 4, UInt32(count)) != nothing
+        cl.set_arg!(k, 1, A.data[].mem)
+        cl.set_arg!(k, 2, B.data[].mem)
+        cl.set_arg!(k, 3, C.data[].mem)
+        cl.set_arg!(k, 4, UInt32(count))
 
         cl.enqueue_kernel(k, count) |> wait
         r = Array(C)
@@ -84,7 +84,7 @@
         @test all(x -> x == 4.0, Array(C))
     end
 
-    @testset "enqueue_kernel" begin
+    @testset "clcall" begin
         simple_kernel = "
             __kernel void test(__global float *i) {
                 *i += 1;
@@ -97,9 +97,9 @@
         k = cl.Kernel(p, "test")
 
         # dimensions must be the same size
-        @test_throws ArgumentError clcall(k, Tuple{Ptr{Float32}}, d_arr;
+        @test_throws ArgumentError clcall(k, Tuple{CLPtr{Float32}}, d_arr;
                                           global_size=(1,), local_size=(1,1))
-        @test_throws ArgumentError clcall(k, Tuple{Ptr{Float32}}, d_arr;
+        @test_throws ArgumentError clcall(k, Tuple{CLPtr{Float32}}, d_arr;
                                           global_size=(1,1), local_size=(1,))
 
         # dimensions are bounded
