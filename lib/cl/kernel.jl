@@ -335,18 +335,32 @@ end
 function set_arg!(k::Kernel, idx::Integer, arg::Nothing)
     @assert idx > 0
     clSetKernelArg(k, idx - 1, sizeof(cl_mem), C_NULL)
-    return k
 end
 
 
 ## memory arguments
 
-# refuse passing pointers directly, as we don't know the memory type
-function set_arg!(k::Kernel, idx::Integer, arg::Union{Ptr, CLPtr})
-    if arg != C_NULL
-        error("Cannot pass a pointer directly to a kernel; use a memory object instead")
+# passing pointers directly requires the memory type to be specified
+set_arg!(k::Kernel, idx::Integer, arg::Union{Ptr, CLPtr}) =
+    error("""Cannot pass a pointer to a kernel without specifying the origin memory type.
+             Pass a memory object instead, or use the 4-arg version of `set_arg!` to indicate the memory type.""")
+function set_arg!(k::Kernel, idx::Integer, ptr::Union{Ptr, CLPtr}, typ::Type)
+    # XXX: this assumes that the receiving argument is pointer-typed, which is not the case
+    #      with Julia's `Ptr` ABI. Instead, one should reinterpret the pointer as a
+    #      `Core.LLVMPtr`, which _is_ pointer-valued. We retain this handling for `Ptr` for
+    #      users passing pointers to OpenCL C, and because `Ptr` is pointer-valued starting
+    #      with Julia 1.12.
+    if typ == SharedVirtualMemory
+        clSetKernelArgSVMPointer(k, idx - 1, ptr)
+    elseif typ <: UnifiedMemory
+        clSetKernelArgMemPointerINTEL(k, idx - 1, ptr)
+    elseif typ == Buffer
+        # XXX: this branch is never taken, as we currently still use plain `clSetKernelArg`,
+        #      which is only possible because our pointer always comes from a `Buffer`.
+        clSetKernelArgDevicePointerEXT(k, idx - 1, ptr)
+    else
+        error("Unknown memory type")
     end
-    return k
 end
 
 # memory objects: pass the memory object itself
@@ -354,7 +368,6 @@ unsafe_clconvert(typ::Type{<:Union{Ptr, CLPtr}}, mem::AbstractMemoryObject) = me
 function set_arg!(k::Kernel, idx::Integer, arg::AbstractMemoryObject)
     arg_boxed = Ref(arg.id)
     clSetKernelArg(k, idx - 1, sizeof(cl_mem), arg_boxed)
-    return k
 end
 
 # raw memory: pass as a pointer, keeping track of the memory type
@@ -363,25 +376,10 @@ struct TrackedPtr{T,M}
 end
 unsafe_clconvert(typ::Type{<:Union{Ptr{T}, CLPtr{T}}}, mem::AbstractPointerMemory) where {T} =
     TrackedPtr{T,typeof(mem)}(Base.unsafe_convert(typ, mem))
-function set_arg!(k::Kernel, idx::Integer, arg::TrackedPtr{<:Any,M}) where {M}
-    # XXX: this assumes that the receiving argument is pointer-typed, which is not the case
-    #      with Julia's `Ptr` ABI. Instead, one should reinterpret the pointer as a
-    #      `Core.LLVMPtr`, which _is_ pointer-valued. We retain this handling for `Ptr` for
-    #      users passing pointers to OpenCL C, and because `Ptr` is pointer-valued starting
-    #      with Julia 1.12.
-    if M == SharedVirtualMemory
-        clSetKernelArgSVMPointer(k, idx - 1, arg.ptr)
-    elseif M <: UnifiedMemory
-        clSetKernelArgMemPointerINTEL(k, idx - 1, arg.ptr)
-    elseif M == Buffer
-        # XXX: this branch is never taken, as we currently still use plain `clSetKernelArg`,
-        #      which is only possible because our pointer always comes from a `Buffer`.
-        clSetKernelArgDevicePointerEXT(k, idx - 1, arg.ptr)
-    else
-        error("Unknown memory type")
-    end
-    return k
-end
+set_arg!(k::Kernel, idx::Integer, arg::TrackedPtr{<:Any,M}) where {M} =
+    set_arg!(k, idx, arg.ptr, M)
+set_arg!(k::Kernel, idx::Integer, arg::AbstractPointerMemory) =
+    set_arg!(k, idx, pointer(arg), typeof(arg))
 
 
 ## local memory arguments
@@ -406,5 +404,4 @@ Base.length(l::LocalMem{T}) where {T} = Int(l.nbytes ÷ sizeof(T))
 unsafe_clconvert(::Type{CLPtr{T}}, l::LocalMem{T}) where {T} = l
 function set_arg!(k::Kernel, idx::Integer, arg::LocalMem)
     clSetKernelArg(k, idx - 1, arg.nbytes, C_NULL)
-    return k
 end
