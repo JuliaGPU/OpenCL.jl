@@ -42,11 +42,11 @@ end
     @test_throws Exception ccall(:clock, Nothing, (CLPtr{Int},), a)
     ccall(:clock, Nothing, (PtrOrCLPtr{Int},), a)
 
-    b = CLArray{eltype(a), ndims(a)}(undef, size(a))
+    b = CLArray{eltype(a), ndims(a), cl.Buffer}(undef, size(a))
+    @test device_accessible(b)
     ccall(:clock, Nothing, (CLPtr{Int},), b)
-    if !host_accessible(b)
-        @test_throws Exception ccall(:clock, Nothing, (Ptr{Int},), b)
-    end
+    @test !host_accessible(b)
+    @test_throws Exception ccall(:clock, Nothing, (Ptr{Int},), b)
     ccall(:clock, Nothing, (PtrOrCLPtr{Int},), b)
 end
 
