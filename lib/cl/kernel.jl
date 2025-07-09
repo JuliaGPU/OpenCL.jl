@@ -341,36 +341,42 @@ end
 
 ## memory arguments
 
-unsafe_clconvert(typ::Type{<:Union{Ptr, CLPtr}}, memory::AbstractMemory) = memory
-
 # refuse passing pointers directly
-function set_arg!(k::Kernel, idx::Integer, arg::CLPtr{T}) where {T}
+function set_arg!(k::Kernel, idx::Integer, arg::Union{Ptr, CLPtr})
     if arg != C_NULL
         error("Cannot pass a pointer directly to a kernel; use a memory object instead")
     end
     return k
 end
 
-# memory objects
+# memory objects: pass the memory object itself
+unsafe_clconvert(typ::Type{<:Union{Ptr, CLPtr}}, mem::AbstractMemoryObject) = mem
 function set_arg!(k::Kernel, idx::Integer, arg::AbstractMemoryObject)
     arg_boxed = Ref(arg.id)
     clSetKernelArg(k, idx - 1, sizeof(cl_mem), arg_boxed)
     return k
 end
 
-# pointer memory
-function set_arg!(k::Kernel, idx::Integer, arg::AbstractPointerMemory)
+# raw memory: pass as a pointer, keeping track of the memory type
+struct TrackedPtr{T,M}
+    ptr::Union{Ptr{T}, CLPtr{T}}
+end
+unsafe_clconvert(typ::Type{<:Union{Ptr{T}, CLPtr{T}}}, mem::AbstractPointerMemory) where {T} =
+    TrackedPtr{T,typeof(mem)}(Base.unsafe_convert(typ, mem))
+function set_arg!(k::Kernel, idx::Integer, arg::TrackedPtr{<:Any,M}) where {M}
     # XXX: this assumes that the receiving argument is pointer-typed, which is not the case
     #      with Julia's `Ptr` ABI. Instead, one should reinterpret the pointer as a
     #      `Core.LLVMPtr`, which _is_ pointer-valued. We retain this handling for `Ptr` for
     #      users passing pointers to OpenCL C, and because `Ptr` is pointer-valued starting
     #      with Julia 1.12.
-    if arg isa SharedVirtualMemory
-        clSetKernelArgSVMPointer(k, idx - 1, pointer(arg))
-    elseif arg isa UnifiedMemory
-        clSetKernelArgMemPointerINTEL(k, idx - 1, pointer(arg))
-    elseif arg isa Buffer
-        clSetKernelArgDevicePointerEXT(k, idx - 1, pointer(arg))
+    if M == SharedVirtualMemory
+        clSetKernelArgSVMPointer(k, idx - 1, arg.ptr)
+    elseif M <: UnifiedMemory
+        clSetKernelArgMemPointerINTEL(k, idx - 1, arg.ptr)
+    elseif M == Buffer
+        # XXX: this branch is never taken, as we currently still use plain `clSetKernelArg`,
+        #      which is only possible because our pointer always comes from a `Buffer`.
+        clSetKernelArgDevicePointerEXT(k, idx - 1, arg.ptr)
     else
         error("Unknown memory type")
     end
