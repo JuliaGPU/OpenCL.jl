@@ -97,9 +97,9 @@
         k = cl.Kernel(p, "test")
 
         # dimensions must be the same size
-        @test_throws ArgumentError clcall(k, Tuple{Ptr{Float32}}, d_arr;
+        @test_throws ArgumentError clcall(k, Tuple{CLPtr{Float32}}, d_arr;
                                           global_size=(1,), local_size=(1,1))
-        @test_throws ArgumentError clcall(k, Tuple{Ptr{Float32}}, d_arr;
+        @test_throws ArgumentError clcall(k, Tuple{CLPtr{Float32}}, d_arr;
                                           global_size=(1,1), local_size=(1,))
 
         # dimensions are bounded
