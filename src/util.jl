@@ -101,6 +101,9 @@ function versioninfo(io::IO=stdout)
                 if usm_caps.device.access
                     push!(usm_tags, "d")
                 end
+                if usm_caps.shared.access
+                    push!(usm_tags, "s")
+                end
                 push!(tags, "usm:"*join(usm_tags, "+"))
             end
             if cl.bda_supported(device)
