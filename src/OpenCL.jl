@@ -16,16 +16,11 @@ include("../lib/cl/CL.jl")
 @reexport using .cl
 export cl
 
-## device overrides
-
-# local method table for device functions
-Base.Experimental.@MethodTable(method_table)
-
 # device functionality
 import SPIRVIntrinsics
 SPIRVIntrinsics.@import_all
 SPIRVIntrinsics.@reexport_public
-
+Base.Experimental.@MethodTable(method_table)
 include("device/runtime.jl")
 include("device/array.jl")
 include("device/quirks.jl")
