@@ -85,7 +85,7 @@ Base.Experimental.@MethodTable(method_table)
 
 macro device_override(ex)
     esc(quote
-        Base.Experimental.@overlay($method_table, $ex)
+        Base.Experimental.@overlay(method_table, $ex)
     end)
 end
 
