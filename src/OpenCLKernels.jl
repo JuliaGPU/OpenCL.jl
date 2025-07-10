@@ -1,7 +1,7 @@
 module OpenCLKernels
 
 using ..OpenCL
-using ..OpenCL: @device_override, SPIRVIntrinsics
+using ..OpenCL: @device_override, SPIRVIntrinsics, method_table
 
 import KernelAbstractions as KA
 

@@ -32,6 +32,8 @@ macro import_all()
         # bring all the names of this module in scope
         name in (:SPIRVIntrinsics, :eval, :include) && continue
         startswith(string(name), "#") && continue
+        string(name) == "method_table" && continue
+        # XXX: use `export` or `@public` to denote names to re-export
         push!(code.args, :(using .SPIRVIntrinsics: $name))
     end
 
