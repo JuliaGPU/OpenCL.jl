@@ -15,7 +15,7 @@ GPUCompiler.isintrinsic(job::OpenCLCompilerJob, fn::String) =
     invoke(GPUCompiler.isintrinsic,
            Tuple{CompilerJob{SPIRVCompilerTarget}, typeof(fn)},
            job, fn) ||
-    in(fn, opencl_builtins) ||
+    in(fn, known_intrinsics) ||
     contains(fn, "__spirv_")
 
 
