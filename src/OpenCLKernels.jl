@@ -1,7 +1,7 @@
 module OpenCLKernels
 
 using ..OpenCL
-using ..OpenCL: @device_override, SPIRVIntrinsics, method_table
+using ..OpenCL: @device_override, method_table
 
 import KernelAbstractions as KA
 
@@ -153,7 +153,7 @@ end
 ## Shared and Scratch Memory
 
 @device_override @inline function KA.SharedMemory(::Type{T}, ::Val{Dims}, ::Val{Id}) where {T, Dims, Id}
-    ptr = SPIRVIntrinsics.emit_localmemory(T, Val(prod(Dims)))
+    ptr = OpenCL.emit_localmemory(T, Val(prod(Dims)))
     CLDeviceArray(Dims, ptr)
 end
 
@@ -165,11 +165,11 @@ end
 ## Synchronization and Printing
 
 @device_override @inline function KA.__synchronize()
-    SPIRVIntrinsics.barrier(SPIRVIntrinsics.CLK_LOCAL_MEM_FENCE | SPIRVIntrinsics.CLK_GLOBAL_MEM_FENCE)
+    barrier(OpenCL.LOCAL_MEM_FENCE | OpenCL.GLOBAL_MEM_FENCE)
 end
 
 @device_override @inline function KA.__print(args...)
-    SPIRVIntrinsics._print(args...)
+    OpenCL._print(args...)
 end
 
 

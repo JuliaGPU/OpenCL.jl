@@ -1,5 +1,7 @@
 # Synchronization Functions
 
+## SPIR-V wrappers
+
 module Scope
     const CrossDevice  = 0
     const Device       = 1
@@ -28,6 +30,18 @@ module MemorySemantics
     const Signal                    = 0x8000
 end
 
+@device_function memory_barrier(scope, semantics) =
+    Base.llvmcall(("""
+        declare void @_Z16__spirv_MemoryBarrierjj(i32, i32) #0
+        define void @entry(i32 %scope, i32 %semantics) #1 {
+            call void @_Z16__spirv_MemoryBarrierjj(i32 %scope, i32 %semantics)
+            ret void
+        }
+        attributes #0 = { convergent }
+        attributes #1 = { alwaysinline }
+        """, "entry"),
+    Cvoid, Tuple{Int32, Int32}, convert(Int32, scope), convert(Int32, semantics))
+
 @device_function control_barrier(execution_scope, memory_scope, memory_semantics) =
     Base.llvmcall(("""
         declare void @_Z22__spirv_ControlBarrierjjj(i32, i32, i32) #0
@@ -38,12 +52,29 @@ end
         attributes #0 = { convergent }
         attributes #1 = { alwaysinline }
         """, "entry"),
-    Cvoid, Tuple{Int32, Int32, Int32}, convert(Int32, execution_scope), convert(Int32, memory_scope), convert(Int32, memory_semantics))
+    Cvoid,
+    Tuple{Int32, Int32, Int32},
+    convert(Int32, execution_scope),
+    convert(Int32, memory_scope),
+    convert(Int32, memory_semantics))
 
 
-## OpenCL API
+## OpenCL types
 
-export barrier, work_group_barrier
+const cl_mem_fence_flags = UInt32
+const LOCAL_MEM_FENCE = cl_mem_fence_flags(1)
+const GLOBAL_MEM_FENCE = cl_mem_fence_flags(2)
+
+function mem_fence_flags_to_semantics(flags)
+    semantics = MemorySemantics.None
+    if (flags & LOCAL_MEM_FENCE) == LOCAL_MEM_FENCE
+        semantics |= MemorySemantics.WorkgroupMemory
+    end
+    if (flags & GLOBAL_MEM_FENCE) == GLOBAL_MEM_FENCE
+        semantics |= MemorySemantics.CrossWorkgroupMemory
+    end
+    return semantics
+end
 
 @enum memory_scope begin
     memory_scope_work_item
@@ -70,22 +101,48 @@ function cl_scope_to_spirv(scope::memory_scope)
     end
 end
 
-const cl_mem_fence_flags = UInt32
-const CLK_LOCAL_MEM_FENCE = cl_mem_fence_flags(1)
-const CLK_GLOBAL_MEM_FENCE = cl_mem_fence_flags(2)
-
-function mem_fence_flags_to_semantics(flags)
-    semantics = MemorySemantics.SequentiallyConsistent
-    if (flags & CLK_LOCAL_MEM_FENCE) == CLK_LOCAL_MEM_FENCE
-        semantics |= MemorySemantics.WorkgroupMemory
-    end
-    if (flags & CLK_GLOBAL_MEM_FENCE) == CLK_GLOBAL_MEM_FENCE
-        semantics |= MemorySemantics.CrossWorkgroupMemory
-    end
-    return semantics
+@enum memory_order begin
+    memory_order_relaxed
+    memory_order_acquire
+    memory_order_release
+    memory_order_acq_rel
+    memory_order_seq_cst
 end
 
-work_group_barrier(flags = 0, scope = memory_scope_work_group) =
-    control_barrier(Scope.Workgroup, cl_scope_to_spirv(scope), mem_fence_flags_to_semantics(flags))
 
-const barrier = work_group_barrier
+## OpenCL memory barriers
+
+export atomic_work_item_fence, mem_fence, write_mem_fence, read_mem_fence
+
+function atomic_work_item_fence(flags::UInt32, order::memory_order)
+    semantics = mem_fence_flags_to_semantics(flags)
+    if order == memory_order_relaxed
+        return memory_barrier(Scope.Invocation, semantics | MemorySemantics.Relaxed)
+    elseif order == memory_order_acquire
+        return memory_barrier(Scope.Invocation, semantics | MemorySemantics.Acquire)
+    elseif order == memory_order_release
+        return memory_barrier(Scope.Invocation, semantics | MemorySemantics.Release)
+    elseif order == memory_order_acq_rel
+        return memory_barrier(Scope.Invocation, semantics | MemorySemantics.AcquireRelease)
+    elseif order == memory_order_seq_cst
+        return memory_barrier(Scope.Invocation, semantics | MemorySemantics.SequentiallyConsistent)
+    else
+        error("Invalid memory order: $order")
+    end
+end
+
+# legacy fence functions
+mem_fence(flags::UInt32) = atomic_work_item_fence(flags, memory_order_acq_rel)
+write_mem_fence(flags::UInt32) = atomic_work_item_fence(flags, memory_order_release)
+read_mem_fence(flags::UInt32) = atomic_work_item_fence(flags, memory_order_acquire)
+
+
+## OpenCL execution barriers
+
+export barrier, work_group_barrier
+
+work_group_barrier(flags = 0, scope = memory_scope_work_group) =
+    control_barrier(Scope.Workgroup, cl_scope_to_spirv(scope),
+                    MemorySemantics.SequentiallyConsistent | mem_fence_flags_to_semantics(flags))
+
+barrier(flags = 0) = work_group_barrier(flags)
