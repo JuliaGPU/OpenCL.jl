@@ -126,18 +126,19 @@ export atomic_work_item_fence, mem_fence, read_mem_fence, write_mem_fence
 @inline function atomic_work_item_fence(flags, order, scope)
     semantics = mem_fence_flags_to_semantics(flags)
     if order == memory_order_relaxed
-        memory_barrier(scope, semantics | MemorySemantics.Relaxed)
+        semantics |= MemorySemantics.Relaxed
     elseif order == memory_order_acquire
-        memory_barrier(scope, semantics | MemorySemantics.Acquire)
+        semantics |= MemorySemantics.Acquire
     elseif order == memory_order_release
-        memory_barrier(scope, semantics | MemorySemantics.Release)
+        semantics |= MemorySemantics.Release
     elseif order == memory_order_acq_rel
-        memory_barrier(scope, semantics | MemorySemantics.AcquireRelease)
+        semantics |= MemorySemantics.AcquireRelease
     elseif order == memory_order_seq_cst
-        memory_barrier(scope, semantics | MemorySemantics.SequentiallyConsistent)
+        semantics |= MemorySemantics.SequentiallyConsistent
     else
         error("Invalid memory order: $order")
     end
+    memory_barrier(cl_scope_to_spirv(scope), semantics)
 end
 
 # legacy fence functions
