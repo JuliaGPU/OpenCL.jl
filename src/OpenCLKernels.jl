@@ -165,7 +165,7 @@ end
 ## Synchronization and Printing
 
 @device_override @inline function KA.__synchronize()
-    barrier(OpenCL.LOCAL_MEM_FENCE | OpenCL.GLOBAL_MEM_FENCE)
+    work_group_barrier(OpenCL.LOCAL_MEM_FENCE | OpenCL.GLOBAL_MEM_FENCE)
 end
 
 @device_override @inline function KA.__print(args...)

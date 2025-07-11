@@ -17,7 +17,7 @@
     # perform a reduction
     d = 1
     while d < items
-        barrier()
+        work_group_barrier(LOCAL_MEM_FENCE)
         index = 2 * d * (item-1) + 1
         @inbounds if index <= items
             other_val = if index + d <= items

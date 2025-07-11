@@ -64,6 +64,7 @@ end
 const cl_mem_fence_flags = UInt32
 const LOCAL_MEM_FENCE = cl_mem_fence_flags(1)
 const GLOBAL_MEM_FENCE = cl_mem_fence_flags(2)
+const IMAGE_MEM_FENCE = cl_mem_fence_flags(4)
 
 function mem_fence_flags_to_semantics(flags)
     semantics = MemorySemantics.None
@@ -141,8 +142,8 @@ read_mem_fence(flags::UInt32) = atomic_work_item_fence(flags, memory_order_acqui
 
 export barrier, work_group_barrier
 
-work_group_barrier(flags = 0, scope = memory_scope_work_group) =
+work_group_barrier(flags, scope = memory_scope_work_group) =
     control_barrier(Scope.Workgroup, cl_scope_to_spirv(scope),
                     MemorySemantics.SequentiallyConsistent | mem_fence_flags_to_semantics(flags))
 
-barrier(flags = 0) = work_group_barrier(flags)
+barrier(flags) = work_group_barrier(flags)
