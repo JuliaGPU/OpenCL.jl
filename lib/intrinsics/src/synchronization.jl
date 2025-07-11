@@ -30,13 +30,42 @@ module MemorySemantics
     const Signal                    = 0x8000
 end
 
-@device_function @inline memory_barrier(scope, semantics) =
-    @builtin_ccall("__spirv_MemoryBarrier", Cvoid, (UInt32, UInt32), scope, semantics)
+# `@builtin_ccall` does not support additional attributes like `convergent`
+# XXX: is this even needed? Doesn't LLVM reconstruct these?
+#      using the `@builtin_ccall` version causes validation issues.
 
+#@device_function @inline memory_barrier(scope, semantics) =
+#    @builtin_ccall("__spirv_MemoryBarrier", Cvoid, (UInt32, UInt32), scope, semantics)
+@device_function memory_barrier(scope, semantics) =
+    Base.llvmcall(("""
+        declare void @_Z21__spirv_MemoryBarrierjj(i32, i32) #0
+        define void @entry(i32 %scope, i32 %semantics) #1 {
+            call void @_Z21__spirv_MemoryBarrierjj(i32 %scope, i32 %semantics)
+            ret void
+        }
+        attributes #0 = { convergent }
+        attributes #1 = { alwaysinline }
+        """, "entry"),
+    Cvoid, Tuple{UInt32, UInt32}, convert(UInt32, scope), convert(UInt32, semantics))
+
+#@device_function @inline control_barrier(execution_scope, memory_scope, memory_semantics) =
+#    @builtin_ccall("__spirv_ControlBarrier", Cvoid, (UInt32, UInt32, UInt32),
+#                   execution_scope, memory_scope, memory_semantics)
 @device_function @inline control_barrier(execution_scope, memory_scope, memory_semantics) =
-    @builtin_ccall("__spirv_ControlBarrier", Cvoid, (UInt32, UInt32, UInt32),
-                   execution_scope, memory_scope, memory_semantics)
-
+    Base.llvmcall(("""
+        declare void @_Z22__spirv_ControlBarrierjjj(i32, i32, i32) #0
+        define void @entry(i32 %execution, i32 %memory, i32 %semantics) #1 {
+            call void @_Z22__spirv_ControlBarrierjjj(i32 %execution, i32 %memory, i32 %semantics)
+            ret void
+        }
+        attributes #0 = { convergent }
+        attributes #1 = { alwaysinline }
+        """, "entry"),
+    Cvoid,
+    Tuple{UInt32, UInt32, UInt32},
+    convert(UInt32, execution_scope),
+    convert(UInt32, memory_scope),
+    convert(UInt32, memory_semantics))
 
 ## OpenCL types
 
