@@ -1,4 +1,4 @@
-const opencl_builtins = String["printf"]
+const known_intrinsics = String["printf"]
 
 # OpenCL functions need to be mangled according to the C++ Itanium spec. We implement a very
 # limited version of that spec here, just enough to support OpenCL built-ins.
@@ -71,7 +71,7 @@ macro builtin_ccall(name, ret, argtypes, args...)
         mangled *= mangle(t)
     end
 
-    push!(opencl_builtins, mangled)
+    push!(known_intrinsics, mangled)
     esc(quote
         @typed_ccall($mangled, llvmcall, $ret, ($(argtypes...),), $(args...))
     end)
