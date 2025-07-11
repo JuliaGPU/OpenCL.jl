@@ -140,4 +140,27 @@ function runtests(f, name, platform_filter)
     end
 end
 
+
+## auxiliary stuff
+
+# Run some code on-device
+macro on_device(ex...)
+    code = ex[end]
+    kwargs = ex[1:end-1]
+
+    @gensym kernel
+    esc(quote
+        let
+            function $kernel()
+                $code
+                return
+            end
+
+            @opencl $(kwargs...) $kernel()
+            cl.finish(cl.queue())
+        end
+    end)
+end
+
+
 nothing # File is loaded via a remotecall to "include". Ensure it returns "nothing".
