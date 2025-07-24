@@ -13,10 +13,10 @@ BroadcastStyle(W::Type{<:WrappedCLArray{T, N}}) where {T, N} =
 # when we are dealing with different buffer styles, we cannot know
 # which one is better, so use shared memory
 BroadcastStyle(
-    ::CLArrayStyle{N, B1},
+    ::CLArrayStyle{M, B1},
     ::CLArrayStyle{N, B2}
-) where {N, B1, B2} =
-    CLArrayStyle{N, cl.UnifiedSharedMemory}()
+) where {M, N, B1, B2} =
+    CLArrayStyle{max(M, N), B1 == B2 ? B1 : cl.UnifiedSharedMemory}()
 
 # allocation of output arrays
 Base.similar(bc::Broadcasted{CLArrayStyle{N, B}}, ::Type{T}, dims) where {T, N, B} =
