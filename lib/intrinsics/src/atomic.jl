@@ -5,7 +5,7 @@
 # "atomic operations on 32-bit signed, unsigned integers and single precision
 #  floating-point to locations in __global or __local memory"
 
-const atomic_integer_types = [UInt32, Int32]
+const atomic_integer_types = [UInt32, Int32, UInt64, Int64]
 # TODO: 64-bit atomics with ZE_DEVICE_MODULE_FLAG_INT64_ATOMICS
 # TODO: additional floating-point atomics with ZE_extension_float_atomics
 const atomic_memory_types = [AS.Workgroup, AS.CrossWorkgroup]
@@ -14,48 +14,49 @@ const atomic_memory_types = [AS.Workgroup, AS.CrossWorkgroup]
 # generically typed
 
 for gentype in atomic_integer_types, as in atomic_memory_types
+    atomic = sizeof(gentype) == 4 ? "atomic" : "atom"
 @eval begin
 
 @device_function atomic_add!(p::LLVMPtr{$gentype,$as}, val::$gentype) =
-    @builtin_ccall("atomic_add", $gentype,
+    @builtin_ccall($"$(atomic)_add", $gentype,
                    (LLVMPtr{$gentype,$as}, $gentype), p, val)
 
 @device_function atomic_sub!(p::LLVMPtr{$gentype,$as}, val::$gentype) =
-    @builtin_ccall("atomic_sub", $gentype,
+    @builtin_ccall($"$(atomic)_sub", $gentype,
                    (LLVMPtr{$gentype,$as}, $gentype), p, val)
 
 @device_function atomic_inc!(p::LLVMPtr{$gentype,$as}) =
-    @builtin_ccall("atomic_inc", $gentype, (LLVMPtr{$gentype,$as},), p)
+    @builtin_ccall($"$(atomic)_inc", $gentype, (LLVMPtr{$gentype,$as},), p)
 
 @device_function atomic_dec!(p::LLVMPtr{$gentype,$as}) =
-    @builtin_ccall("atomic_dec", $gentype, (LLVMPtr{$gentype,$as},), p)
+    @builtin_ccall($"$(atomic)_dec", $gentype, (LLVMPtr{$gentype,$as},), p)
 
 @device_function atomic_min!(p::LLVMPtr{$gentype,$as}, val::$gentype) =
-    @builtin_ccall("atomic_min", $gentype,
+    @builtin_ccall($"$(atomic)_min", $gentype,
                    (LLVMPtr{$gentype,$as}, $gentype), p, val)
 
 @device_function atomic_max!(p::LLVMPtr{$gentype,$as}, val::$gentype) =
-    @builtin_ccall("atomic_max", $gentype,
+    @builtin_ccall($"$(atomic)_max", $gentype,
                    (LLVMPtr{$gentype,$as}, $gentype), p, val)
 
 @device_function atomic_and!(p::LLVMPtr{$gentype,$as}, val::$gentype) =
-    @builtin_ccall("atomic_and", $gentype,
+    @builtin_ccall($"$(atomic)_and", $gentype,
                    (LLVMPtr{$gentype,$as}, $gentype), p, val)
 
 @device_function atomic_or!(p::LLVMPtr{$gentype,$as}, val::$gentype) =
-    @builtin_ccall("atomic_or", $gentype,
+    @builtin_ccall($"$(atomic)_or", $gentype,
                    (LLVMPtr{$gentype,$as}, $gentype), p, val)
 
 @device_function atomic_xor!(p::LLVMPtr{$gentype,$as}, val::$gentype) =
-    @builtin_ccall("atomic_xor", $gentype,
+    @builtin_ccall($"$(atomic)_xor", $gentype,
                    (LLVMPtr{$gentype,$as}, $gentype), p, val)
 
 @device_function atomic_xchg!(p::LLVMPtr{$gentype,$as}, val::$gentype) =
-    @builtin_ccall("atomic_xchg", $gentype,
+    @builtin_ccall($"$(atomic)_xchg", $gentype,
                    (LLVMPtr{$gentype,$as}, $gentype), p, val)
 
 @device_function atomic_cmpxchg!(p::LLVMPtr{$gentype,$as}, cmp::$gentype, val::$gentype) =
-    @builtin_ccall("atomic_cmpxchg", $gentype,
+    @builtin_ccall($"$(atomic)_cmpxchg", $gentype,
                    (LLVMPtr{$gentype,$as}, $gentype, $gentype), p, cmp, val)
 
 end
