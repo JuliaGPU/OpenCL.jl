@@ -115,4 +115,22 @@ a = CLArray{Int}(undef, 10)
 
 end
 
+@testset "broadcasting" begin
+    a = rand(Float32, 2, 3)
+    b = rand(Float32, 2)
+
+    c = a .+ b
+    a_cl, b_cl = CLArray(a), CLArray(b)
+    c_cl = a_cl .+ b_cl
+    @test Array(c_cl) == c
+    @test c_cl isa CLArray{Float32, 2, cl.UnifiedDeviceMemory}
+
+    if cl.usm_supported(cl.device())
+        a_cl, b_cl = CLMatrix{Float32, cl.UnifiedSharedMemory}(a), CLVector{Float32, OpenCL.cl.UnifiedDeviceMemory}(b)
+        c_cl = a_cl .+ b_cl
+        @test Array(c_cl) == c
+        @test c_cl isa CLArray{Float32, 2, cl.UnifiedSharedMemory}
+    end
+end
+
 end
