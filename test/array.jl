@@ -117,9 +117,11 @@ import Adapt
         @test Array(c_cl) == c
         @test c_cl isa CLArray{Float32, 2, cl.UnifiedDeviceMemory}
 
-        a_cl, b_cl = CLMatrix{Float32, cl.UnifiedSharedMemory}(a), CLVector{Float32, OpenCL.cl.UnifiedDeviceMemory}(b)
-        c_cl = a_cl .+ b_cl
-        @test Array(c_cl) == c
-        @test c_cl isa CLArray{Float32, 2, cl.UnifiedSharedMemory}
+        if cl.usm_supported(cl.device())
+            a_cl, b_cl = CLMatrix{Float32, cl.UnifiedSharedMemory}(a), CLVector{Float32, OpenCL.cl.UnifiedDeviceMemory}(b)
+            c_cl = a_cl .+ b_cl
+            @test Array(c_cl) == c
+            @test c_cl isa CLArray{Float32, 2, cl.UnifiedSharedMemory}
+        end
     end
 end
