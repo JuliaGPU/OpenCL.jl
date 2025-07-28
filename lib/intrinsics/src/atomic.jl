@@ -248,7 +248,7 @@ for (op,impl) in [(+)      => atomic_add!,
                   Base.max => atomic_max!,
                   Base.min => atomic_min!]
     @eval @inline atomic_arrayset(A::AbstractArray{T}, I::Integer, ::typeof($op),
-                                  val::T) where {T <: Union{Int32,UInt32}} =
+                                  val::T) where {T <: Union{atomic_integer_types...}} =
         $impl(pointer(A, I), val)
 end
 
