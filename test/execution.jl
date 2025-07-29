@@ -123,10 +123,10 @@ end
     a_cl, b_cl = CLArray(a), CLArray(b)
     c_cl = a_cl .+ b_cl
     @test Array(c_cl) == c
-    @test c_cl isa CLArray{Float32, 2, cl.UnifiedDeviceMemory}
+    @test c_cl isa CLArray{Float32, 2, OpenCL.memory_type()}
 
     if cl.usm_supported(cl.device())
-        a_cl, b_cl = CLMatrix{Float32, cl.UnifiedSharedMemory}(a), CLVector{Float32, OpenCL.cl.UnifiedDeviceMemory}(b)
+        a_cl, b_cl = CLMatrix{Float32, cl.UnifiedSharedMemory}(a), CLVector{Float32, OpenCL.memory_type()}(b)
         c_cl = a_cl .+ b_cl
         @test Array(c_cl) == c
         @test c_cl isa CLArray{Float32, 2, cl.UnifiedSharedMemory}
