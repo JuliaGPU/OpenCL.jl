@@ -125,7 +125,9 @@ end
 end
 
 @device_override @inline function KA.__index_Global_Linear(ctx)
-    return get_global_id(1)
+    #return get_global_id(1)    # JuliaGPU/OpenCL.jl#346
+    I = KA.__index_Global_Cartesian(ctx)
+    @inbounds LinearIndices(KA.__ndrange(ctx))[I]
 end
 
 @device_override @inline function KA.__index_Local_Cartesian(ctx)
@@ -142,7 +144,7 @@ end
 
 @device_override @inline function KA.__validindex(ctx)
     if KA.__dynamic_checkbounds(ctx)
-        I = @inbounds KA.expand(KA.__iterspace(ctx), get_group_id(1), get_local_id(1))
+        I = KA.__index_Global_Cartesian(ctx)
         return I in KA.__ndrange(ctx)
     else
         return true
