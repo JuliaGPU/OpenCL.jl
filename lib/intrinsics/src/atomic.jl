@@ -1,13 +1,9 @@
 # Atomic Functions
 
-# TODO: support for 64-bit atomics via atom_cmpxchg (from cl_khr_int64_base_atomics)
+# provides atomic functions that rely on the OpenCL base atomics, as well as the
+# cl_khr_int64_base_atomics and cl_khr_int64_extended_atomics extensions.
 
-# "atomic operations on 32-bit signed, unsigned integers and single precision
-#  floating-point to locations in __global or __local memory"
-
-const atomic_integer_types = [UInt32, Int32]
-# TODO: 64-bit atomics with ZE_DEVICE_MODULE_FLAG_INT64_ATOMICS
-# TODO: additional floating-point atomics with ZE_extension_float_atomics
+const atomic_integer_types = [UInt32, Int32, UInt64, Int64]
 const atomic_memory_types = [AS.Workgroup, AS.CrossWorkgroup]
 
 
@@ -67,15 +63,23 @@ end
 for as in atomic_memory_types
 @eval begin
 
+# There is native support for atomic_xchg on Float32, but not for Float64,
+# so we always reinterpret for consistency.
 @device_function atomic_xchg!(p::LLVMPtr{Float32,$as}, val::Float32) =
-    @builtin_ccall("atomic_xchg", Float32, (LLVMPtr{Float32,$as}, Float32,), p, val)
+    reinterpret(Float32, atomic_xchg!(reinterpret(LLVMPtr{UInt32,$as}, p),
+                                      reinterpret(UInt32, val)))
+@device_function atomic_xchg!(p::LLVMPtr{Float64,$as}, val::Float64) =
+    reinterpret(Float64, atomic_xchg!(reinterpret(LLVMPtr{UInt64,$as}, p),
+                                      reinterpret(UInt64, val)))
 
-# XXX: why is only xchg supported on floats? isn't it safe for cmpxchg too,
-#      which should only perform bitwise comparisons?
 @device_function atomic_cmpxchg!(p::LLVMPtr{Float32,$as}, cmp::Float32, val::Float32) =
     reinterpret(Float32, atomic_cmpxchg!(reinterpret(LLVMPtr{UInt32,$as}, p),
                                          reinterpret(UInt32, cmp),
                                          reinterpret(UInt32, val)))
+@device_function atomic_cmpxchg!(p::LLVMPtr{Float64,$as}, cmp::Float64, val::Float64) =
+    reinterpret(Float64, atomic_cmpxchg!(reinterpret(LLVMPtr{UInt64,$as}, p),
+                                         reinterpret(UInt64, cmp),
+                                         reinterpret(UInt64, val)))
 
 end
 end
@@ -239,6 +243,11 @@ end
     atomic_arrayset(A, Base._to_linear_index(A, Is...), op, convert(T, val))
 
 # native atomics
+# TODO: support inc/dec
+# TODO: this depends on available extensions
+#       - UInt64: requires cl_khr_int64_base_atomics for add/sub/inc/dec,
+#                 requires cl_khr_int64_extended_atomics for min/max/and/or/xor
+#       - Float64: always should hit the fallback
 for (op,impl) in [(+)      => atomic_add!,
                   (-)      => atomic_sub!,
                   (&)      => atomic_and!,
@@ -247,11 +256,12 @@ for (op,impl) in [(+)      => atomic_add!,
                   Base.max => atomic_max!,
                   Base.min => atomic_min!]
     @eval @inline atomic_arrayset(A::AbstractArray{T}, I::Integer, ::typeof($op),
-                                  val::T) where {T <: Union{Int32,UInt32}} =
+                                  val::T) where {T <: Union{atomic_integer_types...}} =
         $impl(pointer(A, I), val)
 end
 
 # fallback using compare-and-swap
+# TODO: for 64-bit types, this depends on cl_khr_int64_base_atomics
 function atomic_arrayset(A::AbstractArray{T}, I::Integer, op::Function, val) where {T}
     ptr = pointer(A, I)
     old = Base.unsafe_load(ptr, 1)
