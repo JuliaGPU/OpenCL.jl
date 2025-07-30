@@ -9,6 +9,8 @@ GPUCompiler.runtime_module(::CompilerJob{<:Any,OpenCLCompilerParams}) = OpenCL
 GPUCompiler.method_table_view(job::OpenCLCompilerJob) =
     GPUCompiler.StackedMethodTable(job.world, method_table, SPIRVIntrinsics.method_table)
 
+GPUCompiler.kernel_state_type(job::OpenCLCompilerJob) = KernelState
+
 # filter out OpenCL built-ins
 # TODO: eagerly lower these using the translator API
 GPUCompiler.isintrinsic(job::OpenCLCompilerJob, fn::String) =
