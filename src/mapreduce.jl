@@ -5,8 +5,78 @@
 # - group-stride loop to delay need for second kernel launch
 # - let the driver choose the local size
 
+function shuffle_expr(::Type{T}) where {T}
+    if T in SPIRVIntrinsics.generic_integer_types || T in SPIRVIntrinsics.generic_types
+        return :(sub_group_shuffle(val, i))
+    elseif Base.isstructtype(T)
+        ex = Expr(:new, T)
+        for f in fieldnames(T)
+            ex_f = shuffle_expr(fieldtype(T, f))
+            ex_f === nothing && return nothing
+            push!(ex.args, :(let val = getfield(val, $(QuoteNode(f)))
+                $ex_f
+            end))
+        end
+        return ex
+    else
+        return nothing
+    end
+end
+
+@inline @generated function reduce_group(op, val::T, neutral, ::Val{maxitems}) where {T, maxitems}
+    ex = shuffle_expr(T)
+    if ex === nothing
+        return :(reduce_group_fallback(op, val, neutral, Val(maxitems)))
+    end
+
+    quote
+        # Subgroup shuffle-based warp reduction
+        lane = get_sub_group_local_id()
+        width = get_sub_group_size()
+
+        offset = 1
+        while offset < width
+            if lane > offset
+                i = lane - offset
+                other = $ex
+                val = op(val, other)
+            end
+            offset <<= 1
+        end
+
+        items = get_num_sub_groups()
+        item = get_sub_group_id()
+
+        shared = CLLocalArray(T, (maxitems,))
+        if items > 1 && lane == 1
+            @inbounds shared[item] = val
+
+            d = 1
+            while d < items
+                work_group_barrier(LOCAL_MEM_FENCE)
+                index = 2 * d * (item-1) + 1
+                @inbounds if index <= items
+                    other_val = if index + d <= items
+                        shared[index+d]
+                    else
+                        neutral
+                    end
+                    shared[index] = op(shared[index], other_val)
+                end
+                d *= 2
+            end
+
+            if item == 1
+                val = @inbounds shared[item]
+            end
+        end
+
+        return val
+    end
+end
+
 # Reduce a value across a group, using local memory for communication
-@inline function reduce_group(op, val::T, neutral, ::Val{maxitems}) where {T, maxitems}
+@inline function reduce_group_fallback(op, val::T, neutral, ::Val{maxitems}) where {T, maxitems}
     items = get_local_size()
     item = get_local_id()
 
