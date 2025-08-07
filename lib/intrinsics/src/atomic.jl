@@ -57,6 +57,15 @@ for gentype in atomic_integer_types, as in atomic_memory_types
 end
 end
 
+for gentype in [Float32, Float64], as in atomic_memory_types
+@eval begin
+
+@device_function atomic_add!(p::LLVMPtr{$gentype,$as}, val::$gentype) =
+    @builtin_ccall("atomic_add", $gentype,
+                   (LLVMPtr{$gentype,$as}, $gentype), p, val)
+end
+end
+
 
 # specifically typed
 
