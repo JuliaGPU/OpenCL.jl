@@ -34,6 +34,50 @@ for (julia_name, (spirv_name, julia_type, offset)) in [
     end
 end
 
+
+# Sub-group shuffle intrinsics using a loop and @eval, matching the style of the 1D/3D value loops above
+export sub_group_shuffle, sub_group_shuffle_xor
+
+for (jltype, llvmtype, julia_type_str) in [
+        (Int8,    "i8",    :Int8),
+        (UInt8,   "i8",    :UInt8),
+        (Int16,   "i16",   :Int16),
+        (UInt16,  "i16",   :UInt16),
+        (Int32,   "i32",   :Int32),
+        (UInt32,  "i32",   :UInt32),
+        (Int64,   "i64",   :Int64),
+        (UInt64,  "i64",   :UInt64),
+        (Float16, "half",  :Float16),
+        (Float32, "float", :Float32),
+        (Float64, "double",:Float64)
+    ]
+    @eval begin
+        export sub_group_shuffle, sub_group_shuffle_xor
+        function sub_group_shuffle(x::$jltype, idx::Integer)
+            Base.llvmcall(
+                $("""
+                declare $llvmtype @__spirv_GroupNonUniformShuffle(i32, $llvmtype, i32)
+                define $llvmtype @entry($llvmtype %val, i32 %idx) #0 {
+                    %res = call $llvmtype @__spirv_GroupNonUniformShuffle(i32 3, $llvmtype %val, i32 %idx)
+                    ret $llvmtype %res
+                }
+                attributes #0 = { alwaysinline }
+                """, "entry"), $julia_type_str, Tuple{$julia_type_str, Int32}, x, Int32(idx))
+        end
+        function sub_group_shuffle_xor(x::$jltype, mask::Integer)
+            Base.llvmcall(
+                $("""
+                declare $llvmtype @__spirv_GroupNonUniformShuffleXor(i32, $llvmtype, i32)
+                define $llvmtype @entry($llvmtype %val, i32 %mask) #0 {
+                    %res = call $llvmtype @__spirv_GroupNonUniformShuffleXor(i32 3, $llvmtype %val, i32 %mask)
+                    ret $llvmtype %res
+                }
+                attributes #0 = { alwaysinline }
+                """, "entry"), $julia_type_str, Tuple{$julia_type_str, Int32}, x, Int32(mask))
+        end
+    end
+end
+
 # 3D values
 for (julia_name, (spirv_name, offset)) in [
         # indices
