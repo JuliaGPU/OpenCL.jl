@@ -143,6 +143,10 @@ abstract type AbstractKernel{F, TT} end
     call_t =                  Type[x[1] for x in zip(sig.parameters,  to_pass) if x[2]]
     call_args = Union{Expr,Symbol}[x[1] for x in zip(args, to_pass)            if x[2]]
 
+    # add the kernel state as the first argument
+    pushfirst!(call_t, KernelState)
+    pushfirst!(call_args, :(kernel.state))
+
     # replace non-isbits arguments (they should be unused, or compilation would have failed)
     for (i,dt) in enumerate(call_t)
         if !isbitstype(dt)
@@ -156,6 +160,16 @@ abstract type AbstractKernel{F, TT} end
 
     quote
         indirect_memory = cl.AbstractMemory[]
+
+        # add exception info buffer to indirect memory
+        # XXX: this is too expensive
+        if kernel.state.exception_info != C_NULL
+            ctx = cl.context()
+            if haskey(exception_infos, ctx)
+                push!(indirect_memory, exception_infos[ctx])
+            end
+        end
+
         clcall(kernel.fun, $call_tt, $(call_args...); indirect_memory, call_kwargs...)
     end
 end
@@ -167,6 +181,7 @@ end
 struct HostKernel{F,TT} <: AbstractKernel{F,TT}
     f::F
     fun::cl.Kernel
+    state::KernelState
 end
 
 
@@ -191,7 +206,9 @@ function clfunction(f::F, tt::TT=Tuple{}; kwargs...) where {F,TT}
         kernel = get(_kernel_instances, h, nothing)
         if kernel === nothing
             # create the kernel state object
-            kernel = HostKernel{F,tt}(f, fun)
+            exception_info = create_exceptions!(ctx, dev)
+            state = KernelState(exception_info)
+            kernel = HostKernel{F,tt}(f, fun, state)
             _kernel_instances[h] = kernel
         end
         return kernel::HostKernel{F,tt}
