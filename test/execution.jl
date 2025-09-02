@@ -1,4 +1,4 @@
-using GPUCompiler: isavailable, SPIRV_LLVM_Translator_jll
+using SPIRV_LLVM_Translator_jll
 
 @testset "execution" begin
 
@@ -143,13 +143,11 @@ end
         @test occursin("target triple = \"spirv64-unknown-unknown-unknown\"", llvm_backend_llvm)
     end
 
-    if isavailable(SPIRV_LLVM_Translator_jll)
-        llvm_backend_khronos = sprint() do io
-            OpenCL.code_llvm(io, () -> nothing, (); dump_module = true, backend = :khronos)
-        end
-        if Int === Int64
-            @test occursin("target triple = \"spir64-unknown-unknown\"", llvm_backend_khronos)
-        end
+    llvm_backend_khronos = sprint() do io
+        OpenCL.code_llvm(io, () -> nothing, (); dump_module = true, backend = :khronos)
+    end
+    if Int === Int64
+        @test occursin("target triple = \"spir64-unknown-unknown\"", llvm_backend_khronos)
     end
 end
 
