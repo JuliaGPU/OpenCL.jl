@@ -3,7 +3,7 @@ name: Docs
 on:
   push:
     branches:
-      - main
+      - master
     paths:
       - "docs/**"
       - "src/**"
@@ -11,7 +11,7 @@ on:
     tags: ["*"]
   pull_request:
     branches:
-      - main
+      - master
     paths:
       - "docs/**"
       - "src/**"
