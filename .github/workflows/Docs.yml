@@ -4,18 +4,10 @@ on:
   push:
     branches:
       - master
-    paths:
-      - "docs/**"
-      - "src/**"
-      - "*.toml"
     tags: ["*"]
   pull_request:
     branches:
       - master
-    paths:
-      - "docs/**"
-      - "src/**"
-      - "*.toml"
     types: [opened, synchronize, reopened]
 
 concurrency:
