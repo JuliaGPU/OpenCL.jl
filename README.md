@@ -1,11 +1,12 @@
 # OpenCL.jl
 
-[![][buildkite-img]][buildkite-url] [![][github-img]][github-url]
+[![][buildkite-img]][buildkite-url]
+[![Test](https://github.com/JuliaGPU/OpenCL.jl/actions/workflows/Test.yml/badge.svg)](https://github.com/JuliaGPU/OpenCL.jl/actions/workflows/Test.yml)
+[![](https://img.shields.io/badge/docs-stable-blue.svg)](https://juliagpu.github.io/OpenCL.jl/stable)
+[![](https://img.shields.io/badge/docs-dev-blue.svg)](https://juliagpu.github.io/OpenCL.jl/dev)
 
 [buildkite-img]: https://badge.buildkite.com/6b2a46bff67692115dea3ad5a275d2f80777a5a99ffe42adb0.svg
 [buildkite-url]: https://buildkite.com/julialang/opencl-dot-jl
-[github-img]: https://github.com/JuliaGPU/OpenCL.jl/actions/workflows/CI.yml/badge.svg
-[github-url]: https://github.com/JuliaGPU/OpenCL.jl/actions/workflows/CI.yml
 
 *Julia interface for the OpenCL parallel computation API*
 

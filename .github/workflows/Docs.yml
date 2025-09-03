@@ -3,19 +3,11 @@ name: Docs
 on:
   push:
     branches:
-      - main
-    paths:
-      - "docs/**"
-      - "src/**"
-      - "*.toml"
+      - master
     tags: ["*"]
   pull_request:
     branches:
-      - main
-    paths:
-      - "docs/**"
-      - "src/**"
-      - "*.toml"
+      - master
     types: [opened, synchronize, reopened]
 
 concurrency:
