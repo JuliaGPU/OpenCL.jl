@@ -1,3 +1,5 @@
+using SPIRV_LLVM_Translator_jll
+
 @testset "execution" begin
 
 @testset "@opencl" begin
@@ -130,6 +132,22 @@ end
         c_cl = a_cl .+ b_cl
         @test Array(c_cl) == c
         @test c_cl isa CLArray{Float32, 2, cl.UnifiedSharedMemory}
+    end
+end
+
+@testset "backends" begin
+    llvm_backend_llvm = sprint() do io
+        OpenCL.code_llvm(io, () -> nothing, (); dump_module = true, backend = :llvm)
+    end
+    if Int === Int64
+        @test occursin("target triple = \"spirv64-unknown-unknown-unknown\"", llvm_backend_llvm)
+    end
+
+    llvm_backend_khronos = sprint() do io
+        OpenCL.code_llvm(io, () -> nothing, (); dump_module = true, backend = :khronos)
+    end
+    if Int === Int64
+        @test occursin("target triple = \"spir64-unknown-unknown\"", llvm_backend_khronos)
     end
 end
 
