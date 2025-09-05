@@ -5,13 +5,13 @@
 [![](https://img.shields.io/badge/docs-stable-blue.svg)](https://juliagpu.github.io/OpenCL.jl/stable)
 [![](https://img.shields.io/badge/docs-dev-blue.svg)](https://juliagpu.github.io/OpenCL.jl/dev)
 
-[buildkite-img]: https://badge.buildkite.com/6b2a46bff67692115dea3ad5a275d2f80777a5a99ffe42adb0.svg
+[buildkite-img]: https://badge.buildkite.com/6b2a46bff67692115dea3ad5a275d2f80777a5a99ffe42adb0.svg?branch=master
 [buildkite-url]: https://buildkite.com/julialang/opencl-dot-jl
 
 *Julia interface for the OpenCL parallel computation API*
 
 This package aims to be a complete solution for OpenCL programming in Julia, similar in
-scope to [PyOpenCL] for Python. It provides a high level API for OpenCL to make programing
+scope to [PyOpenCL](http://mathema.tician.de/software/pyopencl/) for Python. It provides a high level API for OpenCL to make programing
 hardware accelerators, such as GPUs, FPGAs, and DSPs, as well as multicore CPUs much less
 onerous.
 
