@@ -18,6 +18,96 @@ GPUCompiler.isintrinsic(job::OpenCLCompilerJob, fn::String) =
     in(fn, known_intrinsics) ||
     contains(fn, "__spirv_")
 
+GPUCompiler.kernel_state_type(job::OpenCLCompilerJob) = KernelState
+
+function GPUCompiler.finish_module!(@nospecialize(job::OpenCLCompilerJob),
+                                    mod::LLVM.Module, entry::LLVM.Function)
+    entry = invoke(GPUCompiler.finish_module!,
+                   Tuple{CompilerJob{SPIRVCompilerTarget}, LLVM.Module, LLVM.Function},
+                   job, mod, entry)
+
+    # if this kernel uses our RNG, we should prime the shared state.
+    # XXX: these transformations should really happen at the Julia IR level...
+    if true #haskey(globals(mod), "global_random_keys")
+        # add two arguments for RNG keys and counters to kernel
+        fn = LLVM.name(entry)
+        ft = function_type(entry)
+        LLVM.name!(entry, fn * ".no_rng_state")
+
+        # create a new function
+        T_ptr = convert(LLVMType, LLVMPtr{UInt32, AS.Workgroup}())
+        new_param_types = [parameters(ft)..., T_ptr, T_ptr]
+        new_ft = LLVM.FunctionType(return_type(ft), new_param_types)
+        new_f = LLVM.Function(mod, fn, new_ft)
+        linkage!(new_f, linkage(f))
+        for (arg, new_arg) in zip(parameters(entry), parameters(new_f)[1:(end - 2)])
+            LLVM.name!(new_arg, LLVM.name(arg))
+        end
+        LLVM.name!(parameters(new_f)[end - 1], "random_keys")
+        LLVM.name!(parameters(new_f)[end], "random_counters")
+        entry = new_f
+
+        # insert call to `initialize_rng_state`
+        f = initialize_rng_state
+        ft = typeof(f)
+        tt = NTuple{2, LLVMPtr{UInt32, AS.Workgroup}}
+
+        # don't recurse into `initialize_rng_state` itself
+        if job.source.specTypes.parameters[1] == ft
+            return entry
+        end
+
+        # create a deferred compilation job for `initialize_rng_state`
+        src = methodinstance(ft, tt, GPUCompiler.tls_world_age())
+        cfg = CompilerConfig(job.config; kernel=false, name=nothing)
+        job = CompilerJob(src, cfg, job.world)
+        id = length(GPUCompiler.deferred_codegen_jobs) + 1
+        GPUCompiler.deferred_codegen_jobs[id] = job
+
+        # generate IR for calls to `deferred_codegen` and the resulting function pointer
+        top_bb = first(blocks(entry))
+        bb = BasicBlock(top_bb, "initialize_rng")
+        @dispose builder=IRBuilder() begin
+            position!(builder, bb)
+            subprogram = LLVM.subprogram(entry)
+            if subprogram !== nothing
+                loc = DILocation(0, 0, subprogram)
+                debuglocation!(builder, loc)
+            end
+            debuglocation!(builder, first(instructions(top_bb)))
+
+            # call the `deferred_codegen` marker function
+            T_ptr = if LLVM.version() >= v"17"
+                LLVM.PointerType()
+            elseif VERSION >= v"1.12.0-DEV.225"
+                LLVM.PointerType(LLVM.Int8Type())
+            else
+                LLVM.Int64Type()
+            end
+            T_id = convert(LLVMType, Int)
+            deferred_codegen_ft = LLVM.FunctionType(T_ptr, [T_id])
+            deferred_codegen = if haskey(functions(mod), "deferred_codegen")
+                functions(mod)["deferred_codegen"]
+            else
+                LLVM.Function(mod, "deferred_codegen", deferred_codegen_ft)
+            end
+            fptr = call!(builder, deferred_codegen_ft, deferred_codegen, [ConstantInt(id)])
+
+            # call the `initialize_rng_state` function
+            rt = Core.Compiler.return_type(f, tt)
+            llvm_rt = convert(LLVMType, rt)
+            llvm_ft = LLVM.FunctionType(llvm_rt)
+            fptr = inttoptr!(builder, fptr, LLVM.PointerType(llvm_ft))
+            call!(builder, llvm_ft, fptr, parameters(entry)[(end - 1):end])
+            br!(builder, top_bb)
+        end
+
+        # XXX: put some of the above behind GPUCompiler abstractions
+        #      (e.g., a compile-time version of `deferred_codegen`)
+
+    end
+    return entry
+end
 
 ## compiler implementation (cache, configure, compile, and link)
 
