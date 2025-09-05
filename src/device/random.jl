@@ -12,16 +12,15 @@ import RandomNumbers
 
 @inline @generated function emit_global_random_values(::Val{name}) where name
     @dispose ctx=Context() begin
-        T_val = convert(LLVMType, UInt32)
-        T_ptr = convert(LLVMType, LLVMPtr{UInt32, AS.Workgroup})
+        T_ptr = convert(LLVMType, LLVMPtr{LLVMPtr{UInt32, AS.Workgroup}, AS.Workgroup})
 
         # define function and get LLVM module
         llvm_f, _ = create_function(T_ptr)
         mod = LLVM.parent(llvm_f)
 
         # create a global memory global variable
-        T_global = LLVM.ArrayType(T_val, 32)
-        gv = GlobalVariable(mod, T_global, "global_random_$(name)", AS.ThreadGroup)
+        T_global = convert(LLVMType, LLVMPtr{UInt32, AS.Workgroup})
+        gv = GlobalVariable(mod, T_global, "global_random_$(name)", AS.Workgroup)
         linkage!(gv, LLVM.API.LLVMInternalLinkage)
         initializer!(gv, LLVM.null(T_global))
         unnamed_addr!(gv, true)
@@ -32,27 +31,29 @@ import RandomNumbers
             entry = BasicBlock(llvm_f, "entry")
             position!(builder, entry)
 
-            ptr = gep!(builder, T_global, gv, [ConstantInt(0), ConstantInt(0)])
+            ptr = gep!(builder, T_global, gv, [ConstantInt(0)])
 
             untyped_ptr = bitcast!(builder, ptr, T_ptr)
 
             ret!(builder, untyped_ptr)
         end
 
-        call_function(llvm_f, LLVMPtr{UInt32,AS.ThreadGroup})
+        call_function(llvm_f, LLVMPtr{LLVMPtr{UInt32, AS.Workgroup}, AS.Workgroup})
     end
 end
 
 # shared memory with the actual seed, per warp, loaded lazily or overridden by calling `seed!`
 @inline function global_random_keys()
-    ptr = emit_global_random_values(Val{:keys}())::LLVMPtr{UInt32,AS.ThreadGroup}
-    return MtlDeviceArray{UInt32,1,AS.ThreadGroup}((32,), ptr)
+    ptr_ptr = emit_global_random_values(Val{:keys}())::LLVMPtr{LLVMPtr{UInt32, AS.Workgroup}, AS.Workgroup}
+    ptr = unsafe_load(ptr_ptr)
+    return CLDeviceArray{UInt32, 1, AS.Workgroup}((32,), ptr)
 end
 
 # shared memory with per-warp counters, incremented when generating numbers
 @inline function global_random_counters()
-    ptr = emit_global_random_values(Val{:counters}())::LLVMPtr{UInt32,AS.ThreadGroup}
-    return MtlDeviceArray{UInt32,1,AS.ThreadGroup}((32,), ptr)
+    ptr_ptr = emit_global_random_values(Val{:counters}())::LLVMPtr{LLVMPtr{UInt32, AS.Workgroup}, AS.Workgroup}
+    ptr = unsafe_load(ptr_ptr)
+    return CLDeviceArray{UInt32, 1, AS.Workgroup}((32,), ptr)
 end
 
 # initialization function, called automatically at the start of each kernel because
@@ -61,15 +62,16 @@ function initialize_rng_state(random_keys::LLVMPtr{UInt32, AS.Workgroup}, random
     n = get_num_sub_groups()
     a = CLDeviceArray{UInt32, 1, AS.Workgroup}((n,), random_keys)
     b = CLDeviceArray{UInt32, 1, AS.Workgroup}((n,), random_counters)
+
     subgroup_id = get_sub_group_local_id()
     @inbounds a[subgroup_id] = kernel_state().random_seed
     @inbounds b[subgroup_id] = 0
-    #threadId = thread_position_in_threadgroup_3d().x + (thread_position_in_threadgroup_3d().y - UInt32(1)) * threads_per_threadgroup_3d().x +
-    #                                                   (thread_position_in_threadgroup_3d().z - UInt32(1)) * threads_per_threadgroup_3d().x * threads_per_threadgroup_3d().y
-    #warpId = (threadId - UInt32(1)) >> 0x5 + UInt32(1)  # fld1
 
-    #@inbounds global_random_keys()[warpId] = kernel_state().random_seed
-    #@inbounds global_random_counters()[warpId] = 0
+    random_keys_ptr = emit_global_random_values(Val{:keys}())
+    unsafe_store!(random_keys_ptr, random_keys)
+
+    random_counters_ptr = emit_global_random_values(Val{:counters}())
+    unsafe_store!(random_counters_ptr, random_counters)
 end
 
 # generators
@@ -97,37 +99,24 @@ end
 @inline Philox2x32() = Philox2x32{7}()
 
 @inline function Base.getproperty(rng::Philox2x32, field::Symbol)
-    threadId = thread_position_in_threadgroup_3d().x +
-        (thread_position_in_threadgroup_3d().y - Int32(1)) * threads_per_threadgroup_3d().x +
-        (thread_position_in_threadgroup_3d().z - Int32(1)) * threads_per_threadgroup_3d().x * threads_per_threadgroup_3d().y
-    warpId = (threadId - Int32(1)) >> 0x5 + Int32(1)  # fld1 by 32
+    subgroup_id = get_sub_group_local_id()
 
-    if field === :seed
-        @inbounds global_random_seed()[1]
-    elseif field === :key
-        @inbounds global_random_keys()[warpId]
+    if field === :key
+        @inbounds global_random_keys()[subgroup_id]
     elseif field === :ctr1
-        @inbounds global_random_counters()[warpId]
+        @inbounds global_random_counters()[subgroup_id]
     elseif field === :ctr2
-        blockId = threadgroup_position_in_grid_3d().x +
-            (threadgroup_position_in_grid_3d().y - Int32(1)) * threadgroups_per_grid_3d().x +
-            (threadgroup_position_in_grid_3d().z - Int32(1)) * threadgroups_per_grid_3d().x * threadgroups_per_grid_3d().y
-        globalId = threadId + (blockId - Int32(1)) *
-            (threads_per_threadgroup_3d().x * threads_per_threadgroup_3d().y * threads_per_threadgroup_3d().z)
-        globalId % UInt32
+        get_global_id() % UInt32
     end::UInt32
 end
 
 @inline function Base.setproperty!(rng::Philox2x32, field::Symbol, x)
-    threadId = thread_position_in_threadgroup_3d().x +
-        (thread_position_in_threadgroup_3d().y - Int32(1)) * threads_per_threadgroup_3d().x +
-        (thread_position_in_threadgroup_3d().z - Int32(1)) * threads_per_threadgroup_3d().x * threads_per_threadgroup_3d().y
-    warpId = (threadId - Int32(1)) >> 0x5 + Int32(1)  # fld1 by 32
+    subgroup_id = get_sub_group_local_id()
 
     if field === :key
-        @inbounds global_random_keys()[warpId] = x
+        @inbounds global_random_keys()[subgroup_id] = x
     elseif field === :ctr1
-        @inbounds global_random_counters()[warpId] = x
+        @inbounds global_random_counters()[subgroup_id] = x
     end
 end
 
