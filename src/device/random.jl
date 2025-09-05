@@ -13,7 +13,7 @@ import RandomNumbers
 @inline @generated function emit_global_random_values(::Val{name}) where name
     @dispose ctx=Context() begin
         T_val = convert(LLVMType, UInt32)
-        T_ptr = convert(LLVMType, LLVMPtr{UInt32,AS.ThreadGroup})
+        T_ptr = convert(LLVMType, LLVMPtr{UInt32, AS.Workgroup})
 
         # define function and get LLVM module
         llvm_f, _ = create_function(T_ptr)
@@ -58,10 +58,10 @@ end
 # initialization function, called automatically at the start of each kernel because
 # there's no reliable way to detect uninitialized shared memory (see JuliaGPU/CUDA.jl#2008)
 function initialize_rng_state(random_keys::LLVMPtr{UInt32, AS.Workgroup}, random_counters::LLVMPtr{UInt32, AS.Workgroup})
-    n = get_num_subgroups()
+    n = get_num_sub_groups()
     a = CLDeviceArray{UInt32, 1, AS.Workgroup}((n,), random_keys)
     b = CLDeviceArray{UInt32, 1, AS.Workgroup}((n,), random_counters)
-    subgroup_id = get_sub_group_id()
+    subgroup_id = get_sub_group_local_id()
     @inbounds a[subgroup_id] = kernel_state().random_seed
     @inbounds b[subgroup_id] = 0
     #threadId = thread_position_in_threadgroup_3d().x + (thread_position_in_threadgroup_3d().y - UInt32(1)) * threads_per_threadgroup_3d().x +
@@ -146,7 +146,7 @@ function Random.seed!(rng::Philox2x32, seed::Integer, counter::Integer=UInt32(0)
 end
 
 # seeding the implicit default RNG
-if VERSION >= v"1.11-"
+@static if VERSION >= v"1.11-"
     @device_override Random.seed!(seed) =
         Random.seed!(Random.default_rng(), seed)
 else
@@ -155,7 +155,7 @@ else
 end
 
 @warn "FIXME: need a cycle counter for seeding" maxlog=1
-if VERSION >= v"1.11-"
+@static if VERSION >= v"1.11-"
     # `Random.seed!(::AbstractRNG)` now passes a `nothing` seed value
     #Random.seed!(rng::Philox2x32, seed::Nothing) =
     #    Random.seed!(rng, Base.unsafe_trunc(UInt32, readcyclecounter()))
