@@ -13,11 +13,16 @@ OpenCL_jll = "6cb37087-e8b6-5417-8430-1f242f1e46e4"
 Preferences = "21216c6a-2e73-6563-6e65-726566657250"
 Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
 Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
+Random123 = "74087812-796a-5b5d-8853-05524746bad3"
 Reexport = "189a3867-3050-52da-a836-e630ba90ab69"
 SPIRVIntrinsics = "71d1d633-e7e8-4a92-83a1-de8814b09ba8"
 SPIRV_LLVM_Backend_jll = "4376b9bf-cff8-51b6-bb48-39421dff0d0c"
 SPIRV_Tools_jll = "6ac6d60f-d740-5983-97d7-a4482c0689f4"
 StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
+
+[sources]
+GPUCompiler = {rev = "tb/kernel_state_reference", url = "https://github.com/JuliaGPU/GPUCompiler.jl.git"}
+SPIRVIntrinsics = {path = "lib/intrinsics"}
 
 [compat]
 Adapt = "4"
@@ -30,12 +35,10 @@ OpenCL_jll = "=2024.10.24"
 Preferences = "1"
 Printf = "1"
 Random = "1"
+Random123 = "1.7.1"
 Reexport = "1"
 SPIRVIntrinsics = "0.5"
 SPIRV_LLVM_Backend_jll = "20"
 SPIRV_Tools_jll = "2025.1"
 StaticArrays = "1"
 julia = "1.10"
-
-[sources]
-SPIRVIntrinsics = {path="lib/intrinsics"}
