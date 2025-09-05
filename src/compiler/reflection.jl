@@ -27,7 +27,7 @@ for method in (:code_typed, :code_warntype, :code_llvm, :code_native)
         function $method(io::IO, @nospecialize(func), @nospecialize(types);
                          kernel::Bool=false, kwargs...)
             compiler_kwargs, kwargs = split_kwargs_runtime(kwargs, COMPILER_KWARGS)
-            source = methodinstance(typeof(func), Tuple{}) #Base.to_tuple_type(types))
+            source = methodinstance(typeof(func), Base.to_tuple_type(types))
             config = compiler_config(cl.device(); kernel, compiler_kwargs...)
             job = CompilerJob(source, config)
             GPUCompiler.$method($(args...); kwargs...)
