@@ -12,3 +12,12 @@ report_exception(ex) = return
 report_exception_name(ex) = return
 
 report_exception_frame(idx, func, file, line) = return
+
+## kernel state
+
+struct KernelState
+    random_seed::UInt32
+end
+
+@inline @generated kernel_state() = GPUCompiler.kernel_state_value(KernelState)
+@inline @generated additional_args(::Val{i}) where {i} = GPUCompiler.additional_arg_value(LLVMPtr{UInt32, AS.Workgroup}, i)
