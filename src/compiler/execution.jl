@@ -159,7 +159,8 @@ abstract type AbstractKernel{F, TT} end
 
     quote
         indirect_memory = cl.AbstractMemory[]
-        clcall(kernel.fun, $call_tt, $(call_args...); indirect_memory, device_rng=true, call_kwargs...)
+        device_rng = kernel.fun.num_args == $(length(call_args) + 2)
+        clcall(kernel.fun, $call_tt, $(call_args...); indirect_memory, device_rng, call_kwargs...)
     end
 end
 
