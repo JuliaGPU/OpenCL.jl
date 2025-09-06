@@ -19,6 +19,7 @@ GPUCompiler.isintrinsic(job::OpenCLCompilerJob, fn::String) =
     contains(fn, "__spirv_")
 
 GPUCompiler.kernel_state_type(job::OpenCLCompilerJob) = KernelState
+GPUCompiler.additional_arg_types(job::OpenCLCompilerJob) = (; random_keys = LLVMPtr{UInt32, AS.Workgroup}, random_counters = LLVMPtr{UInt32, AS.Workgroup})
 
 function GPUCompiler.finish_module!(@nospecialize(job::OpenCLCompilerJob),
                                     mod::LLVM.Module, entry::LLVM.Function)
@@ -29,37 +30,10 @@ function GPUCompiler.finish_module!(@nospecialize(job::OpenCLCompilerJob),
     # if this kernel uses our RNG, we should prime the shared state.
     # XXX: these transformations should really happen at the Julia IR level...
     if callconv(entry) == LLVM.API.LLVMSPIRKERNELCallConv #haskey(globals(mod), "global_random_keys")
-        # add two arguments for RNG keys and counters to kernel
-        fn = LLVM.name(entry)
-        ft = function_type(entry)
-        LLVM.name!(entry, fn * ".no_rng_state")
-
-        # create a new function
-        T_ptr = convert(LLVMType, LLVMPtr{UInt32, AS.Workgroup})
-        new_param_types = [parameters(ft)..., T_ptr, T_ptr]
-        new_ft = LLVM.FunctionType(LLVM.return_type(ft), new_param_types)
-        new_f = LLVM.Function(mod, fn, new_ft)
-        linkage!(new_f, linkage(entry))
-        for (arg, new_arg) in zip(parameters(entry), parameters(new_f)[1:(end - 2)])
-            LLVM.name!(new_arg, LLVM.name(arg))
-        end
-        LLVM.name!(parameters(new_f)[end - 1], "random_keys")
-        LLVM.name!(parameters(new_f)[end], "random_counters")
-
-        value_map = Dict{LLVM.Value, LLVM.Value}()
-        for (param, new_param) in zip(parameters(entry), parameters(new_f)[1:(end - 2)])
-            LLVM.name!(new_param, LLVM.name(param))
-            value_map[param] = new_param
-        end
-        value_map[entry] = new_f
-        clone_into!(new_f, entry; value_map, changes=LLVM.API.LLVMCloneFunctionChangeTypeGlobalChanges)
-        empty!(entry)
-        entry = new_f
-
         # insert call to `initialize_rng_state`
         f = initialize_rng_state
         ft = typeof(f)
-        tt = NTuple{2, LLVMPtr{UInt32, AS.Workgroup}}
+        tt = Tuple{}
 
         # create a deferred compilation job for `initialize_rng_state`
         src = methodinstance(ft, tt, GPUCompiler.tls_world_age())
@@ -102,7 +76,7 @@ function GPUCompiler.finish_module!(@nospecialize(job::OpenCLCompilerJob),
             llvm_rt = convert(LLVMType, rt)
             llvm_ft = LLVM.FunctionType(llvm_rt)
             fptr = inttoptr!(builder, fptr, LLVM.PointerType(llvm_ft))
-            call!(builder, llvm_ft, fptr, parameters(entry)[(end - 1):end])
+            call!(builder, llvm_ft, fptr)
             br!(builder, top_bb)
         end
 
