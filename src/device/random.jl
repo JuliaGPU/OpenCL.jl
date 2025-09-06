@@ -23,8 +23,8 @@ import RandomNumbers
         gv = GlobalVariable(mod, T_global, "global_random_$(name)", AS.Workgroup)
         linkage!(gv, LLVM.API.LLVMInternalLinkage)
         initializer!(gv, LLVM.null(T_global))
-        unnamed_addr!(gv, true)
-        alignment!(gv, 4)
+        #unnamed_addr!(gv, true)
+        #alignment!(gv, 4)
 
         # generate IR
         @dispose builder=IRBuilder() begin
@@ -63,7 +63,7 @@ function initialize_rng_state(random_keys::LLVMPtr{UInt32, AS.Workgroup}, random
     a = CLDeviceArray{UInt32, 1, AS.Workgroup}((n,), random_keys)
     b = CLDeviceArray{UInt32, 1, AS.Workgroup}((n,), random_counters)
 
-    subgroup_id = get_sub_group_local_id()
+    subgroup_id = get_sub_group_id()
     @inbounds a[subgroup_id] = kernel_state().random_seed
     @inbounds b[subgroup_id] = 0
 
@@ -99,7 +99,7 @@ end
 @inline Philox2x32() = Philox2x32{7}()
 
 @inline function Base.getproperty(rng::Philox2x32, field::Symbol)
-    subgroup_id = get_sub_group_local_id()
+    subgroup_id = get_sub_group_id()
 
     if field === :key
         @inbounds global_random_keys()[subgroup_id]
@@ -113,7 +113,7 @@ end
 end
 
 @inline function Base.setproperty!(rng::Philox2x32, field::Symbol, x)
-    subgroup_id = get_sub_group_local_id()
+    subgroup_id = get_sub_group_id()
 
     if field === :key
         @inbounds global_random_keys()[subgroup_id] = x

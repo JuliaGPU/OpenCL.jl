@@ -202,10 +202,12 @@ function enqueue_kernel(k::Kernel, global_work_size, local_work_size=nothing;
     end
 
     if device_rng
+        @show lsize KernelSubGroupInfo(k, device(), Csize_t[]).max_num_sub_groups
+        @show KernelSubGroupInfo(k, device(), lsize).max_sub_group_size
         if local_work_size !== nothing
-            num_sub_groups = KernelSubGroupInfo(k, device(), lsize).sub_group_count
+            num_sub_groups = @show KernelSubGroupInfo(k, device(), lsize).sub_group_count
         else
-            num_sub_groups = KernelSubGroupInfo(k, device(), Csize_t[]).max_num_sub_groups
+            num_sub_groups = @show KernelSubGroupInfo(k, device(), Csize_t[]).max_num_sub_groups
         end
         rng_state_size = sizeof(UInt32) * num_sub_groups
         set_arg!(k, k.num_args - 1, LocalMem(UInt32, rng_state_size))
