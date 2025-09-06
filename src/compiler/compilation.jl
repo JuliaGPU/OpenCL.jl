@@ -82,7 +82,6 @@ function GPUCompiler.finish_module!(@nospecialize(job::OpenCLCompilerJob),
 
         # XXX: put some of the above behind GPUCompiler abstractions
         #      (e.g., a compile-time version of `deferred_codegen`)
-
     end
     return entry
 end

@@ -1,64 +1,28 @@
 # Copied from CUDA.jl/src/device/random.jl
 # Copied from AMDGPU.jl/src/device/random.jl
-
+# Copied from https://github.com/JuliaGPU/Metal.jl/pull/637
 
 ## random number generation
 
 using Random
 import RandomNumbers
 
-
-# global state
-
-@inline @generated function emit_global_random_values(::Val{name}) where name
-    @dispose ctx=Context() begin
-        T_ptr = convert(LLVMType, LLVMPtr{LLVMPtr{UInt32, AS.Workgroup}, AS.Workgroup})
-
-        # define function and get LLVM module
-        llvm_f, _ = create_function(T_ptr)
-        mod = LLVM.parent(llvm_f)
-
-        # create a global memory global variable
-        T_global = convert(LLVMType, LLVMPtr{UInt32, AS.Workgroup})
-        gv = GlobalVariable(mod, T_global, "global_random_$(name)", AS.Workgroup)
-        linkage!(gv, LLVM.API.LLVMInternalLinkage)
-        initializer!(gv, LLVM.null(T_global))
-        #unnamed_addr!(gv, true)
-        #alignment!(gv, 4)
-
-        # generate IR
-        @dispose builder=IRBuilder() begin
-            entry = BasicBlock(llvm_f, "entry")
-            position!(builder, entry)
-
-            ptr = gep!(builder, T_global, gv, [ConstantInt(0)])
-
-            untyped_ptr = bitcast!(builder, ptr, T_ptr)
-
-            ret!(builder, untyped_ptr)
-        end
-
-        call_function(llvm_f, LLVMPtr{LLVMPtr{UInt32, AS.Workgroup}, AS.Workgroup})
-    end
-end
-
-# shared memory with the actual seed, per warp, loaded lazily or overridden by calling `seed!`
+# local memory with the actual seed, per subgroup, set by `initialize_rng_state`` or overridden by calling `seed!`
 @inline function global_random_keys()
     n = get_num_sub_groups()
     ptr = additional_args(Val{1}())::LLVMPtr{UInt32, AS.Workgroup}
     return CLDeviceArray{UInt32, 1, AS.Workgroup}((n,), ptr)
 end
 
-# shared memory with per-warp counters, incremented when generating numbers
+# local memory with per-subgroup counters, incremented when generating numbers
 @inline function global_random_counters()
     n = get_num_sub_groups()
     ptr = additional_args(Val{2}())::LLVMPtr{UInt32, AS.Workgroup}
     return CLDeviceArray{UInt32, 1, AS.Workgroup}((n,), ptr)
 end
 
-# initialization function, called automatically at the start of each kernel because
-# there's no reliable way to detect uninitialized shared memory (see JuliaGPU/CUDA.jl#2008)
-function initialize_rng_state() #random_keys::LLVMPtr{UInt32, AS.Workgroup}, random_counters::LLVMPtr{UInt32, AS.Workgroup})
+# initialization function, called automatically at the start of each kernel
+function initialize_rng_state()
     random_keys = global_random_keys()
     random_counters = global_random_counters()
 
@@ -72,21 +36,7 @@ end
 using Random123: philox2x_round, philox2x_bumpkey
 
 # GPU-compatible/optimized version of the generator from Random123.jl
-struct Philox2x32{R} <: RandomNumbers.AbstractRNG{UInt64}
-    @inline function Philox2x32{R}() where R
-        rng = new{R}()
-        #if rng.key == 0
-        #    # initialize the key. this happens when first accessing
-        #    # the (0-initialized) shared memory key from each block.
-        #    @static if VERSION >= v"1.11-"
-        #        Random.seed!(rng, nothing)
-        #    else
-        #        rng.key = Random.make_seed()
-        #    end
-        #end
-        return rng
-    end
-end
+struct Philox2x32{R} <: RandomNumbers.AbstractRNG{UInt64} end
 
 # default to 7 rounds; enough to pass SmallCrush
 @inline Philox2x32() = Philox2x32{7}()
@@ -138,17 +88,14 @@ else
         Random.seed!(Random.default_rng(), seed)
 end
 
-@warn "FIXME: need a cycle counter for seeding" maxlog=1
 @static if VERSION >= v"1.11-"
     # `Random.seed!(::AbstractRNG)` now passes a `nothing` seed value
-    #Random.seed!(rng::Philox2x32, seed::Nothing) =
-    #    Random.seed!(rng, Base.unsafe_trunc(UInt32, readcyclecounter()))
+    # TODO: I don't think there is any way in OpenCL to make this nondeterministic
     Random.seed!(rng::Philox2x32, seed::Nothing) =
-        Random.seed!(rng, 0xdeadbeef)
+        Random.seed!(rng, kernel_state().random_seed)
 else
     # ... where it used to call `Random_make_seed()`
-    #@device_override Random.make_seed() = Base.unsafe_trunc(UInt32, readcyclecounter())
-    @device_override Random.make_seed() = 0xdeadbeef
+    @device_override Random.make_seed() = kernel_state().random_seed
 end
 
 """
