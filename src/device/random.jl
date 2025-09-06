@@ -44,34 +44,27 @@ end
 
 # shared memory with the actual seed, per warp, loaded lazily or overridden by calling `seed!`
 @inline function global_random_keys()
-    ptr_ptr = emit_global_random_values(Val{:keys}())::LLVMPtr{LLVMPtr{UInt32, AS.Workgroup}, AS.Workgroup}
-    ptr = unsafe_load(ptr_ptr)
-    return CLDeviceArray{UInt32, 1, AS.Workgroup}((32,), ptr)
+    n = get_num_sub_groups()
+    ptr = additional_args(Val{1}())::LLVMPtr{UInt32, AS.Workgroup}
+    return CLDeviceArray{UInt32, 1, AS.Workgroup}((n,), ptr)
 end
 
 # shared memory with per-warp counters, incremented when generating numbers
 @inline function global_random_counters()
-    ptr_ptr = emit_global_random_values(Val{:counters}())::LLVMPtr{LLVMPtr{UInt32, AS.Workgroup}, AS.Workgroup}
-    ptr = unsafe_load(ptr_ptr)
-    return CLDeviceArray{UInt32, 1, AS.Workgroup}((32,), ptr)
+    n = get_num_sub_groups()
+    ptr = additional_args(Val{2}())::LLVMPtr{UInt32, AS.Workgroup}
+    return CLDeviceArray{UInt32, 1, AS.Workgroup}((n,), ptr)
 end
 
 # initialization function, called automatically at the start of each kernel because
 # there's no reliable way to detect uninitialized shared memory (see JuliaGPU/CUDA.jl#2008)
-function initialize_rng_state(random_keys::LLVMPtr{UInt32, AS.Workgroup}, random_counters::LLVMPtr{UInt32, AS.Workgroup})
-    n = get_num_sub_groups()
-    a = CLDeviceArray{UInt32, 1, AS.Workgroup}((n,), random_keys)
-    b = CLDeviceArray{UInt32, 1, AS.Workgroup}((n,), random_counters)
+function initialize_rng_state() #random_keys::LLVMPtr{UInt32, AS.Workgroup}, random_counters::LLVMPtr{UInt32, AS.Workgroup})
+    random_keys = global_random_keys()
+    random_counters = global_random_counters()
 
     subgroup_id = get_sub_group_id()
-    @inbounds a[subgroup_id] = kernel_state().random_seed
-    @inbounds b[subgroup_id] = 0
-
-    random_keys_ptr = emit_global_random_values(Val{:keys}())
-    unsafe_store!(random_keys_ptr, random_keys)
-
-    random_counters_ptr = emit_global_random_values(Val{:counters}())
-    unsafe_store!(random_counters_ptr, random_counters)
+    @inbounds random_keys[subgroup_id] = kernel_state().random_seed
+    @inbounds random_counters[subgroup_id] = 0
 end
 
 # generators

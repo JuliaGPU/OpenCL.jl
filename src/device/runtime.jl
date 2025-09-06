@@ -20,3 +20,4 @@ struct KernelState
 end
 
 @inline @generated kernel_state() = GPUCompiler.kernel_state_value(KernelState)
+@inline @generated additional_args(::Val{i}) where {i} = GPUCompiler.additional_arg_value(LLVMPtr{UInt32, AS.Workgroup}, i)
