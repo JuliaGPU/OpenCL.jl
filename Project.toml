@@ -20,10 +20,9 @@ SPIRVIntrinsics = "71d1d633-e7e8-4a92-83a1-de8814b09ba8"
 SPIRV_LLVM_Backend_jll = "4376b9bf-cff8-51b6-bb48-39421dff0d0c"
 SPIRV_Tools_jll = "6ac6d60f-d740-5983-97d7-a4482c0689f4"
 StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
-pocl_jll = "627d6b7a-bbe6-5189-83e7-98cc0a5aeadd"
 
 [sources]
-GPUCompiler = {path = "/home/simeon/.julia/dev/GPUCompiler"}
+GPUCompiler = {rev = "sds/additional_args", url = "https://github.com/JuliaGPU/GPUCompiler.jl.git"}
 SPIRVIntrinsics = {path = "lib/intrinsics"}
 
 [compat]
@@ -45,4 +44,3 @@ SPIRV_LLVM_Backend_jll = "20"
 SPIRV_Tools_jll = "2025.1"
 StaticArrays = "1"
 julia = "1.10"
-pocl_jll = "7.0.0"
