@@ -49,8 +49,8 @@ struct Philox2x32{R} <: RandomNumbers.AbstractRNG{UInt64} end
     elseif field === :ctr1
         @inbounds global_random_counters()[subgroup_id]
     elseif field === :ctr2
-        global_id = get_global_id(1) + (get_global_id(2) - Int32(1)) * get_global_size(1)
-            + (get_global_id(3) - Int32(1)) * get_global_size(1) * get_global_size(2)
+        global_id = get_global_id(1) + (get_global_id(2) - Int32(1)) * get_global_size(1) +
+            (get_global_id(3) - Int32(1)) * get_global_size(1) * get_global_size(2)
         global_id % UInt32
     end::UInt32
 end
