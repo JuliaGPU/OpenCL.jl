@@ -18,9 +18,9 @@ function apply_seed(seed)
     end
 end
 
-@testset "rand($T), seed $seed" for T in (
-    Int32, UInt32, Int64, UInt64, Float32, Float64,
-), seed in (nothing, #=missing,=# 1234)
+eltypes = [filter(x -> !(x <: Complex), GPUArraysTestSuite.supported_eltypes(CLArray)); UInt16; UInt32; UInt64]
+
+@testset "rand($T), seed $seed" for T in eltypes, seed in (nothing, #=missing,=# 1234)
     # different kernel invocations should get different numbers
     @testset "across launches" begin
         function kernel(A::AbstractArray{T}, seed) where {T}
@@ -82,14 +82,11 @@ end
         # NOTE: we don't just generate two numbers and compare them, instead generating a
         #       couple more and checking they're not all the same, in order to avoid
         #       occasional collisions with lower-precision types (i.e., Float16).
-        # TODO: why is the third dimension broken?
-        @test length(unique(Array(a))) > 1 broken = active_dim == 3 || active_dim == 6
+        @test length(unique(Array(a))) > 1
     end
 end
 
-@testset "basic randn($T), seed $seed" for T in (
-    Float32, Float64,
-), seed in (nothing, #=missing,=# 1234)
+@testset "basic randn($T), seed $seed" for T in filter(x -> x <: Base.IEEEFloat, eltypes), seed in (nothing, #=missing,=# 1234)
     function kernel(A::AbstractArray{T}, seed) where {T}
         apply_seed(seed)
         tid = get_global_id(1)
@@ -110,9 +107,7 @@ end
     end
 end
 
-@testset "basic randexp($T), seed $seed" for T in (
-    Float32, Float64,
-), seed in (nothing, #=missing,=# 1234)
+@testset "basic randexp($T), seed $seed" for T in filter(x -> x <: Base.IEEEFloat, eltypes), seed in (nothing, #=missing,=# 1234)
     function kernel(A::AbstractArray{T}, seed) where {T}
         apply_seed(seed)
         tid = get_global_id(1)
