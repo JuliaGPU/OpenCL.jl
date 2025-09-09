@@ -10,21 +10,22 @@ import RandomNumbers
 # local memory with the actual seed, per subgroup, set by `initialize_rng_state`` or overridden by calling `seed!`
 @inline function global_random_keys()
     n = get_num_sub_groups()
-    ptr = additional_args(Val{1}())::LLVMPtr{UInt32, AS.Workgroup}
+    ptr = random_keys()::LLVMPtr{UInt32, AS.Workgroup}
     return CLDeviceArray{UInt32, 1, AS.Workgroup}((n,), ptr)
 end
 
 # local memory with per-subgroup counters, incremented when generating numbers
 @inline function global_random_counters()
     n = get_num_sub_groups()
-    ptr = additional_args(Val{2}())::LLVMPtr{UInt32, AS.Workgroup}
+    ptr = random_counters()::LLVMPtr{UInt32, AS.Workgroup}
     return CLDeviceArray{UInt32, 1, AS.Workgroup}((n,), ptr)
 end
 
 # initialization function, called automatically at the start of each kernel
-function initialize_rng_state()
-    random_keys = global_random_keys()
-    random_counters = global_random_counters()
+function initialize_rng_state(random_keys_ptr::LLVMPtr{UInt32, AS.Workgroup}, random_counters_ptr::LLVMPtr{UInt32, AS.Workgroup})
+    n = get_num_sub_groups()
+    random_keys = CLDeviceArray{UInt32, 1, AS.Workgroup}((n,), random_keys_ptr)
+    random_counters = CLDeviceArray{UInt32, 1, AS.Workgroup}((n,), random_counters_ptr)
 
     subgroup_id = get_sub_group_id()
     @inbounds random_keys[subgroup_id] = kernel_state().random_seed

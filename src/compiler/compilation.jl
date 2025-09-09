@@ -19,7 +19,6 @@ GPUCompiler.isintrinsic(job::OpenCLCompilerJob, fn::String) =
     contains(fn, "__spirv_")
 
 GPUCompiler.kernel_state_type(job::OpenCLCompilerJob) = KernelState
-GPUCompiler.additional_arg_types(job::OpenCLCompilerJob) = (; random_keys = LLVMPtr{UInt32, AS.Workgroup}, random_counters = LLVMPtr{UInt32, AS.Workgroup})
 
 function GPUCompiler.finish_module!(@nospecialize(job::OpenCLCompilerJob),
                                     mod::LLVM.Module, entry::LLVM.Function)
@@ -27,13 +26,20 @@ function GPUCompiler.finish_module!(@nospecialize(job::OpenCLCompilerJob),
                    Tuple{CompilerJob{SPIRVCompilerTarget}, LLVM.Module, LLVM.Function},
                    job, mod, entry)
 
+    kernel_intrinsics = Dict(
+        "julia.spirv.random_keys" => (; name = "random_keys", typ = LLVMPtr{UInt32, AS.Workgroup}),
+        "julia.spirv.random_counters" => (; name = "random_counters", typ = LLVMPtr{UInt32, AS.Workgroup}),
+    )
+    entry′ = GPUCompiler.add_input_arguments!(job, mod, entry, kernel_intrinsics)
+
     # if this kernel uses our RNG, we should prime the shared state.
     # XXX: these transformations should really happen at the Julia IR level...
-    if callconv(entry) == LLVM.API.LLVMSPIRKERNELCallConv && haskey(functions(mod), "julia.gpu.additional_arg_getter")
+    if job.config.kernel && entry !== entry′
+        entry = entry′
         # insert call to `initialize_rng_state`
         f = initialize_rng_state
         ft = typeof(f)
-        tt = Tuple{}
+        tt = NTuple{2, LLVMPtr{UInt32, AS.Workgroup}}
 
         # create a deferred compilation job for `initialize_rng_state`
         src = methodinstance(ft, tt, GPUCompiler.tls_world_age())
@@ -74,16 +80,18 @@ function GPUCompiler.finish_module!(@nospecialize(job::OpenCLCompilerJob),
             # call the `initialize_rng_state` function
             rt = Core.Compiler.return_type(f, tt)
             llvm_rt = convert(LLVMType, rt)
-            llvm_ft = LLVM.FunctionType(llvm_rt)
+            llvm_ft = LLVM.FunctionType(llvm_rt, [convert(LLVMType, LLVMPtr{UInt32, AS.Workgroup}) for _ in 1:2])
             fptr = inttoptr!(builder, fptr, LLVM.PointerType(llvm_ft))
-            call!(builder, llvm_ft, fptr)
+            random_keys = findfirst(arg -> name(arg) == "random_keys", parameters(entry))
+            random_counters = findfirst(arg -> name(arg) == "random_counters", parameters(entry))
+            call!(builder, llvm_ft, fptr, parameters(entry)[[random_keys, random_counters]])
             br!(builder, top_bb)
         end
 
         # XXX: put some of the above behind GPUCompiler abstractions
         #      (e.g., a compile-time version of `deferred_codegen`)
     end
-    return entry
+    return entry′
 end
 
 ## compiler implementation (cache, configure, compile, and link)
