@@ -20,5 +20,9 @@ struct KernelState
 end
 
 @inline @generated kernel_state() = GPUCompiler.kernel_state_value(KernelState)
-@inline @generated random_keys() = GPUCompiler.call_custom_intrinsic(LLVMPtr{UInt32, AS.Workgroup}, "julia.spirv.random_keys", "random_keys")
-@inline @generated random_counters() = GPUCompiler.call_custom_intrinsic(LLVMPtr{UInt32, AS.Workgroup}, "julia.spirv.random_counters", "random_counters")
+@inline @generated random_keys() = GPUCompiler.call_custom_noarg_readnone_intrinsic(
+    LLVMPtr{UInt32, AS.Workgroup}, "julia.spirv.random_keys", "random_keys",
+)
+@inline @generated random_counters() = GPUCompiler.call_custom_noarg_readnone_intrinsic(
+    LLVMPtr{UInt32, AS.Workgroup}, "julia.spirv.random_counters", "random_counters",
+)
