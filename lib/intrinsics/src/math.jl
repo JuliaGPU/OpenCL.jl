@@ -1,7 +1,7 @@
 # Math Functions
 
 # TODO: vector types
-const generic_types = [Float32,Float64]
+const generic_types = [Float16, Float32, Float64]
 const generic_types_float = [Float32]
 const generic_types_double = [Float64]
 
@@ -151,11 +151,13 @@ end
 # frexp(x::Float64{n}, Int32{n} *exp) = @builtin_ccall("frexp", Float64{n}, (Float64{n}, Int32{n} *), x, exp)
 # frexp(x::Float64, Int32 *exp) = @builtin_ccall("frexp", Float64, (Float64, Int32 *), x, exp)
 
+@device_function ilogb(x::Float16) = @builtin_ccall("ilogb", Int32, (Float16,), x)
 # ilogb(x::Float32{n}) = @builtin_ccall("ilogb", Int32{n}, (Float32{n},), x)
 @device_function ilogb(x::Float32) = @builtin_ccall("ilogb", Int32, (Float32,), x)
 # ilogb(x::Float64{n}) = @builtin_ccall("ilogb", Int32{n}, (Float64{n},), x)
 @device_function ilogb(x::Float64) = @builtin_ccall("ilogb", Int32, (Float64,), x)
 
+@device_override Base.ldexp(x::Float16, k::Int32) = @builtin_ccall("ldexp", Float16, (Float16, Int32), x, k)
 # ldexp(x::Float32{n}, k::Int32{n}) = @builtin_ccall("ldexp", Float32{n}, (Float32{n}, Int32{n}), x, k)
 # ldexp(x::Float32{n}, k::Int32) = @builtin_ccall("ldexp", Float32{n}, (Float32{n}, Int32), x, k)
 @device_override Base.ldexp(x::Float32, k::Int32) = @builtin_ccall("ldexp", Float32, (Float32, Int32), x, k)
@@ -168,11 +170,13 @@ end
 # lgamma_r(x::Float64{n}, Int32{n} *signp) = @builtin_ccall("lgamma_r", Float64{n}, (Float64{n}, Int32{n} *), x, signp)
 # Float64 lgamma_r(x::Float64, Int32 *signp) = @builtin_ccall("lgamma_r", Float64, (Float64, Int32 *), x, signp)
 
+@device_function nan(nancode::UInt16) = @builtin_ccall("nan", Float16, (UInt16,), nancode)
 # nan(nancode::uintn) = @builtin_ccall("nan", Float32{n}, (uintn,), nancode)
 @device_function nan(nancode::UInt32) = @builtin_ccall("nan", Float32, (UInt32,), nancode)
 # nan(nancode::UInt64{n}) = @builtin_ccall("nan", Float64{n}, (UInt64{n},), nancode)
 @device_function nan(nancode::UInt64) = @builtin_ccall("nan", Float64, (UInt64,), nancode)
 
+@device_override Base.:(^)(x::Float16, y::Int32) = @builtin_ccall("pown", Float16, (Float16, Int32), x, y)
 # pown(x::Float32{n}, y::Int32{n}) = @builtin_ccall("pown", Float32{n}, (Float32{n}, Int32{n}), x, y)
 @device_override Base.:(^)(x::Float32, y::Int32) = @builtin_ccall("pown", Float32, (Float32, Int32), x, y)
 # pown(x::Float64{n}, y::Int32{n}) = @builtin_ccall("pown", Float64{n}, (Float64{n}, Int32{n}), x, y)
