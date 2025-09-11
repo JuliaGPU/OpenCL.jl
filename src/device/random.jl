@@ -213,6 +213,10 @@ end
     end
 end
 
+@device_override @inline function Random.randn(rng::AbstractRNG, ::Type{T}) where {T <: Union{Float16, Float32}}
+    @invoke Random.randn(rng::AbstractRNG, T::Type{<:AbstractFloat})
+end
+
 ## randexp
 
 @device_override @inline function Random.randexp(rng::AbstractRNG)
@@ -232,4 +236,8 @@ end
             @goto retry
         end
     end
+end
+
+@device_override @inline function Random.randexp(rng::AbstractRNG, ::Type{T}) where {T <: Union{Float16, Float32}}
+    @invoke Random.randexp(rng::AbstractRNG, T::Type{<:AbstractFloat})
 end
