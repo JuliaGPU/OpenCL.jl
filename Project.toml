@@ -22,7 +22,7 @@ SPIRV_Tools_jll = "6ac6d60f-d740-5983-97d7-a4482c0689f4"
 StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 
 [sources]
-GPUCompiler = {rev = "sds/add_input_args", url = "https://github.com/JuliaGPU/GPUCompiler.jl.git"}
+GPUCompiler = {rev = "tb/kernel_state_reference", url = "https://github.com/JuliaGPU/GPUCompiler.jl.git"}
 SPIRVIntrinsics = {path = "lib/intrinsics"}
 
 [compat]

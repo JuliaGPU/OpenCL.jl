@@ -136,7 +136,7 @@ jobs:
           julia --project -e '
             using Pkg
             Pkg.develop(path="lib/intrinsics")
-            Pkg.add(name="GPUCompiler", rev="sds/add_input_args")'
+            Pkg.add(name="GPUCompiler", rev="tb/kernel_state_reference")'
 
       - name: Test OpenCL.jl
         uses: julia-actions/julia-runtest@v1
