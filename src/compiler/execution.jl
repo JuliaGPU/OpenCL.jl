@@ -151,12 +151,16 @@ abstract type AbstractKernel{F, TT} end
         end
     end
 
+    pushfirst!(call_t, KernelState)
+    pushfirst!(call_args, :(KernelState(Base.rand(UInt32))))
+
     # finalize types
     call_tt = Base.to_tuple_type(call_t)
 
     quote
         indirect_memory = cl.AbstractMemory[]
-        clcall(kernel.fun, $call_tt, $(call_args...); indirect_memory, call_kwargs...)
+        device_rng = kernel.fun.num_args == $(length(call_args) + 2)
+        clcall(kernel.fun, $call_tt, $(call_args...); indirect_memory, device_rng, call_kwargs...)
     end
 end
 
