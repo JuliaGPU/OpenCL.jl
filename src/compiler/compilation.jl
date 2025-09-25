@@ -1,6 +1,8 @@
 ## gpucompiler interface
 
-struct OpenCLCompilerParams <: AbstractCompilerParams end
+Base.@kwdef struct OpenCLCompilerParams <: AbstractCompilerParams
+    replace_copysign_f16 = false
+end
 const OpenCLCompilerConfig = CompilerConfig{SPIRVCompilerTarget, OpenCLCompilerParams}
 const OpenCLCompilerJob = CompilerJob{SPIRVCompilerTarget,OpenCLCompilerParams}
 
@@ -18,6 +20,16 @@ GPUCompiler.isintrinsic(job::OpenCLCompilerJob, fn::String) =
     in(fn, known_intrinsics) ||
     contains(fn, "__spirv_")
 
+function GPUCompiler.finish_ir!(job::OpenCLCompilerJob, mod::LLVM.Module, entry::LLVM.Function)
+    entry = invoke(GPUCompiler.finish_ir!,
+                   Tuple{CompilerJob{SPIRVCompilerTarget}, LLVM.Module, LLVM.Function},
+                   job, mod, entry)
+
+    # replace copysign.f16 intrinsic with manual implementation since pocl doesn't support it
+    job.config.params.replace_copysign_f16 && replace_copysign_f16!(mod)
+
+    return entry
+end
 
 ## compiler implementation (cache, configure, compile, and link)
 
@@ -50,8 +62,8 @@ end
     replace_copysign_f16 = dev.platform.name == "Portable Computing Language"
 
     # create GPUCompiler objects
-    target = SPIRVCompilerTarget(; supports_fp16, supports_fp64, replace_copysign_f16, validate=true, kwargs...)
-    params = OpenCLCompilerParams()
+    target = SPIRVCompilerTarget(; supports_fp16, supports_fp64, validate=true, kwargs...)
+    params = OpenCLCompilerParams(; replace_copysign_f16)
     CompilerConfig(target, params; kernel, name, always_inline)
 end
 
@@ -84,4 +96,62 @@ function link(@nospecialize(job::CompilerJob), compiled)
     end
     cl.build!(prog)
     cl.Kernel(prog, compiled.entry)
+end
+
+# replace llvm.copysign.f16 calls with manual implementation
+function replace_copysign_f16!(mod::LLVM.Module)
+    changed = false
+    GPUCompiler.@tracepoint "replace copysign f16" begin
+
+    # Find llvm.copysign.f16 intrinsic
+    copysign_name = "llvm.copysign.f16"
+    if haskey(functions(mod), copysign_name)
+        copysign_fn = functions(mod)[copysign_name]
+
+        # Process all uses of the intrinsic
+        for use in uses(copysign_fn)
+            call_inst = user(use)
+            if isa(call_inst, LLVM.CallInst)
+                @dispose builder=IRBuilder() begin
+                    # Position builder before the call
+                    position!(builder, call_inst)
+
+                    # Get operands (x and y)
+                    x = operands(call_inst)[1]  # magnitude
+                    y = operands(call_inst)[2]  # sign source
+
+                    # Create the replacement implementation
+                    i16_type = LLVM.IntType(16)
+
+                    # Bitcast half values to i16
+                    x_bits = bitcast!(builder, x, i16_type)
+                    y_bits = bitcast!(builder, y, i16_type)
+
+                    # XOR the bit patterns and check if result is negative
+                    xor_result = xor!(builder, y_bits, x_bits)
+                    is_negative = icmp!(builder, LLVM.API.LLVMIntSLT, xor_result,
+                                      ConstantInt(i16_type, 0))
+
+                    # Create fneg of x
+                    neg_x = fneg!(builder, x)
+
+                    # Select between neg_x and x based on the sign test
+                    result = select!(builder, is_negative, neg_x, x)
+
+                    # Replace uses and erase the original call
+                    replace_uses!(call_inst, result)
+                    erase!(call_inst)
+                    changed = true
+                end
+            end
+        end
+
+        # Remove the intrinsic declaration if no longer used
+        if isempty(uses(copysign_fn))
+            erase!(copysign_fn)
+        end
+    end
+
+    end
+    return changed
 end
