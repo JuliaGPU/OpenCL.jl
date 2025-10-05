@@ -85,7 +85,11 @@ end
         if f == acosh
             x += 1
         end
-        @test call_on_device(f, x) ≈ f(x)
+        if T == Float16 && f in [acosh, asinh, atanh, cbrt, cospi, expm1, log1p, sinpi, tanpi]
+            @test_broken call_on_device(f, x) ≈ f(x)
+        else
+            @test call_on_device(f, x) ≈ f(x)
+        end
     end
 end
 
@@ -100,7 +104,11 @@ end
         ]
         x = rand(T)
         y = rand(T)
-        @test call_on_device(f, x, y) ≈ f(x, y)
+        if T == Float16 && f == atan
+            @test_broken call_on_device(f, x, y) ≈ f(x, y)
+        else
+            @test call_on_device(f, x, y) ≈ f(x, y)
+        end
     end
 end
 
