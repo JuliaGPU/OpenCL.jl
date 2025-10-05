@@ -33,7 +33,7 @@ for gentype in generic_types
 
 @device_override Base.cos(x::$gentype) = @builtin_ccall("cos", $gentype, ($gentype,), x)
 @device_override Base.cosh(x::$gentype) = @builtin_ccall("cosh", $gentype, ($gentype,), x)
-@device_function cospi(x::$gentype) = @builtin_ccall("cospi", $gentype, ($gentype,), x)
+@device_override Base.cospi(x::$gentype) = @builtin_ccall("cospi", $gentype, ($gentype,), x)
 
 @device_override SpecialFunctions.erfc(x::$gentype) = @builtin_ccall("erfc", $gentype, ($gentype,), x)
 @device_override SpecialFunctions.erf(x::$gentype) = @builtin_ccall("erf", $gentype, ($gentype,), x)
@@ -81,8 +81,6 @@ for gentype in generic_types
 @device_override Base.:(^)(x::$gentype, y::$gentype) = @builtin_ccall("pow", $gentype, ($gentype, $gentype), x, y)
 @device_function powr(x::$gentype, y::$gentype) = @builtin_ccall("powr", $gentype, ($gentype, $gentype), x, y)
 
-@device_override Base.rem(x::$gentype, y::$gentype) = @builtin_ccall("remainder", $gentype, ($gentype, $gentype), x, y)
-
 @device_function rint(x::$gentype) = @builtin_ccall("rint", $gentype, ($gentype,), x)
 
 @device_override Base.round(x::$gentype) = @builtin_ccall("round", $gentype, ($gentype,), x)
@@ -100,13 +98,13 @@ for gentype in generic_types
     return sinval, cosval[]
 end
 @device_override Base.sinh(x::$gentype) = @builtin_ccall("sinh", $gentype, ($gentype,), x)
-@device_function sinpi(x::$gentype) = @builtin_ccall("sinpi", $gentype, ($gentype,), x)
+@device_override Base.sinpi(x::$gentype) = @builtin_ccall("sinpi", $gentype, ($gentype,), x)
 
 @device_override Base.sqrt(x::$gentype) = @builtin_ccall("sqrt", $gentype, ($gentype,), x)
 
 @device_override Base.tan(x::$gentype) = @builtin_ccall("tan", $gentype, ($gentype,), x)
 @device_override Base.tanh(x::$gentype) = @builtin_ccall("tanh", $gentype, ($gentype,), x)
-@device_function tanpi(x::$gentype) = @builtin_ccall("tanpi", $gentype, ($gentype,), x)
+@device_override Base.tanpi(x::$gentype) = @builtin_ccall("tanpi", $gentype, ($gentype,), x)
 
 @device_override SpecialFunctions.gamma(x::$gentype) = @builtin_ccall("tgamma", $gentype, ($gentype,), x)
 
