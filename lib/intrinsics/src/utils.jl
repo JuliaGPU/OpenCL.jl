@@ -39,17 +39,18 @@ macro builtin_ccall(name, ret, argtypes, args...)
             error("Unknown type $T")
         end
     end
+    mangle(::Type{NTuple{N, VecElement{T}}}) where {N, T} = "Dv$(N)_" * mangle(T)
 
     # C++-style mangling; very limited to just support these intrinsics
     # TODO: generalize for use with other intrinsics? do we need to mangle those?
     mangled = "_Z$(length(name))$name"
     for t in argtypes
         # with `@eval @builtin_ccall`, we get actual types in the ast, otherwise symbols
-        t = (isa(t, Symbol) || isa(t, Expr)) ? eval(t) : t
+        t = (isa(t, Symbol) || isa(t, Expr)) ? __module__.eval(t) : t
         mangled *= mangle(t)
     end
 
-    push!(known_intrinsics, mangled)
+    push!(__module__.known_intrinsics, mangled)
     esc(quote
         @typed_ccall($mangled, llvmcall, $ret, ($(argtypes...),), $(args...))
     end)
@@ -63,7 +64,7 @@ Base.Experimental.@MethodTable(method_table)
 
 macro device_override(ex)
     esc(quote
-        Base.Experimental.@overlay(method_table, $ex)
+        Base.Experimental.@overlay($method_table, $ex)
     end)
 end
 
