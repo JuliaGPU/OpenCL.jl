@@ -3,12 +3,14 @@ function call_on_device(f, args...)
         res[] = f(args...)
         return
     end
-    res = CLArray{typeof(f(args...)), 0}(undef)
+    T = OpenCL.code_typed(() -> f(args...), ())[][2]
+    res = CLArray{T, 0}(undef)
     @opencl kernel(res, f, args...)
     return OpenCL.@allowscalar res[]
 end
 
 const float_types = filter(x -> x <: Base.IEEEFloat, GPUArraysTestSuite.supported_eltypes(CLArray))
+const ispocl = cl.platform().name == "Portable Computing Language"
 
 @testset "intrinsics" begin
 
@@ -85,11 +87,8 @@ end
         if f == acosh
             x += 1
         end
-        if T == Float16 && f in [acosh, asinh, atanh, cbrt, cospi, expm1, log1p, sinpi, tanpi]
-            @test_broken call_on_device(f, x) ≈ f(x)
-        else
-            @test call_on_device(f, x) ≈ f(x)
-        end
+        broken = ispocl && T == Float16 && f in [acosh, asinh, atanh, cbrt, cospi, expm1, log1p, sinpi, tanpi]
+        @test call_on_device(f, x) ≈ f(x) broken = broken
     end
 end
 
@@ -104,11 +103,8 @@ end
         ]
         x = rand(T)
         y = rand(T)
-        if T == Float16 && f == atan
-            @test_broken call_on_device(f, x, y) ≈ f(x, y)
-        else
-            @test call_on_device(f, x, y) ≈ f(x, y)
-        end
+        broken = ispocl && T == Float16 && f == atan
+        @test call_on_device(f, x, y) ≈ f(x, y) broken = broken
     end
 end
 
@@ -123,29 +119,47 @@ end
     end
 end
 
-@testset "OpenCL-specific unary" begin
-    @on_device OpenCL.acospi(0.5f0)
-    @on_device OpenCL.asinpi(0.5f0)
-    @on_device OpenCL.atanpi(1.0f0)
-    @on_device OpenCL.logb(2.0f0)
-    @on_device OpenCL.rint(1.5f0)
-    @on_device OpenCL.rsqrt(4.0f0)
-    @on_device OpenCL.ilogb(8.0f0)
-    @on_device OpenCL.nan(UInt32(0))
+@testset "OpenCL-specific unary - $T" for T in float_types
+    @testset "$f" for f in [
+            OpenCL.acospi,
+            OpenCL.asinpi,
+            OpenCL.atanpi,
+            OpenCL.logb,
+            OpenCL.rint,
+            OpenCL.rsqrt,
+        ]
+        x = rand(T)
+        broken = ispocl && T == Float16 && !(f in [OpenCL.rint, OpenCL.rsqrt])
+        @test call_on_device(f, x) isa Real broken = broken  # Just check it doesn't error
+    end
+    broken = ispocl && T == Float16
+    @test call_on_device(OpenCL.ilogb, T(8.0)) isa Int32 broken = broken
+    @test call_on_device(OpenCL.nan, Base.uinttype(T)(0)) isa T
 end
 
-@testset "OpenCL-specific binary" begin
-    @on_device OpenCL.atanpi(1.0f0, 1.0f0)
-    @on_device OpenCL.dim(5.0f0, 3.0f0)
-    @on_device OpenCL.maxmag(3.0f0, -4.0f0)
-    @on_device OpenCL.minmag(3.0f0, -4.0f0)
-    @on_device OpenCL.nextafter(1.0f0, 2.0f0)
-    @on_device OpenCL.powr(2.0f0, 3.0f0)
-    @on_device OpenCL.rootn(8.0f0, Int32(3))
+@testset "OpenCL-specific binary - $T" for T in float_types
+    @testset "$f" for f in [
+            OpenCL.atanpi,
+            OpenCL.dim,
+            OpenCL.maxmag,
+            OpenCL.minmag,
+            OpenCL.nextafter,
+            OpenCL.powr,
+        ]
+        x = rand(T)
+        y = rand(T)
+        broken = ispocl && T == Float16 && !(f in [OpenCL.maxmag, OpenCL.minmag])
+        @test call_on_device(f, x, y) isa Real broken = broken  # Just check it doesn't error
+    end
+    broken = ispocl && T == Float16
+    @test call_on_device(OpenCL.rootn, T(8.0), Int32(3)) ≈ T(2.0) broken = broken
 end
 
-@testset "OpenCL-specific ternary" begin
-    @on_device OpenCL.mad(2.0f0, 3.0f0, 4.0f0)
+@testset "OpenCL-specific ternary - $T" for T in float_types
+    x = rand(T)
+    y = rand(T)
+    z = rand(T)
+    @test call_on_device(OpenCL.mad, x, y, z) ≈ x * y + z
 end
 
 end
