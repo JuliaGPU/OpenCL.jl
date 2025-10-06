@@ -1,3 +1,5 @@
+using SIMD
+
 function call_on_device(f, args...)
     function kernel(res, f, args...)
         res[] = f(args...)
@@ -11,6 +13,7 @@ end
 
 const float_types = filter(x -> x <: Base.IEEEFloat, GPUArraysTestSuite.supported_eltypes(CLArray))
 const ispocl = cl.platform().name == "Portable Computing Language"
+const simd_ns = [2, 3, 4, 8, 16]
 
 @testset "intrinsics" begin
 
@@ -160,6 +163,56 @@ end
     y = rand(T)
     z = rand(T)
     @test call_on_device(OpenCL.mad, x, y, z) ≈ x * y + z
+end
+
+@testset "SIMD - $N x $T" for N in simd_ns, T in float_types
+    v = Vec{N, T}(ntuple(_ -> rand(T), N))
+
+    # unary ops: sin, cos, sqrt
+    a = call_on_device(sin, v)
+    @test all(a[i] ≈ sin(v[i]) for i in 1:N)
+
+    b = call_on_device(cos, v)
+    @test all(b[i] ≈ cos(v[i]) for i in 1:N)
+
+    c = call_on_device(sqrt, v)
+    @test all(c[i] ≈ sqrt(v[i]) for i in 1:N)
+
+    # binary ops: max, hypot
+    w = Vec{N, T}(ntuple(_ -> rand(T), N))
+    d = call_on_device(max, v, w)
+    @test all(d[i] == max(v[i], w[i]) for i in 1:N)
+
+    h = call_on_device(hypot, v, w)
+    @test all(h[i] ≈ hypot(v[i], w[i]) for i in 1:N)
+
+    # ternary op: fma
+    x = Vec{N, T}(ntuple(_ -> rand(T), N))
+    e = call_on_device(fma, v, w, x)
+    @test all(e[i] ≈ fma(v[i], w[i], x[i]) for i in 1:N)
+
+    # special cases: ilogb, ldexp, ^ with Int32, rootn
+    v_pos = Vec{N, T}(ntuple(_ -> rand(T) + T(1), N))
+    broken = ispocl && T == Float16
+    @test call_on_device(OpenCL.ilogb, v_pos) isa Vec{N, Int32} broken = broken
+
+    k = Vec{N, Int32}(ntuple(_ -> rand(Int32.(-5:5)), N))
+    ldexp_result = call_on_device(ldexp, v_pos, k)
+    @test all(ldexp_result[i] ≈ ldexp(v_pos[i], k[i]) for i in 1:N)
+
+    base = Vec{N, T}(ntuple(_ -> rand(T) + T(0.5), N))
+    exp_int = Vec{N, Int32}(ntuple(_ -> rand(Int32.(0:3)), N))
+    pow_result = call_on_device(^, base, exp_int)
+    @test all(pow_result[i] ≈ base[i] ^ exp_int[i] for i in 1:N)
+
+    rootn_base = Vec{N, T}(ntuple(_ -> rand(T) * T(10) + T(1), N))
+    rootn_n = Vec{N, Int32}(ntuple(_ -> rand(Int32.(2:4)), N))
+    @test call_on_device(OpenCL.rootn, rootn_base, rootn_n) isa Vec{N, T} broken = broken
+
+    # special cases: nan
+    nan_code = Vec{N, Base.uinttype(T)}(ntuple(_ -> rand(Base.uinttype(T)), N))
+    nan_result = call_on_device(OpenCL.nan, nan_code)
+    @test all(isnan(nan_result[i]) for i in 1:N)
 end
 
 end
