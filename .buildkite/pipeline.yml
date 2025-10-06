@@ -29,18 +29,18 @@ steps:
       - JuliaCI/julia-coverage#v1:
           codecov: true
     commands: |
-      julia --project -i -e '
+      julia --project -e '
         using Pkg
 
         println("--- :julia: Instantiating project")
         Pkg.add("pocl_jll")
+        Pkg.add("InteractiveUtils")
         Pkg.develop(path="lib/intrinsics")
 
+        println("+++ :julia: Running tests")
         using InteractiveUtils
         InteractiveUtils.versioninfo()
-
-        println("+++ :julia: Running tests")
-        Pkg.test(; coverage=true, test_args=`--platform=pocl --verbose`)'
+        Pkg.test(; coverage=true, test_args=`--platform=pocl --verbose --jobs=2`)'
     agents:
       queue: "juliaecosystem"
       os: "macos"
@@ -55,18 +55,18 @@ steps:
       - JuliaCI/julia-coverage#v1:
           codecov: true
     commands: |
-      julia --project -i -e '
+      julia --project -e '
         using Pkg
 
         println("--- :julia: Instantiating project")
         Pkg.add("pocl_jll")
+        Pkg.add("InteractiveUtils")
         Pkg.develop(path="lib/intrinsics")
 
+        println("+++ :julia: Running tests")
         using InteractiveUtils
         InteractiveUtils.versioninfo()
-
-        println("+++ :julia: Running tests")
-        Pkg.test(; coverage=true, test_args=`--platform=pocl --verbose`)'
+        Pkg.test(; coverage=true, test_args=`--platform=pocl --verbose --jobs=2`)'
     agents:
       queue: "juliaecosystem"
       os: "macos"
@@ -82,18 +82,18 @@ steps:
       - JuliaCI/julia-coverage#v1:
           codecov: true
     commands: |
-      julia --project -i -e '
+      julia --project -e '
         using Pkg
 
         println("--- :julia: Instantiating project")
         Pkg.add("pocl_jll")
+        Pkg.add("InteractiveUtils")
         Pkg.develop(path="lib/intrinsics")
 
+        println("+++ :julia: Running tests")
         using InteractiveUtils
         InteractiveUtils.versioninfo()
-
-        println("+++ :julia: Running tests")
-        Pkg.test(; coverage=true, test_args=`--platform=pocl --verbose`)'
+        Pkg.test(; coverage=true, test_args=`--platform=pocl --verbose --jobs=2`)'
     agents:
       queue: "juliaecosystem"
       os: "macos"
@@ -108,18 +108,18 @@ steps:
       - JuliaCI/julia-coverage#v1:
           codecov: true
     commands: |
-      julia --project -i -e '
+      julia --project -e '
         using Pkg
 
         println("--- :julia: Instantiating project")
         Pkg.add("pocl_jll")
+        Pkg.add("InteractiveUtils")
         Pkg.develop(path="lib/intrinsics")
 
+        println("+++ :julia: Running tests")
         using InteractiveUtils
         InteractiveUtils.versioninfo()
-
-        println("+++ :julia: Running tests")
-        Pkg.test(; coverage=true, test_args=`--platform=pocl --verbose`)'
+        Pkg.test(; coverage=true, test_args=`--platform=pocl --verbose --jobs=2`)'
     agents:
       queue: "juliaecosystem"
       os: "macos"
