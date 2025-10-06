@@ -36,7 +36,8 @@ steps:
         Pkg.add("pocl_jll")
         Pkg.develop(path="lib/intrinsics")
 
-        versioninfo()
+        using InteractiveUtilities
+        InteractiveUtilities.versioninfo()
 
         println("+++ :julia: Running tests")
         Pkg.test(; coverage=true, test_args=`--platform=pocl --verbose`)'
@@ -61,7 +62,8 @@ steps:
         Pkg.add("pocl_jll")
         Pkg.develop(path="lib/intrinsics")
 
-        versioninfo()
+        using InteractiveUtilities
+        InteractiveUtilities.versioninfo()
 
         println("+++ :julia: Running tests")
         Pkg.test(; coverage=true, test_args=`--platform=pocl --verbose`)'
@@ -87,7 +89,8 @@ steps:
         Pkg.add("pocl_jll")
         Pkg.develop(path="lib/intrinsics")
 
-        versioninfo()
+        using InteractiveUtilities
+        InteractiveUtilities.versioninfo()
 
         println("+++ :julia: Running tests")
         Pkg.test(; coverage=true, test_args=`--platform=pocl --verbose`)'
@@ -112,7 +115,8 @@ steps:
         Pkg.add("pocl_jll")
         Pkg.develop(path="lib/intrinsics")
 
-        versioninfo()
+        using InteractiveUtilities
+        InteractiveUtilities.versioninfo()
 
         println("+++ :julia: Running tests")
         Pkg.test(; coverage=true, test_args=`--platform=pocl --verbose`)'
