@@ -150,7 +150,7 @@ jobs:
         uses: julia-actions/julia-runtest@v1
         if: runner.os != 'Windows'
         with:
-          test_args: '--quickfail --platform=pocl --verbose'
+          test_args: '--quickfail --platform=pocl --verbose --jobs=2'
 
       - name: Setup BusyBox
         if: runner.os == 'Windows'
