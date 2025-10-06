@@ -29,7 +29,7 @@ steps:
       - JuliaCI/julia-coverage#v1:
           codecov: true
     commands: |
-      julia --project -e -i '
+      julia --project -i -e '
         using Pkg
 
         println("--- :julia: Instantiating project")
@@ -54,7 +54,7 @@ steps:
       - JuliaCI/julia-coverage#v1:
           codecov: true
     commands: |
-      julia --project -e -i '
+      julia --project -i -e '
         using Pkg
 
         println("--- :julia: Instantiating project")
@@ -80,7 +80,7 @@ steps:
       - JuliaCI/julia-coverage#v1:
           codecov: true
     commands: |
-      julia --project -e -i '
+      julia --project -i -e '
         using Pkg
 
         println("--- :julia: Instantiating project")
@@ -105,7 +105,7 @@ steps:
       - JuliaCI/julia-coverage#v1:
           codecov: true
     commands: |
-      julia --project -e -i '
+      julia --project -i -e '
         using Pkg
 
         println("--- :julia: Instantiating project")
