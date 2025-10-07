@@ -61,28 +61,30 @@ eltypes = [filter(x -> !(x <: Complex), GPUArraysTestSuite.supported_eltypes(CLA
         @test Array(a) != Array(b)
     end
 
-    # different threads should get different numbers
-    @testset "across threads, dim $active_dim" for active_dim in 1:6
-        function kernel(A::AbstractArray{T}, seed) where {T}
-            apply_seed(seed)
-            id = get_local_id(1) * get_local_id(2) * get_local_id(3) *
-                 get_group_id(1) * get_group_id(2) * get_group_id(3)
-            if 1 <= id <= length(A)
-                A[id] = rand(T)
+    if T != Bool
+        # different threads should get different numbers
+        @testset "across threads, dim $active_dim" for active_dim in 1:6
+            function kernel(A::AbstractArray{T}, seed) where {T}
+                apply_seed(seed)
+                id = get_local_id(1) * get_local_id(2) * get_local_id(3) *
+                     get_group_id(1) * get_group_id(2) * get_group_id(3)
+                if 1 <= id <= length(A)
+                    A[id] = rand(T)
+                end
+                return nothing
             end
-            return nothing
+
+            tx, ty, tz, bx, by, bz = [dim == active_dim ? 3 : 1 for dim in 1:6]
+            gx, gy, gz = tx*bx, ty*by, tz*bz
+            a = OpenCL.zeros(T, 3)
+
+            @opencl local_size=(tx, ty, tz) global_size=(gx, gy, gz) kernel(a, seed)
+
+            # NOTE: we don't just generate two numbers and compare them, instead generating a
+            #       couple more and checking they're not all the same, in order to avoid
+            #       occasional collisions with lower-precision types (i.e., Float16).
+            @test length(unique(Array(a))) > 1
         end
-
-        tx, ty, tz, bx, by, bz = [dim == active_dim ? 3 : 1 for dim in 1:6]
-        gx, gy, gz = tx*bx, ty*by, tz*bz
-        a = OpenCL.zeros(T, 3)
-
-        @opencl local_size=(tx, ty, tz) global_size=(gx, gy, gz) kernel(a, seed)
-
-        # NOTE: we don't just generate two numbers and compare them, instead generating a
-        #       couple more and checking they're not all the same, in order to avoid
-        #       occasional collisions with lower-precision types (i.e., Float16).
-        @test length(unique(Array(a))) > 1
     end
 end
 
