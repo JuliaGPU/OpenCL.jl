@@ -22,13 +22,12 @@ SPIRV_Tools_jll = "6ac6d60f-d740-5983-97d7-a4482c0689f4"
 StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 
 [sources]
-GPUCompiler = {rev = "tb/linked_module", url = "https://github.com/JuliaGPU/GPUCompiler.jl.git"}
 SPIRVIntrinsics = {path = "lib/intrinsics"}
 
 [compat]
 Adapt = "4"
 GPUArrays = "11.2.1"
-GPUCompiler = "1.6"
+GPUCompiler = "1.7.1"
 KernelAbstractions = "0.9.2"
 LLVM = "9.1"
 LinearAlgebra = "1"

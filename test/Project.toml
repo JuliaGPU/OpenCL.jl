@@ -23,8 +23,5 @@ Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 pocl_jll = "627d6b7a-bbe6-5189-83e7-98cc0a5aeadd"
 
-[sources]
-GPUCompiler = {rev = "tb/linked_module", url = "https://github.com/JuliaGPU/GPUCompiler.jl.git"}
-
 [compat]
 pocl_jll = "7.0"
