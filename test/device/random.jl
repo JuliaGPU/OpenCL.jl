@@ -18,7 +18,7 @@ function apply_seed(seed)
     end
 end
 
-eltypes = [filter(x -> !(x <: Complex), GPUArraysTestSuite.supported_eltypes(CLArray)); UInt16; UInt32; UInt64]
+eltypes = [filter(x -> !(x <: Complex), GPUArraysTestSuite.supported_eltypes(CLArray)); Bool; UInt16; UInt32; UInt64]
 
 @testset "rand($T), seed $seed" for T in eltypes, seed in (nothing, #=missing,=# 1234)
     # different kernel invocations should get different numbers

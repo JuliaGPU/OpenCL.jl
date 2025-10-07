@@ -22,14 +22,10 @@ end
 end
 
 # initialization function, called automatically at the start of each kernel
-function initialize_rng_state(random_keys_ptr::LLVMPtr{UInt32, AS.Workgroup}, random_counters_ptr::LLVMPtr{UInt32, AS.Workgroup})
-    n = get_num_sub_groups()
-    random_keys = CLDeviceArray{UInt32, 1, AS.Workgroup}((n,), random_keys_ptr)
-    random_counters = CLDeviceArray{UInt32, 1, AS.Workgroup}((n,), random_counters_ptr)
-
+function initialize_rng_state()
     subgroup_id = get_sub_group_id()
-    @inbounds random_keys[subgroup_id] = kernel_state().random_seed
-    @inbounds random_counters[subgroup_id] = 0
+    @inbounds global_random_keys()[subgroup_id] = kernel_state().random_seed
+    @inbounds global_random_counters()[subgroup_id] = 0
 end
 
 # generators
@@ -50,10 +46,8 @@ struct Philox2x32{R} <: RandomNumbers.AbstractRNG{UInt64} end
     elseif field === :ctr1
         @inbounds global_random_counters()[subgroup_id]
     elseif field === :ctr2
-        global_id = get_global_id(1) + (get_global_id(2) - Int32(1)) * get_global_size(1) +
-            (get_global_id(3) - Int32(1)) * get_global_size(1) * get_global_size(2)
-        global_id % UInt32
-    end::UInt32
+        unsafe_trunc(UInt32, get_global_linear_id())
+    end
 end
 
 @inline function Base.setproperty!(rng::Philox2x32, field::Symbol, x)
@@ -64,6 +58,7 @@ end
     elseif field === :ctr1
         @inbounds global_random_counters()[subgroup_id] = x
     end
+    return rng
 end
 
 @device_override @inline Random.default_rng() = Philox2x32()
