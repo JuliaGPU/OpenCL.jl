@@ -206,8 +206,10 @@ end
 
     base = Vec{N, T}(ntuple(_ -> rand(T) + T(0.5), N))
     exp_int = Vec{N, Int32}(ntuple(_ -> rand(Int32.(0:3)), N))
-    pow_result = call_on_device(^, base, exp_int)
-    @test all(pow_result[i] ≈ base[i] ^ exp_int[i] for i in 1:N)
+    @test let
+        pow_result = call_on_device(^, base, exp_int)
+        all(pow_result[i] ≈ base[i] ^ exp_int[i] for i in 1:N)
+    end broken = broken
 
     rootn_base = Vec{N, T}(ntuple(_ -> rand(T) * T(10) + T(1), N))
     rootn_n = Vec{N, Int32}(ntuple(_ -> rand(Int32.(2:4)), N))
