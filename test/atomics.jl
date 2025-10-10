@@ -1,4 +1,4 @@
-using SPIRVIntrinsics: @builtin_ccall, @typed_ccall, LLVMPtr
+using SPIRVIntrinsics: @builtin_ccall, @typed_ccall, LLVMPtr, known_intrinsics
 
 @testset "atomics" begin
 
