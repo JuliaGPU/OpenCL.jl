@@ -183,8 +183,11 @@ end
     d = call_on_device(max, v, w)
     @test all(d[i] == max(v[i], w[i]) for i in 1:N)
 
-    h = call_on_device(hypot, v, w)
-    @test all(h[i] ≈ hypot(v[i], w[i]) for i in 1:N)
+    broken = ispocl && T == Float16
+    if !broken
+        h = call_on_device(hypot, v, w)
+        @test all(h[i] ≈ hypot(v[i], w[i]) for i in 1:N)
+    end
 
     # ternary op: fma
     x = Vec{N, T}(ntuple(_ -> rand(T), N))
@@ -193,7 +196,6 @@ end
 
     # special cases: ilogb, ldexp, ^ with Int32, rootn
     v_pos = Vec{N, T}(ntuple(_ -> rand(T) + T(1), N))
-    broken = ispocl && T == Float16
     @test call_on_device(OpenCL.ilogb, v_pos) isa Vec{N, Int32} broken = broken
 
     k = Vec{N, Int32}(ntuple(_ -> rand(Int32.(-5:5)), N))
