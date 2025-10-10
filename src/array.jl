@@ -32,7 +32,7 @@ function check_eltype(T)
     Base.allocatedinline(T) || error("CLArray only supports element types that are stored inline")
     Base.isbitsunion(T) && error("CLArray does not yet support isbits-union arrays")
     !("cl_khr_fp16" in cl.device().extensions) && contains_eltype(T, Float16) && error("Float16 is not supported on this device")
-    return !("cl_khr_fp64" in cl.device().extensions) && contains_eltype(T, Float64) && error("Float16 is not supported on this device")
+    return !("cl_khr_fp64" in cl.device().extensions) && contains_eltype(T, Float64) && error("Float64 is not supported on this device")
 end
 
 mutable struct CLArray{T, N, M} <: AbstractGPUArray{T, N}
