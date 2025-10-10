@@ -199,8 +199,10 @@ end
     @test call_on_device(OpenCL.ilogb, v_pos) isa Vec{N, Int32} broken = broken
 
     k = Vec{N, Int32}(ntuple(_ -> rand(Int32.(-5:5)), N))
-    ldexp_result = call_on_device(ldexp, v_pos, k)
-    @test all(ldexp_result[i] ≈ ldexp(v_pos[i], k[i]) for i in 1:N)
+    @test let
+        ldexp_result = call_on_device(ldexp, v_pos, k)
+        all(ldexp_result[i] ≈ ldexp(v_pos[i], k[i]) for i in 1:N)
+    end broken = broken
 
     base = Vec{N, T}(ntuple(_ -> rand(T) + T(0.5), N))
     exp_int = Vec{N, Int32}(ntuple(_ -> rand(Int32.(0:3)), N))
