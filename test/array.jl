@@ -49,7 +49,7 @@ import Adapt
     end
     # TODO: Look into how to port the @sync
 
-    if cl.usm_supported(cl.device())
+    if cl.memory_backend() isa cl.USMBackend
         @testset "shared buffers & unsafe_wrap" begin
             a = CLVector{Int, cl.UnifiedSharedMemory}(undef, 2)
 
@@ -82,8 +82,6 @@ import Adapt
             e = c .+ d
             @test OpenCL.memtype(e) == cl.UnifiedSharedMemory
         end
-    else
-        @warn "Skipping USM-specific tests as not supported on device $(cl.device())"
     end
 
     @testset "resizing" begin
