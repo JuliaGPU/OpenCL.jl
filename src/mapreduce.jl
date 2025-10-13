@@ -36,9 +36,9 @@ end
 
         offset = 1
         while offset < width
-            if lane > offset
-                i = lane - offset
-                other = $ex
+            i = lane + offset
+            other = $ex
+            if i <= width
                 val = op(val, other)
             end
             offset <<= 1
