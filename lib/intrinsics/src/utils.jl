@@ -26,6 +26,8 @@ macro builtin_ccall(name, ret, argtypes, args...)
             "c"
         elseif T == UInt8
             "h"
+        elseif T == Float16
+            "Dh"
         elseif T == Float32
             "f"
         elseif T == Float64
