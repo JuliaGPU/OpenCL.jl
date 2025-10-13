@@ -81,8 +81,6 @@ for gentype in generic_types
 @device_override Base.:(^)(x::$gentype, y::$gentype) = @builtin_ccall("pow", $gentype, ($gentype, $gentype), x, y)
 @device_function powr(x::$gentype, y::$gentype) = @builtin_ccall("powr", $gentype, ($gentype, $gentype), x, y)
 
-@device_override Base.rem(x::$gentype, y::$gentype) = @builtin_ccall("remainder", $gentype, ($gentype, $gentype), x, y)
-
 @device_function rint(x::$gentype) = @builtin_ccall("rint", $gentype, ($gentype,), x)
 
 @device_override Base.round(x::$gentype) = @builtin_ccall("round", $gentype, ($gentype,), x)
