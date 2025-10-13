@@ -6,7 +6,7 @@
 # - let the driver choose the local size
 
 function shuffle_expr(::Type{T}) where {T}
-    if T in SPIRVIntrinsics.generic_integer_types || T in SPIRVIntrinsics.generic_types
+    if T in SPIRVIntrinsics.gentypes
         return :(sub_group_shuffle(val, i))
     elseif Base.isstructtype(T)
         ex = Expr(:new, T)
@@ -115,12 +115,13 @@ Base.@propagate_inbounds _map_getindex(args::Tuple{}, I) = ()
 # Reduce an array across the grid. All elements to be processed can be addressed by the
 # product of the two iterators `Rreduce` and `Rother`, where the latter iterator will have
 # singleton entries for the dimensions that should be reduced (and vice versa).
-function partial_mapreduce_device(f, op, neutral, maxitems, Rreduce, Rother, R, As...)
+function partial_mapreduce_device(f, op, neutral, maxitems, Rreduce, Rother, R, A)
+    As = (A,)
     # decompose the 1D hardware indices into separate ones for reduction (across items
     # and possibly groups if it doesn't fit) and other elements (remaining groups)
     localIdx_reduce = get_local_id()
     localDim_reduce = get_local_size()
-    groupIdx_reduce, groupIdx_other = fldmod1(get_group_id(), length(Rother))
+    groupIdx_reduce, groupIdx_other = @inline fldmod1(get_group_id(), length(Rother))
     groupDim_reduce = get_num_groups() ÷ length(Rother)
 
     # group-based indexing into the values outside of the reduction dimension
@@ -137,7 +138,7 @@ function partial_mapreduce_device(f, op, neutral, maxitems, Rreduce, Rother, R, 
             neutral
         end
 
-        val = op(neutral, neutral)
+        val = neutral
 
         # reduce serially across chunks of input vector that don't fit in a group
         ireduce = localIdx_reduce + (groupIdx_reduce - 1) * localDim_reduce
