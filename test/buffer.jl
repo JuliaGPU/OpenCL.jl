@@ -74,7 +74,7 @@
     end
 end
 
-
+if cl.memory_backend() isa cl.SVMBackend
 @testset "SVM Buffer" begin
     # simple buffer
     let buf = cl.svm_alloc(sizeof(Int))
@@ -123,4 +123,5 @@ end
         cl.enqueue_svm_copy(pointer(dst), ptr, sizeof(dst); blocking = true)
         @test dst == [42,42,42]
     end
+end
 end
