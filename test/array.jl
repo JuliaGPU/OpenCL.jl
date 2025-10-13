@@ -49,7 +49,7 @@ import Adapt
     end
     # TODO: Look into how to port the @sync
 
-    if cl.memory_backend() isa cl.USMBackend
+    if cl.USMBackend() in cl.supported_memory_backends(cl.device())
         @testset "shared buffers & unsafe_wrap" begin
             a = CLVector{Int, cl.UnifiedSharedMemory}(undef, 2)
 
