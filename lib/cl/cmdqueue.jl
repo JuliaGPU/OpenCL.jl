@@ -62,6 +62,7 @@ end
 
 function finish(q::CmdQueue)
     clFinish(q)
+    OpenCL.check_exceptions()
     return q
 end
 
