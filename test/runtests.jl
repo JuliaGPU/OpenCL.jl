@@ -148,6 +148,7 @@ function test_filter(test)
         # GPUArrays' scalar indexing tests assume that indexing is not supported
         return false
     end
+    return true
 end
 
 const init_code = quote
