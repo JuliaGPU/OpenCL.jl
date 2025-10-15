@@ -9,6 +9,7 @@ import Test
 do_platform, platform_filter = ParallelTestRunner.extract_flag!(ARGS, "--platform", nothing)
 
 custom_record_init = quote
+    import ParallelTestRunner: Test
     struct OpenCLTestRecord <: ParallelTestRunner.AbstractTestRecord
         # TODO: Would it be better to wrap "ParallelTestRunner.TestRecord "
         value::Any          # AbstractTestSet or TestSetException
@@ -23,8 +24,8 @@ custom_record_init = quote
     function ParallelTestRunner.memory_usage(rec::OpenCLTestRecord)
         return rec.rss
     end
-    function ParallelTestRunner.test_IOContext(::Type{OpenCLTestRecord}, args...)
-        return ParallelTestRunner.test_IOContext(ParallelTestRunner.TestRecord, args...)
+    function ParallelTestRunner.test_IOContext(::Type{OpenCLTestRecord}, stdout::IO, stderr::IO, lock::ReentrantLock, name_align::Int64)
+        return ParallelTestRunner.test_IOContext(ParallelTestRunner.TestRecord, stdout, stderr, lock, name_align)
     end
 
     const targets = []
@@ -72,16 +73,16 @@ custom_record_init = quote
                 mktemp() do path, io
                     stats = redirect_stdio(stdout=io, stderr=io) do
                         @timed try
-                            # @testset $(name) begin
-                                @testset "\$(device.name)" for (; platform, device) in $targets
+                            @testset $(Expr(:$, :name)) begin
+                                @testset "\$(device.name)" for (; platform, device) in $(Expr(:$, :targets))
                                     cl.platform!(platform)
                                     cl.device!(device)
 
-                                    if !$requires_il || "cl_khr_il_program" in device.extensions
-                                        $f
+                                    if !$(Expr(:$, :requires_il)) || "cl_khr_il_program" in device.extensions
+                                        $(Expr(:$, :f))
                                     end
                                 end
-                            # end
+                            end
                         catch err
                             isa(err, Test.TestSetException) || rethrow()
 
@@ -208,4 +209,4 @@ const init_code = quote
 end
 
 runtests(OpenCL, ARGS; custom_tests, test_filter, init_code, custom_record_init,
-                       RecordType=OpenCLTestRecord, custom_args=(;platform_filter = platform))
+                       RecordType=OpenCLTestRecord, custom_args=(;platform_filter))
