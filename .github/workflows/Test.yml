@@ -135,7 +135,8 @@ jobs:
           echo 'default_memory_backend="${{ matrix.memory_backend }}"' >> test/LocalPreferences.toml
           julia --project -e '
             using Pkg
-            Pkg.develop(path="lib/intrinsics")'
+            Pkg.develop(path="lib/intrinsics")
+            Pkg.add(name="GPUCompiler", rev="sds/khronos")'
 
       - name: Test OpenCL.jl
         uses: julia-actions/julia-runtest@v1
