@@ -58,11 +58,19 @@
                 :max_image3d_shape,
             ]
         @test isa(cl.platform(), cl.Platform)
-        @test_throws ErrorException cl.platform().zjdlkf
+        if isdefined(Core, :FieldError) # VERSION > v"1.12.0-"
+            @test_throws FieldError cl.platform().zjdlkf
+        else
+            @test_throws ErrorException cl.platform().zjdlkf
+        end
 
         device = cl.device()
         @test isa(device, cl.Device)
-        @test_throws ErrorException device.zjdlkf
+        if isdefined(Core, :FieldError) # VERSION > v"1.12.0-"
+            @test_throws FieldError device.zjdlkf
+        else
+            @test_throws ErrorException device.zjdlkf
+        end
         for k in device_info_keys
             v = getproperty(device, k)
             if k == :extensions
