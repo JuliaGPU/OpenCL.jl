@@ -55,7 +55,7 @@ custom_record_init = quote
 
         function inner()
             # generate a temporary module to execute the tests in
-            mod = Core.eval(Main, Expr(:module, true, gensym(name)), Expr(:block))
+            mod = Core.eval(Main, Expr(:module, true, gensym(name), Expr(:block)))
             @eval(mod, import ParallelTestRunner: Test, Random)
             @eval(mod, using .Test, .Random)
 
