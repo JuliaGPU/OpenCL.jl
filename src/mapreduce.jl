@@ -45,45 +45,35 @@ Base.@propagate_inbounds _map_getindex(args::Tuple{}, I) = ()
 # Reduce an array across the grid. All elements to be processed can be addressed by the
 # product of the two iterators `Rreduce` and `Rother`, where the latter iterator will have
 # singleton entries for the dimensions that should be reduced (and vice versa).
-function partial_mapreduce_device(f, op, neutral, maxitems, Rreduce, Rother, R, As...)
+function partial_mapreduce_device(op, Rother, As...)
     # decompose the 1D hardware indices into separate ones for reduction (across items
     # and possibly groups if it doesn't fit) and other elements (remaining groups)
-    localIdx_reduce = get_local_id()
-    localDim_reduce = get_local_size()
-    groupIdx_reduce, groupIdx_other = fldmod1(get_group_id(), length(Rother))
-    groupDim_reduce = get_num_groups() ÷ length(Rother)
+    #localIdx_reduce = get_local_id()
+    #localDim_reduce = get_local_size()
+    #groupIdx_reduce, groupIdx_other = @inline fldmod1(get_group_id(), length(Rother))
+    #groupDim_reduce = get_num_groups() ÷ length(Rother)
 
-    # group-based indexing into the values outside of the reduction dimension
-    # (that means we can safely synchronize items within this group)
-    iother = groupIdx_other
-    @inbounds if iother <= length(Rother)
-        Iother = Rother[iother]
-
-        # load the neutral value
-        Iout = CartesianIndex(Tuple(Iother)..., groupIdx_reduce)
-        neutral = if neutral === nothing
-            R[Iout]
-        else
-            neutral
-        end
-
-        val = op(neutral, neutral)
+    ## group-based indexing into the values outside of the reduction dimension
+    ## (that means we can safely synchronize items within this group)
+    @show length(Rother)
+    @show length(As[1])
+    @inbounds if length(Rother) > 0
+        @println "Bar"
+        val = (-Inf32, 1)
 
         # reduce serially across chunks of input vector that don't fit in a group
-        ireduce = localIdx_reduce + (groupIdx_reduce - 1) * localDim_reduce
-        while ireduce <= length(Rreduce)
-            Ireduce = Rreduce[ireduce]
-            J = max(Iother, Ireduce)
-            val = op(val, f(_map_getindex(As, J)...))
-            ireduce += localDim_reduce * groupDim_reduce
+        ireduce = 1
+        while ireduce <= 3
+            val = op(val, As[1][ireduce])
+            ireduce += 1
         end
 
-        val = reduce_group(op, val, neutral, maxitems)
+        #val = reduce_group(op, val, neutral, maxitems)
 
-        # write back to memory
-        if localIdx_reduce == 1
-            R[Iout] = val
-        end
+        ## write back to memory
+        #if localIdx_reduce == 1
+        #    R[Iout] = val
+        #end
     end
 
     return
@@ -144,7 +134,7 @@ function GPUArrays.mapreducedim!(
     # TODO: dynamic local memory to avoid two compilations
 
     # let the driver suggest a group size
-    args = (f, op, init, Val(max_items), Rreduce, Rother, R′, A)
+    args = (op, Rother, A)
     kernel_args = kernel_convert.(args)
     kernel_tt = Tuple{Core.Typeof.(kernel_args)...}
     kernel = clfunction(partial_mapreduce_device, kernel_tt)
@@ -165,9 +155,10 @@ function GPUArrays.mapreducedim!(
 
     # perform the actual reduction
     if reduce_groups == 1
+        Base.@show A length(A)
         # we can cover the dimensions to reduce using a single group
         @opencl local_size global_size partial_mapreduce_device(
-            f, op, init, Val(local_size), Rreduce, Rother, R′, A)
+            op, Rother, A)
     else
         # we need multiple steps to cover all values to reduce
         partial = similar(R, (size(R)..., reduce_groups))
@@ -176,7 +167,7 @@ function GPUArrays.mapreducedim!(
             partial .= R
         end
         @opencl local_size global_size partial_mapreduce_device(
-            f, op, init, Val(local_size), Rreduce, Rother, partial, A)
+            op, Rother, A)
 
         GPUArrays.mapreducedim!(identity, op, R′, partial; init=init)
     end
