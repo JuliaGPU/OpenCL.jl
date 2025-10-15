@@ -86,7 +86,7 @@ steps:
         using Pkg
 
         println("--- :julia: Instantiating project")
-        Pkg.add("pocl_jll")
+        Pkg.add("pocl_jll", version="7.0.0")
         Pkg.add("InteractiveUtils")
         Pkg.develop(path="lib/intrinsics")
 
@@ -112,7 +112,7 @@ steps:
         using Pkg
 
         println("--- :julia: Instantiating project")
-        Pkg.add("pocl_jll")
+        Pkg.add("pocl_jll", version="7.0.0")
         Pkg.add("InteractiveUtils")
         Pkg.develop(path="lib/intrinsics")
 
