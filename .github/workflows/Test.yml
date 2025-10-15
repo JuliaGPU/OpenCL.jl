@@ -141,6 +141,7 @@ jobs:
         uses: julia-actions/julia-runtest@v1
         if: runner.os != 'Windows'
         with:
+          coverage: 'false'
           test_args: '--platform=pocl --verbose --jobs=1'
 
       - name: Setup BusyBox

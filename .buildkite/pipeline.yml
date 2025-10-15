@@ -13,7 +13,7 @@ steps:
         Pkg.develop(path="lib/intrinsics")
 
         println("+++ :julia: Running tests")
-        Pkg.test(; coverage=true, test_args=`--platform=cuda`)'
+        Pkg.test(; coverage=false, test_args=`--platform=cuda`)'
     agents:
       queue: "juliagpu"
       cuda: "*"
@@ -40,7 +40,7 @@ steps:
         println("+++ :julia: Running tests")
         using InteractiveUtils
         InteractiveUtils.versioninfo()
-        Pkg.test(; coverage=true, test_args=`--platform=pocl --verbose --jobs=2`)'
+        Pkg.test(; coverage=false, test_args=`--platform=pocl --verbose --jobs=2`)'
     agents:
       queue: "juliaecosystem"
       os: "macos"
