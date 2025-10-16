@@ -31,7 +31,7 @@ custom_record_init = quote
     const targets = []
     using OpenCL, IOCapture
 
-    function ParallelTestRunner.runtest(::Type{OpenCLTestRecord}, f, name, init_code, color, (; platform_filter))
+    function ParallelTestRunner.execute(::Type{OpenCLTestRecord}, mod, f, name, color, (; platform_filter))
         if isempty(targets)
             for platform in cl.platforms(),
                 device in cl.devices(platform)
@@ -53,71 +53,48 @@ custom_record_init = quote
             end
         end
 
-        function inner()
-            # generate a temporary module to execute the tests in
-            mod = Core.eval(Main, Expr(:module, true, gensym(name), Expr(:block)))
-            @eval(mod, import ParallelTestRunner: Test, Random)
-            @eval(mod, using .Test, .Random)
+        # some tests require native execution capabilities
+        requires_il = name in ["atomics", "execution", "intrinsics", "kernelabstractions"] ||
+                      startswith(name, "gpuarrays/")
 
-            Core.eval(mod, init_code)
+        data = @eval mod begin
+            GC.gc(true)
+            Random.seed!(1)
+            OpenCL.allowscalar(false)
 
-            # some tests require native execution capabilities
-            requires_il = name in ["atomics", "execution", "intrinsics", "kernelabstractions"] ||
-                          startswith(name, "gpuarrays/")
+            mktemp() do path, io
+                stats = redirect_stdio(stdout=io, stderr=io) do
+                    @timed try
+                        @testset $(Expr(:$, :name)) begin
+                            @testset "\$(device.name)" for (; platform, device) in $(Expr(:$, :targets))
+                                cl.platform!(platform)
+                                cl.device!(device)
 
-            data = @eval mod begin
-                GC.gc(true)
-                Random.seed!(1)
-                OpenCL.allowscalar(false)
-
-                mktemp() do path, io
-                    stats = redirect_stdio(stdout=io, stderr=io) do
-                        @timed try
-                            @testset $(Expr(:$, :name)) begin
-                                @testset "\$(device.name)" for (; platform, device) in $(Expr(:$, :targets))
-                                    cl.platform!(platform)
-                                    cl.device!(device)
-
-                                    if !$(Expr(:$, :requires_il)) || "cl_khr_il_program" in device.extensions
-                                        $(Expr(:$, :f))
-                                    end
+                                if !$(Expr(:$, :requires_il)) || "cl_khr_il_program" in device.extensions
+                                    $(Expr(:$, :f))
                                 end
                             end
-                        catch err
-                            isa(err, Test.TestSetException) || rethrow()
-
-                            # return the error to package it into a TestRecord
-                            err
                         end
+                    catch err
+                        isa(err, Test.TestSetException) || rethrow()
+
+                        # return the error to package it into a TestRecord
+                        err
                     end
-                    close(io)
-                    output = read(path, String)
-                    (; testset=stats.value, output, stats.time, stats.bytes, stats.gctime)
-
                 end
-            end
+                close(io)
+                output = read(path, String)
+                (; testset=stats.value, output, stats.time, stats.bytes, stats.gctime)
 
-            # process results
-            rss = Sys.maxrss()
-            record = OpenCLTestRecord(data..., rss)
-
-            GC.gc(true)
-            return record
-        end
-
-        @static if VERSION >= v"1.13.0-DEV.1044"
-            @with Test.TESTSET_PRINT_ENABLE => false begin
-                inner()
-            end
-        else
-            old_print_setting = Test.TESTSET_PRINT_ENABLE[]
-            Test.TESTSET_PRINT_ENABLE[] = false
-            try
-                inner()
-            finally
-                Test.TESTSET_PRINT_ENABLE[] = old_print_setting
             end
         end
+
+        # process results
+        rss = Sys.maxrss()
+        record = OpenCLTestRecord(data..., rss)
+
+        GC.gc(true)
+        return record
     end
 end # quote
 eval(custom_record_init)
