@@ -8,96 +8,45 @@ import Test
 ## --platform selector
 do_platform, platform_filter = ParallelTestRunner.extract_flag!(ARGS, "--platform", nothing)
 
-custom_record_init = quote
-    import ParallelTestRunner: Test
-    struct OpenCLTestRecord <: ParallelTestRunner.AbstractTestRecord
-        # TODO: Would it be better to wrap "ParallelTestRunner.TestRecord "
-        value::Any          # AbstractTestSet or TestSetException
-        output::String      # captured stdout/stderr
-
-        # stats
-        time::Float64
-        bytes::UInt64
-        gctime::Float64
-        rss::UInt64
-    end
-    function ParallelTestRunner.memory_usage(rec::OpenCLTestRecord)
-        return rec.rss
-    end
-    function ParallelTestRunner.test_IOContext(::Type{OpenCLTestRecord}, stdout::IO, stderr::IO, lock::ReentrantLock, name_align::Int64)
-        return ParallelTestRunner.test_IOContext(ParallelTestRunner.TestRecord, stdout, stderr, lock, name_align)
-    end
-
-    const targets = []
-    using OpenCL, IOCapture
-
-    function ParallelTestRunner.execute(::Type{OpenCLTestRecord}, mod, f, name, color, (; platform_filter))
+test_transform = function(test, expr)
+    # targets is a global variable that is defined in init_code
+    return quote
         if isempty(targets)
             for platform in cl.platforms(),
                 device in cl.devices(platform)
-                if platform_filter !== nothing
+                if $(platform_filter) !== nothing
                     # filter on the name or vendor
                     names = lowercase.([platform.name, platform.vendor])
-                    if !any(contains(platform_filter), names)
+                    if !any(contains($(platform_filter)), names)
                         continue
                     end
                 end
                 push!(targets, (; platform, device))
             end
             if isempty(targets)
-                if platform_filter === nothing
+                if $(platform_filter) === nothing
                     throw(ArgumentError("No OpenCL platforms found"))
                 else
-                    throw(ArgumentError("No OpenCL platforms found matching $platform_filter"))
+                    throw(ArgumentError("No OpenCL platforms found matching $($(platform_filter))"))
                 end
             end
         end
 
         # some tests require native execution capabilities
-        requires_il = name in ["atomics", "execution", "intrinsics", "kernelabstractions"] ||
-                      startswith(name, "gpuarrays/")
+        requires_il = $(test) in ["atomics", "execution", "intrinsics", "kernelabstractions"] ||
+                      startswith($(test), "gpuarrays/")
 
-        data = @eval mod begin
-            GC.gc(true)
-            Random.seed!(1)
-            OpenCL.allowscalar(false)
+        @testset "\$(device.name)" for (; platform, device) in targets
+            cl.platform!(platform)
+            cl.device!(device)
 
-            mktemp() do path, io
-                stats = redirect_stdio(stdout=io, stderr=io) do
-                    @timed try
-                        @testset $(Expr(:$, :name)) begin
-                            @testset "\$(device.name)" for (; platform, device) in $(Expr(:$, :targets))
-                                cl.platform!(platform)
-                                cl.device!(device)
-
-                                if !$(Expr(:$, :requires_il)) || "cl_khr_il_program" in device.extensions
-                                    $(Expr(:$, :f))
-                                end
-                            end
-                        end
-                    catch err
-                        isa(err, Test.TestSetException) || rethrow()
-
-                        # return the error to package it into a TestRecord
-                        err
-                    end
-                end
-                close(io)
-                output = read(path, String)
-                (; testset=stats.value, output, stats.time, stats.bytes, stats.gctime)
-
+            if !requires_il || "cl_khr_il_program" in device.extensions
+                $(expr)
             end
         end
-
-        # process results
-        rss = Sys.maxrss()
-        record = OpenCLTestRecord(data..., rss)
-
-        GC.gc(true)
-        return record
     end
-end # quote
-eval(custom_record_init)
+end
+
 
 # register custom tests that do not correspond to files in the test directory
 custom_tests = Dict{String, Expr}()
@@ -116,7 +65,8 @@ const GPUArraysTestSuite = let
 end
 
 for name in keys(GPUArraysTestSuite.tests)
-    custom_tests["GPUArraysTestSuite/$name"] = :(GPUArraysTestSuite.tests[$name](CLArray))
+    test = "GPUArraysTestSuite/$name"
+    custom_tests[test] = test_transform(test, :(GPUArraysTestSuite.tests[$name](CLArray)))
 end
 
 function test_filter(test)
@@ -130,6 +80,9 @@ end
 
 const init_code = quote
     using OpenCL, pocl_jll
+
+    OpenCL.allowscalar(false)
+    const targets = []
 
     # GPUArrays has a testsuite that isn't part of the main package.
     # Include it directly.
@@ -186,5 +139,5 @@ const init_code = quote
     end
 end
 
-runtests(OpenCL, ARGS; custom_tests, test_filter, init_code, custom_record_init,
-                       RecordType=OpenCLTestRecord, custom_args=(;platform_filter))
+
+runtests(OpenCL, ARGS; custom_tests, test_filter, init_code, test_transform)
