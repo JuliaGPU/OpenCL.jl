@@ -10,7 +10,8 @@ do_platform, platform_filter = ParallelTestRunner.extract_flag!(ARGS, "--platfor
 
 test_transform = function(test, expr)
     # some tests require native execution capabilities
-    requires_il = test in ["atomics", "execution", "intrinsics", "kernelabstractions", "statistics"] ||
+    requires_il = test in ["atomics", "execution", "intrinsics", "kernelabstractions", "statistics",
+                           "linalg", ] ||
                   startswith(test, "gpuarrays/")
 
     # targets is a global variable that is defined in init_code
@@ -65,7 +66,7 @@ const GPUArraysTestSuite = let
 end
 
 for name in keys(GPUArraysTestSuite.tests)
-    test = "GPUArraysTestSuite/$name"
+    test = "gpuarrays/$name"
     custom_tests[test] = test_transform(test, :(GPUArraysTestSuite.tests[$name](CLArray)))
 end
 
