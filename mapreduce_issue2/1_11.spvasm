@@ -1,0 +1,487 @@
+; SPIR-V
+; Version: 1.4
+; Generator: LLVM LLVM SPIR-V Backend; 20
+; Bound: 677
+; Schema: 0
+               OpCapability Kernel
+               OpCapability Addresses
+               OpCapability Int8
+               OpCapability Int64
+          %1 = OpExtInstImport "OpenCL.std"
+               OpMemoryModel Physical64 OpenCL
+               OpEntryPoint Kernel %_Z6kernel5OneToI5Int64E11BroadcastedI12CLArrayStyleILi1E19UnifiedDeviceMemoryEv5tuple5TupleI13CLDeviceArrayI7Float32Li1ELi1EE9EachIndexIS0_Li1ES1_EEE "_Z6kernel5OneToI5Int64E11BroadcastedI12CLArrayStyleILi1E19UnifiedDeviceMemoryEv5tuple5TupleI13CLDeviceArrayI7Float32Li1ELi1EE9EachIndexIS0_Li1ES1_EEE" %79 %89 %103 %84
+               OpExecutionMode %_Z6kernel5OneToI5Int64E11BroadcastedI12CLArrayStyleILi1E19UnifiedDeviceMemoryEv5tuple5TupleI13CLDeviceArrayI7Float32Li1ELi1EE9EachIndexIS0_Li1ES1_EEE ContractionOff
+               OpSource OpenCL_C 200000
+               OpName %julia__throw_boundserror_17874 "julia__throw_boundserror_17874"
+               OpName %top "top"
+               OpName %julia_DimensionMismatch_17864 "julia_DimensionMismatch_17864"
+               OpName %top_0 "top"
+               OpName %gpu_report_exception "gpu_report_exception"
+               OpName %top_1 "top"
+               OpName %gpu_signal_exception "gpu_signal_exception"
+               OpName %top_2 "top"
+               OpName %_Z6kernel5OneToI5Int64E11BroadcastedI12CLArrayStyleILi1E19UnifiedDeviceMemoryEv5tuple5TupleI13CLDeviceArrayI7Float32Li1ELi1EE9EachIndexIS0_Li1ES1_EEE "_Z6kernel5OneToI5Int64E11BroadcastedI12CLArrayStyleILi1E19UnifiedDeviceMemoryEv5tuple5TupleI13CLDeviceArrayI7Float32Li1ELi1EE9EachIndexIS0_Li1ES1_EEE"
+               OpName %y "y"
+               OpName %or_cond "or.cond"
+               OpName %conversion "conversion"
+               OpName %L23 "L23"
+               OpName %L26 "L26"
+               OpName %value_phi1 "value_phi1"
+               OpName %L37 "L37"
+               OpName %L46 "L46"
+               OpName %L46_split "L46.split"
+               OpName %smax113 "smax113"
+               OpName %isnotneg_inv "isnotneg.inv"
+               OpName %exit_mainloop_at118 "exit.mainloop.at118"
+               OpName %L46_split_split "L46.split.split"
+               OpName %L176_preheader "L176.preheader"
+               OpName %value_phi343 "value_phi343"
+               OpName %lsr_iv12 "lsr.iv12"
+               OpName %lsr_iv14 "lsr.iv14"
+               OpName %or_cond147 "or.cond147"
+               OpName %L176 "L176"
+               OpName %L182 "L182"
+               OpName %value_phi6_in "value_phi6.in"
+               OpName %value_phi3_ "value_phi3."
+               OpName %lsr_iv_next13 "lsr.iv.next13"
+               OpName %scevgep15 "scevgep15"
+               OpName %_not136 ".not136"
+               OpName %L195 "L195"
+               OpName %main_exit_selector120 "main.exit.selector120"
+               OpName %value_phi242_copy "value_phi242.copy"
+               OpName %value_phi343_copy "value_phi343.copy"
+               OpName %scevgep "scevgep"
+               OpName %main_pseudo_exit121 "main.pseudo.exit121"
+               OpName %value_phi242_postloop "value_phi242.postloop"
+               OpName %value_phi343_postloop "value_phi343.postloop"
+               OpName %lsr_iv9 "lsr.iv9"
+               OpName %_not39_postloop ".not39.postloop"
+               OpName %L52_postloop "L52.postloop"
+               OpName %or_cond149 "or.cond149"
+               OpName %L176_postloop "L176.postloop"
+               OpName %L182_postloop "L182.postloop"
+               OpName %value_phi6_in_postloop "value_phi6.in.postloop"
+               OpName %value_phi3__postloop "value_phi3..postloop"
+               OpName %scevgep10 "scevgep10"
+               OpName %L195_postloop "L195.postloop"
+               OpName %_not39_us60_not ".not39.us60.not"
+               OpName %L46_split_split_us "L46.split.split.us"
+               OpName %L46_split_us "L46.split.us"
+               OpName %smax "smax"
+               OpName %isnotneg_inv140 "isnotneg.inv140"
+               OpName %exit_mainloop_at "exit.mainloop.at"
+               OpName %L46_split_us_split "L46.split.us.split"
+               OpName %L46_split_us_split_split "L46.split.us.split.split"
+               OpName %L176_us_preheader "L176.us.preheader"
+               OpName %lsr_iv7 "lsr.iv7"
+               OpName %lsr_iv_next8 "lsr.iv.next8"
+               OpName %_not139 ".not139"
+               OpName %L176_us "L176.us"
+               OpName %main_exit_selector106 "main.exit.selector106"
+               OpName %value_phi242_us_copy "value_phi242.us.copy"
+               OpName %main_pseudo_exit107 "main.pseudo.exit107"
+               OpName %value_phi242_us_postloop "value_phi242.us.postloop"
+               OpName %_not39_us_postloop ".not39.us.postloop"
+               OpName %L52_us_postloop "L52.us.postloop"
+               OpName %L176_us_postloop "L176.us.postloop"
+               OpName %L46_split_us_split_split_us "L46.split.us.split.split.us"
+               OpName %L176_us_us75_preheader "L176.us.us75.preheader"
+               OpName %value_phi343_us_us73 "value_phi343.us.us73"
+               OpName %lsr_iv "lsr.iv"
+               OpName %L176_us_us75 "L176.us.us75"
+               OpName %spec_select "spec.select"
+               OpName %L195_us_us79 "L195.us.us79"
+               OpName %lsr_iv_next "lsr.iv.next"
+               OpName %_not141 ".not141"
+               OpName %L195_us_us79_thread "L195.us.us79.thread"
+               OpName %main_exit_selector "main.exit.selector"
+               OpName %value_phi242_us_us74_copy "value_phi242.us.us74.copy"
+               OpName %value_phi343_us_us73_copy "value_phi343.us.us73.copy"
+               OpName %main_pseudo_exit "main.pseudo.exit"
+               OpName %value_phi242_us_us74_postloop "value_phi242.us.us74.postloop"
+               OpName %value_phi343_us_us73_postloop "value_phi343.us.us73.postloop"
+               OpName %_not39_us_us82_postloop ".not39.us.us82.postloop"
+               OpName %L52_us_us72_postloop "L52.us.us72.postloop"
+               OpName %L176_us_us75_postloop "L176.us.us75.postloop"
+               OpName %spec_select148 "spec.select148"
+               OpName %L195_us_us79_postloop "L195.us.us79.postloop"
+               OpName %L195_us_us79_postloop_thread "L195.us.us79.postloop.thread"
+               OpName %_not39_us_us_not ".not39.us.us.not"
+               OpName %L46_split_us_split_us "L46.split.us.split.us"
+               OpName %L204 "L204"
+               OpName %_us_phi46 ".us-phi46"
+               OpName %L165 "L165"
+               OpDecorate %79 Constant
+               OpDecorate %84 Constant
+               OpDecorate %89 Constant
+               OpDecorate %103 Constant
+               OpDecorate %154 FuncParamAttr ByVal
+               OpDecorate %155 FuncParamAttr ByVal
+               OpDecorate %y Alignment 8
+               OpDecorate %158 Alignment 8
+       %void = OpTypeVoid
+       %uint = OpTypeInt 32 0
+      %uchar = OpTypeInt 8 0
+    %uint_36 = OpConstant %uint 36
+%_arr_uchar_uint_36 = OpTypeArray %uchar %uint_36
+%_ptr_UniformConstant__arr_uchar_uint_36 = OpTypePointer UniformConstant %_arr_uchar_uint_36
+     %uint_5 = OpConstant %uint 5
+%_arr_uchar_uint_5 = OpTypeArray %uchar %uint_5
+    %uint_20 = OpConstant %uint 20
+%_arr_uchar_uint_20 = OpTypeArray %uchar %uint_20
+%_ptr_UniformConstant__arr_uchar_uint_5 = OpTypePointer UniformConstant %_arr_uchar_uint_5
+%_ptr_UniformConstant__arr_uchar_uint_20 = OpTypePointer UniformConstant %_arr_uchar_uint_20
+         %59 = OpTypeFunction %void
+  %uchar_108 = OpConstant %uchar 108
+  %uchar_101 = OpConstant %uchar 101
+  %uchar_110 = OpConstant %uchar 110
+  %uchar_103 = OpConstant %uchar 103
+  %uchar_116 = OpConstant %uchar 116
+  %uchar_104 = OpConstant %uchar 104
+   %uchar_40 = OpConstant %uchar 40
+  %uchar_121 = OpConstant %uchar 121
+   %uchar_91 = OpConstant %uchar 91
+   %uchar_49 = OpConstant %uchar 49
+   %uchar_93 = OpConstant %uchar 93
+   %uchar_41 = OpConstant %uchar 41
+   %uchar_32 = OpConstant %uchar 32
+   %uchar_61 = OpConstant %uchar 61
+   %uchar_37 = OpConstant %uchar 37
+  %uchar_100 = OpConstant %uchar 100
+   %uchar_10 = OpConstant %uchar 10
+    %uchar_0 = OpConstant %uchar 0
+         %78 = OpConstantComposite %_arr_uchar_uint_20 %uchar_108 %uchar_101 %uchar_110 %uchar_103 %uchar_116 %uchar_104 %uchar_40 %uchar_121 %uchar_91 %uchar_49 %uchar_93 %uchar_41 %uchar_32 %uchar_61 %uchar_32 %uchar_37 %uchar_108 %uchar_100 %uchar_10 %uchar_0
+         %79 = OpVariable %_ptr_UniformConstant__arr_uchar_uint_20 UniformConstant %78
+  %uchar_120 = OpConstant %uchar 120
+   %uchar_62 = OpConstant %uchar 62
+   %uchar_48 = OpConstant %uchar 48
+         %83 = OpConstantComposite %_arr_uchar_uint_20 %uchar_108 %uchar_101 %uchar_110 %uchar_103 %uchar_116 %uchar_104 %uchar_40 %uchar_120 %uchar_41 %uchar_32 %uchar_62 %uchar_32 %uchar_48 %uchar_32 %uchar_61 %uchar_32 %uchar_37 %uchar_100 %uchar_10 %uchar_0
+         %84 = OpVariable %_ptr_UniformConstant__arr_uchar_uint_20 UniformConstant %83
+   %uchar_66 = OpConstant %uchar 66
+   %uchar_97 = OpConstant %uchar 97
+  %uchar_114 = OpConstant %uchar 114
+         %88 = OpConstantComposite %_arr_uchar_uint_5 %uchar_66 %uchar_97 %uchar_114 %uchar_10 %uchar_0
+         %89 = OpVariable %_ptr_UniformConstant__arr_uchar_uint_5 UniformConstant %88
+   %uchar_69 = OpConstant %uchar 69
+   %uchar_82 = OpConstant %uchar 82
+   %uchar_79 = OpConstant %uchar 79
+   %uchar_58 = OpConstant %uchar 58
+  %uchar_117 = OpConstant %uchar 117
+   %uchar_45 = OpConstant %uchar 45
+  %uchar_111 = OpConstant %uchar 111
+  %uchar_102 = OpConstant %uchar 102
+   %uchar_98 = OpConstant %uchar 98
+  %uchar_115 = OpConstant %uchar 115
+   %uchar_99 = OpConstant %uchar 99
+   %uchar_46 = OpConstant %uchar 46
+        %102 = OpConstantComposite %_arr_uchar_uint_36 %uchar_69 %uchar_82 %uchar_82 %uchar_79 %uchar_82 %uchar_58 %uchar_32 %uchar_79 %uchar_117 %uchar_116 %uchar_45 %uchar_111 %uchar_102 %uchar_45 %uchar_98 %uchar_111 %uchar_117 %uchar_110 %uchar_100 %uchar_115 %uchar_32 %uchar_97 %uchar_114 %uchar_114 %uchar_97 %uchar_121 %uchar_32 %uchar_97 %uchar_99 %uchar_99 %uchar_101 %uchar_115 %uchar_115 %uchar_46 %uchar_10 %uchar_0
+        %103 = OpVariable %_ptr_UniformConstant__arr_uchar_uint_36 UniformConstant %102
+%_ptr_Function_uchar = OpTypePointer Function %uchar
+     %uint_1 = OpConstant %uint 1
+%_arr__ptr_Function_uchar_uint_1 = OpTypeArray %_ptr_Function_uchar %uint_1
+        %107 = OpUndef %_ptr_Function_uchar
+        %108 = OpConstantNull %_arr__ptr_Function_uchar_uint_1
+      %ulong = OpTypeInt 64 0
+%_arr_ulong_uint_1 = OpTypeArray %ulong %uint_1
+%_struct_111 = OpTypeStruct %_arr_ulong_uint_1
+%_ptr_Function__struct_111 = OpTypePointer Function %_struct_111
+%_ptr_CrossWorkgroup_uchar = OpTypePointer CrossWorkgroup %uchar
+%_struct_114 = OpTypeStruct %_ptr_CrossWorkgroup_uchar %ulong %_arr_ulong_uint_1 %ulong
+     %uint_2 = OpConstant %uint 2
+%_arr__arr_ulong_uint_1_uint_2 = OpTypeArray %_arr_ulong_uint_1 %uint_2
+%_struct_117 = OpTypeStruct %_struct_114 %_arr__arr_ulong_uint_1_uint_2
+%_struct_118 = OpTypeStruct %_struct_117
+%_struct_119 = OpTypeStruct %_struct_118
+%_ptr_Function__struct_119 = OpTypePointer Function %_struct_119
+%_ptr_Function__ptr_CrossWorkgroup_uchar = OpTypePointer Function %_ptr_CrossWorkgroup_uchar
+%_ptr_Function_ulong = OpTypePointer Function %ulong
+      %float = OpTypeFloat 32
+%_ptr_CrossWorkgroup_float = OpTypePointer CrossWorkgroup %float
+%_ptr_Function__arr_ulong_uint_1 = OpTypePointer Function %_arr_ulong_uint_1
+       %bool = OpTypeBool
+%_arr__struct_118_uint_1 = OpTypeArray %_struct_118 %uint_1
+%_ptr_Function__arr__struct_118_uint_1 = OpTypePointer Function %_arr__struct_118_uint_1
+    %ulong_1 = OpConstant %ulong 1
+        %130 = OpConstantNull %ulong
+   %ulong_48 = OpConstant %ulong 48
+%_ptr_Function__ptr_CrossWorkgroup_float = OpTypePointer Function %_ptr_CrossWorkgroup_float
+        %133 = OpTypeFunction %void %_ptr_Function__struct_111 %_ptr_Function__struct_119
+     %uint_0 = OpConstant %uint 0
+     %uint_3 = OpConstant %uint 3
+    %ulong_2 = OpConstant %ulong 2
+    %ulong_3 = OpConstant %ulong 3
+%ulong_18446744073709551615 = OpConstant %ulong 18446744073709551615
+%ulong_9223372036854775809 = OpConstant %ulong 9223372036854775809
+    %float_0 = OpConstant %float 0
+%uint_2147483647 = OpConstant %uint 2147483647
+%float_n0x1p_128 = OpConstant %float -0x1p+128
+    %ulong_4 = OpConstant %ulong 4
+      %false = OpConstantFalse %bool
+%ulong_18446744073709551612 = OpConstant %ulong 18446744073709551612
+%julia__throw_boundserror_17874 = OpFunction %void DontInline %59
+        %top = OpLabel
+        %147 = OpExtInst %uint %1 printf %103
+        %148 = OpFunctionCall %void %gpu_report_exception
+        %149 = OpFunctionCall %void %gpu_signal_exception
+               OpUnreachable
+               OpFunctionEnd
+%julia_DimensionMismatch_17864 = OpFunction %void None %59
+      %top_0 = OpLabel
+        %151 = OpCompositeInsert %_arr__ptr_Function_uchar_uint_1 %107 %108 0
+               OpReturn
+               OpFunctionEnd
+%gpu_report_exception = OpFunction %void None %59
+      %top_1 = OpLabel
+               OpReturn
+               OpFunctionEnd
+%gpu_signal_exception = OpFunction %void None %59
+      %top_2 = OpLabel
+               OpReturn
+               OpFunctionEnd
+%_Z6kernel5OneToI5Int64E11BroadcastedI12CLArrayStyleILi1E19UnifiedDeviceMemoryEv5tuple5TupleI13CLDeviceArrayI7Float32Li1ELi1EE9EachIndexIS0_Li1ES1_EEE = OpFunction %void None %133
+        %154 = OpFunctionParameter %_ptr_Function__struct_111
+        %155 = OpFunctionParameter %_ptr_Function__struct_119
+ %conversion = OpLabel
+          %y = OpVariable %_ptr_Function__arr__struct_118_uint_1 Function
+        %158 = OpVariable %_ptr_Function__arr_ulong_uint_1 Function
+        %159 = OpBitcast %_ptr_Function__ptr_CrossWorkgroup_uchar %y
+               OpCopyMemorySized %y %155 %ulong_48 Aligned 8
+        %160 = OpInBoundsPtrAccessChain %_ptr_Function_ulong %y %130 %130 %uint_0 %uint_0 %uint_3
+        %161 = OpInBoundsPtrAccessChain %_ptr_Function_ulong %y %130 %130 %uint_0 %uint_1 %130 %130
+        %162 = OpLoad %ulong %161 Aligned 8
+        %163 = OpLoad %ulong %160 Aligned 8
+        %164 = OpIEqual %bool %162 %163
+        %165 = OpIEqual %bool %163 %ulong_1
+    %or_cond = OpLogicalOr %bool %164 %165
+               OpBranchConditional %or_cond %L37 %L23
+        %L23 = OpLabel
+        %167 = OpIEqual %bool %162 %ulong_1
+               OpBranchConditional %167 %L37 %L26
+        %L26 = OpLabel
+        %168 = OpFunctionCall %void %julia_DimensionMismatch_17864
+        %169 = OpFunctionCall %void %gpu_report_exception
+        %170 = OpFunctionCall %void %gpu_signal_exception
+               OpUnreachable
+        %L37 = OpLabel
+ %value_phi1 = OpPhi %ulong %162 %conversion %163 %L23
+        %172 = OpExtInst %uint %1 printf %79 %value_phi1
+        %173 = OpBitcast %_ptr_Function_ulong %154
+        %174 = OpLoad %ulong %173 Aligned 8
+        %175 = OpSGreaterThan %bool %174 %130
+        %176 = OpSelect %uint %175 %uint_1 %uint_0
+        %177 = OpExtInst %uint %1 printf %84 %176
+               OpBranchConditional %175 %L46 %L204
+        %L46 = OpLabel
+        %178 = OpIEqual %bool %163 %ulong_1
+        %179 = OpExtInst %uint %1 printf %89
+        %180 = OpBitcast %_ptr_Function__ptr_CrossWorkgroup_float %159
+        %181 = OpLoad %_ptr_CrossWorkgroup_float %180 Aligned 8
+        %182 = OpBitcast %_ptr_CrossWorkgroup_uchar %181
+        %183 = OpBitcast %_ptr_CrossWorkgroup_uchar %181
+        %184 = OpInBoundsPtrAccessChain %_ptr_Function__arr_ulong_uint_1 %y %130 %130 %uint_0 %uint_1 %ulong_1
+        %185 = OpBitcast %_ptr_Function_ulong %184
+        %186 = OpLoad %ulong %185 Aligned 8
+               OpBranchConditional %178 %L46_split_us %L46_split
+  %L46_split = OpLabel
+        %187 = OpIEqual %bool %162 %ulong_1
+               OpBranchConditional %187 %L46_split_split_us %L46_split_split
+%L46_split_split = OpLabel
+        %188 = OpIAdd %ulong %186 %ulong_9223372036854775809
+    %smax113 = OpExtInst %ulong %1 s_max %188 %ulong_18446744073709551615
+        %190 = OpISub %ulong %186 %smax113
+%isnotneg_inv = OpSLessThan %bool %186 %130
+        %192 = OpExtInst %ulong %1 s_min %190 %ulong_3
+        %193 = OpExtInst %ulong %1 s_max %192 %ulong_1
+%exit_mainloop_at118 = OpSelect %ulong %isnotneg_inv %ulong_1 %193
+        %195 = OpUGreaterThan %bool %exit_mainloop_at118 %ulong_1
+               OpBranchConditional %195 %L176_preheader %main_pseudo_exit121
+%L176_preheader = OpLabel
+               OpBranch %L176
+       %L176 = OpLabel
+   %lsr_iv14 = OpPhi %_ptr_CrossWorkgroup_uchar %182 %L176_preheader %scevgep15 %L195
+   %lsr_iv12 = OpPhi %ulong %130 %L176_preheader %lsr_iv_next13 %L195
+%value_phi343 = OpPhi %float %value_phi3_ %L195 %float_n0x1p_128 %L176_preheader
+        %202 = OpBitcast %_ptr_CrossWorkgroup_float %lsr_iv14
+        %203 = OpLoad %float %202 Aligned 4
+        %204 = OpOrdered %bool %value_phi343 %float_0
+        %205 = OpOrdered %bool %203 %float_0
+ %or_cond147 = OpSelect %bool %204 %205 %false
+               OpBranchConditional %or_cond147 %L182 %L195
+       %L182 = OpLabel
+        %207 = OpBitcast %uint %value_phi343
+        %208 = OpBitwiseXor %uint %207 %uint_2147483647
+        %209 = OpSLessThan %bool %207 %uint_0
+        %210 = OpSelect %uint %209 %208 %207
+        %211 = OpBitcast %uint %203
+        %212 = OpBitwiseXor %uint %211 %uint_2147483647
+        %213 = OpSLessThan %bool %211 %uint_0
+        %214 = OpSelect %uint %213 %212 %211
+        %215 = OpSLessThan %bool %210 %214
+               OpBranch %L195
+       %L195 = OpLabel
+%value_phi6_in = OpPhi %bool %215 %L182 %204 %L176
+%value_phi3_ = OpSelect %float %value_phi6_in %203 %value_phi343
+%lsr_iv_next13 = OpIAdd %ulong %lsr_iv12 %ulong_1
+        %217 = OpIAdd %ulong %lsr_iv_next13 %ulong_1
+  %scevgep15 = OpPtrAccessChain %_ptr_CrossWorkgroup_uchar %lsr_iv14 %ulong_4
+    %_not136 = OpULessThan %bool %217 %exit_mainloop_at118
+               OpBranchConditional %_not136 %L176 %main_exit_selector120
+%main_exit_selector120 = OpLabel
+        %219 = OpULessThan %bool %lsr_iv_next13 %ulong_2
+               OpBranchConditional %219 %main_pseudo_exit121 %L204
+%main_pseudo_exit121 = OpLabel
+%value_phi343_copy = OpPhi %float %float_n0x1p_128 %L46_split_split %value_phi3_ %main_exit_selector120
+%value_phi242_copy = OpPhi %ulong %ulong_1 %L46_split_split %217 %main_exit_selector120
+        %222 = OpShiftLeftLogical %ulong %value_phi242_copy %ulong_2
+        %223 = OpIAdd %ulong %222 %ulong_18446744073709551612
+    %scevgep = OpPtrAccessChain %_ptr_CrossWorkgroup_uchar %183 %223
+        %225 = OpBitcast %_ptr_CrossWorkgroup_float %scevgep
+               OpBranch %L52_postloop
+%L52_postloop = OpLabel
+    %lsr_iv9 = OpPhi %_ptr_CrossWorkgroup_float %227 %L195_postloop %225 %main_pseudo_exit121
+%value_phi343_postloop = OpPhi %float %value_phi343_copy %main_pseudo_exit121 %value_phi3__postloop %L195_postloop
+%value_phi242_postloop = OpPhi %ulong %value_phi242_copy %main_pseudo_exit121 %231 %L195_postloop
+        %232 = OpBitcast %_ptr_CrossWorkgroup_uchar %lsr_iv9
+        %233 = OpIAdd %ulong %value_phi242_postloop %ulong_18446744073709551615
+        %234 = OpLoad %float %lsr_iv9 Aligned 4
+%_not39_postloop = OpULessThan %bool %233 %186
+               OpBranchConditional %_not39_postloop %L176_postloop %L165
+%L176_postloop = OpLabel
+        %236 = OpOrdered %bool %value_phi343_postloop %float_0
+        %237 = OpOrdered %bool %234 %float_0
+ %or_cond149 = OpSelect %bool %236 %237 %false
+               OpBranchConditional %or_cond149 %L182_postloop %L195_postloop
+%L182_postloop = OpLabel
+        %239 = OpBitcast %uint %value_phi343_postloop
+        %240 = OpBitwiseXor %uint %239 %uint_2147483647
+        %241 = OpSLessThan %bool %239 %uint_0
+        %242 = OpSelect %uint %241 %240 %239
+        %243 = OpBitcast %uint %234
+        %244 = OpBitwiseXor %uint %243 %uint_2147483647
+        %245 = OpSLessThan %bool %243 %uint_0
+        %246 = OpSelect %uint %245 %244 %243
+        %247 = OpSLessThan %bool %242 %246
+               OpBranch %L195_postloop
+%L195_postloop = OpLabel
+%value_phi6_in_postloop = OpPhi %bool %247 %L182_postloop %236 %L176_postloop
+%value_phi3__postloop = OpSelect %float %value_phi6_in_postloop %234 %value_phi343_postloop
+        %231 = OpIAdd %ulong %value_phi242_postloop %ulong_1
+        %249 = OpIAdd %ulong %231 %ulong_18446744073709551615
+  %scevgep10 = OpPtrAccessChain %_ptr_CrossWorkgroup_uchar %232 %ulong_4
+        %227 = OpBitcast %_ptr_CrossWorkgroup_float %scevgep10
+        %251 = OpSGreaterThan %bool %249 %ulong_1
+               OpBranchConditional %251 %L204 %L52_postloop
+%L46_split_split_us = OpLabel
+%_not39_us60_not = OpIEqual %bool %186 %130
+               OpBranchConditional %_not39_us60_not %L165 %L204
+%L46_split_us = OpLabel
+        %253 = OpIEqual %bool %162 %ulong_1
+        %254 = OpLoad %float %181 Aligned 4
+        %255 = OpBitcast %uint %254
+        %256 = OpSLessThan %bool %255 %uint_0
+               OpBranchConditional %253 %L46_split_us_split_us %L46_split_us_split
+%L46_split_us_split = OpLabel
+        %257 = OpOrdered %bool %254 %float_0
+        %258 = OpIAdd %ulong %186 %ulong_9223372036854775809
+       %smax = OpExtInst %ulong %1 s_max %258 %ulong_18446744073709551615
+        %260 = OpISub %ulong %186 %smax
+%isnotneg_inv140 = OpSLessThan %bool %186 %130
+        %262 = OpExtInst %ulong %1 s_min %260 %ulong_3
+        %263 = OpExtInst %ulong %1 s_max %262 %ulong_1
+%exit_mainloop_at = OpSelect %ulong %isnotneg_inv140 %ulong_1 %263
+               OpBranchConditional %257 %L46_split_us_split_split_us %L46_split_us_split_split
+%L46_split_us_split_split = OpLabel
+        %265 = OpUGreaterThan %bool %exit_mainloop_at %ulong_1
+               OpBranchConditional %265 %L176_us_preheader %main_pseudo_exit107
+%L176_us_preheader = OpLabel
+               OpBranch %L176_us
+    %L176_us = OpLabel
+    %lsr_iv7 = OpPhi %ulong %130 %L176_us_preheader %lsr_iv_next8 %L176_us
+%lsr_iv_next8 = OpIAdd %ulong %lsr_iv7 %ulong_1
+        %268 = OpIAdd %ulong %lsr_iv_next8 %ulong_1
+    %_not139 = OpULessThan %bool %268 %exit_mainloop_at
+               OpBranchConditional %_not139 %L176_us %main_exit_selector106
+%main_exit_selector106 = OpLabel
+        %270 = OpULessThan %bool %lsr_iv_next8 %ulong_2
+               OpBranchConditional %270 %main_pseudo_exit107 %L204
+%main_pseudo_exit107 = OpLabel
+%value_phi242_us_copy = OpPhi %ulong %ulong_1 %L46_split_us_split_split %268 %main_exit_selector106
+               OpBranch %L52_us_postloop
+%L52_us_postloop = OpLabel
+%value_phi242_us_postloop = OpPhi %ulong %value_phi242_us_copy %main_pseudo_exit107 %273 %L176_us_postloop
+        %274 = OpIAdd %ulong %value_phi242_us_postloop %ulong_18446744073709551615
+%_not39_us_postloop = OpULessThan %bool %274 %186
+               OpBranchConditional %_not39_us_postloop %L176_us_postloop %L165
+%L176_us_postloop = OpLabel
+        %273 = OpIAdd %ulong %value_phi242_us_postloop %ulong_1
+        %276 = OpIAdd %ulong %273 %ulong_18446744073709551615
+        %277 = OpSGreaterThan %bool %276 %ulong_1
+               OpBranchConditional %277 %L204 %L52_us_postloop
+%L46_split_us_split_split_us = OpLabel
+        %278 = OpBitwiseXor %uint %255 %uint_2147483647
+        %279 = OpSelect %uint %256 %278 %255
+        %280 = OpUGreaterThan %bool %exit_mainloop_at %ulong_1
+               OpBranchConditional %280 %L176_us_us75_preheader %main_pseudo_exit
+%L176_us_us75_preheader = OpLabel
+               OpBranch %L176_us_us75
+%L176_us_us75 = OpLabel
+     %lsr_iv = OpPhi %ulong %130 %L176_us_us75_preheader %lsr_iv_next %L195_us_us79_thread
+%value_phi343_us_us73 = OpPhi %float %284 %L195_us_us79_thread %float_n0x1p_128 %L176_us_us75_preheader
+        %285 = OpOrdered %bool %value_phi343_us_us73 %float_0
+               OpBranchConditional %285 %L195_us_us79 %L195_us_us79_thread
+%L195_us_us79 = OpLabel
+        %286 = OpBitcast %uint %value_phi343_us_us73
+        %287 = OpBitwiseXor %uint %286 %uint_2147483647
+        %288 = OpSLessThan %bool %286 %uint_0
+        %289 = OpSelect %uint %288 %287 %286
+        %290 = OpSLessThan %bool %289 %279
+%spec_select = OpSelect %float %290 %254 %value_phi343_us_us73
+               OpBranch %L195_us_us79_thread
+%L195_us_us79_thread = OpLabel
+        %284 = OpPhi %float %value_phi343_us_us73 %L176_us_us75 %spec_select %L195_us_us79
+%lsr_iv_next = OpIAdd %ulong %lsr_iv %ulong_1
+        %292 = OpIAdd %ulong %lsr_iv_next %ulong_1
+    %_not141 = OpULessThan %bool %292 %exit_mainloop_at
+               OpBranchConditional %_not141 %L176_us_us75 %main_exit_selector
+%main_exit_selector = OpLabel
+        %294 = OpULessThan %bool %lsr_iv_next %ulong_2
+               OpBranchConditional %294 %main_pseudo_exit %L204
+%main_pseudo_exit = OpLabel
+%value_phi343_us_us73_copy = OpPhi %float %float_n0x1p_128 %L46_split_us_split_split_us %284 %main_exit_selector
+%value_phi242_us_us74_copy = OpPhi %ulong %ulong_1 %L46_split_us_split_split_us %292 %main_exit_selector
+               OpBranch %L52_us_us72_postloop
+%L52_us_us72_postloop = OpLabel
+%value_phi343_us_us73_postloop = OpPhi %float %value_phi343_us_us73_copy %main_pseudo_exit %298 %L195_us_us79_postloop_thread
+%value_phi242_us_us74_postloop = OpPhi %ulong %value_phi242_us_us74_copy %main_pseudo_exit %300 %L195_us_us79_postloop_thread
+        %301 = OpIAdd %ulong %value_phi242_us_us74_postloop %ulong_18446744073709551615
+%_not39_us_us82_postloop = OpULessThan %bool %301 %186
+               OpBranchConditional %_not39_us_us82_postloop %L176_us_us75_postloop %L165
+%L176_us_us75_postloop = OpLabel
+        %303 = OpOrdered %bool %value_phi343_us_us73_postloop %float_0
+               OpBranchConditional %303 %L195_us_us79_postloop %L195_us_us79_postloop_thread
+%L195_us_us79_postloop = OpLabel
+        %304 = OpBitcast %uint %value_phi343_us_us73_postloop
+        %305 = OpBitwiseXor %uint %304 %uint_2147483647
+        %306 = OpSLessThan %bool %304 %uint_0
+        %307 = OpSelect %uint %306 %305 %304
+        %308 = OpSLessThan %bool %307 %279
+%spec_select148 = OpSelect %float %308 %254 %value_phi343_us_us73_postloop
+               OpBranch %L195_us_us79_postloop_thread
+%L195_us_us79_postloop_thread = OpLabel
+        %298 = OpPhi %float %value_phi343_us_us73_postloop %L176_us_us75_postloop %spec_select148 %L195_us_us79_postloop
+        %300 = OpIAdd %ulong %value_phi242_us_us74_postloop %ulong_1
+        %310 = OpIAdd %ulong %300 %ulong_18446744073709551615
+        %311 = OpSGreaterThan %bool %310 %ulong_1
+               OpBranchConditional %311 %L204 %L52_us_us72_postloop
+%L46_split_us_split_us = OpLabel
+%_not39_us_us_not = OpIEqual %bool %186 %130
+               OpBranchConditional %_not39_us_us_not %L165 %L204
+       %L204 = OpLabel
+               OpReturn
+       %L165 = OpLabel
+  %_us_phi46 = OpPhi %ulong %ulong_1 %L46_split_us_split_us %ulong_1 %L46_split_split_us %value_phi242_postloop %L52_postloop %value_phi242_us_postloop %L52_us_postloop %value_phi242_us_us74_postloop %L52_us_us72_postloop
+        %314 = OpBitcast %_ptr_Function_ulong %158
+               OpStore %314 %_us_phi46 Aligned 8
+        %315 = OpFunctionCall %void %julia__throw_boundserror_17874
+               OpUnreachable
+               OpFunctionEnd
