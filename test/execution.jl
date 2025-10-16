@@ -1,4 +1,5 @@
 using SPIRV_LLVM_Translator_jll
+using IOCapture
 
 @testset "execution" begin
 
