@@ -9,6 +9,10 @@ import Test
 do_platform, platform_filter = ParallelTestRunner.extract_flag!(ARGS, "--platform", nothing)
 
 test_transform = function(test, expr)
+    # some tests require native execution capabilities
+    requires_il = test in ["atomics", "execution", "intrinsics", "kernelabstractions", "statistics"] ||
+                  startswith(test, "gpuarrays/")
+
     # targets is a global variable that is defined in init_code
     return quote
         if isempty(targets)
@@ -32,15 +36,11 @@ test_transform = function(test, expr)
             end
         end
 
-        # some tests require native execution capabilities
-        requires_il = $(test) in ["atomics", "execution", "intrinsics", "kernelabstractions"] ||
-                      startswith($(test), "gpuarrays/")
-
         @testset "\$(device.name)" for (; platform, device) in targets
             cl.platform!(platform)
             cl.device!(device)
 
-            if !requires_il || "cl_khr_il_program" in device.extensions
+            if !$(requires_il) || "cl_khr_il_program" in device.extensions
                 $(expr)
             end
         end
