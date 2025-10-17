@@ -37,7 +37,7 @@ test_transform = function(test, expr)
             end
         end
 
-        @testset "\$(device.name)" for (; platform, device) in targets
+        @testset device.name for (; platform, device) in targets
             cl.platform!(platform)
             cl.device!(device)
 
