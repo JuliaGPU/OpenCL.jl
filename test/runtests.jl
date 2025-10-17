@@ -48,9 +48,18 @@ test_transform = function(test, expr)
     end
 end
 
+const testsuite = find_tests(pwd()) do path
+    expr = quote
+        include($path)
+    end
+    test_transform(path, expr)
+end
 
-# register custom tests that do not correspond to files in the test directory
-custom_tests = Dict{String, Expr}()
+if load_preference(OpenCL, "default_memory_backend") == "svm"
+    # GPUArrays' scalar indexing tests assume that indexing is not supported
+    delete!(testsuite, "gpuarrays/indexing scalar")
+    return false
+end
 
 # GPUArrays has a testsuite that isn't part of the main package.
 # Include it directly.
@@ -67,16 +76,7 @@ end
 
 for name in keys(GPUArraysTestSuite.tests)
     test = "gpuarrays/$name"
-    custom_tests[test] = test_transform(test, :(GPUArraysTestSuite.tests[$name](CLArray)))
-end
-
-function test_filter(test)
-    if load_preference(OpenCL, "default_memory_backend") == "svm" &&
-       test == "gpuarrays/indexing scalar"
-        # GPUArrays' scalar indexing tests assume that indexing is not supported
-        return false
-    end
-    return true
+    testsuite[test] = test_transform(test, :(GPUArraysTestSuite.tests[$name](CLArray)))
 end
 
 const init_code = quote
@@ -141,4 +141,4 @@ const init_code = quote
 end
 
 
-runtests(OpenCL, ARGS; custom_tests, test_filter, init_code, test_transform)
+runtests(OpenCL, ARGS; testsuite, init_code)
