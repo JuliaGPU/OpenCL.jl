@@ -101,28 +101,26 @@ end
     if T == Float64 && !("cl_khr_fp64" in cl.device().extensions)
         continue
     end
-    if "cl_ext_float_atomics" in cl.device().extensions
-        @eval function atomic_float_add(counter, val::$T)
-            @builtin_ccall(
-                "atomic_add", $T,
-                (LLVMPtr{$T, AS.CrossWorkgroup}, $T),
-                pointer(counter), val,
-            )
-            return
-        end
-
-        @testset "SPV_EXT_shader_atomic_float_add extension" begin
-            a = OpenCL.zeros(T)
-            @opencl global_size = 1000 extensions = ["SPV_EXT_shader_atomic_float_add"] atomic_float_add(a, one(T))
-            @test OpenCL.@allowscalar a[] == T(1000.0)
-
-            spv = sprint() do io
-                OpenCL.code_native(io, atomic_float_add, Tuple{CLDeviceArray{T, 0, 1}, T}; extensions = ["SPV_EXT_shader_atomic_float_add"])
-            end
-            @test occursin("OpExtension \"SPV_EXT_shader_atomic_float_add\"", spv)
-            @test occursin("OpAtomicFAddEXT", spv)
-        end
+if "cl_ext_float_atomics" in cl.device().extensions
+    @eval function atomic_float_add(counter, val::$T)
+        @builtin_ccall(
+            "atomic_add", $T,
+            (LLVMPtr{$T, AS.CrossWorkgroup}, $T),
+            pointer(counter), val,
+        )
+        return
     end
 
+    @testset "SPV_EXT_shader_atomic_float_add extension" begin
+        a = OpenCL.zeros(T)
+        @opencl global_size = 1000 extensions = ["SPV_EXT_shader_atomic_float_add"] atomic_float_add(a, one(T))
+        @test OpenCL.@allowscalar a[] == T(1000.0)
+
+        spv = sprint() do io
+            OpenCL.code_native(io, atomic_float_add, Tuple{CLDeviceArray{T, 0, 1}, T}; extensions = ["SPV_EXT_shader_atomic_float_add"])
+        end
+        @test occursin("OpExtension \"SPV_EXT_shader_atomic_float_add\"", spv)
+        @test occursin("OpAtomicFAddEXT", spv)
+    end
 end
 end
