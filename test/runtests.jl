@@ -8,10 +8,35 @@ import Test
 ## --platform selector
 do_platform, platform_filter = ParallelTestRunner.extract_flag!(ARGS, "--platform", nothing)
 
-test_transform = function(test, expr)
+# determine tests to run
+const testsuite = find_tests(pwd())
+## GPUArrays test suite: not part of the main package
+const GPUArraysTestSuite = let
+    mod = @eval module $(gensym())
+        using ..Test
+        import GPUArrays
+        gpuarrays = pathof(GPUArrays)
+        gpuarrays_root = dirname(dirname(gpuarrays))
+        include(joinpath(gpuarrays_root, "test", "testsuite.jl"))
+    end
+    mod.TestSuite
+end
+for name in keys(GPUArraysTestSuite.tests)
+    test = "gpuarrays/$name"
+    testsuite[test] = :(GPUArraysTestSuite.tests[$name](CLArray))
+end
+## filter
+if load_preference(OpenCL, "default_memory_backend") == "svm"
+    # GPUArrays' scalar indexing tests assume that indexing is not supported
+    delete!(testsuite, "gpuarrays/indexing scalar")
+    return false
+end
+
+# wrap tests in device loops
+function generate_test(test, expr)
     # some tests require native execution capabilities
-    requires_il = test in ["atomics", "execution", "intrinsics", "kernelabstractions", "statistics",
-                           "linalg", ] ||
+    requires_il = test in ["atomics", "execution", "intrinsics", "kernelabstractions",
+                           "statistics", "linalg", ] ||
                   startswith(test, "gpuarrays/")
 
     # targets is a global variable that is defined in init_code
@@ -37,7 +62,7 @@ test_transform = function(test, expr)
             end
         end
 
-        @testset device.name for (; platform, device) in targets
+        @testset "$(device.name)" for (; platform, device) in targets
             cl.platform!(platform)
             cl.device!(device)
 
@@ -47,36 +72,8 @@ test_transform = function(test, expr)
         end
     end
 end
-
-const testsuite = find_tests(pwd()) do path
-    expr = quote
-        include($path)
-    end
-    test_transform(path, expr)
-end
-
-if load_preference(OpenCL, "default_memory_backend") == "svm"
-    # GPUArrays' scalar indexing tests assume that indexing is not supported
-    delete!(testsuite, "gpuarrays/indexing scalar")
-    return false
-end
-
-# GPUArrays has a testsuite that isn't part of the main package.
-# Include it directly.
-const GPUArraysTestSuite = let
-    mod = @eval module $(gensym())
-        using ..Test
-        import GPUArrays
-        gpuarrays = pathof(GPUArrays)
-        gpuarrays_root = dirname(dirname(gpuarrays))
-        include(joinpath(gpuarrays_root, "test", "testsuite.jl"))
-    end
-    mod.TestSuite
-end
-
-for name in keys(GPUArraysTestSuite.tests)
-    test = "gpuarrays/$name"
-    testsuite[test] = test_transform(test, :(GPUArraysTestSuite.tests[$name](CLArray)))
+for test in keys(testsuite)
+    testsuite[test] = generate_test(test, testsuite[test])
 end
 
 const init_code = quote
