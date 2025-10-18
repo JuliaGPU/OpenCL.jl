@@ -12,8 +12,6 @@ end
 const float_types = filter(x -> x <: Base.IEEEFloat, GPUArraysTestSuite.supported_eltypes(CLArray))
 const ispocl = cl.platform().name == "Portable Computing Language"
 
-@testset "intrinsics" begin
-
 @testset "barrier" begin
 
 @on_device barrier(OpenCL.LOCAL_MEM_FENCE)
@@ -160,8 +158,6 @@ end
     y = rand(T)
     z = rand(T)
     @test call_on_device(OpenCL.mad, x, y, z) ≈ x * y + z
-end
-
 end
 
 end
