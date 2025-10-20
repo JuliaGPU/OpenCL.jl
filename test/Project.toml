@@ -23,4 +23,4 @@ Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 pocl_jll = "627d6b7a-bbe6-5189-83e7-98cc0a5aeadd"
 
 [compat]
-pocl_jll = "~7.0"
+pocl_jll = "7.0"
