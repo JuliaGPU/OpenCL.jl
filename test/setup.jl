@@ -39,10 +39,10 @@ function GPUArraysTestSuite.supported_eltypes(::Type{<:CLArray})
             push!(types, Float64)
             push!(types, ComplexF64)
         end
-        # if "cl_khr_fp16" in cl.device().extensions
-        #     push!(types, Float16)
-        #     push!(types, ComplexF16)
-        # end
+        if "cl_khr_fp16" in cl.device().extensions && !contains(cl.platform().version, "7.1")
+            push!(types, Float16)
+            push!(types, ComplexF16)
+        end
         return types
     end
 end
