@@ -5,8 +5,8 @@ import Test
 
 @info "System information:\n" * sprint(io->OpenCL.versioninfo(io))
 
-## --platform selector
-do_platform, platform_filter = ParallelTestRunner.extract_flag!(ARGS, "--platform", nothing)
+## custom arguments
+args = parse_args(ARGS; custom=["platform"])
 
 # determine tests to run
 const testsuite = find_tests(pwd())
@@ -26,10 +26,12 @@ for name in keys(GPUArraysTestSuite.tests)
     testsuite[test] = :(GPUArraysTestSuite.tests[$name](CLArray))
 end
 ## filter
-if load_preference(OpenCL, "default_memory_backend") == "svm"
-    # GPUArrays' scalar indexing tests assume that indexing is not supported
-    delete!(testsuite, "gpuarrays/indexing scalar")
-    return false
+if filter_tests!(testsuite, args)
+    if load_preference(OpenCL, "default_memory_backend") == "svm"
+        # GPUArrays' scalar indexing tests assume that indexing is not supported
+        delete!(testsuite, "gpuarrays/indexing scalar")
+        return false
+    end
 end
 
 # wrap tests in device loops
@@ -42,22 +44,23 @@ function generate_test(test, expr)
     # targets is a global variable that is defined in init_code
     return quote
         if isempty(targets)
+            platform_filter = $(args.custom["platform"])
             for platform in cl.platforms(),
                 device in cl.devices(platform)
-                if $(platform_filter) !== nothing
+                if platform_filter !== nothing
                     # filter on the name or vendor
                     names = lowercase.([platform.name, platform.vendor])
-                    if !any(contains($(platform_filter)), names)
+                    if !any(contains(platform_filter.value), names)
                         continue
                     end
                 end
                 push!(targets, (; platform, device))
             end
             if isempty(targets)
-                if $(platform_filter) === nothing
+                if platform_filter !== nothing
                     throw(ArgumentError("No OpenCL platforms found"))
                 else
-                    throw(ArgumentError("No OpenCL platforms found matching $($(platform_filter))"))
+                    throw(ArgumentError("No OpenCL platforms found matching $(platform_filter.value)"))
                 end
             end
         end
@@ -138,4 +141,4 @@ const init_code = quote
 end
 
 
-runtests(OpenCL, ARGS; testsuite, init_code)
+runtests(OpenCL, args; testsuite, init_code)
