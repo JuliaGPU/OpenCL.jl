@@ -140,5 +140,13 @@ const init_code = quote
     end
 end
 
+# avoid handle exhaustion on Windows by running each test in a separate process (pocl/pocl#1941)
+function test_worker(test)
+    if Sys.iswindows()
+        addworker()
+    else
+        nothing
+    end
+end
 
-runtests(OpenCL, args; testsuite, init_code)
+runtests(OpenCL, args; testsuite, init_code, test_worker)
