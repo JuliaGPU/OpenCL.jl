@@ -28,7 +28,7 @@ function GPUCompiler.finish_module!(@nospecialize(job::OpenCLCompilerJob),
 
     # if this kernel uses our RNG, we should prime the shared state.
     # XXX: these transformations should really happen at the Julia IR level...
-    if haskey(functions(mod), "julia.spirv.random_keys") && job.config.kernel
+    if haskey(functions(mod), "julia.opencl.random_keys") && job.config.kernel
         # insert call to `initialize_rng_state`
         f = initialize_rng_state
         ft = typeof(f)
@@ -88,8 +88,8 @@ end
 function GPUCompiler.finish_linked_module!(@nospecialize(job::OpenCLCompilerJob), mod::LLVM.Module)
     for f in GPUCompiler.kernels(mod)
         kernel_intrinsics = Dict(
-            "julia.spirv.random_keys" => (; name = "random_keys", typ = LLVMPtr{UInt32, AS.Workgroup}),
-            "julia.spirv.random_counters" => (; name = "random_counters", typ = LLVMPtr{UInt32, AS.Workgroup}),
+            "julia.opencl.random_keys" => (; name = "random_keys", typ = LLVMPtr{UInt32, AS.Workgroup}),
+            "julia.opencl.random_counters" => (; name = "random_counters", typ = LLVMPtr{UInt32, AS.Workgroup}),
         )
         GPUCompiler.add_input_arguments!(job, mod, f, kernel_intrinsics)
     end

@@ -21,11 +21,19 @@ end
 
 @inline @generated kernel_state() = GPUCompiler.kernel_state_value(KernelState)
 
+## intrinsics for adding and accessing additional kernel arguments
+
+# The amount of local shared memory we need for storing RNG state is determined
+# dynamically at kernel launch time, so needs to be passed as additional arguments
+# to the kernel.
+# We define intrinsics that get transformed into additional kernel arguments which
+# then get propagated across function calls to the caller.
+
 function additional_arg_intr(mod::LLVM.Module, T_state, name)
-    state_intr = if haskey(functions(mod), "julia.spirv.$name")
-        functions(mod)["julia.spirv.$name"]
+    state_intr = if haskey(functions(mod), "julia.opencl.$name")
+        functions(mod)["julia.opencl.$name"]
     else
-        LLVM.Function(mod, "julia.spirv.$name", LLVM.FunctionType(T_state))
+        LLVM.Function(mod, "julia.opencl.$name", LLVM.FunctionType(T_state))
     end
     push!(function_attributes(state_intr), EnumAttribute("readnone", 0))
 

@@ -158,7 +158,7 @@ end
 
 function enqueue_kernel(k::Kernel, global_work_size, local_work_size=nothing;
                         global_work_offset=nothing, wait_on::Vector{Event}=Event[],
-                        device_rng=false)
+                        rng_state=false)
     max_work_dim = device().max_work_item_dims
     work_dim     = length(global_work_size)
     if work_dim > max_work_dim
@@ -201,7 +201,7 @@ function enqueue_kernel(k::Kernel, global_work_size, local_work_size=nothing;
         # null local size means OpenCL decides
     end
 
-    if device_rng
+    if rng_state
         if local_work_size !== nothing
             num_sub_groups = KernelSubGroupInfo(k, device(), lsize).sub_group_count
         else
@@ -249,7 +249,7 @@ function call(
         k::Kernel, args...; global_size = (1,), local_size = nothing,
         global_work_offset = nothing, wait_on::Vector{Event} = Event[],
         indirect_memory::Vector{AbstractMemory} = AbstractMemory[],
-        device_rng=false,
+        rng_state=false,
     )
     set_args!(k, args...)
     if !isempty(indirect_memory)
@@ -303,7 +303,7 @@ function call(
             clSetKernelExecInfo(k, CL_KERNEL_EXEC_INFO_USM_PTRS_INTEL, sizeof(usm_pointers), usm_pointers)
         end
     end
-    enqueue_kernel(k, global_size, local_size; global_work_offset, wait_on, device_rng)
+    enqueue_kernel(k, global_size, local_size; global_work_offset, wait_on, rng_state)
 end
 
 # From `julia/base/reflection.jl`, adjusted to add specialization on `t`.

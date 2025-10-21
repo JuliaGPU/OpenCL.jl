@@ -159,8 +159,7 @@ abstract type AbstractKernel{F, TT} end
 
     quote
         indirect_memory = cl.AbstractMemory[]
-        device_rng = kernel.fun.num_args == $(length(call_args) + 2)
-        clcall(kernel.fun, $call_tt, $(call_args...); indirect_memory, device_rng, call_kwargs...)
+        clcall(kernel.fun, $call_tt, $(call_args...); indirect_memory, kernel.rng_state, call_kwargs...)
     end
 end
 
@@ -171,6 +170,7 @@ end
 struct HostKernel{F,TT} <: AbstractKernel{F,TT}
     f::F
     fun::cl.Kernel
+    rng_state::Bool
 end
 
 
@@ -194,8 +194,10 @@ function clfunction(f::F, tt::TT=Tuple{}; kwargs...) where {F,TT}
         h = hash(fun, hash(f, hash(tt)))
         kernel = get(_kernel_instances, h, nothing)
         if kernel === nothing
+            # TODO: move the `rng_state` check into `OpenCL.compile` so we avoid the API call?
+            rng_state = fun.num_args == length(tt.parameters) + 2
             # create the kernel state object
-            kernel = HostKernel{F,tt}(f, fun)
+            kernel = HostKernel{F,tt}(f, fun, rng_state)
             _kernel_instances[h] = kernel
         end
         return kernel::HostKernel{F,tt}
