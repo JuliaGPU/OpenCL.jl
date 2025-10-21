@@ -158,7 +158,7 @@ end
 
 function enqueue_kernel(k::Kernel, global_work_size, local_work_size=nothing;
                         global_work_offset=nothing, wait_on::Vector{Event}=Event[],
-                        rng_state=false)
+                        rng_state=false, nargs=nothing)
     max_work_dim = device().max_work_item_dims
     work_dim     = length(global_work_size)
     if work_dim > max_work_dim
@@ -207,9 +207,12 @@ function enqueue_kernel(k::Kernel, global_work_size, local_work_size=nothing;
         else
             num_sub_groups = KernelSubGroupInfo(k, device(), Csize_t[]).max_num_sub_groups
         end
+        if nargs === nothing
+            nargs = k.num_args - 2
+        end
         rng_state_size = sizeof(UInt32) * num_sub_groups
-        set_arg!(k, k.num_args - 1, LocalMem(UInt32, rng_state_size))
-        set_arg!(k, k.num_args, LocalMem(UInt32, rng_state_size))
+        set_arg!(k, nargs + 1, LocalMem(UInt32, rng_state_size))
+        set_arg!(k, nargs + 2, LocalMem(UInt32, rng_state_size))
     end
 
     if !isempty(wait_on)
@@ -303,7 +306,7 @@ function call(
             clSetKernelExecInfo(k, CL_KERNEL_EXEC_INFO_USM_PTRS_INTEL, sizeof(usm_pointers), usm_pointers)
         end
     end
-    enqueue_kernel(k, global_size, local_size; global_work_offset, wait_on, rng_state)
+    enqueue_kernel(k, global_size, local_size; global_work_offset, wait_on, rng_state, nargs=length(args))
 end
 
 # From `julia/base/reflection.jl`, adjusted to add specialization on `t`.

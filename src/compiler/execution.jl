@@ -132,14 +132,15 @@ kernel_convert(arg, indirect_memory::Vector{cl.AbstractMemory} = cl.AbstractMemo
 
 abstract type AbstractKernel{F, TT} end
 
+pass_arg(@nospecialize dt) = !(isghosttype(dt) || Core.Compiler.isconstType(dt))
+
 @inline @generated function (kernel::AbstractKernel{F,TT})(args...;
                                                            call_kwargs...) where {F,TT}
     sig = Tuple{F, TT.parameters...}    # Base.signature_type with a function type
     args = (:(kernel.f), (:(kernel_convert(args[$i], indirect_memory)) for i in 1:length(args))...)
 
     # filter out ghost arguments that shouldn't be passed
-    predicate = dt -> isghosttype(dt) || Core.Compiler.isconstType(dt)
-    to_pass = map(!predicate, sig.parameters)
+    to_pass = map(pass_arg, sig.parameters)
     call_t =                  Type[x[1] for x in zip(sig.parameters,  to_pass) if x[2]]
     call_args = Union{Expr,Symbol}[x[1] for x in zip(args, to_pass)            if x[2]]
 
@@ -152,7 +153,7 @@ abstract type AbstractKernel{F, TT} end
     end
 
     pushfirst!(call_t, KernelState)
-    pushfirst!(call_args, :(KernelState(Base.rand(UInt32))))
+    pushfirst!(call_args, :(KernelState(kernel.rng_state ? Base.rand(UInt32) : UInt32(0))))
 
     # finalize types
     call_tt = Base.to_tuple_type(call_t)
@@ -195,7 +196,7 @@ function clfunction(f::F, tt::TT=Tuple{}; kwargs...) where {F,TT}
         kernel = get(_kernel_instances, h, nothing)
         if kernel === nothing
             # TODO: move the `rng_state` check into `OpenCL.compile` so we avoid the API call?
-            rng_state = fun.num_args == length(tt.parameters) + 2
+            rng_state = fun.num_args == count(pass_arg, tt.parameters) + 3
             # create the kernel state object
             kernel = HostKernel{F,tt}(f, fun, rng_state)
             _kernel_instances[h] = kernel
