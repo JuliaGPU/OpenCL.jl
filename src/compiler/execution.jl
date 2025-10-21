@@ -188,17 +188,15 @@ function clfunction(f::F, tt::TT=Tuple{}; kwargs...) where {F,TT}
         cache = compiler_cache(ctx)
         source = methodinstance(F, tt)
         config = compiler_config(dev; kwargs...)::OpenCLCompilerConfig
-        fun = GPUCompiler.cached_compilation(cache, source, config, compile, link)
+        linked = GPUCompiler.cached_compilation(cache, source, config, compile, link)
 
         # create a callable object that captures the function instance. we don't need to think
         # about world age here, as GPUCompiler already does and will return a different object
-        h = hash(fun, hash(f, hash(tt)))
+        h = hash(linked.kernel, hash(f, hash(tt)))
         kernel = get(_kernel_instances, h, nothing)
         if kernel === nothing
-            # TODO: move the `rng_state` check into `OpenCL.compile` so we avoid the API call?
-            rng_state = fun.num_args == count(pass_arg, tt.parameters) + 3
             # create the kernel state object
-            kernel = HostKernel{F,tt}(f, fun, rng_state)
+            kernel = HostKernel{F,tt}(f, linked.kernel, linked.device_rng)
             _kernel_instances[h] = kernel
         end
         return kernel::HostKernel{F,tt}

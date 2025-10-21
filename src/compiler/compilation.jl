@@ -77,6 +77,9 @@ function GPUCompiler.finish_module!(@nospecialize(job::OpenCLCompilerJob),
             fptr = inttoptr!(builder, fptr, LLVM.PointerType(llvm_ft))
             call!(builder, llvm_ft, fptr)
             br!(builder, top_bb)
+
+            # note the use of the device-side RNG in this kernel
+            push!(function_attributes(entry), StringAttribute("julia.opencl.rng", ""))
         end
 
         # XXX: put some of the above behind GPUCompiler abstractions
@@ -134,13 +137,17 @@ end
 # compile to executable machine code
 const compilations = Threads.Atomic{Int}(0)
 function compile(@nospecialize(job::CompilerJob))
-    # TODO: this creates a context; cache those.
-    obj, meta = JuliaContext() do ctx
-        GPUCompiler.compile(:obj, job)
-    end
     compilations[] += 1
 
-    (obj, entry=LLVM.name(meta.entry))
+    # TODO: this creates a context; cache those.
+    obj, meta = JuliaContext() do ctx
+        obj, meta = GPUCompiler.compile(:obj, job)
+
+        entry = LLVM.name(meta.entry)
+        device_rng = StringAttribute("julia.opencl.rng", "") in collect(function_attributes(meta.entry))
+
+        (; obj, entry, device_rng)
+    end
 end
 
 # link into an executable kernel
@@ -159,5 +166,5 @@ function link(@nospecialize(job::CompilerJob), compiled)
         cl.Program(; source)
     end
     cl.build!(prog)
-    cl.Kernel(prog, compiled.entry)
+    (; kernel=cl.Kernel(prog, compiled.entry), compiled.device_rng)
 end
