@@ -109,7 +109,13 @@ end
     end
 end
 
-@testset "basic randexp($T), seed $seed" for T in filter(x -> x <: Base.IEEEFloat, eltypes), seed in (nothing, #=missing,=# 1234)
+randexp_eltypes = filter(x -> x <: Base.IEEEFloat, eltypes)
+if cl.platform().name == "Portable Computing Language"
+    # POCL doesn't support log1p for Float16
+    filter!(x -> x != Float16, randexp_eltypes)
+end
+
+@testset "basic randexp($T), seed $seed" for T in randexp_eltypes, seed in (nothing, #=missing,=# 1234)
     function kernel(A::AbstractArray{T}, seed) where {T}
         apply_seed(seed)
         tid = get_global_id(1)
