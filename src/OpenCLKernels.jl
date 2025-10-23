@@ -19,13 +19,20 @@ end
 
 function KA.allocate(::OpenCLBackend, ::Type{T}, dims::Tuple; unified::Bool = false) where T
     if unified
-        return CLArray{T, length(dims), cl.UnifiedSharedMemory}(undef, dims)
+        memory_backend = cl.unified_memory_backend()
+        if memory_backend === cl.USMBackend()
+            return CLArray{T, length(dims), cl.UnifiedSharedMemory}(undef, dims)
+        elseif memory_backend === cl.SVMBackend()
+            return CLArray{T, length(dims), cl.SharedVirtualMemory}(undef, dims)
+        else
+            throw(ArgumentError("Unified memory not supported"))
+        end
     else
         return CLArray{T}(undef, dims)
     end
 end
 
-KA.supports_unified(::OpenCLBackend) = cl.usm_supported(cl.device())
+KA.supports_unified(::OpenCLBackend) = cl.default_memory_backend(cl.device(); unified=true) !== nothing
 
 KA.get_backend(::CLArray) = OpenCLBackend()
 # TODO should be non-blocking
