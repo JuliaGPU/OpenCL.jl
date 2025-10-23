@@ -28,7 +28,7 @@ steps:
       - label: "{{matrix.julia}} macos {{matrix.arch}}"
         plugins:
           - JuliaCI/julia#v1:
-              version: {{matrix.julia}}
+              version: "{{matrix.julia}}"
           - JuliaCI/julia-coverage#v1:
               codecov: true
         commands: |
