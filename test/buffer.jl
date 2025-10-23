@@ -74,7 +74,7 @@
     end
 end
 
-if cl.memory_backend() isa cl.SVMBackend
+if cl.SVMBackend() in cl.supported_memory_backends(cl.device())
 @testset "SVM Buffer" begin
     # simple buffer
     let buf = cl.svm_alloc(sizeof(Int))
