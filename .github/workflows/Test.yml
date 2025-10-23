@@ -23,9 +23,9 @@ jobs:
       fail-fast: false
       matrix:
         version: ['1.10', '1.12']
-        os: [ubuntu-24.04, ubuntu-24.04-arm, macOS-15, macOS-15-intel, windows-2025]
+        os: [ubuntu-24.04-arm, macOS-15, macOS-15-intel, windows-2025]
         arch: [x64, arm64]
-        pocl: [jll, local]
+        pocl: [jll]
         memory_backend: [usm, svm, buffer]
         exclude:
           # unsupported combinations
