@@ -47,7 +47,7 @@ steps:
         agents:
           queue: "juliaecosystem"
           os: "macos"
-          arch: {{matrix.arch}}
+          arch: "{{matrix.arch}}"
         if: build.message !~ /\[skip tests\]/
         timeout_in_minutes: 120
         matrix:
