@@ -25,36 +25,36 @@ steps:
   - group: "macos"
     key: "julia"
     steps:
-    - label: "{{matrix.julia}} macos {{matrix.arch}}"
-      plugins:
-        - JuliaCI/julia#v1:
-            version: {{matrix.julia}}
-        - JuliaCI/julia-coverage#v1:
-            codecov: true
-      commands: |
-        julia --project -e '
-          using Pkg
+      - label: "{{matrix.julia}} macos {{matrix.arch}}"
+        plugins:
+          - JuliaCI/julia#v1:
+              version: {{matrix.julia}}
+          - JuliaCI/julia-coverage#v1:
+              codecov: true
+        commands: |
+          julia --project -e '
+            using Pkg
 
-          println("--- :julia: Instantiating project")
-          Pkg.add("pocl_jll")
-          Pkg.add("InteractiveUtils")
-          Pkg.develop(path="lib/intrinsics")
+            println("--- :julia: Instantiating project")
+            Pkg.add("pocl_jll")
+            Pkg.add("InteractiveUtils")
+            Pkg.develop(path="lib/intrinsics")
 
-          println("+++ :julia: Running tests")
-          using InteractiveUtils
-          InteractiveUtils.versioninfo()
-          Pkg.test(; coverage=true, test_args=`--platform=pocl --verbose --jobs=2`)'
-      agents:
-        queue: "juliaecosystem"
-        os: "macos"
-        arch: {{matrix.arch}}
-      if: build.message !~ /\[skip tests\]/
-      timeout_in_minutes: 120
-      matrix:
-        setup:
-          julia:
-            - "1.10"
-            - "1.12"
-          arch:
-            - "x86_64"
-            - "aarch64"
+            println("+++ :julia: Running tests")
+            using InteractiveUtils
+            InteractiveUtils.versioninfo()
+            Pkg.test(; coverage=true, test_args=`--platform=pocl --verbose --jobs=2`)'
+        agents:
+          queue: "juliaecosystem"
+          os: "macos"
+          arch: {{matrix.arch}}
+        if: build.message !~ /\[skip tests\]/
+        timeout_in_minutes: 120
+        matrix:
+          setup:
+            julia:
+              - "1.10"
+              - "1.12"
+            arch:
+              - "x86_64"
+              - "aarch64"
