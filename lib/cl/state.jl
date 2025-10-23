@@ -9,6 +9,7 @@ function clear_task_local_storage!()
     delete!(task_local_storage(), :CLPlatform)
     delete!(task_local_storage(), :CLQueue)
     delete!(task_local_storage(), :CLMemoryBackend)
+    delete!(task_local_storage(), :CLUnifiedMemoryBackend)
 end
 
 
@@ -163,7 +164,7 @@ struct SVMBackend <: AbstractMemoryBackend end
 struct USMBackend <: AbstractMemoryBackend end
 struct BufferBackend <: AbstractMemoryBackend end
 
-function supported_memory_backends(dev::Device)
+function supported_memory_backends(dev::Device; unified=false)
     backends = AbstractMemoryBackend[]
 
     # unified shared memory is the first choice, as it gives us separate host and device
@@ -177,7 +178,7 @@ function supported_memory_backends(dev::Device)
 
     # plain old buffers are always supported, but we only want to use them if we have the
     # buffer device address extension, which allows us to reference them by raw pointers.
-    if bda_supported(dev)
+    if !unified && bda_supported(dev)
         push!(backends, BufferBackend())
     end
 
@@ -187,7 +188,7 @@ function supported_memory_backends(dev::Device)
         push!(backends, SVMBackend())
     end
 
-    if isempty(backends)
+    if !unified && isempty(backends)
         # as a last resort, use plain buffers without the ability to reference by pointer.
         # this severely limits compatibility, but it's better than nothing.
         push!(backends, BufferBackend())
@@ -196,8 +197,9 @@ function supported_memory_backends(dev::Device)
     return backends
 end
 
-function default_memory_backend(dev::Device)
-    supported_backends = supported_memory_backends(dev)
+function default_memory_backend(dev::Device; unified=false)
+    supported_backends = supported_memory_backends(dev; unified)
+    isempty(supported_backends) && return nothing
 
     backend_str = load_preference(OpenCL, "default_memory_backend")
     backend_str === nothing && return first(supported_backends)
@@ -211,8 +213,7 @@ function default_memory_backend(dev::Device)
     else
         error("Unknown memory backend '$backend_str' requested")
     end
-    in(backend, supported_backends) ? backend : nothing
-    backend
+    return in(backend, supported_backends) ? backend : nothing
 end
 
 function memory_backend()
@@ -225,6 +226,17 @@ function memory_backend()
         if backend === BufferBackend() && !bda_supported(dev)
             @warn """Your device $(dev.name) does not support the necessary extensions for OpenCL.jl's memory management (requiring either USM, coarse-grained SVM, or BDA).
                      Falling back to plain OpenCL buffers, which severely limits compatibility with other OpenCL.jl, only supporting OpenCL C kernels.""" maxlog=1 _id="memory_backend_$(dev.name)"
+        end
+        backend
+    end
+end
+
+function unified_memory_backend()
+    return get!(task_local_storage(), :CLUnifiedMemoryBackend) do
+        dev = device()
+        backend = default_memory_backend(dev; unified=true)
+        if backend === nothing
+            error("Device $(dev) does not support any of the available unified memory backends")
         end
         backend
     end
