@@ -49,13 +49,13 @@ jobs:
             pocl: local
           # Remove these exclusions once macOS CI hangs are fixed
           - os: macOS-15-intel
-            memory-backend: svm
+            memory_backend: svm
           - os: macOS-15-intel
-            memory-backend: buffer
+            memory_backend: buffer
           - os: macOS-15
-            memory-backend: svm
+            memory_backend: svm
           - os: macOS-15
-            memory-backend: buffer
+            memory_backend: buffer
     steps:
       - name: Checkout OpenCL.jl
         uses: actions/checkout@v5
