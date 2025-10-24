@@ -47,6 +47,15 @@ jobs:
             pocl: local
           - os: windows-2025
             pocl: local
+          # Remove these exclusions once macOS CI hangs are fixed
+          - os: macOS-15-intel
+            memory-backend: svm
+          - os: macOS-15-intel
+            memory-backend: buffer
+          - os: macOS-15
+            memory-backend: svm
+          - os: macOS-15
+            memory-backend: buffer
     steps:
       - name: Checkout OpenCL.jl
         uses: actions/checkout@v5
