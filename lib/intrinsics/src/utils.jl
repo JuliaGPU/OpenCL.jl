@@ -34,31 +34,7 @@ macro builtin_ccall(name, ret, argtypes, args...)
             "d"
         elseif T <: LLVMPtr
             elt, as = T.parameters
-
-            # mangle address space
-            ASstr = if as == AS.CrossWorkgroup
-                "CLglobal"
-            #elseif as == AS.Global_device
-            #    "CLdevice"
-            #elseif as == AS.Global_host
-            #    "CLhost"
-            elseif as == AS.Workgroup
-                "CLlocal"
-            elseif as == AS.UniformConstant
-                "CLconstant"
-            elseif as == AS.Function
-                "CLprivate"
-            elseif as == AS.Generic
-                "CLgeneric"
-            else
-                error("Unknown address space $as")
-            end
-
-            # encode as vendor qualifier
-            ASstr = "U" * string(length(ASstr)) * ASstr
-
-            # XXX: where does the V come from?
-            "P" * ASstr * "V" * mangle(elt)
+            (as == AS.Private ? "P" : "PU3AS$as") * "V" * mangle(elt)
         else
             error("Unknown type $T")
         end
