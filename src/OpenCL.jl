@@ -31,6 +31,7 @@ include("array.jl")
 
 # compiler implementation
 include("compiler/compilation.jl")
+include("compiler/exceptions.jl")
 include("compiler/execution.jl")
 include("compiler/reflection.jl")
 
