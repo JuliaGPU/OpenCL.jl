@@ -106,11 +106,59 @@ function Base.getproperty(ki::KernelWorkGroupInfo, s::Symbol)
     end
 end
 
+struct KernelSubGroupInfo
+    kernel::Kernel
+    device::Device
+    local_work_size::Vector{Csize_t}
+end
+sub_group_info(k::Kernel, d::Device, l) = KernelSubGroupInfo(k, d, Vector{Csize_t}(l))
+
+# Helper function for getting local size for a specific sub-group count
+function local_size_for_sub_group_count(ki::KernelSubGroupInfo, sub_group_count::Integer)
+    k = getfield(ki, :kernel)
+    d = getfield(ki, :device)
+    input_value = Ref{Csize_t}(sub_group_count)
+    result = Ref{NTuple{3, Csize_t}}()
+    clGetKernelSubGroupInfo(k, d, CL_KERNEL_LOCAL_SIZE_FOR_SUB_GROUP_COUNT,
+                           sizeof(Csize_t), input_value, sizeof(NTuple{3, Csize_t}), result, C_NULL)
+    return Int.(result[])
+end
+
+function Base.getproperty(ki::KernelSubGroupInfo, s::Symbol)
+    k = getfield(ki, :kernel)
+    d = getfield(ki, :device)
+    lws = getfield(ki, :local_work_size)
+
+    function get(val, typ)
+        result = Ref{typ}()
+        clGetKernelSubGroupInfo(k, d, val, sizeof(lws), lws, sizeof(typ), result, C_NULL)
+        return result[]
+    end
+
+    if s == :max_sub_group_size
+        Int(get(CL_KERNEL_MAX_SUB_GROUP_SIZE_FOR_NDRANGE, Csize_t))
+    elseif s == :sub_group_count
+        Int(get(CL_KERNEL_SUB_GROUP_COUNT_FOR_NDRANGE, Csize_t))
+    elseif s == :local_size_for_sub_group_count
+        # This requires input_value to be the desired sub-group count
+        error("local_size_for_sub_group_count requires specifying desired sub-group count")
+    elseif s == :max_num_sub_groups
+        Int(get(CL_KERNEL_MAX_NUM_SUB_GROUPS, Csize_t))
+    elseif s == :compile_num_sub_groups
+        Int(get(CL_KERNEL_COMPILE_NUM_SUB_GROUPS, Csize_t))
+    elseif s == :compile_sub_group_size
+        Int(get(CL_KERNEL_COMPILE_SUB_GROUP_SIZE_INTEL, Csize_t))
+    else
+        getfield(ki, s)
+    end
+end
+
 
 ## kernel calling
 
 function enqueue_kernel(k::Kernel, global_work_size, local_work_size=nothing;
-                        global_work_offset=nothing, wait_on::Vector{Event}=Event[])
+                        global_work_offset=nothing, wait_on::Vector{Event}=Event[],
+                        rng_state=false, nargs=nothing)
     max_work_dim = device().max_work_item_dims
     work_dim     = length(global_work_size)
     if work_dim > max_work_dim
@@ -153,6 +201,20 @@ function enqueue_kernel(k::Kernel, global_work_size, local_work_size=nothing;
         # null local size means OpenCL decides
     end
 
+    if rng_state
+        if local_work_size !== nothing
+            num_sub_groups = KernelSubGroupInfo(k, device(), lsize).sub_group_count
+        else
+            num_sub_groups = KernelSubGroupInfo(k, device(), Csize_t[]).max_num_sub_groups
+        end
+        if nargs === nothing
+            nargs = k.num_args - 2
+        end
+        rng_state_size = sizeof(UInt32) * num_sub_groups
+        set_arg!(k, nargs + 1, LocalMem(UInt32, rng_state_size))
+        set_arg!(k, nargs + 2, LocalMem(UInt32, rng_state_size))
+    end
+
     if !isempty(wait_on)
         n_events = length(wait_on)
         wait_event_ids = [evt.id for evt in wait_on]
@@ -189,7 +251,8 @@ end
 function call(
         k::Kernel, args...; global_size = (1,), local_size = nothing,
         global_work_offset = nothing, wait_on::Vector{Event} = Event[],
-        indirect_memory::Vector{AbstractMemory} = AbstractMemory[]
+        indirect_memory::Vector{AbstractMemory} = AbstractMemory[],
+        rng_state=false,
     )
     set_args!(k, args...)
     if !isempty(indirect_memory)
@@ -243,7 +306,7 @@ function call(
             clSetKernelExecInfo(k, CL_KERNEL_EXEC_INFO_USM_PTRS_INTEL, sizeof(usm_pointers), usm_pointers)
         end
     end
-    enqueue_kernel(k, global_size, local_size; global_work_offset, wait_on)
+    enqueue_kernel(k, global_size, local_size; global_work_offset, wait_on, rng_state, nargs=length(args))
 end
 
 # From `julia/base/reflection.jl`, adjusted to add specialization on `t`.

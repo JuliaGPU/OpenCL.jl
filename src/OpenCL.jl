@@ -24,6 +24,7 @@ Base.Experimental.@MethodTable(method_table)
 include("device/runtime.jl")
 include("device/array.jl")
 include("device/quirks.jl")
+include("device/random.jl")
 
 # high level implementation
 include("memory.jl")
