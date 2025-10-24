@@ -1,7 +1,3 @@
-# Copied from CUDA.jl/src/device/random.jl
-# Copied from AMDGPU.jl/src/device/random.jl
-# Copied from https://github.com/JuliaGPU/Metal.jl/pull/637
-
 ## random number generation
 
 using Random
