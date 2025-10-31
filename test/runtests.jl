@@ -46,7 +46,9 @@ do_verbose, _ = extract_flag!(ARGS, "--verbose")
 do_quickfail, _ = extract_flag!(ARGS, "--quickfail")
 
 include("setup.jl")     # make sure everything is precompiled
+
 @info "System information:\n" * sprint(io->OpenCL.versioninfo(io))
+@info read(`launchctl limit maxfiles`, String)
 
 @info "Running $jobs tests in parallel. If this is too many, specify the `--jobs` argument to the tests, or set the JULIA_CPU_THREADS environment variable."
 
