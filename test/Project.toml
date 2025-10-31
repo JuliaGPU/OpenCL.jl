@@ -26,7 +26,4 @@ pocl_jll = "627d6b7a-bbe6-5189-83e7-98cc0a5aeadd"
 
 [compat]
 pocl_jll = "7.0"
-ParallelTestRunner = "1.0.1"
-
-[sources]
-ParallelTestRunner = {url="https://github.com/JuliaTesting/ParallelTestRunner.jl", rev="tb/testsuite"}
+ParallelTestRunner = "2"
