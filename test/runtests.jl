@@ -50,6 +50,7 @@ include("setup.jl")     # make sure everything is precompiled
 @info "System information:\n" * sprint(io->OpenCL.versioninfo(io))
 Sys.isapple() && @info read(`launchctl limit maxfiles`, String)
 Sys.isapple() && @info read(`ulimit -a`, String)
+Sys.isapple() && @info read(`df -h`, String)
 
 @info "Running $jobs tests in parallel. If this is too many, specify the `--jobs` argument to the tests, or set the JULIA_CPU_THREADS environment variable."
 
