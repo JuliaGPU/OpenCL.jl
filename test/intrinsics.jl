@@ -18,7 +18,7 @@ const simd_ns = [2, 3, 4, 8, 16]
 @testset "intrinsics" begin
 
 @testset "barrier" begin
-
+@warn "Barrier"
 @on_device barrier(OpenCL.LOCAL_MEM_FENCE)
 @on_device barrier(OpenCL.GLOBAL_MEM_FENCE)
 @on_device barrier(OpenCL.LOCAL_MEM_FENCE | OpenCL.GLOBAL_MEM_FENCE)
@@ -40,6 +40,7 @@ cl.memory_backend() isa cl.SVMBackend && @on_device work_group_barrier(OpenCL.LO
 end
 
 @testset "mem_fence" begin
+@warn "mem_fence"
 
 @on_device mem_fence(OpenCL.LOCAL_MEM_FENCE)
 @on_device mem_fence(OpenCL.GLOBAL_MEM_FENCE)
@@ -56,6 +57,7 @@ end
 end
 
 @testset "atomic_work_item_fence" begin
+@warn "atomic_work_item_fence"
 
 @on_device atomic_work_item_fence(OpenCL.LOCAL_MEM_FENCE, OpenCL.memory_order_relaxed, OpenCL.memory_scope_work_item)
 @on_device atomic_work_item_fence(OpenCL.GLOBAL_MEM_FENCE, OpenCL.memory_order_acquire, OpenCL.memory_scope_work_group)
@@ -67,6 +69,7 @@ cl.memory_backend() isa cl.SVMBackend && @on_device atomic_work_item_fence(OpenC
 end
 
 @testset "math" begin
+@warn "math"
 
 @testset "unary - $T" for T in float_types
     @testset "$f" for f in [
@@ -104,6 +107,7 @@ end
             hypot,
             (^),
         ]
+    @warn "binary - $T, $f"
         x = rand(T)
         y = rand(T)
         broken = ispocl && T == Float16 && f == atan
@@ -115,6 +119,7 @@ end
     @testset "$f" for f in [
             fma,
         ]
+    @warn "ternary - $T, $f"
         x = rand(T)
         y = rand(T)
         z = rand(T)
@@ -131,6 +136,8 @@ end
             OpenCL.rint,
             OpenCL.rsqrt,
         ]
+    @warn "OpenCL-specific unary - $T, $f"
+
         x = rand(T)
         broken = ispocl && T == Float16 && !(f in [OpenCL.rint, OpenCL.rsqrt])
         @test call_on_device(f, x) isa Real broken = broken  # Just check it doesn't error
@@ -149,6 +156,8 @@ end
             OpenCL.nextafter,
             OpenCL.powr,
         ]
+    @warn "OpenCL-specific binary - $T, $f"
+
         x = rand(T)
         y = rand(T)
         broken = ispocl && T == Float16 && !(f in [OpenCL.maxmag, OpenCL.minmag])
@@ -162,6 +171,8 @@ end
     x = rand(T)
     y = rand(T)
     z = rand(T)
+    @warn "OpenCL-specific ternary - $T, $f"
+
     @test call_on_device(OpenCL.mad, x, y, z) ≈ x * y + z
 end
 
