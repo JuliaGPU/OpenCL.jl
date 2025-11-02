@@ -18,23 +18,38 @@ const simd_ns = [2, 3, 4, 8, 16]
 @testset "intrinsics" begin
 
 @testset "barrier" begin
-@warn "Barrier"
+@warn "Barrier Local Mem fence"
 @on_device barrier(OpenCL.LOCAL_MEM_FENCE)
+@warn "Barrier global Mem fence"
 @on_device barrier(OpenCL.GLOBAL_MEM_FENCE)
+@warn "Barrier both Mem fence"
 @on_device barrier(OpenCL.LOCAL_MEM_FENCE | OpenCL.GLOBAL_MEM_FENCE)
 
+@warn "WorkGroup Barrier Local Mem fence"
 @on_device work_group_barrier(OpenCL.LOCAL_MEM_FENCE)
+@warn "WorkGroup Barrier global Mem fence"
 @on_device work_group_barrier(OpenCL.GLOBAL_MEM_FENCE)
+@warn "WorkGroup Barrier image Mem fence"
 @on_device work_group_barrier(OpenCL.IMAGE_MEM_FENCE)
 
+@warn "Barrier"
+@warn "WorkGroup Barrier L/G Mem fence"
 @on_device work_group_barrier(OpenCL.LOCAL_MEM_FENCE | OpenCL.GLOBAL_MEM_FENCE)
+@warn "WorkGroup Barrier L/I Mem fence"
 @on_device work_group_barrier(OpenCL.LOCAL_MEM_FENCE | OpenCL.IMAGE_MEM_FENCE)
+@warn "WorkGroup Barrier L/G/I Mem fence"
 @on_device work_group_barrier(OpenCL.GLOBAL_MEM_FENCE | OpenCL.LOCAL_MEM_FENCE | OpenCL.IMAGE_MEM_FENCE)
 
+@warn "Barrier"
+@warn "WorkGroup Barrier Local Mem fence, work item scope"
 @on_device work_group_barrier(OpenCL.LOCAL_MEM_FENCE, OpenCL.memory_scope_work_item)
+@warn "WorkGroup Barrier Local Mem fence, workgroup scope"
 @on_device work_group_barrier(OpenCL.LOCAL_MEM_FENCE, OpenCL.memory_scope_work_group)
+@warn "WorkGroup Barrier Local Mem fence, device scope"
 @on_device work_group_barrier(OpenCL.LOCAL_MEM_FENCE, OpenCL.memory_scope_device)
+@warn "Skipped"
 cl.memory_backend() isa cl.SVMBackend && @on_device work_group_barrier(OpenCL.LOCAL_MEM_FENCE, OpenCL.memory_scope_all_svm_devices)
+@warn "WorkGroup Barrier Local Mem fence, subgroup scope"
 @on_device work_group_barrier(OpenCL.LOCAL_MEM_FENCE, OpenCL.memory_scope_sub_group)
 
 end
@@ -171,7 +186,7 @@ end
     x = rand(T)
     y = rand(T)
     z = rand(T)
-    @warn "OpenCL-specific ternary - $T, $f"
+    @warn "OpenCL-specific ternary - $T"
 
     @test call_on_device(OpenCL.mad, x, y, z) ≈ x * y + z
 end
