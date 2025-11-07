@@ -135,3 +135,24 @@ end
         @test Array(a) == Array(b)
     end
 end
+
+@testset "rand(::AbstractRange{$T}), seed $seed" for T in (Int32, Int64, UInt32, UInt64), seed in (nothing, #=missing,=# 1234)
+    function kernel(A::AbstractArray{T}, seed) where {T}
+        apply_seed(seed)
+        tid = get_global_id(1)
+        A[tid] = rand(T(10):T(20))
+        return
+    end
+
+    a = OpenCL.zeros(T, n)
+    b = OpenCL.zeros(T, n)
+
+    @opencl global_size=n local_size=n kernel(a, seed)
+    @opencl global_size=n local_size=n kernel(b, seed)
+
+    if seed === nothing || seed === missing
+        @test Array(a) != Array(b)
+    else
+        @test Array(a) == Array(b)
+    end
+end

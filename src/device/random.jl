@@ -232,3 +232,6 @@ end
 @device_override @inline function Random.randexp(rng::AbstractRNG, ::Type{T}) where {T <: Union{Float16, Float32}}
     @invoke Random.randexp(rng::AbstractRNG, T::Type{<:AbstractFloat})
 end
+
+@device_override Random.Sampler(::Type{<:AbstractRNG}, r::AbstractUnitRange{T},
+                                ::Random.Repetition) where {T<:Union{Int64, UInt64}} = Random.SamplerRangeFast(r)
