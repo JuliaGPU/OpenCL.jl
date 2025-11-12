@@ -166,6 +166,10 @@ end
 end
 
 @testset "SIMD - $N x $T" for N in simd_ns, T in float_types
+    # codegen emits i48 here, which SPIR-V doesn't support
+    # XXX: fix upstream?
+    T == Float16 && N == 3 && continue
+
     v = Vec{N, T}(ntuple(_ -> rand(T), N))
 
     # unary ops: sin, cos, sqrt
