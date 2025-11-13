@@ -16,6 +16,9 @@ GPUCompiler.isintrinsic(job::OpenCLCompilerJob, fn::String) =
            Tuple{CompilerJob{SPIRVCompilerTarget}, typeof(fn)},
            job, fn) ||
     in(fn, known_intrinsics) ||
+    let SPIRVIntrinsicsSIMDExt = Base.get_extension(SPIRVIntrinsics, :SPIRVIntrinsicsSIMDExt)
+        SPIRVIntrinsicsSIMDExt !== nothing && in(fn, SPIRVIntrinsicsSIMDExt.known_intrinsics)
+    end ||
     contains(fn, "__spirv_")
 
 GPUCompiler.kernel_state_type(::OpenCLCompilerJob) = KernelState
