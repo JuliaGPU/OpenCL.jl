@@ -15,8 +15,6 @@ const float_types = filter(x -> x <: Base.IEEEFloat, GPUArraysTestSuite.supporte
 const ispocl = cl.platform().name == "Portable Computing Language"
 const simd_ns = [2, 3, 4, 8, 16]
 
-@testset "intrinsics" begin
-
 @testset "barrier" begin
 
 @on_device barrier(OpenCL.LOCAL_MEM_FENCE)
@@ -223,8 +221,6 @@ end
     nan_code = Vec{N, Base.uinttype(T)}(ntuple(_ -> rand(Base.uinttype(T)), N))
     nan_result = call_on_device(OpenCL.nan, nan_code)
     @test all(isnan(nan_result[i]) for i in 1:N)
-end
-
 end
 
 end
