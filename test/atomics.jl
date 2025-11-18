@@ -15,6 +15,11 @@ end
     end
 end
 
+@testset "atomic_add! ($T)" for T in [Float32, Float64]
+    # Float64 requires cl_khr_fp64 extension
+    if T == Float64 && !("cl_khr_fp64" in cl.device().extensions)
+        continue
+    end
     if "cl_ext_float_atomics" in cl.device().extensions
         function atomic_float_add(counter, val)
             @builtin_ccall(
@@ -38,4 +43,5 @@ end
         end
     end
 
+end
 end
