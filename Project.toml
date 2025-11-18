@@ -27,12 +27,13 @@ spirv2clc_jll = "f0274c0c-8c8a-59f1-85b7-f7d60330c5fb"
 
 [sources]
 SPIRVIntrinsics = {path = "lib/intrinsics"}
+KernelAbstractions = {rev = "main", url = "https://github.com/JuliaGPU/KernelAbstractions.jl"}
 
 [compat]
 Adapt = "4"
 GPUArrays = "11.2.1"
 GPUCompiler = "2"
-KernelAbstractions = "0.10"
+KernelAbstractions = "0.9, 0.10"
 LLVM = "9.6"
 LinearAlgebra = "1"
 OpenCL_jll = "=2024.10.24"
