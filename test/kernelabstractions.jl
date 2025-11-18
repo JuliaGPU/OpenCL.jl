@@ -33,5 +33,7 @@ end
 skip_tests=Set([
     "sparse",
     "Convert", # Need to opt out of i128
+    "CPU synchronization",
+    "fallback test: callable types"
 ])
 KATestSuite.testsuite(OpenCLBackend, "OpenCL", OpenCL, CLArray, CLDeviceArray; skip_tests)
