@@ -1,7 +1,7 @@
 module SPIRVIntrinsicsSIMDExt
 
 using SPIRVIntrinsics
-using SPIRVIntrinsics: @device_override, @device_function, @builtin_ccall, @typed_ccall
+using SPIRVIntrinsics: @device_override, @device_function, @builtin_ccall, @typed_ccall, method_table
 using SIMD
 import SpecialFunctions
 
