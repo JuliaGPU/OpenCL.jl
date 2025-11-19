@@ -63,8 +63,9 @@ end
 Base.Experimental.@MethodTable(method_table)
 
 macro device_override(ex)
+    # `method_table` is not interpolated so that the local backend method_table is used
     esc(quote
-        Base.Experimental.@overlay($method_table, $ex)
+        Base.Experimental.@overlay(method_table, $ex)
     end)
 end
 
