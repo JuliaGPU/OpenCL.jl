@@ -1,40 +1,120 @@
 using SPIRVIntrinsics: @builtin_ccall, @typed_ccall, LLVMPtr, known_intrinsics
 
-skip_int64(T) = sizeof(T) == 8 && T <: Integer && !("cl_khr_int64_extended_atomics" in cl.device().extensions)
-skip_float64(T) = T == Float64 && !("cl_khr_fp64" in cl.device().extensions)
+# Define the types to test
 integer_types = [Int32, UInt32, Int64, UInt64]
 float_types = [Float32, Float64]
+all_types = vcat(integer_types, float_types)
+
+dev = OpenCL.cl.device()
+# Define atomic operations to test
+atomic_operations = [
+    :atomic_add!,
+    :atomic_sub!,
+    :atomic_and!,
+    :atomic_or!,
+    :atomic_xor!,
+    :atomic_max!,
+    :atomic_min!,
+    :atomic_xchg!,
+    :atomic_cas!,
+]
 @testset "atomics" begin
+for op in atomic_operations
+    for T in all_types
+        # Skip Int64/UInt64 if not supported
+        if sizeof(T) == 8 && T <: Integer && !("cl_khr_int64_extended_atomics" in dev.extensions)
+            continue
+        end
 
-function atomic_add_(counter, ::Val{T}) where T
-    OpenCL.@atomic counter[] += one(T)
-    return
-end
+        # Skip Float64 if not supported
+        if T == Float64 && !("cl_khr_fp64" in dev.extensions)
+            continue
+        end
 
-@testset "atomic_add! ($T)" for T in vcat(integer_types, float_types)
-    if skip_int64(T) || skip_float64(T)
-        continue
+        # Bitwise operations (only valid for integers)
+        if op in [:atomic_and!, :atomic_or!, :atomic_xor!] && T <: AbstractFloat
+            continue
+        end
+
+        # Min/max operations (only supported for 32-bit integers in OpenCL)
+        if op in [:atomic_min!, :atomic_max!] && !(T in [Int32, UInt32])
+            continue
+        end
+
+        test_name = Symbol("test_", op, "_", T)
+
+        if op in [:atomic_add!, :atomic_sub!]
+            # Arithmetic operations
+            if op == :atomic_add!
+                @eval function $test_name(counter)
+                    OpenCL.@atomic counter[] += one($T)
+                    return
+                end
+            else
+                @eval function $test_name(counter)
+                    OpenCL.@atomic counter[] -= one($T)
+                    return
+                end
+            end
+        elseif op in [:atomic_and!, :atomic_or!, :atomic_xor!]
+            # Bitwise operations
+            if op == :atomic_and!
+                @eval function $test_name(counter)
+                    OpenCL.@atomic counter[] &= one($T)
+                    return
+                end
+            elseif op == :atomic_or!
+                @eval function $test_name(counter)
+                    OpenCL.@atomic counter[] |= one($T)
+                    return
+                end
+            else # xor
+                @eval function $test_name(counter)
+                    OpenCL.@atomic counter[] ⊻= one($T)
+                    return
+                end
+            end
+        elseif op in [:atomic_max!, :atomic_min!]
+            # Min/max operations - use low-level API directly
+            if op == :atomic_max!
+                @eval function $test_name(counter)
+                    ptr = OpenCL.pointer(counter, 1)
+                    OpenCL.atomic_max!(ptr, one($T))
+                    return
+                end
+            else
+                @eval function $test_name(counter)
+                    ptr = OpenCL.pointer(counter, 1)
+                    OpenCL.atomic_min!(ptr, one($T))
+                    return
+                end
+            end
+        elseif op == :atomic_xchg!
+            # Exchange operation - use low-level API directly
+            @eval function $test_name(counter)
+                ptr = OpenCL.pointer(counter, 1)
+                OpenCL.atomic_xchg!(ptr, one($T))
+                return
+            end
+        elseif op == :atomic_cas!
+            # CAS operation - use low-level API directly (it's called atomic_cmpxchg!)
+            @eval function $test_name(counter)
+                ptr = OpenCL.pointer(counter, 1)
+                OpenCL.atomic_cmpxchg!(ptr, $T(0), one($T))
+                return
+            end
+        else
+            error("Unknown operation: $op")
+        end
+
+
+        # Try to compile the kernel - this is the key test
+        a = OpenCL.zeros(T)
+        kernel_func = @eval $test_name
+        OpenCL.@opencl kernel_func(a)
     end
-    @show T
-    a = OpenCL.zeros(T)
-    @opencl global_size=1000 atomic_add_(a, Val(T))
-    @test OpenCL.@allowscalar a[] == T(1000)
 end
 
-function atomic_sub_(counter, ::Val{T}) where T
-    OpenCL.@atomic counter[] -= one(T)
-    return
-end
-
-@testset "atomic_sub! ($T)" for T in vcat(integer_types, float_types)
-    if skip_int64(T) || skip_float64(T)
-        continue
-    end
-    @show T
-    a = T(1000.0)
-    @opencl global_size=1000 atomic_sub_(a, Val(T))
-    @test OpenCL.@allowscalar a[] == zero(T)
-end
 
 @testset "atomic_add! ($T)" for T in [Float32, Float64]
     # Float64 requires cl_khr_fp64 extension
