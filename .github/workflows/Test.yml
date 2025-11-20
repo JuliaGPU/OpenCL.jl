@@ -99,8 +99,8 @@ jobs:
               ])
 
               # versioned
-              Pkg.add(name="LLVM_full_jll", version="19")
-              Pkg.add(name="SPIRV_LLVM_Translator_jll", version="19")'
+              Pkg.add(name="LLVM_full_jll", version="20")
+              Pkg.add(name="SPIRV_LLVM_Translator_jll", version="20")'
 
       - name: Build PoCL
         if: ${{ matrix.pocl == 'local' }}
