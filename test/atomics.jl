@@ -6,8 +6,9 @@ float_types = [Float32, Float64]
 all_types = vcat(integer_types, float_types)
 
 dev = OpenCL.cl.device()
-# Define atomic operations to test, with init value and expected value
+# Define atomic operations to test
 atomic_operations = [
+    # op, init_val, expected_val
     (:atomic_add!, 0, 1000),
     (:atomic_sub!, 1000, 0),
     (:atomic_and!, 3, 1),
