@@ -8,11 +8,11 @@ all_types = vcat(integer_types, float_types)
 dev = OpenCL.cl.device()
 # Define atomic operations to test, with init value and expected value
 atomic_operations = [
-    (:atomic_add!, 0, 1),
-    (:atomic_sub!, 1, 0),
+    (:atomic_add!, 0, 1000),
+    (:atomic_sub!, 1000, 0),
     (:atomic_and!, 3, 1),
-    (:atomic_or!, 2, 3),
-    (:atomic_xor!, 3, 2),
+    (:atomic_or!, 3, 3),
+    (:atomic_xor!, 3, 3),
     (:atomic_max!, 0, 1),
     (:atomic_min!, 2, 1),
     (:atomic_xchg!, 0, 1),
@@ -112,9 +112,10 @@ for (op, init_val, expected_val) in atomic_operations
         a = OpenCL.zeros(T)
         OpenCL.fill!(a, init_val)
         kernel_func = @eval $test_name
-        OpenCL.@opencl kernel_func(a)
+        OpenCL.@opencl global_size=1000 kernel_func(a)
         result_val = Array(a)[1]
-        @test result_val == expected_val
+        @test typeof(result_val) == T
+        @test result_val == T(expected_val)
     end
 end
 
