@@ -6,20 +6,20 @@ float_types = [Float32, Float64]
 all_types = vcat(integer_types, float_types)
 
 dev = OpenCL.cl.device()
-# Define atomic operations to test
+# Define atomic operations to test, with init value and expected value
 atomic_operations = [
-    :atomic_add!,
-    :atomic_sub!,
-    :atomic_and!,
-    :atomic_or!,
-    :atomic_xor!,
-    :atomic_max!,
-    :atomic_min!,
-    :atomic_xchg!,
-    :atomic_cas!,
+    (:atomic_add!, 0, 1),
+    (:atomic_sub!, 1, 0),
+    (:atomic_and!, 3, 1),
+    (:atomic_or!, 2, 3),
+    (:atomic_xor!, 3, 2),
+    (:atomic_max!, 0, 1),
+    (:atomic_min!, 2, 1),
+    (:atomic_xchg!, 0, 1),
+    (:atomic_cas!, 0, 1),
 ]
 @testset "atomics" begin
-for op in atomic_operations
+for (op, init_val, expected_val) in atomic_operations
     for T in all_types
         # Skip Int64/UInt64 if not supported
         if sizeof(T) == 8 && T <: Integer && !("cl_khr_int64_extended_atomics" in dev.extensions)
@@ -110,8 +110,11 @@ for op in atomic_operations
 
         # Try to compile the kernel - this is the key test
         a = OpenCL.zeros(T)
+        OpenCL.fill!(a, init_val)
         kernel_func = @eval $test_name
         OpenCL.@opencl kernel_func(a)
+        result_val = Array(a)[1]
+        @test result_val == expected_val
     end
 end
 
