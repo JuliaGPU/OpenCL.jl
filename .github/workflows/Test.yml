@@ -15,7 +15,7 @@ jobs:
   test:
     name: Julia ${{ matrix.version }} - ${{ matrix.os }} - ${{ matrix.arch }} - ${{ matrix.memory_backend }} - PoCL ${{ matrix.pocl }}
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 100
+    timeout-minutes: 120
     permissions: # needed to allow julia-actions/cache to proactively delete old caches that it has created
       actions: write
       contents: read
@@ -23,7 +23,7 @@ jobs:
       fail-fast: false
       matrix:
         version: ['1.10', '1.12']
-        os: [ubuntu-24.04-arm, macOS-15, macOS-15-intel, windows-2022]
+        os: [ubuntu-24.04-arm, macOS-26, macOS-15-intel, windows-2022]
         arch: [x64, arm64]
         pocl: [jll]
         memory_backend: [usm, svm, buffer]
@@ -36,14 +36,14 @@ jobs:
           - os: ubuntu-24.04-arm
             arch: x64
           # macOS 13 is Intel-only, while macOS 14+ only support Apple Silicon
-          - os: macOS-15
+          - os: macOS-26
             arch: x64
           - os: macOS-15-intel
             arch: arm64
           # we only test building PoCL on Linux
           - os: macOS-15-intel
             pocl: local
-          - os: macOS-15
+          - os: macOS-26
             pocl: local
           - os: windows-2022
             pocl: local
@@ -52,9 +52,9 @@ jobs:
             memory_backend: svm
           - os: macOS-15-intel
             memory_backend: buffer
-          - os: macOS-15
+          - os: macOS-26
             memory_backend: svm
-          - os: macOS-15
+          - os: macOS-26
             memory_backend: buffer
     steps:
       - name: Checkout OpenCL.jl
