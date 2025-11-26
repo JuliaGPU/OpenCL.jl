@@ -32,7 +32,7 @@ steps:
           - JuliaCI/julia-coverage#v1:
               codecov: true
         commands: |
-          julia --project -e '
+          POCL_DEBUG=err julia --project -e '
             using Pkg
 
             println("--- :julia: Instantiating project")

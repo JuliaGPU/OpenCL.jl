@@ -15,7 +15,7 @@ jobs:
   test:
     name: Julia ${{ matrix.version }} - ${{ matrix.os }} - ${{ matrix.arch }} - ${{ matrix.memory_backend }} - PoCL ${{ matrix.pocl }}
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 120
+    timeout-minutes: 180
     permissions: # needed to allow julia-actions/cache to proactively delete old caches that it has created
       actions: write
       contents: read
@@ -168,7 +168,7 @@ jobs:
         with:
           test_args: '--quickfail --platform=pocl --verbose --jobs=2'
         env:
-          POCL_WORK_GROUP_METHOD: cbs
+          POCL_DEBUG: err
 
       - name: Setup BusyBox
         if: runner.os == 'Windows'
