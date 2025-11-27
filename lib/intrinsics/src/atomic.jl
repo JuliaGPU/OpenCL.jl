@@ -3,13 +3,15 @@
 # provides atomic functions that rely on the OpenCL base atomics, as well as the
 # cl_khr_int64_base_atomics and cl_khr_int64_extended_atomics extensions.
 
+const atomic_float_types = [Float32, Float64]
 const atomic_integer_types = [UInt32, Int32, UInt64, Int64]
 const atomic_memory_types = [AS.Workgroup, AS.CrossWorkgroup]
+const atomic_types = vcat(atomic_float_types, atomic_integer_types)
 
 
 # generically typed
 
-for gentype in atomic_integer_types, as in atomic_memory_types
+for gentype in atomic_types, as in atomic_memory_types
 @eval begin
 
 @device_function atomic_add!(p::LLVMPtr{$gentype,$as}, val::$gentype) =
@@ -45,15 +47,17 @@ for gentype in atomic_integer_types, as in atomic_memory_types
 @device_function atomic_xor!(p::LLVMPtr{$gentype,$as}, val::$gentype) =
     @builtin_ccall("atomic_xor", $gentype,
                    (LLVMPtr{$gentype,$as}, $gentype), p, val)
+end
+if gentype in atomic_integer_types
+    @eval begin
+    @device_function atomic_xchg!(p::LLVMPtr{$gentype,$as}, val::$gentype) =
+        @builtin_ccall("atomic_xchg", $gentype,
+                    (LLVMPtr{$gentype,$as}, $gentype), p, val)
 
-@device_function atomic_xchg!(p::LLVMPtr{$gentype,$as}, val::$gentype) =
-    @builtin_ccall("atomic_xchg", $gentype,
-                   (LLVMPtr{$gentype,$as}, $gentype), p, val)
-
-@device_function atomic_cmpxchg!(p::LLVMPtr{$gentype,$as}, cmp::$gentype, val::$gentype) =
-    @builtin_ccall("atomic_cmpxchg", $gentype,
-                   (LLVMPtr{$gentype,$as}, $gentype, $gentype), p, cmp, val)
-
+    @device_function atomic_cmpxchg!(p::LLVMPtr{$gentype,$as}, cmp::$gentype, val::$gentype) =
+        @builtin_ccall("atomic_cmpxchg", $gentype,
+                    (LLVMPtr{$gentype,$as}, $gentype, $gentype), p, cmp, val)
+    end
 end
 end
 
