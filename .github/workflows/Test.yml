@@ -58,7 +58,7 @@ jobs:
             memory_backend: buffer
     steps:
       - name: Checkout OpenCL.jl
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Setup Julia
         uses: julia-actions/setup-julia@v2
@@ -71,7 +71,7 @@ jobs:
 
       - name: Checkout PoCL
         if: ${{ matrix.pocl == 'local' }}
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           repository: pocl/pocl
           path: pocl
