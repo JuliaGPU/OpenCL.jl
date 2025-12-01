@@ -53,6 +53,10 @@ Sys.isapple() && @info read(`ulimit -a`, String)
 Sys.isapple() && @info read(`df -YIh`, String)
 Sys.isapple() && @info read(`vm_stat`, String)
 
+if Sys.isapple()
+    run(`sysctl hw.optional`)
+end
+
 @info "Running $jobs tests in parallel. If this is too many, specify the `--jobs` argument to the tests, or set the JULIA_CPU_THREADS environment variable."
 
 # choose tests
