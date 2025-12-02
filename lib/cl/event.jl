@@ -158,46 +158,46 @@ function Base.wait(evts::Vector{AbstractEvent})
     return evts
 end
 
-function enqueue_marker_with_wait_list(wait_for::Vector{AbstractEvent})
+function enqueue_marker_with_wait_list(wait_for::Vector{AbstractEvent}; queue::CmdQueue = queue())
     n_wait_events = cl_uint(length(wait_for))
     wait_evt_ids = [evt.id for evt in wait_for]
     ret_evt = Ref{cl_event}()
-    clEnqueueMarkerWithWaitList(queue(), n_wait_events,
+    clEnqueueMarkerWithWaitList(queue, n_wait_events,
                                 isempty(wait_evt_ids) ? C_NULL : wait_evt_ids,
                                 ret_evt)
     @return_event ret_evt[]
 end
 
-function enqueue_barrier_with_wait_list(wait_for::Vector{AbstractEvent})
+function enqueue_barrier_with_wait_list(wait_for::Vector{AbstractEvent}; queue::CmdQueue = queue())
     n_wait_events = cl_uint(length(wait_for))
     wait_evt_ids = [evt.id for evt in wait_for]
     ret_evt = Ref{cl_event}()
-    clEnqueueBarrierWithWaitList(queue(), n_wait_events,
+    clEnqueueBarrierWithWaitList(queue, n_wait_events,
                                  isempty(wait_evt_ids) ? C_NULL : wait_evt_ids,
                                  ret_evt)
     @return_event ret_evt[]
 end
 
-function enqueue_marker()
+function enqueue_marker(; queue::CmdQueue = queue())
     evt = Ref{cl_event}()
-    clEnqueueMarker(queue(), evt)
+    clEnqueueMarker(queue, evt)
     @return_event evt[]
 end
 @deprecate enqueue_marker enqueue_marker_with_wait_list
 
-function enqueue_wait_for_events(wait_for::Vector{T}) where {T<:AbstractEvent}
+function enqueue_wait_for_events(wait_for::Vector{T}; queue::CmdQueue = queue()) where {T<:AbstractEvent}
     wait_evt_ids = isempty(wait_for) ? C_NULL : [pointer(evt) for evt in wait_for]
     GC.@preserve wait_for begin
-        clEnqueueWaitForEvents(queue(), length(wait_for), wait_evt_ids)
+        clEnqueueWaitForEvents(queue, length(wait_for), wait_evt_ids)
    end
 end
 
-function enqueue_wait_for_events(wait_for::AbstractEvent)
-    enqueue_wait_for_events([wait_for])
+function enqueue_wait_for_events(wait_for::AbstractEvent; queue::CmdQueue = queue())
+    enqueue_wait_for_events([wait_for]; queue)
 end
 
-function enqueue_barrier()
-    clEnqueueBarrier(queue())
+function enqueue_barrier(; queue::CmdQueue = queue())
+    clEnqueueBarrier(queue)
     return
 end
 @deprecate enqueue_barrier enqueue_barrier_with_wait_list

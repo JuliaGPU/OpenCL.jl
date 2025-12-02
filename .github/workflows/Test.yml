@@ -15,7 +15,7 @@ jobs:
   test:
     name: Julia ${{ matrix.version }} - ${{ matrix.os }} - ${{ matrix.arch }} - ${{ matrix.memory_backend }} - PoCL ${{ matrix.pocl }}
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 100
+    timeout-minutes: 180
     permissions: # needed to allow julia-actions/cache to proactively delete old caches that it has created
       actions: write
       contents: read
@@ -23,38 +23,54 @@ jobs:
       fail-fast: false
       matrix:
         version: ['1.10', '1.12']
-        os: [ubuntu-24.04, ubuntu-24.04-arm, macOS-15, macOS-15-intel, windows-2025]
+        os: [ubuntu-24.04-arm, macOS-14, macOS-15, macOS-26, macOS-15-intel, windows-2022]
         arch: [x64, arm64]
-        pocl: [jll, local]
+        pocl: [jll]
         memory_backend: [usm, svm, buffer]
         exclude:
           # unsupported combinations
           - os: ubuntu-24.04
             arch: arm64
-          - os: windows-2025
+          - os: windows-2022
             arch: arm64
           - os: ubuntu-24.04-arm
             arch: x64
           # macOS 13 is Intel-only, while macOS 14+ only support Apple Silicon
+          - os: macOS-14
+            arch: x64
           - os: macOS-15
+            arch: x64
+          - os: macOS-26
             arch: x64
           - os: macOS-15-intel
             arch: arm64
           # we only test building PoCL on Linux
           - os: macOS-15-intel
             pocl: local
+          - os: macOS-14
+            pocl: local
           - os: macOS-15
             pocl: local
-          - os: windows-2025
+          - os: macOS-26
+            pocl: local
+          - os: windows-2022
             pocl: local
           # Remove these exclusions once macOS CI hangs are fixed
           - os: macOS-15-intel
             memory_backend: svm
           - os: macOS-15-intel
             memory_backend: buffer
+          - os: macOS-14
+            memory_backend: svm
+          - os: macOS-14
+            memory_backend: buffer
           - os: macOS-15
             memory_backend: svm
           - os: macOS-15
+            memory_backend: buffer
+          - os: macOS-26
+            memory_backend: svm
+          - os: macOS-26
             memory_backend: buffer
     steps:
       - name: Checkout OpenCL.jl
@@ -150,7 +166,9 @@ jobs:
         uses: julia-actions/julia-runtest@v1
         if: runner.os != 'Windows'
         with:
-          test_args: '--quickfail --platform=pocl'
+          test_args: '--quickfail --platform=pocl --verbose --jobs=2'
+        env:
+          POCL_DEBUG: err
 
       - name: Setup BusyBox
         if: runner.os == 'Windows'

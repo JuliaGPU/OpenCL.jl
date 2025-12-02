@@ -158,7 +158,7 @@ end
 
 function enqueue_kernel(k::Kernel, global_work_size, local_work_size=nothing;
                         global_work_offset=nothing, wait_on::Vector{Event}=Event[],
-                        rng_state=false, nargs=nothing)
+                        rng_state=false, nargs=nothing, queue::CmdQueue = queue())
     max_work_dim = device().max_work_item_dims
     work_dim     = length(global_work_size)
     if work_dim > max_work_dim
@@ -224,12 +224,12 @@ function enqueue_kernel(k::Kernel, global_work_size, local_work_size=nothing;
     end
 
     ret_event = Ref{cl_event}()
-    clEnqueueNDRangeKernel(queue(), k, work_dim, goffset, gsize, lsize,
+    clEnqueueNDRangeKernel(queue, k, work_dim, goffset, gsize, lsize,
                            n_events, wait_event_ids, ret_event)
     return Event(ret_event[], retain=false)
 end
 
-function enqueue_task(k::Kernel; wait_for=nothing)
+function enqueue_task(k::Kernel; wait_for=nothing, queue::CmdQueue = queue())
     n_evts  = 0
     evt_ids = C_NULL
     #TODO: this should be split out into its own function
@@ -244,7 +244,7 @@ function enqueue_task(k::Kernel; wait_for=nothing)
         end
     end
     ret_event = Ref{cl_event}()
-    clEnqueueTask(queue(), k, n_evts, evt_ids, ret_event)
+    clEnqueueTask(queue, k, n_evts, evt_ids, ret_event)
     return ret_event[]
 end
 
@@ -252,7 +252,7 @@ function call(
         k::Kernel, args...; global_size = (1,), local_size = nothing,
         global_work_offset = nothing, wait_on::Vector{Event} = Event[],
         indirect_memory::Vector{AbstractMemory} = AbstractMemory[],
-        rng_state=false,
+        rng_state=false, queue::CmdQueue = queue()
     )
     set_args!(k, args...)
     if !isempty(indirect_memory)
@@ -306,7 +306,7 @@ function call(
             clSetKernelExecInfo(k, CL_KERNEL_EXEC_INFO_USM_PTRS_INTEL, sizeof(usm_pointers), usm_pointers)
         end
     end
-    enqueue_kernel(k, global_size, local_size; global_work_offset, wait_on, rng_state, nargs=length(args))
+    enqueue_kernel(k, global_size, local_size; global_work_offset, wait_on, rng_state, nargs=length(args), queue)
 end
 
 # From `julia/base/reflection.jl`, adjusted to add specialization on `t`.
