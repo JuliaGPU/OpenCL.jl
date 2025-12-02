@@ -176,6 +176,7 @@ end
 
 # fill a buffer with a pattern, returning an event
 function enqueue_usm_fill(ptr::Union{Ptr, CLPtr}, pattern::T, N::Integer;
+                          queue::CmdQueue = queue(),
                           wait_for::Vector{Event}=Event[]) where {T}
     nbytes = N * sizeof(T)
     pattern_size = sizeof(T)
@@ -183,7 +184,7 @@ function enqueue_usm_fill(ptr::Union{Ptr, CLPtr}, pattern::T, N::Integer;
     evt_ids = isempty(wait_for) ? C_NULL : [pointer(evt) for evt in wait_for]
     GC.@preserve wait_for begin
         ret_evt = Ref{cl_event}()
-        clEnqueueMemFillINTEL(queue(), ptr, Ref(pattern),
+        clEnqueueMemFillINTEL(queue, ptr, Ref(pattern),
                               pattern_size, nbytes,
                               n_evts, evt_ids, ret_evt)
         @return_event ret_evt[]
