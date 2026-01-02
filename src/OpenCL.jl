@@ -9,6 +9,8 @@ using GPUArrays
 using Random
 using Preferences
 
+import KernelAbstractions: KernelAbstractions
+
 using Core: LLVMPtr
 
 # library wrappers
