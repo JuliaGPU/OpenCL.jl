@@ -48,6 +48,7 @@ steps:
           queue: "juliaecosystem"
           os: "macos"
           arch: "{{matrix.arch}}"
+          macos_version: "15.0"
         if: build.message !~ /\[skip tests\]/
         timeout_in_minutes: 120
         matrix:
