@@ -166,6 +166,83 @@ end
     @test call_on_device(OpenCL.mad, x, y, z) ≈ x * y + z
 end
 
+if cl.sub_groups_supported(cl.device())
+
+struct SubgroupData
+    sub_group_size::UInt32
+    max_sub_group_size::UInt32
+    num_sub_groups::UInt32
+    sub_group_id::UInt32
+    sub_group_local_id::UInt32
+end
+function test_subgroup_kernel(results)
+    i = get_global_id(1)
+
+    if i <= length(results)
+        @inbounds results[i] = SubgroupData(
+            get_sub_group_size(),
+            get_max_sub_group_size(),
+            get_num_sub_groups(),
+            get_sub_group_id(),
+            get_sub_group_local_id()
+        )
+    end
+    return
+end
+
+@testset "Sub-groups" begin
+    sg_size = cl.sub_group_size(cl.device())
+
+    @testset "Indexing intrinsics" begin
+        # Test with small kernel
+        sg_n = 2
+        local_size = sg_size * sg_n
+        numworkgroups = 2
+        N = local_size * numworkgroups
+
+        results = CLVector{SubgroupData}(undef, N)
+        kernel = @opencl launch = false test_subgroup_kernel(results)
+
+        kernel(results; local_size, global_size=N)
+
+        host_results = Array(results)
+
+        # Verify results make sense
+        for (i, sg_data) in enumerate(host_results)
+            @test sg_data.sub_group_size == sg_size
+            @test sg_data.max_sub_group_size == sg_size
+            @test sg_data.num_sub_groups == sg_n
+
+            # Group ID should be 1-based
+            expected_sub_group = div(((i - 1) % local_size), sg_size) + 1
+            @test sg_data.sub_group_id == expected_sub_group
+
+            # Local ID should be 1-based within group
+            expected_sg_local = ((i - 1) % sg_size) + 1
+            @test sg_data.sub_group_local_id == expected_sg_local
+        end
+    end
+
+    @testset "shuffle idx" begin
+        function shfl_idx_kernel(d)
+            i = get_sub_group_local_id()
+            j = get_sub_group_size() - i + 1
+
+            d[i] = sub_group_shuffle(d[i], j)
+
+            return
+        end
+
+        @testset for T in cl.sub_group_shuffle_supported_types(cl.device())
+            a = rand(T, sg_size)
+            d_a = CLArray(a)
+            @opencl local_size = sg_size global_size = sg_size shfl_idx_kernel(d_a)
+            @test Array(d_a) == reverse(a)
+        end
+    end
+end
+end # if cl.sub_groups_supported(cl.device())
+
 @testset "SIMD - $N x $T" for N in simd_ns, T in float_types
     # codegen emits i48 here, which SPIR-V doesn't support
     # XXX: fix upstream?
