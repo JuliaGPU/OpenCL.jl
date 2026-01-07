@@ -6,6 +6,8 @@ using ..OpenCL: @device_override, method_table, kernel_convert, clfunction
 import KernelAbstractions as KA
 import KernelAbstractions.KernelInterface as KI
 
+import SPIRVIntrinsics
+
 import StaticArrays
 
 import Adapt
@@ -163,6 +165,20 @@ function KI.multiprocessor_count(::OpenCLBackend)::Int
     Int(cl.device().max_compute_units)
 end
 
+function KI.shfl_down_types(::OpenCLBackend)
+    res = copy(SPIRVIntrinsics.gentypes)
+
+    backend_extensions = cl.device().extensions
+    if "cl_khr_fp64" ∉ backend_extensions
+        res = setdiff(res, [Float64])
+    end
+    if "cl_khr_fp16" ∉ backend_extensions
+        res = setdiff(res, [Float16])
+    end
+
+    return res
+end
+
 ## Indexing Functions
 ## COV_EXCL_START
 
@@ -230,6 +246,10 @@ end
 
 @device_override @inline function KI.sub_group_barrier()
     sub_group_barrier(OpenCL.LOCAL_MEM_FENCE | OpenCL.GLOBAL_MEM_FENCE)
+end
+
+@device_override function KI.shfl_down(val::T, offset::Integer) where T
+    sub_group_shuffle(val, get_sub_group_local_id() + offset)
 end
 
 @device_override @inline function KI._print(args...)
