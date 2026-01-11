@@ -13,7 +13,8 @@ end
 
 const float_types = filter(x -> x <: Base.IEEEFloat, GPUArraysTestSuite.supported_eltypes(CLArray))
 const ispocl = cl.platform().name == "Portable Computing Language"
-const simd_ns = [2, 3, 4, 8, 16]
+# XXX: Why does pocl on windows not support vectors of size 2, 8, 16?
+const simd_ns = (Sys.iswindows() && ispocl) ? [3, 4] : [2, 3, 4, 8, 16]
 
 @testset "intrinsics" begin
 
