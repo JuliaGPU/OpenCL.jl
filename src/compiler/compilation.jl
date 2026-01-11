@@ -104,6 +104,35 @@ end
 
 ## compiler implementation (cache, configure, compile, and link)
 
+# Mapping from OpenCL device extensions to SPIR-V extensions that should be
+# automatically enabled during compilation. This allows features like float atomics
+# to work transparently through KernelAbstractions without manual extension specification.
+const OPENCL_TO_SPIRV_EXTENSIONS = Dict{String, Vector{String}}(
+    "cl_ext_float_atomics" => [
+        "SPV_EXT_shader_atomic_float_add",
+        "SPV_EXT_shader_atomic_float_min_max",
+    ],
+)
+
+"""
+    spirv_extensions_for_device(dev::cl.Device) -> Vector{String}
+
+Query the device's OpenCL extensions and return the corresponding SPIR-V extensions
+that should be enabled for compilation.
+"""
+function spirv_extensions_for_device(dev::cl.Device)
+    spirv_exts = String[]
+    device_exts = dev.extensions
+
+    for (cl_ext, spirv_ext_list) in OPENCL_TO_SPIRV_EXTENSIONS
+        if cl_ext in device_exts
+            append!(spirv_exts, spirv_ext_list)
+        end
+    end
+
+    return spirv_exts
+end
+
 # cache of compilation caches, per context
 const _compiler_caches = Dict{cl.Context, Dict{Any, Any}}()
 function compiler_cache(ctx::cl.Context)
@@ -127,12 +156,19 @@ function compiler_config(dev::cl.Device; kwargs...)
     end
     return config
 end
-@noinline function _compiler_config(dev; kernel=true, name=nothing, always_inline=false, kwargs...)
+@noinline function _compiler_config(dev; kernel=true, name=nothing, always_inline=false,
+                                     extensions::Vector{String}=String[], kwargs...)
     supports_fp16 = "cl_khr_fp16" in dev.extensions
     supports_fp64 = "cl_khr_fp64" in dev.extensions
 
+    # Auto-detect SPIR-V extensions from device capabilities and merge with
+    # any explicitly requested extensions
+    auto_extensions = spirv_extensions_for_device(dev)
+    all_extensions = unique(vcat(extensions, auto_extensions))
+
     # create GPUCompiler objects
-    target = SPIRVCompilerTarget(; supports_fp16, supports_fp64, validate=true, kwargs...)
+    target = SPIRVCompilerTarget(; supports_fp16, supports_fp64, validate=true,
+                                  extensions=all_extensions, kwargs...)
     params = OpenCLCompilerParams()
     CompilerConfig(target, params; kernel, name, always_inline)
 end
