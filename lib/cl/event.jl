@@ -153,7 +153,7 @@ function Base.wait(evts::Vector{AbstractEvent})
     isempty(evts) && return evts
     evt_ids = [pointer(evt) for evt in evts]
     GC.@preserve evts begin
-        clWaitForEvents(ength(evt_ids), evt_ids)
+        clWaitForEvents(length(evt_ids), evt_ids)
     end
     return evts
 end

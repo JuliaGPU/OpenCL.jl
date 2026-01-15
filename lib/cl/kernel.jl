@@ -311,7 +311,7 @@ end
 
 # From `julia/base/reflection.jl`, adjusted to add specialization on `t`.
 function _to_tuple_type(t)
-    if isa(t, Tuple) || isa(t, AbstractArray) || isa(t, SimpleVector)
+    if isa(t, Tuple) || isa(t, AbstractArray) || isa(t, Core.SimpleVector)
         t = Tuple{t...}
     end
     if isa(t, Type) && t <: Tuple
