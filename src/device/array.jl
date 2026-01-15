@@ -236,17 +236,17 @@ Base.show(io::IO, mime::MIME"text/plain", a::CLDeviceArray) = show(io, a)
 end
 
 function Base.reinterpret(::Type{T}, a::CLDeviceArray{S,N,A}) where {T,S,N,A}
-  err = GPUArrays._reinterpret_exception(T, a)
-  err === nothing || throw(err)
+    err = GPUArrays._reinterpret_exception(T, a)
+    err === nothing || throw(err)
 
-  if sizeof(T) == sizeof(S) # fast case
-    return CLDeviceArray{T,N,A}(size(a), reinterpret(LLVMPtr{T,A}, a.ptr), a.maxsize)
-  end
+    if sizeof(T) == sizeof(S) # fast case
+        return CLDeviceArray{T,N,A}(size(a), reinterpret(LLVMPtr{T,A}, a.ptr), a.maxsize)
+    end
 
-  isize = size(a)
-  size1 = div(isize[1]*sizeof(S), sizeof(T))
-  osize = tuple(size1, Base.tail(isize)...)
-  return CLDeviceArray{T,N,A}(osize, reinterpret(LLVMPtr{T,A}, a.ptr), a.maxsize)
+    isize = size(a)
+    size1 = div(isize[1]*sizeof(S), sizeof(T))
+    osize = tuple(size1, Base.tail(isize)...)
+    return CLDeviceArray{T,N,A}(osize, reinterpret(LLVMPtr{T,A}, a.ptr), a.maxsize)
 end
 
 
