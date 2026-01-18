@@ -1,7 +1,7 @@
 name = "SPIRVIntrinsics"
 uuid = "71d1d633-e7e8-4a92-83a1-de8814b09ba8"
 authors = ["Tim Besard <tim.besard@gmail.com>"]
-version = "0.5.6"
+version = "0.5.7"
 
 [deps]
 ExprTools = "e2ba6199-217a-4e67-a87a-7c52f15ade04"
