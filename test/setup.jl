@@ -155,9 +155,13 @@ macro on_device(ex...)
                 $code
                 return
             end
-
-            @opencl $(kwargs...) $kernel()
-            cl.finish(cl.queue())
+            @info "Pre-queue"
+            queue = cl.queue()
+            @info "Post-queue $(queue)"
+            @opencl queue $(kwargs...) $kernel()
+            @info "Post-launch"
+            cl.finish(queue)
+            @info "Post-sync"
         end
     end)
 end
