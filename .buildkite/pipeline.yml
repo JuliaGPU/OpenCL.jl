@@ -25,7 +25,7 @@ steps:
   - group: "macos"
     key: "julia"
     steps:
-      - label: "{{matrix.julia}} macos {{matrix.arch}}"
+      - label: "{{matrix.julia}} macos"
         plugins:
           - JuliaCI/julia#v1:
               version: "{{matrix.julia}}"
@@ -47,8 +47,7 @@ steps:
         agents:
           queue: "juliaecosystem"
           os: "macos"
-          arch: "{{matrix.arch}}"
-          macos_version: "15.0"
+          arch: "aarch64"
         if: build.message !~ /\[skip tests\]/
         timeout_in_minutes: 120
         matrix:
@@ -56,6 +55,3 @@ steps:
             julia:
               - "1.10"
               - "1.12"
-            arch:
-              - "x86_64"
-              - "aarch64"
