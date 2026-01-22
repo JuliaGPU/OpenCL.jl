@@ -156,6 +156,9 @@ end
 function KI.max_work_group_size(::OpenCLBackend)::Int
     Int(cl.device().max_work_group_size)
 end
+function KI.sub_group_size(::OpenCLBackend)::Int
+    cl.sub_group_size(cl.device())
+end
 function KI.multiprocessor_count(::OpenCLBackend)::Int
     Int(cl.device().max_compute_units)
 end
@@ -187,6 +190,16 @@ end
     return (; x = Int(get_global_size(1)), y = Int(get_global_size(2)), z = Int(get_global_size(3)))
 end
 
+@device_override KI.get_sub_group_size() = get_sub_group_size()
+
+@device_override KI.get_max_sub_group_size() = get_max_sub_group_size()
+
+@device_override KI.get_num_sub_groups() = get_num_sub_groups()
+
+@device_override KI.get_sub_group_id() = get_sub_group_id()
+
+@device_override KI.get_sub_group_local_id() = get_sub_group_local_id()
+
 @device_override @inline function KA.__validindex(ctx)
     if KA.__dynamic_checkbounds(ctx)
         I = KA.__index_Global_Cartesian(ctx)
@@ -213,6 +226,10 @@ end
 
 @device_override @inline function KI.barrier()
     work_group_barrier(OpenCL.LOCAL_MEM_FENCE | OpenCL.GLOBAL_MEM_FENCE)
+end
+
+@device_override @inline function KI.sub_group_barrier()
+    sub_group_barrier(OpenCL.LOCAL_MEM_FENCE | OpenCL.GLOBAL_MEM_FENCE)
 end
 
 @device_override @inline function KI._print(args...)
