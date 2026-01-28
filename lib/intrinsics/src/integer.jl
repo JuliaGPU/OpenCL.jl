@@ -36,6 +36,7 @@ for gentype in generic_integer_types
 
 @device_function popcount(x::$gentype) = @builtin_ccall("popcount", $gentype, ($gentype,), x)
 
+
 @device_function mad24(x::$gentype, y::$gentype, z::$gentype) = @builtin_ccall("mad24", $gentype, ($gentype, $gentype, $gentype), x, y, z)
 @device_function mul24(x::$gentype, y::$gentype) = @builtin_ccall("mul24", $gentype, ($gentype, $gentype), x, y)
 
