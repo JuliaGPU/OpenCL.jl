@@ -112,6 +112,9 @@ const OPENCL_TO_SPIRV_EXTENSIONS = Dict{String, Vector{String}}(
         "SPV_EXT_shader_atomic_float_add",
         "SPV_EXT_shader_atomic_float_min_max",
     ],
+    "cl_khr_extended_bit_ops" => [
+        "SPV_KHR_bit_instructions",
+    ],
 )
 
 """
