@@ -124,7 +124,7 @@ Query the device's OpenCL extensions and return the corresponding SPIR-V extensi
 that should be enabled for compilation.
 """
 function spirv_extensions_for_device(dev::cl.Device)
-    spirv_exts = String[]
+    spirv_exts = String["SPV_KHR_bit_instructions"]
     device_exts = dev.extensions
 
     for (cl_ext, spirv_ext_list) in OPENCL_TO_SPIRV_EXTENSIONS
@@ -167,7 +167,7 @@ end
     # Auto-detect SPIR-V extensions from device capabilities and merge with
     # any explicitly requested extensions
     auto_extensions = spirv_extensions_for_device(dev)
-    all_extensions = unique(vcat(extensions, auto_extensions))
+    all_extensions = unique!(vcat(extensions, auto_extensions))
 
     # create GPUCompiler objects
     target = SPIRVCompilerTarget(; supports_fp16, supports_fp64, validate=true,
