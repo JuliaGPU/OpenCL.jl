@@ -58,7 +58,7 @@ jobs:
             memory_backend: buffer
     steps:
       - name: Checkout OpenCL.jl
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Setup Julia
         uses: julia-actions/setup-julia@v2
@@ -71,7 +71,7 @@ jobs:
 
       - name: Checkout PoCL
         if: ${{ matrix.pocl == 'local' }}
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           repository: pocl/pocl
           path: pocl
@@ -99,8 +99,8 @@ jobs:
               ])
 
               # versioned
-              Pkg.add(name="LLVM_full_jll", version="19")
-              Pkg.add(name="SPIRV_LLVM_Translator_jll", version="19")'
+              Pkg.add(name="LLVM_full_jll", version="20")
+              Pkg.add(name="SPIRV_LLVM_Translator_jll", version="20")'
 
       - name: Build PoCL
         if: ${{ matrix.pocl == 'local' }}
