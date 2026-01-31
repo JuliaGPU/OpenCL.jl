@@ -123,4 +123,6 @@ if "cl_ext_float_atomics" in cl.device().extensions
         @test occursin("OpAtomicFAddEXT", spv)
     end
 end
+
+end
 end
