@@ -39,7 +39,7 @@ function generate_test(test, expr)
     # some tests require native execution capabilities
     requires_il = test in ["atomics", "execution", "intrinsics", "kernelabstractions",
                            "statistics", "linalg", ] ||
-                  startswith(test, "gpuarrays/")
+                  startswith(test, "gpuarrays/") || startswith(test, "device/")
 
     # targets is a global variable that is defined in init_code
     return quote
