@@ -26,4 +26,4 @@ pocl_jll = "627d6b7a-bbe6-5189-83e7-98cc0a5aeadd"
 
 [compat]
 pocl_jll = "7.0"
-ParallelTestRunner = "2"
+ParallelTestRunner = "2.2"
