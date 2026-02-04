@@ -79,7 +79,7 @@ for test in keys(testsuite)
     testsuite[test] = generate_test(test, testsuite[test])
 end
 
-const init_code = quote
+const init_worker_code = quote
     using OpenCL, pocl_jll
 
     OpenCL.allowscalar(false)
@@ -89,7 +89,7 @@ const init_code = quote
     # Include it directly.
     const GPUArraysTestSuite = let
         mod = @eval module $(gensym())
-            using ..Test
+            using Test
             import GPUArrays
             gpuarrays = pathof(GPUArrays)
             gpuarrays_root = dirname(dirname(gpuarrays))
@@ -140,13 +140,21 @@ const init_code = quote
     end
 end
 
+const init_code = quote
+    using OpenCL, pocl_jll
+
+    # bring used symbols into the temporary module
+    import ..GPUArraysTestSuite, ..testf
+    import ..@on_device, ..targets
+end
+
 # avoid handle exhaustion on Windows by running each test in a separate process (pocl/pocl#1941)
-function test_worker(test)
+function test_worker(_, init_worker_code)
     if Sys.iswindows()
-        addworker()
+        addworker(; init_worker_code)
     else
         nothing
     end
 end
 
-runtests(OpenCL, args; testsuite, init_code, test_worker)
+runtests(OpenCL, args; testsuite, init_code, init_worker_code, test_worker)
