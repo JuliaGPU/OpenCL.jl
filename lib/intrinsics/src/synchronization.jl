@@ -149,10 +149,14 @@ write_mem_fence(flags) = atomic_work_item_fence(flags, memory_order_release, mem
 
 ## OpenCL execution barriers
 
-export barrier, work_group_barrier
+export barrier, work_group_barrier, sub_group_barrier
 
 @inline work_group_barrier(flags, scope = memory_scope_work_group) =
     control_barrier(Scope.Workgroup, cl_scope_to_spirv(scope),
+                    MemorySemantics.SequentiallyConsistent | mem_fence_flags_to_semantics(flags))
+
+@inline sub_group_barrier(flags, scope = memory_scope_sub_group) =
+    control_barrier(Scope.Subgroup, cl_scope_to_spirv(scope),
                     MemorySemantics.SequentiallyConsistent | mem_fence_flags_to_semantics(flags))
 
 barrier(flags) = work_group_barrier(flags)
