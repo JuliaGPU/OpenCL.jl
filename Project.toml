@@ -1,6 +1,6 @@
 name = "OpenCL"
 uuid = "08131aa3-fb12-5dee-8b74-c09406e224a2"
-version = "0.10.8"
+version = "0.10.9"
 
 [deps]
 Adapt = "79e6a3ab-5dfb-504d-930d-738a2a938a0e"
@@ -38,7 +38,7 @@ Random = "1"
 Random123 = "1.7.1"
 RandomNumbers = "1.6.0"
 Reexport = "1"
-SPIRVIntrinsics = "0.5"
+SPIRVIntrinsics = "0.5.7"
 SPIRV_LLVM_Backend_jll = "20"
 SPIRV_Tools_jll = "2025.1"
 StaticArrays = "1"

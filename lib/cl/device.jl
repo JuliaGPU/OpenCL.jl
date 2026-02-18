@@ -139,6 +139,20 @@ end
         return tuple([Int(r) for r in result]...)
     end
 
+    # error handling inspired by rusticl
+    # https://gitlab.freedesktop.org/mesa/mesa/-/blob/c4385d6fb0938231114eb3023082cd33788b89b4/src/gallium/frontends/rusticl/api/device.rs#L314-320
+    if s == :sub_group_sizes
+        res_size = Ref{Csize_t}()
+        err = unchecked_clGetDeviceInfo(d, CL_DEVICE_SUB_GROUP_SIZES_INTEL, C_NULL, C_NULL, res_size)
+        if err == CL_SUCCESS && res_size[] > 1
+            result = Vector{Csize_t}(undef, res_size[] ÷ sizeof(Csize_t))
+            clGetDeviceInfo(d, CL_DEVICE_SUB_GROUP_SIZES_INTEL, sizeof(result), result, C_NULL)
+            return tuple([Int(r) for r in result]...)
+        else
+            return tuple(0, 1)
+        end
+    end
+
     if s == :max_image2d_shape
         width  = Ref{Csize_t}()
         height = Ref{Csize_t}()
@@ -272,4 +286,41 @@ function cl_device_type(dtype::Symbol)
         throw(ArgumentError("Unknown device type: $dtype"))
     end
     return cl_dtype
+end
+
+sub_groups_supported(d::Device) = "cl_khr_subgroups" in d.extensions || "cl_intel_subgroups" in d.extensions
+function sub_group_size(d::Device)
+    sub_groups_supported(d) || 0
+    if "cl_amd_device_attribute_query" in d.extensions
+        scalar = Ref{cl_uint}()
+        clGetDeviceInfo(d, CL_DEVICE_WAVEFRONT_WIDTH_AMD, sizeof(cl_uint), scalar, C_NULL)
+        return Int(scalar[])
+    elseif "cl_nv_device_attribute_query" in d.extensions
+        scalar = Ref{cl_uint}()
+        clGetDeviceInfo(d, CL_DEVICE_WARP_SIZE_NV, sizeof(cl_uint), scalar, C_NULL)
+        return Int(scalar[])
+    else
+        sg_sizes = d.sub_group_sizes
+        return if length(sg_sizes) == 1
+            Int(only(sg_sizes))
+        elseif 32 in sg_sizes
+            32
+        elseif 64 in sg_sizes
+            64
+        elseif 16 in sg_sizes
+            16
+        else
+            Int(first(sg_sizes))
+        end
+    end
+end
+function sub_group_shuffle_supported_types(d::Device)
+    if "cl_khr_subgroup_shuffle" in d.extensions
+        res = [Int8, UInt8, Int16, UInt16, Int32, UInt32, Int64, UInt64, Float32]
+        "cl_khr_fp16" in d.extensions && push!(res, Float16)
+        "cl_khr_fp64" in d.extensions && push!(res, Float64)
+        res
+    else
+        DataType[]
+    end
 end

@@ -1,6 +1,9 @@
 ## gpucompiler interface
 
-struct OpenCLCompilerParams <: AbstractCompilerParams end
+Base.@kwdef struct OpenCLCompilerParams <: AbstractCompilerParams
+    sub_group_size::Int # Some devices support multiple sizes. This is used to force one when needed
+end
+
 const OpenCLCompilerConfig = CompilerConfig{SPIRVCompilerTarget, OpenCLCompilerParams}
 const OpenCLCompilerJob = CompilerJob{SPIRVCompilerTarget,OpenCLCompilerParams}
 
@@ -28,6 +31,12 @@ function GPUCompiler.finish_module!(@nospecialize(job::OpenCLCompilerJob),
     entry = invoke(GPUCompiler.finish_module!,
                    Tuple{CompilerJob{SPIRVCompilerTarget}, LLVM.Module, LLVM.Function},
                    job, mod, entry)
+
+    # Set the subgroup size if supported
+    sg_size = job.config.params.sub_group_size
+    if sg_size >= 0
+        metadata(entry)["intel_reqd_sub_group_size"] = MDNode([ConstantInt(Int32(sg_size))])
+    end
 
     # if this kernel uses our RNG, we should prime the shared state.
     # XXX: these transformations should really happen at the Julia IR level...
@@ -131,9 +140,16 @@ end
     supports_fp16 = "cl_khr_fp16" in dev.extensions
     supports_fp64 = "cl_khr_fp64" in dev.extensions
 
+    # Set to -1 if specifying a subgroup size is not supported
+    sub_group_size = if "cl_intel_required_subgroup_size" in dev.extensions
+        cl.sub_group_size(dev)
+    else
+        -1
+    end
+
     # create GPUCompiler objects
     target = SPIRVCompilerTarget(; supports_fp16, supports_fp64, validate=true, kwargs...)
-    params = OpenCLCompilerParams()
+    params = OpenCLCompilerParams(; sub_group_size)
     CompilerConfig(target, params; kernel, name, always_inline)
 end
 
