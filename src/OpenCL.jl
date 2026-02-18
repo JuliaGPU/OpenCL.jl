@@ -10,7 +10,7 @@ using Random
 using Preferences
 
 import KernelAbstractions: KernelAbstractions
-
+b = 4+3
 using Core: LLVMPtr
 
 # library wrappers
