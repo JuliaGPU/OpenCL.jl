@@ -16,8 +16,6 @@ const ispocl = cl.platform().name == "Portable Computing Language"
 # XXX: Why does pocl on windows not support vectors of size 2, 8, 16?
 const simd_ns = (Sys.iswindows() && ispocl) ? [3, 4] : [2, 3, 4, 8, 16]
 
-@testset "intrinsics" begin
-
 @testset "barrier" begin
 
 # work-group
@@ -325,8 +323,6 @@ end # if cl.sub_groups_supported(cl.device())
     nan_code = Vec{N, Base.uinttype(T)}(ntuple(_ -> rand(Base.uinttype(T)), N))
     nan_result = call_on_device(OpenCL.nan, nan_code)
     @test all(isnan(nan_result[i]) for i in 1:N)
-end
-
 end
 
 end
