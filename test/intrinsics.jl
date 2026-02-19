@@ -249,7 +249,6 @@ end
         function shfl_xor_kernel(in)
             i = get_sub_group_local_id()
 
-            # val = in[i]
             new_val = sub_group_shuffle_xor(in[i], 1)
 
             in[i] = new_val
