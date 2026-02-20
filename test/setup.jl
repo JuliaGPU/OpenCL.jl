@@ -90,7 +90,7 @@ function runtests(f, name, platform_filter)
         end
 
         # some tests require native execution capabilities
-        requires_il = name in ["atomics", "execution", "intrinsics", "kernelabstractions"] ||
+        requires_il = name in ["atomics", "execution", "intrinsics", "kernelabstractions", "spirv_extensions"] ||
                       startswith(name, "gpuarrays/") || startswith(name, "device/")
 
         ex = quote
