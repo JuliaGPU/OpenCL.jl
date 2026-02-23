@@ -35,7 +35,10 @@ function device_alloc(bytesize::Integer;
     end
 
     error_code = Ref{Cint}()
-    props = cl_mem_properties_intel[CL_MEM_ALLOC_FLAGS_INTEL, flags, 0]
+    # only include CL_MEM_ALLOC_FLAGS_INTEL when non-zero; passing flags=0 is rejected
+    # as CL_INVALID_PROPERTY by some drivers (e.g. Intel OpenCL CPU runtime)
+    props = flags != 0 ? cl_mem_properties_intel[CL_MEM_ALLOC_FLAGS_INTEL, flags, 0] :
+                         cl_mem_properties_intel[0]
     ptr = clDeviceMemAllocINTEL(context(), device(), props, bytesize, alignment, error_code)
     if error_code[] != CL_SUCCESS
         throw(CLError(error_code[]))
@@ -81,7 +84,8 @@ function host_alloc(bytesize::Integer;
     end
 
     error_code = Ref{Cint}()
-    props = cl_mem_properties_intel[CL_MEM_ALLOC_FLAGS_INTEL, flags, 0]
+    props = flags != 0 ? cl_mem_properties_intel[CL_MEM_ALLOC_FLAGS_INTEL, flags, 0] :
+                         cl_mem_properties_intel[0]
     ptr = clHostMemAllocINTEL(context(), props, bytesize, alignment, error_code)
     if error_code[] != CL_SUCCESS
         throw(CLError(error_code[]))
@@ -135,7 +139,8 @@ function shared_alloc(bytesize::Integer;
     end
 
     error_code = Ref{Cint}()
-    props = cl_mem_properties_intel[CL_MEM_ALLOC_FLAGS_INTEL, flags, 0]
+    props = flags != 0 ? cl_mem_properties_intel[CL_MEM_ALLOC_FLAGS_INTEL, flags, 0] :
+                         cl_mem_properties_intel[0]
     ptr = clSharedMemAllocINTEL(context(), device(), props, bytesize, alignment, error_code)
     if error_code[] != CL_SUCCESS
         throw(CLError(error_code[]))
@@ -179,6 +184,26 @@ function enqueue_usm_fill(ptr::Union{Ptr, CLPtr}, pattern::T, N::Integer;
                           wait_for::Vector{Event}=Event[]) where {T}
     nbytes = N * sizeof(T)
     pattern_size = sizeof(T)
+
+    # clEnqueueMemFillINTEL requires pattern_size to be a power of two (1–128 bytes).
+    # For other element types (e.g. RGB{Float32} = 12 bytes), fall back to a host-side
+    # fill: write the pattern into a malloc'd staging buffer, then bulk-copy to the
+    # device with clEnqueueMemcpyINTEL (one API call, blocking so we can free staging).
+    if !ispow2(pattern_size) || pattern_size > 128
+        staging = Libc.malloc(nbytes)
+        staging == C_NULL && throw(OutOfMemoryError())
+        try
+            p = Ptr{T}(staging)
+            for i in 0:N-1
+                unsafe_store!(p, pattern, i + 1)
+            end
+            enqueue_usm_copy(ptr, Ptr{Cvoid}(staging), nbytes; blocking=true, wait_for=wait_for)
+        finally
+            Libc.free(staging)
+        end
+        return nothing
+    end
+
     n_evts  = length(wait_for)
     evt_ids = isempty(wait_for) ? C_NULL : [pointer(evt) for evt in wait_for]
     GC.@preserve wait_for begin

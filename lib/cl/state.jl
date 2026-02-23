@@ -68,14 +68,17 @@ function default_platform()
         throw(ArgumentError("No OpenCL platforms found"))
     end
 
-    # prefer platforms that implement the full profile
-    idx = findfirst(ps) do p
-        p.profile == "FULL_PROFILE"
-    end
-    isnothing(idx) || return ps[idx]
+    full_profile = filter(p -> p.profile == "FULL_PROFILE", ps)
+    candidates = isempty(full_profile) ? ps : full_profile
 
-    # otherwise, just return the first platform
-    return first(ps)
+    # prefer platforms that have at least one device supporting SPIR-V ingestion,
+    # since cl_khr_il_program is required for native (SPIR-V) kernel compilation
+    idx = findfirst(candidates) do p
+        any(d -> "cl_khr_il_program" in d.extensions, devices(p))
+    end
+    isnothing(idx) || return candidates[idx]
+
+    return first(candidates)
 end
 
 function platform()
@@ -120,6 +123,11 @@ function default_device(p::Platform)
     isempty(devs) && return nothing
     # XXX: clGetDeviceIDs documents CL_DEVICE_TYPE_DEFAULT should only return one device,
     #      but it's been observed to return multiple devices on some platforms...
+
+    # prefer a device that supports SPIR-V ingestion (required for native compilation)
+    idx = findfirst(d -> "cl_khr_il_program" in d.extensions, devs)
+    isnothing(idx) || return devs[idx]
+
     return first(devs)
 end
 
