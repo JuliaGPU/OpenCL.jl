@@ -60,7 +60,8 @@ jobs:
         if: ${{ matrix.pocl == 'local' }}
         uses: actions/checkout@v6
         with:
-          repository: pocl/pocl
+          repository: franz/pocl
+          ref: fixes
           path: pocl
 
       - name: Install system dependencies
