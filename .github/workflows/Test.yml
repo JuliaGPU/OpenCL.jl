@@ -125,6 +125,14 @@ jobs:
             echo '[pocl_jll]' >> test/LocalPreferences.toml
             echo 'libpocl_path="${{ github.workspace }}/target/lib/libpocl.so"' >> test/LocalPreferences.toml
 
+      - name: "Set test arguments and other environment variables"
+        shell: bash
+        run: |
+          if [[ ${{ runner.os }} == "macOS" ]]; then
+            JULIA_TEST_MAXRSS_MB=2000
+            echo "JULIA_TEST_MAXRSS_MB=${JULIA_TEST_MAXRSS_MB}" | tee -a "${GITHUB_ENV}"
+          fi
+
       - name: Setup OpenCL.jl
         run: |
           echo '[OpenCL]' >> test/LocalPreferences.toml
