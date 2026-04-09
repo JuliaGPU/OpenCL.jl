@@ -129,8 +129,10 @@ jobs:
         shell: bash
         run: |
           if [[ ${{ runner.os }} == "macOS" ]]; then
-            JULIA_TEST_MAXRSS_MB=2000
+            JULIA_TEST_MAXRSS_MB=1800
             echo "JULIA_TEST_MAXRSS_MB=${JULIA_TEST_MAXRSS_MB}" | tee -a "${GITHUB_ENV}"
+            JULIA_CPU_THREADS=2
+            echo "JULIA_CPU_THREADS=${JULIA_CPU_THREADS}" | tee -a "${GITHUB_ENV}"
           fi
 
       - name: Setup OpenCL.jl
