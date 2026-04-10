@@ -47,6 +47,15 @@ import Adapt
         fill!(view(xs, 2:2), 1)
         @test Array(xs) == [0, 1, 0]
     end
+
+    @testset "reinterpret of view with non-aligned offset" begin
+        # reinterpreting a view to a larger element type where the byte offset
+        # is not a multiple of the new element size
+        a = CLArray(Int32[1,2,3,4,5,6,7,8,9])
+        v = view(a, 2:7)  # offset of 1 Int32 = 4 bytes
+        r = reinterpret(Int64, v)  # Int64 = 8 bytes; 4 is not a multiple of 8
+        @test Array(r) == reinterpret(Int64, @view Array(a)[2:7])
+    end
     # TODO: Look into how to port the @sync
 
     if cl.USMBackend() in cl.supported_memory_backends(cl.device())

@@ -39,7 +39,7 @@ mutable struct CLArray{T, N, M} <: AbstractGPUArray{T, N}
     data::DataRef{Managed{M}}
 
     maxsize::Int  # maximum data size; excluding any selector bytes
-    offset::Int   # offset of the data in memory, in number of elements
+    offset::Int   # offset of the data in memory, in bytes
 
     dims::Dims{N}
 
@@ -288,14 +288,14 @@ function Base.unsafe_convert(::Type{Ptr{T}}, x::CLArray{T}) where {T}
     if !host_accessible(x)
         throw(ArgumentError("cannot take the CPU address of a $(typeof(x))"))
     end
-    return convert(Ptr{T}, x.data[]) + x.offset * Base.elsize(x)
+    return convert(Ptr{T}, x.data[]) + x.offset
 end
 
 function Base.unsafe_convert(::Type{CLPtr{T}}, x::CLArray{T}) where {T}
     if !device_accessible(x)
         throw(ArgumentError("cannot take the device address of a $(typeof(x))"))
     end
-    return convert(CLPtr{T}, x.data[]) + x.offset * Base.elsize(x)
+    return convert(CLPtr{T}, x.data[]) + x.offset
 end
 
 # when passing to OpenCL kernels with `clcall`, don't convert directly to a pointer,
@@ -311,7 +311,7 @@ function Base.unsafe_convert(::Type{CLDeviceArray{T, N, AS.CrossWorkgroup}},
                              a::CLArray{T, N}) where {T, N}
     return CLDeviceArray{T, N, AS.CrossWorkgroup}(
         size(a), reinterpret(LLVMPtr{T, AS.CrossWorkgroup}, pointer(a)),
-        a.maxsize - a.offset * Base.elsize(a)
+        a.maxsize - a.offset
     )
 end
 
@@ -321,8 +321,12 @@ end
 synchronize(x::CLArray) = synchronize(x.data[])
 
 typetagdata(a::Array, i = 1) = ccall(:jl_array_typetagdata, Ptr{UInt8}, (Any,), a) + i - 1
-typetagdata(a::CLArray, i = 1) =
-    convert(CLPtr{UInt8}, a.data[]) + a.maxsize + a.offset + i - 1
+function typetagdata(a::CLArray, i = 1)
+    # for zero-size element types (e.g. singleton unions), the byte offset
+    # is always zero, so the corresponding element offset is also zero
+    elem_offset = iszero(Base.elsize(a)) ? 0 : a.offset ÷ Base.elsize(a)
+    return convert(CLPtr{UInt8}, a.data[]) + a.maxsize + elem_offset + i - 1
+end
 
 function Base.copyto!(
         dest::CLArray{T}, doffs::Integer, src::Array{T}, soffs::Integer,
@@ -392,18 +396,18 @@ for (srcty, dstty) in [(:Array, :CLArray), (:CLArray, :Array), (:CLArray, :CLArr
                 else
                     if src isa CLArray && dst isa CLArray
                         cl.enqueue_copy(convert(cl.Buffer, dst.data[]),
-                            (dst.offset * Base.elsize(dst)) + (dst_off - 1) * sizeof(T),
+                            dst.offset + (dst_off - 1) * sizeof(T),
                             convert(cl.Buffer, src.data[]),
-                            (src.offset * Base.elsize(src)) + (src_off - 1) * sizeof(T),
+                            src.offset + (src_off - 1) * sizeof(T),
                             nbytes; blocking)
                     elseif dst isa CLArray
                         cl.enqueue_write(convert(cl.Buffer, dst.data[]),
-                            (dst.offset * Base.elsize(dst)) + (dst_off - 1) * sizeof(T),
+                            dst.offset + (dst_off - 1) * sizeof(T),
                             pointer(src, src_off), nbytes; blocking)
                     elseif src isa CLArray
                         cl.enqueue_read(pointer(dst, dst_off),
                             convert(cl.Buffer, src.data[]),
-                            (src.offset * Base.elsize(src)) + (src_off - 1) * sizeof(T),
+                            src.offset + (src_off - 1) * sizeof(T),
                             nbytes; blocking)
                     end
                 end
@@ -450,7 +454,7 @@ function Base.fill!(A::DenseCLArray{T}, val) where {T}
             elseif memtype(A) <: cl.UnifiedMemory
                 cl.enqueue_usm_fill(pointer(A), convert(T, val), length(A))
             else
-                cl.enqueue_fill(convert(cl.Buffer, A.data[]), A.offset * Base.elsize(A), convert(T, val), length(A))
+                cl.enqueue_fill(convert(cl.Buffer, A.data[]), A.offset, convert(T, val), length(A))
             end
         end
     end
@@ -529,7 +533,7 @@ function Base.resize!(a::CLVector{T}, n::Integer) where {T}
                 elseif memtype(a) <: cl.UnifiedMemory
                     cl.enqueue_usm_copy(ptr, pointer(a), m*sizeof(T); blocking=false)
                 else
-                    cl.enqueue_copy(convert(cl.Buffer, mem), 0, convert(cl.Buffer, a.data[]), a.offset * Base.elsize(a), m*sizeof(T); blocking=false)
+                    cl.enqueue_copy(convert(cl.Buffer, mem), 0, convert(cl.Buffer, a.data[]), a.offset, m*sizeof(T); blocking=false)
                 end
             end
         end
