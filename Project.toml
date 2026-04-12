@@ -23,12 +23,13 @@ StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 
 [sources]
 SPIRVIntrinsics = {path = "lib/intrinsics"}
+KernelAbstractions = {rev = "main", url = "https://github.com/JuliaGPU/KernelAbstractions.jl"}
 
 [compat]
 Adapt = "4"
 GPUArrays = "11.2.1"
 GPUCompiler = "1.7.1"
-KernelAbstractions = "0.9.38"
+KernelAbstractions = "0.9, 0.10"
 LLVM = "9.1"
 LinearAlgebra = "1"
 OpenCL_jll = "=2024.10.24"
@@ -38,7 +39,7 @@ Random = "1"
 Random123 = "1.7.1"
 RandomNumbers = "1.6.0"
 Reexport = "1"
-SPIRVIntrinsics = "0.5.7"
+SPIRVIntrinsics = "0.5"
 SPIRV_LLVM_Backend_jll = "20"
 SPIRV_Tools_jll = "2025.1"
 StaticArrays = "1"
