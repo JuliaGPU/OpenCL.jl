@@ -54,7 +54,7 @@ jobs:
           arch: ${{ matrix.arch }}
 
       - name: Setup Julia cache
-        uses: julia-actions/cache@v2
+        uses: julia-actions/cache@v3
 
       - name: Checkout PoCL
         if: ${{ matrix.pocl == 'local' }}
