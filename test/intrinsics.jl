@@ -126,6 +126,17 @@ end
     end
 end
 
+# Regression test for #428: `^(::Float, ::Int64)` must not truncate the
+# exponent through Int32, since `y % Int32` wraps for |y| ≥ 2^31 and would
+# flip the sign of the exponent (producing 0 instead of Inf, etc.).
+@testset "^(::$T, ::Int64) with out-of-Int32 exponent" for T in float_types
+    y = Int64(typemax(Int32)) + Int64(1)  # smallest Int64 not representable as Int32
+    for x in (T(1.5), T(0.5))
+        @test call_on_device(^, x, y) === x ^ y
+        @test call_on_device(^, x, -y) === x ^ -y
+    end
+end
+
 @testset "OpenCL-specific unary - $T" for T in float_types
     @testset "$f" for f in [
             OpenCL.acospi,
