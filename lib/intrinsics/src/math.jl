@@ -1,5 +1,7 @@
 # Math Functions
 
+using Base: @assume_effects
+
 # TODO: vector types
 const generic_types = [Float16, Float32, Float64]
 const generic_types_float = [Float32]
@@ -182,6 +184,36 @@ end
 @device_override Base.:(^)(x::Float32, y::Int32) = @builtin_ccall("pown", Float32, (Float32, Int32), x, y)
 # pown(x::Float64{n}, y::Int32{n}) = @builtin_ccall("pown", Float64{n}, (Float64{n}, Int32{n}), x, y)
 @device_override Base.:(^)(x::Float64, y::Int32) = @builtin_ccall("pown", Float64, (Float64, Int32), x, y)
+
+# Base's `^(::Union{Float16,Float32,Float64}, ::Int64)` widens Float32/16
+# through Float64 (broken on backends without FP64) and in all cases leaves a
+# runtime `pown` in the generated code. Mark the override `:foldable` so
+# literal expressions like `Float32(2)^(-32)` const-fold to a compile-time
+# constant, and recurse into the existing `::Int32` overrides for the tail.
+@device_override @assume_effects :foldable @inline function Base.:(^)(x::Float16, y::Int64)
+    y == -1 && return inv(x)
+    y == 0  && return one(x)
+    y == 1  && return x
+    y == 2  && return x * x
+    y == 3  && return x * x * x
+    x ^ (y % Int32)
+end
+@device_override @assume_effects :foldable @inline function Base.:(^)(x::Float32, y::Int64)
+    y == -1 && return inv(x)
+    y == 0  && return one(x)
+    y == 1  && return x
+    y == 2  && return x * x
+    y == 3  && return x * x * x
+    x ^ (y % Int32)
+end
+@device_override @assume_effects :foldable @inline function Base.:(^)(x::Float64, y::Int64)
+    y == -1 && return inv(x)
+    y == 0  && return one(x)
+    y == 1  && return x
+    y == 2  && return x * x
+    y == 3  && return x * x * x
+    x ^ (y % Int32)
+end
 
 # remquo(x::Float32{n}, y::Float32{n}, Int32{n} *quo) = @builtin_ccall("remquo", Float32{n}, (Float32{n}, Float32{n}, Int32{n} *), x, y, quo)
 # remquo(x::Float32, y::Float32, Int32 *quo) = @builtin_ccall("remquo", Float32, (Float32, Float32, Int32 *), x::Float32, y, quo)
