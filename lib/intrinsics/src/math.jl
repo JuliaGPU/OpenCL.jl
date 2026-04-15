@@ -189,14 +189,16 @@ end
 # through Float64 (broken on backends without FP64) and in all cases leaves a
 # runtime `pown` in the generated code. Mark the override `:foldable` so
 # literal expressions like `Float32(2)^(-32)` const-fold to a compile-time
-# constant, and recurse into the existing `::Int32` overrides for the tail.
+# constant, and fall back to the float-exponent `pow` for the tail (matches
+# Base's own fallback for out-of-range integer exponents since 1.12; see
+# `base/special/pow.jl`).
 @device_override @assume_effects :foldable @inline function Base.:(^)(x::Float16, y::Int64)
     y == -1 && return inv(x)
     y == 0  && return one(x)
     y == 1  && return x
     y == 2  && return x * x
     y == 3  && return x * x * x
-    x ^ (y % Int32)
+    x ^ Float16(y)
 end
 @device_override @assume_effects :foldable @inline function Base.:(^)(x::Float32, y::Int64)
     y == -1 && return inv(x)
@@ -204,7 +206,7 @@ end
     y == 1  && return x
     y == 2  && return x * x
     y == 3  && return x * x * x
-    x ^ (y % Int32)
+    x ^ Float32(y)
 end
 @device_override @assume_effects :foldable @inline function Base.:(^)(x::Float64, y::Int64)
     y == -1 && return inv(x)
@@ -212,7 +214,7 @@ end
     y == 1  && return x
     y == 2  && return x * x
     y == 3  && return x * x * x
-    x ^ (y % Int32)
+    x ^ Float64(y)
 end
 
 # remquo(x::Float32{n}, y::Float32{n}, Int32{n} *quo) = @builtin_ccall("remquo", Float32{n}, (Float32{n}, Float32{n}, Int32{n} *), x, y, quo)
