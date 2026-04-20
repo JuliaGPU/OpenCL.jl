@@ -15,7 +15,7 @@ jobs:
   test:
     name: Julia ${{ matrix.version }} - ${{ matrix.os }} - ${{ matrix.arch }} - ${{ matrix.memory_backend }} - PoCL ${{ matrix.pocl }}
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 100
+    timeout-minutes: 400
     permissions: # needed to allow julia-actions/cache to proactively delete old caches that it has created
       actions: write
       contents: read
@@ -23,7 +23,7 @@ jobs:
       fail-fast: false
       matrix:
         version: ['1.10', '1.12']
-        os: [ubuntu-24.04, ubuntu-24.04-arm, macOS-15-intel, windows-2022]
+        os: [ubuntu-24.04, ubuntu-24.04-arm, macOS-26-intel, windows-2022]
         arch: [x64, arm64]
         pocl: [jll, local]
         memory_backend: [usm, svm, buffer]
@@ -35,11 +35,11 @@ jobs:
             arch: arm64
           - os: ubuntu-24.04-arm
             arch: x64
-          # macOS-15-intel is Intel-only
-          - os: macOS-15-intel
+          # macOS-26-intel is Intel-only
+          - os: macOS-26-intel
             arch: arm64
           # we only test building PoCL on Linux
-          - os: macOS-15-intel
+          - os: macOS-26-intel
             pocl: local
           - os: windows-2022
             pocl: local
@@ -125,6 +125,16 @@ jobs:
             echo '[pocl_jll]' >> test/LocalPreferences.toml
             echo 'libpocl_path="${{ github.workspace }}/target/lib/libpocl.so"' >> test/LocalPreferences.toml
 
+      - name: "Set test arguments and other environment variables"
+        shell: bash
+        run: |
+          if [[ ${{ runner.os }} == "macOS" ]]; then
+            JULIA_TEST_MAXRSS_MB=1800
+            echo "JULIA_TEST_MAXRSS_MB=${JULIA_TEST_MAXRSS_MB}" | tee -a "${GITHUB_ENV}"
+            JULIA_CPU_THREADS=2
+            echo "JULIA_CPU_THREADS=${JULIA_CPU_THREADS}" | tee -a "${GITHUB_ENV}"
+          fi
+
       - name: Setup OpenCL.jl
         run: |
           echo '[OpenCL]' >> test/LocalPreferences.toml
@@ -137,7 +147,7 @@ jobs:
         uses: julia-actions/julia-runtest@v1
         if: runner.os != 'Windows'
         with:
-          test_args: '--quickfail --platform=pocl'
+          test_args: '--quickfail --verbose --platform=pocl'
 
       - name: Setup BusyBox
         if: runner.os == 'Windows'
@@ -149,7 +159,7 @@ jobs:
         run: |
           using Pkg
           Pkg.activate(".")
-          Pkg.test(; test_args=`--quickfail --platform=pocl`)
+          Pkg.test(; test_args=`--quickfail --verbose --platform=pocl`)
 
       - uses: julia-actions/julia-processcoverage@v1
       - uses: codecov/codecov-action@v6
