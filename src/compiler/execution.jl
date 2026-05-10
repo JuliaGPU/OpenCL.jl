@@ -186,7 +186,10 @@ function clfunction(f::F, tt::TT=Tuple{}; kwargs...) where {F,TT}
         job = CompilerJob(source, config)
         cache = GPUCompiler.cache_view(job)
 
-        ci, res = something(lookup(cache, source), compile_opencl!(cache, job))
+        # `@something` (not the `something` function) so `compile_opencl!` only runs
+        # on a cache miss — otherwise Julia evaluates it eagerly and silently re-runs
+        # the full LLVM compile on every launch.
+        ci, res = @something lookup(cache, source) compile_opencl!(cache, job)
 
         # Resolve the cl.Kernel for the active context. Linear scan over the
         # session-local cache; almost always n=1, so this is one `===` compare.
