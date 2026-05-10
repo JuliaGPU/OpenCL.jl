@@ -180,27 +180,48 @@ end
 const clfunction_lock = ReentrantLock()
 
 function clfunction(f::F, tt::TT=Tuple{}; kwargs...) where {F,TT}
-    ctx = cl.context()
-    dev = cl.device()
-
     Base.@lock clfunction_lock begin
-        # compile the function
-        cache = compiler_cache(ctx)
+        config = compiler_config(cl.device(); kwargs...)::OpenCLCompilerConfig
         source = methodinstance(F, tt)
-        config = compiler_config(dev; kwargs...)::OpenCLCompilerConfig
-        linked = GPUCompiler.cached_compilation(cache, source, config, compile, link)
+        job = CompilerJob(source, config)
+        cache = GPUCompiler.cache_view(job)
 
-        # create a callable object that captures the function instance. we don't need to think
-        # about world age here, as GPUCompiler already does and will return a different object
-        h = hash(linked.kernel, hash(f, hash(tt)))
-        kernel = get(_kernel_instances, h, nothing)
-        if kernel === nothing
-            # create the kernel state object
-            kernel = HostKernel{F,tt}(f, linked.kernel, linked.device_rng)
-            _kernel_instances[h] = kernel
+        ci, res = something(lookup(cache, source), compile_opencl!(cache, job))
+
+        # Resolve the cl.Kernel for the active context. Linear scan over the
+        # session-local cache; almost always n=1, so this is one `===` compare.
+        ctx = cl.context()
+        kernel = nothing
+        @inbounds for (cached_ctx, cached_kernel) in res.kernels
+            if cached_ctx === ctx
+                kernel = cached_kernel
+                break
+            end
         end
-        return kernel::HostKernel{F,tt}
+        if kernel === nothing
+            kernel = link_kernel(res.obj::Vector{UInt8}, res.entry::String)
+            push!(res.kernels, (ctx, kernel))
+        end
+
+        h = hash(kernel, hash(f, hash(tt)))
+        get!(_kernel_instances, h) do
+            HostKernel{F,tt}(f, kernel, res.device_rng)
+        end::HostKernel{F,tt}
     end
+end
+
+# Run inference and codegen for `job`, then populate the cached `OpenCLResults` with the
+# session-portable artifacts. The `CodeInstance` is created during inference inside
+# `GPUCompiler.compile` (which uses the same owner-partitioned `CacheView`), and gets a
+# fresh `OpenCLResults()` attached via `@setup_caching`'s `finish!` hook.
+function compile_opencl!(cache::CacheView, @nospecialize(job::CompilerJob))
+    compiled = compile_to_obj(job)
+    ci = get(cache, job.source, nothing)::Core.CodeInstance
+    res = results(cache, ci)::OpenCLResults
+    res.obj = compiled.obj
+    res.entry = compiled.entry
+    res.device_rng = compiled.device_rng
+    return (ci, res)
 end
 
 # cache of kernel instances

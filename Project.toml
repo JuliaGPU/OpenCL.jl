@@ -4,6 +4,7 @@ version = "0.10.9"
 
 [deps]
 Adapt = "79e6a3ab-5dfb-504d-930d-738a2a938a0e"
+CompilerCaching = "9db33cc3-5358-4881-8759-fa4194144afd"
 GPUArrays = "0c68f7d7-f131-5f86-a1c3-88cf8149b2d7"
 GPUCompiler = "61eb1bfa-7361-4325-ad38-22787b887f55"
 KernelAbstractions = "63c18a36-062a-441e-b654-da1e3ab1ce7c"
@@ -26,10 +27,11 @@ SPIRVIntrinsics = {path = "lib/intrinsics"}
 
 [compat]
 Adapt = "4"
+CompilerCaching = "0.2.4"
 GPUArrays = "11.2.1"
-GPUCompiler = "1.7.1"
+GPUCompiler = "1.10"
 KernelAbstractions = "0.9.38"
-LLVM = "9.1"
+LLVM = "9.6"
 LinearAlgebra = "1"
 OpenCL_jll = "=2024.10.24"
 Preferences = "1"
