@@ -45,3 +45,6 @@ SPIRV_LLVM_Backend_jll = "20"
 SPIRV_Tools_jll = "2025.1"
 StaticArrays = "1"
 julia = "1.11"
+
+[sources]
+GPUCompiler = {url="https://github.com/JuliaGPU/GPUCompiler.jl", rev="tb/compilercaching"}
