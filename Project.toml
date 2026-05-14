@@ -3,6 +3,7 @@ uuid = "08131aa3-fb12-5dee-8b74-c09406e224a2"
 version = "0.10.9"
 
 [deps]
+AcceleratedKernels = "6a4ca0a5-0e36-4168-a932-d9be78d558f1"
 Adapt = "79e6a3ab-5dfb-504d-930d-738a2a938a0e"
 GPUArrays = "0c68f7d7-f131-5f86-a1c3-88cf8149b2d7"
 GPUCompiler = "61eb1bfa-7361-4325-ad38-22787b887f55"
@@ -25,6 +26,7 @@ StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 SPIRVIntrinsics = {path = "lib/intrinsics"}
 
 [compat]
+AcceleratedKernels = "0.3.1, 0.4"
 Adapt = "4"
 GPUArrays = "11.2.1"
 GPUCompiler = "1.7.1"
