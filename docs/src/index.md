@@ -16,7 +16,7 @@ onerous.
     If you can help maintain this package, please reach out on the [JuliaLang Slack](https://julialang.org/slack/) #gpu channel.
 
 !!! warning "OpenCL.jl is currently undergoing major changes."
-    If you have old code developed for OpenCL.jl v0.9, please check [`NEWS.md`](https://github.com/JuliaGPU/OpenCL.jl/blob/master/NEWS.md) for an overview of the changes.
+    If you have old code developed for OpenCL.jl v0.9, please check [`NEWS.md`](https://github.com/JuliaGPU/OpenCL.jl/blob/main/NEWS.md) for an overview of the changes.
 
 
 ## Installation
@@ -131,9 +131,9 @@ cd(joinpath(dirname(pathof(OpenCL)), ".."))
 
 Otherwise, feel free to take a look at the Jupyter notebooks below:
 
-  * [Julia set fractals](https://github.com/JuliaGPU/OpenCL.jl/blob/master/examples/notebooks/julia_set_fractal.ipynb)
-  * [Mandlebrot fractal](https://github.com/JuliaGPU/OpenCL.jl/blob/master/examples/notebooks/mandelbrot_fractal.ipynb)
-  * [Transpose bandwidth](https://github.com/JuliaGPU/OpenCL.jl/blob/master/examples/notebooks/Transpose.ipynb)
+  * [Julia set fractals](https://github.com/JuliaGPU/OpenCL.jl/blob/main/examples/notebooks/julia_set_fractal.ipynb)
+  * [Mandlebrot fractal](https://github.com/JuliaGPU/OpenCL.jl/blob/main/examples/notebooks/mandelbrot_fractal.ipynb)
+  * [Transpose bandwidth](https://github.com/JuliaGPU/OpenCL.jl/blob/main/examples/notebooks/Transpose.ipynb)
 
 
 ## Credit

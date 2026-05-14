@@ -3,11 +3,11 @@ name: Docs
 on:
   push:
     branches:
-      - master
+      - main
     tags: ["*"]
   pull_request:
     branches:
-      - master
+      - main
     types: [opened, synchronize, reopened]
 
 concurrency:

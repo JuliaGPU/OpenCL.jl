@@ -5,7 +5,7 @@
 [![](https://img.shields.io/badge/docs-stable-blue.svg)](https://juliagpu.github.io/OpenCL.jl/stable)
 [![](https://img.shields.io/badge/docs-dev-blue.svg)](https://juliagpu.github.io/OpenCL.jl/dev)
 
-[buildkite-img]: https://badge.buildkite.com/6b2a46bff67692115dea3ad5a275d2f80777a5a99ffe42adb0.svg?branch=master
+[buildkite-img]: https://badge.buildkite.com/6b2a46bff67692115dea3ad5a275d2f80777a5a99ffe42adb0.svg?branch=main
 [buildkite-url]: https://buildkite.com/julialang/opencl-dot-jl
 
 *Julia interface for the OpenCL parallel computation API*
@@ -137,9 +137,9 @@ cd(joinpath(dirname(pathof(OpenCL)), ".."))
 
 Otherwise, feel free to take a look at the Jupyter notebooks below:
 
-  * [Julia set fractals](https://github.com/JuliaGPU/OpenCL.jl/blob/master/examples/notebooks/julia_set_fractal.ipynb)
-  * [Mandlebrot fractal](https://github.com/JuliaGPU/OpenCL.jl/blob/master/examples/notebooks/mandelbrot_fractal.ipynb)
-  * [Transpose bandwidth](https://github.com/JuliaGPU/OpenCL.jl/blob/master/examples/notebooks/Transpose.ipynb)
+  * [Julia set fractals](https://github.com/JuliaGPU/OpenCL.jl/blob/main/examples/notebooks/julia_set_fractal.ipynb)
+  * [Mandlebrot fractal](https://github.com/JuliaGPU/OpenCL.jl/blob/main/examples/notebooks/mandelbrot_fractal.ipynb)
+  * [Transpose bandwidth](https://github.com/JuliaGPU/OpenCL.jl/blob/main/examples/notebooks/Transpose.ipynb)
 
 
 ## Credit
