@@ -302,7 +302,8 @@ function call(
         if !isempty(bda_pointers)
             clSetKernelExecInfo(k, CL_KERNEL_EXEC_INFO_DEVICE_PTRS_EXT, sizeof(bda_pointers), bda_pointers)
         end
-        if !isempty(usm_pointers)
+        # XXX: Causes crashes on Windows
+        if !isempty(usm_pointers) && !Sys.iswindows()
             clSetKernelExecInfo(k, CL_KERNEL_EXEC_INFO_USM_PTRS_INTEL, sizeof(usm_pointers), usm_pointers)
         end
     end
