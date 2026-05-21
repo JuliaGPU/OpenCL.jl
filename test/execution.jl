@@ -1,7 +1,5 @@
 using SPIRV_LLVM_Translator_jll
 
-@testset "execution" begin
-
 @testset "@opencl" begin
 
 dummy() = nothing
@@ -149,6 +147,4 @@ end
     if Int === Int64
         @test occursin("target triple = \"spir64-unknown-unknown\"", llvm_backend_khronos)
     end
-end
-
 end
