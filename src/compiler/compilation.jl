@@ -7,7 +7,45 @@ end
 const OpenCLCompilerConfig = CompilerConfig{SPIRVCompilerTarget, OpenCLCompilerParams}
 const OpenCLCompilerJob = CompilerJob{SPIRVCompilerTarget,OpenCLCompilerParams}
 
+"""
+    OpenCLResults
+
+Cached compilation results attached to each OpenCL `CodeInstance`. Fields are populated
+through the compile pipeline: `bitcode` after LLVM codegen (for runtime functions, which
+GPUCompiler links into the kernel module — see `GPUCompiler.bitcode`/`bitcode!`),
+`obj` (SPIR-V bytes) + `entry` + `device_rng` after main codegen, and `kernels` after
+the session-local link onto an OpenCL context. The first four are session-portable
+(cached through precompilation); `kernels` is session-local.
+
+`kernels` is a small linear cache of `(cl.Context, cl.Kernel)` pairs. The cache partition
+already covers everything that affects codegen via `GPUCompiler.cache_owner`, so the only
+runtime-visible dimension left is the OpenCL context that owns the linked `cl.Kernel`.
+A linear scan with `===` is fastest in the common case (n=1) and stays cheap for the
+rare workload that bounces between a handful of contexts on the same device.
+"""
+mutable struct OpenCLResults
+    bitcode::Union{Nothing, Tuple{Bool, Vector{UInt8}}}  # (opaque_pointers, bytes)
+    obj::Union{Nothing, Vector{UInt8}}                   # SPIR-V binary
+    entry::Union{Nothing, String}
+    device_rng::Bool
+    kernels::Vector{Tuple{cl.Context, cl.Kernel}}        # session-local; linear-scanned
+    OpenCLResults() = new(nothing, nothing, nothing, false, Tuple{cl.Context, cl.Kernel}[])
+end
+
+function GPUCompiler.bitcode(r::OpenCLResults, opaque_pointers::Bool)
+    r.bitcode === nothing && return nothing
+    stored, bytes = r.bitcode
+    return stored === opaque_pointers ? bytes : nothing
+end
+
+function GPUCompiler.bitcode!(r::OpenCLResults, bytes::Vector{UInt8}, opaque_pointers::Bool)
+    r.bitcode = (opaque_pointers, bytes)
+    return nothing
+end
+
 GPUCompiler.runtime_module(::CompilerJob{<:Any,OpenCLCompilerParams}) = OpenCL
+
+GPUCompiler.results_type(::OpenCLCompilerJob) = OpenCLResults
 
 GPUCompiler.method_table_view(job::OpenCLCompilerJob) =
     GPUCompiler.StackedMethodTable(job.world, method_table, SPIRVIntrinsics.method_table)
@@ -111,18 +149,7 @@ function GPUCompiler.finish_linked_module!(@nospecialize(job::OpenCLCompilerJob)
     return
 end
 
-## compiler implementation (cache, configure, compile, and link)
-
-# cache of compilation caches, per context
-const _compiler_caches = Dict{cl.Context, Dict{Any, Any}}()
-function compiler_cache(ctx::cl.Context)
-    cache = get(_compiler_caches, ctx, nothing)
-    if cache === nothing
-        cache = Dict{Any, Any}()
-        _compiler_caches[ctx] = cache
-    end
-    return cache
-end
+## compiler implementation (configure, compile, and link)
 
 # cache of compiler configurations, per device (but additionally configurable via kwargs)
 const _toolchain = Ref{Any}()
@@ -153,37 +180,35 @@ end
     CompilerConfig(target, params; kernel, name, always_inline)
 end
 
-# compile to executable machine code
+# run inference + LLVM codegen + SPIR-V emission. returns `(obj, entry, device_rng)`,
+# all session-portable so they survive precompilation when stored on a cached `CodeInstance`.
 const compilations = Threads.Atomic{Int}(0)
-function compile(@nospecialize(job::CompilerJob))
+function compile_to_obj(@nospecialize(job::CompilerJob))
     compilations[] += 1
 
-    # TODO: this creates a context; cache those.
-    obj, meta = JuliaContext() do ctx
+    JuliaContext() do ctx
         obj, meta = GPUCompiler.compile(:obj, job)
-
         entry = LLVM.name(meta.entry)
         device_rng = StringAttribute("julia.opencl.rng", "") in collect(function_attributes(meta.entry))
-
         (; obj, entry, device_rng)
     end
 end
 
-# link into an executable kernel
-function link(@nospecialize(job::CompilerJob), compiled)
+# link the SPIR-V bytes into a session-local `cl.Kernel` on the active context.
+function link_kernel(obj::Vector{UInt8}, entry::String)
     prog = if "cl_khr_il_program" in cl.device().extensions
-        cl.Program(; il=compiled.obj)
+        cl.Program(; il=obj)
     else
         error("Your device does not support SPIR-V, which is currently required for native execution.")
         # XXX: kpet/spirv2clc#87, caused by KhronosGroup/SPIRV-LLVM-Translator#2029
         source = mktempdir() do dir
             il = joinpath(dir, "kernel.spv")
-            write(il, compiled.obj)
+            write(il, obj)
             cmd = `spirv2clc $il`
             read(cmd, String)
         end
         cl.Program(; source)
     end
     cl.build!(prog)
-    (; kernel=cl.Kernel(prog, compiled.entry), compiled.device_rng)
+    return cl.Kernel(prog, entry)
 end

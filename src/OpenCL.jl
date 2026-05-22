@@ -1,6 +1,7 @@
 module OpenCL
 
 using GPUCompiler
+using CompilerCaching: CacheView, lookup, results
 using LLVM, LLVM.Interop
 using SPIRV_LLVM_Backend_jll, SPIRV_Tools_jll
 using Adapt
