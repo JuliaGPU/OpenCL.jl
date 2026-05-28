@@ -10,6 +10,7 @@ using Random
 using Preferences
 
 import KernelAbstractions: KernelAbstractions
+import AcceleratedKernels as AK
 
 using Core: LLVMPtr
 
@@ -47,4 +48,7 @@ include("random.jl")
 include("OpenCLKernels.jl")
 import .OpenCLKernels: OpenCLBackend
 export OpenCLBackend
+
+include("sorting.jl")
+include("accumulate.jl")
 end
