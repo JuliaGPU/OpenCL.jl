@@ -1,7 +1,8 @@
 ## gpucompiler interface
 
 Base.@kwdef struct OpenCLCompilerParams <: AbstractCompilerParams
-    sub_group_size::Int # Some devices support multiple sizes. This is used to force one when needed
+    # request a fixed sub-group width via `intel_reqd_sub_group_size`
+    sub_group_size::Union{Nothing,Int} = nothing
 end
 
 const OpenCLCompilerConfig = CompilerConfig{SPIRVCompilerTarget, OpenCLCompilerParams}
@@ -32,9 +33,8 @@ function GPUCompiler.finish_module!(@nospecialize(job::OpenCLCompilerJob),
                    Tuple{CompilerJob{SPIRVCompilerTarget}, LLVM.Module, LLVM.Function},
                    job, mod, entry)
 
-    # Set the subgroup size if supported
     sg_size = job.config.params.sub_group_size
-    if sg_size >= 0
+    if sg_size !== nothing
         metadata(entry)["intel_reqd_sub_group_size"] = MDNode([ConstantInt(Int32(sg_size))])
     end
 
@@ -136,15 +136,13 @@ function compiler_config(dev::cl.Device; kwargs...)
     end
     return config
 end
-@noinline function _compiler_config(dev; kernel=true, name=nothing, always_inline=false, kwargs...)
+@noinline function _compiler_config(dev; kernel=true, name=nothing, always_inline=false,
+                                     sub_group_size::Union{Nothing,Int}=nothing, kwargs...)
     supports_fp16 = "cl_khr_fp16" in dev.extensions
     supports_fp64 = "cl_khr_fp64" in dev.extensions
 
-    # Set to -1 if specifying a subgroup size is not supported
-    sub_group_size = if "cl_intel_required_subgroup_size" in dev.extensions
-        cl.sub_group_size(dev)
-    else
-        -1
+    if sub_group_size !== nothing && !("cl_intel_required_subgroup_size" in dev.extensions)
+        error("Device does not support cl_intel_required_subgroup_size")
     end
 
     # create GPUCompiler objects
