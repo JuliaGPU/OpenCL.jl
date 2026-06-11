@@ -23,7 +23,7 @@ jobs:
       fail-fast: false
       matrix:
         version: ['1.10', '1.12']
-        os: [ubuntu-24.04, ubuntu-24.04-arm, macOS-26-intel, windows-2022]
+        os: [ubuntu-24.04, ubuntu-24.04-arm, windows-2022]
         arch: [x64, arm64]
         pocl: [jll, local]
         memory_backend: [usm, svm, buffer]
@@ -35,12 +35,7 @@ jobs:
             arch: arm64
           - os: ubuntu-24.04-arm
             arch: x64
-          # macOS-26-intel is Intel-only
-          - os: macOS-26-intel
-            arch: arm64
           # we only test building PoCL on Linux
-          - os: macOS-26-intel
-            pocl: local
           - os: windows-2022
             pocl: local
     steps:
@@ -128,17 +123,12 @@ jobs:
       - name: "Set test arguments and other environment variables"
         shell: bash
         run: |
-          if [[ ${{ runner.os }} == "macOS" ]]; then
-            JULIA_TEST_MAXRSS_MB=1800
-            echo "JULIA_TEST_MAXRSS_MB=${JULIA_TEST_MAXRSS_MB}" | tee -a "${GITHUB_ENV}"
-            JULIA_CPU_THREADS=2
-            echo "JULIA_CPU_THREADS=${JULIA_CPU_THREADS}" | tee -a "${GITHUB_ENV}"
-          fi
-
           # PoCL's default work-group lowering (loopvec) miscompiles
-          # barrier-heavy kernels on some CPUs, resulting in infinite loops
-          # or incorrect results (JuliaGPU/OpenCL.jl#388, pocl/pocl#1971);
-          # on Intel macOS with Julia 1.10 this reliably deadlocked CI.
+          # barrier-heavy kernels on some CPUs (e.g. Zen 4/5, some Intel),
+          # resulting in infinite loops or incorrect results
+          # (JuliaGPU/OpenCL.jl#388, pocl/pocl#1971); this reliably
+          # deadlocked CI on the (now removed) Intel macOS runners, and
+          # GitHub-hosted runners occasionally come with affected CPUs.
           # Use the continuation-based synchronization method instead.
           echo "POCL_WORK_GROUP_METHOD=cbs" | tee -a "${GITHUB_ENV}"
 
