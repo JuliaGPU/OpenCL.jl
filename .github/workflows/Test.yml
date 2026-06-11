@@ -120,18 +120,6 @@ jobs:
             echo '[pocl_jll]' >> test/LocalPreferences.toml
             echo 'libpocl_path="${{ github.workspace }}/target/lib/libpocl.so"' >> test/LocalPreferences.toml
 
-      - name: "Set test arguments and other environment variables"
-        shell: bash
-        run: |
-          # PoCL's default work-group lowering (loopvec) miscompiles
-          # barrier-heavy kernels on some CPUs (e.g. Zen 4/5, some Intel),
-          # resulting in infinite loops or incorrect results
-          # (JuliaGPU/OpenCL.jl#388, pocl/pocl#1971); this reliably
-          # deadlocked CI on the (now removed) Intel macOS runners, and
-          # GitHub-hosted runners occasionally come with affected CPUs.
-          # Use the continuation-based synchronization method instead.
-          echo "POCL_WORK_GROUP_METHOD=cbs" | tee -a "${GITHUB_ENV}"
-
       - name: Setup OpenCL.jl
         run: |
           echo '[OpenCL]' >> test/LocalPreferences.toml
