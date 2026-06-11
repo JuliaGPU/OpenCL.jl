@@ -135,6 +135,13 @@ jobs:
             echo "JULIA_CPU_THREADS=${JULIA_CPU_THREADS}" | tee -a "${GITHUB_ENV}"
           fi
 
+          # PoCL's default work-group lowering (loopvec) miscompiles
+          # barrier-heavy kernels on some CPUs, resulting in infinite loops
+          # or incorrect results (JuliaGPU/OpenCL.jl#388, pocl/pocl#1971);
+          # on Intel macOS with Julia 1.10 this reliably deadlocked CI.
+          # Use the continuation-based synchronization method instead.
+          echo "POCL_WORK_GROUP_METHOD=cbs" | tee -a "${GITHUB_ENV}"
+
       - name: Setup OpenCL.jl
         run: |
           echo '[OpenCL]' >> test/LocalPreferences.toml
