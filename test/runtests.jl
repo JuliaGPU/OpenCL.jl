@@ -9,7 +9,7 @@ import Test
 args = parse_args(ARGS; custom=["platform"])
 
 # determine tests to run
-const testsuite = find_tests(pwd())
+const testsuite = find_tests(@__DIR__)
 ## GPUArrays test suite: not part of the main package
 const GPUArraysTestSuite = let
     mod = @eval module $(gensym())
