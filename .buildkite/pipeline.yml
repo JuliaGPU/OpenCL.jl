@@ -15,8 +15,7 @@ steps:
         println("+++ :julia: Running tests")
         Pkg.test(; coverage=true, test_args=`--platform=cuda`)'
     agents:
-      queue: "juliagpu"
-      cuda: "*"
+      queue: "cuda"
     if: build.message !~ /\[skip tests\]/
     env:
       OCL_ICD_FILENAMES: "libnvidia-opencl.so.1"
@@ -45,9 +44,7 @@ steps:
             InteractiveUtils.versioninfo()
             Pkg.test(; coverage=true, test_args=`--platform=pocl`)'
         agents:
-          queue: "juliaecosystem"
-          os: "macos"
-          arch: "aarch64"
+          queue: "metal"
         if: build.message !~ /\[skip tests\]/
         timeout_in_minutes: 120
         matrix:
