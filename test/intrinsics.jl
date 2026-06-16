@@ -213,7 +213,7 @@ end
         N = local_size * numworkgroups
 
         results = CLVector{SubgroupData}(undef, N)
-        kernel = @opencl launch = false sub_group_size = sg_size test_subgroup_kernel(results)
+        kernel = @opencl launch = false test_subgroup_kernel(results)
 
         kernel(results; local_size, global_size=N)
 
@@ -248,7 +248,7 @@ end
         @testset for T in cl.sub_group_shuffle_supported_types(cl.device())
             a = rand(T, sg_size)
             d_a = CLArray(a)
-            @opencl local_size = sg_size global_size = sg_size sub_group_size = sg_size shfl_idx_kernel(d_a)
+            @opencl local_size = sg_size global_size = sg_size shfl_idx_kernel(d_a)
             @test Array(d_a) == reverse(a)
         end
     end
@@ -267,7 +267,7 @@ end
             in = rand(T, sg_size)
             idxs = xor.(0:(sg_size - 1), 1) .+ 1
             d_in = CLArray(in)
-            @opencl local_size = sg_size global_size = sg_size sub_group_size = sg_size shfl_xor_kernel(d_in)
+            @opencl local_size = sg_size global_size = sg_size shfl_xor_kernel(d_in)
             @test Array(d_in) == in[idxs]
         end
     end
