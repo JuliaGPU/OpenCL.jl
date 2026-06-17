@@ -1,63 +1,85 @@
 # Atomic Functions
 
-# provides atomic functions that rely on the OpenCL base atomics, as well as the
-# cl_khr_int64_base_atomics and cl_khr_int64_extended_atomics extensions.
+# Integer atomics are emitted as SPIR-V wrapper builtins, so the LLVM SPIR-V
+# backend lowers them to OpAtomic* instructions directly.
 
 const atomic_float_types = [Float32, Float64]
 const atomic_integer_types = [UInt32, Int32, UInt64, Int64]
 const atomic_memory_types = [AS.Workgroup, AS.CrossWorkgroup]
-const atomic_types = vcat(atomic_float_types, atomic_integer_types)
+
+const atomic_scope = Scope.Workgroup
+
+atomic_memory_semantics(::Val{AS.Workgroup}) = MemorySemantics.WorkgroupMemory
+atomic_memory_semantics(::Val{AS.CrossWorkgroup}) = MemorySemantics.CrossWorkgroupMemory
 
 
 # generically typed
 
-for gentype in atomic_types, as in atomic_memory_types
+for gentype in atomic_integer_types, as in atomic_memory_types
+    atomic_min_intrinsic = gentype <: Signed ? "__spirv_AtomicSMin" : "__spirv_AtomicUMin"
+    atomic_max_intrinsic = gentype <: Signed ? "__spirv_AtomicSMax" : "__spirv_AtomicUMax"
 @eval begin
 
 @device_function atomic_add!(p::LLVMPtr{$gentype,$as}, val::$gentype) =
-    @builtin_ccall("atomic_add", $gentype,
-                   (LLVMPtr{$gentype,$as}, $gentype), p, val)
+    @builtin_ccall("__spirv_AtomicIAdd", $gentype,
+                   (LLVMPtr{$gentype,$as}, UInt32, UInt32, $gentype),
+                   p, UInt32(atomic_scope),
+                   UInt32(atomic_memory_semantics(Val($as))), val)
 
 @device_function atomic_sub!(p::LLVMPtr{$gentype,$as}, val::$gentype) =
-    @builtin_ccall("atomic_sub", $gentype,
-                   (LLVMPtr{$gentype,$as}, $gentype), p, val)
+    @builtin_ccall("__spirv_AtomicISub", $gentype,
+                   (LLVMPtr{$gentype,$as}, UInt32, UInt32, $gentype),
+                   p, UInt32(atomic_scope),
+                   UInt32(atomic_memory_semantics(Val($as))), val)
 
 @device_function atomic_inc!(p::LLVMPtr{$gentype,$as}) =
-    @builtin_ccall("atomic_inc", $gentype, (LLVMPtr{$gentype,$as},), p)
+    atomic_add!(p, one($gentype))
 
 @device_function atomic_dec!(p::LLVMPtr{$gentype,$as}) =
-    @builtin_ccall("atomic_dec", $gentype, (LLVMPtr{$gentype,$as},), p)
+    atomic_sub!(p, one($gentype))
 
 @device_function atomic_min!(p::LLVMPtr{$gentype,$as}, val::$gentype) =
-    @builtin_ccall("atomic_min", $gentype,
-                   (LLVMPtr{$gentype,$as}, $gentype), p, val)
+    @builtin_ccall($atomic_min_intrinsic, $gentype,
+                   (LLVMPtr{$gentype,$as}, UInt32, UInt32, $gentype),
+                   p, UInt32(atomic_scope),
+                   UInt32(atomic_memory_semantics(Val($as))), val)
 
 @device_function atomic_max!(p::LLVMPtr{$gentype,$as}, val::$gentype) =
-    @builtin_ccall("atomic_max", $gentype,
-                   (LLVMPtr{$gentype,$as}, $gentype), p, val)
+    @builtin_ccall($atomic_max_intrinsic, $gentype,
+                   (LLVMPtr{$gentype,$as}, UInt32, UInt32, $gentype),
+                   p, UInt32(atomic_scope),
+                   UInt32(atomic_memory_semantics(Val($as))), val)
 
 @device_function atomic_and!(p::LLVMPtr{$gentype,$as}, val::$gentype) =
-    @builtin_ccall("atomic_and", $gentype,
-                   (LLVMPtr{$gentype,$as}, $gentype), p, val)
+    @builtin_ccall("__spirv_AtomicAnd", $gentype,
+                   (LLVMPtr{$gentype,$as}, UInt32, UInt32, $gentype),
+                   p, UInt32(atomic_scope),
+                   UInt32(atomic_memory_semantics(Val($as))), val)
 
 @device_function atomic_or!(p::LLVMPtr{$gentype,$as}, val::$gentype) =
-    @builtin_ccall("atomic_or", $gentype,
-                   (LLVMPtr{$gentype,$as}, $gentype), p, val)
+    @builtin_ccall("__spirv_AtomicOr", $gentype,
+                   (LLVMPtr{$gentype,$as}, UInt32, UInt32, $gentype),
+                   p, UInt32(atomic_scope),
+                   UInt32(atomic_memory_semantics(Val($as))), val)
 
 @device_function atomic_xor!(p::LLVMPtr{$gentype,$as}, val::$gentype) =
-    @builtin_ccall("atomic_xor", $gentype,
-                   (LLVMPtr{$gentype,$as}, $gentype), p, val)
-end
-if gentype in atomic_integer_types
-    @eval begin
-    @device_function atomic_xchg!(p::LLVMPtr{$gentype,$as}, val::$gentype) =
-        @builtin_ccall("atomic_xchg", $gentype,
-                    (LLVMPtr{$gentype,$as}, $gentype), p, val)
+    @builtin_ccall("__spirv_AtomicXor", $gentype,
+                   (LLVMPtr{$gentype,$as}, UInt32, UInt32, $gentype),
+                   p, UInt32(atomic_scope),
+                   UInt32(atomic_memory_semantics(Val($as))), val)
 
-    @device_function atomic_cmpxchg!(p::LLVMPtr{$gentype,$as}, cmp::$gentype, val::$gentype) =
-        @builtin_ccall("atomic_cmpxchg", $gentype,
-                    (LLVMPtr{$gentype,$as}, $gentype, $gentype), p, cmp, val)
-    end
+@device_function atomic_xchg!(p::LLVMPtr{$gentype,$as}, val::$gentype) =
+    @builtin_ccall("__spirv_AtomicExchange", $gentype,
+                   (LLVMPtr{$gentype,$as}, UInt32, UInt32, $gentype),
+                   p, UInt32(atomic_scope),
+                   UInt32(atomic_memory_semantics(Val($as))), val)
+
+@device_function atomic_cmpxchg!(p::LLVMPtr{$gentype,$as}, cmp::$gentype, val::$gentype) =
+    @builtin_ccall("__spirv_AtomicCompareExchange", $gentype,
+                   (LLVMPtr{$gentype,$as}, UInt32, UInt32, UInt32, $gentype, $gentype),
+                   p, UInt32(atomic_scope),
+                   UInt32(atomic_memory_semantics(Val($as))),
+                   UInt32(atomic_memory_semantics(Val($as))), val, cmp)
 end
 end
 
@@ -248,10 +270,9 @@ end
 
 # native atomics
 # TODO: support inc/dec
-# TODO: this depends on available extensions
-#       - UInt64: requires cl_khr_int64_base_atomics for add/sub/inc/dec,
-#                 requires cl_khr_int64_extended_atomics for min/max/and/or/xor
-#       - Float64: always should hit the fallback
+# TODO: this depends on backend support for the corresponding SPIR-V atomic
+#       operation. Floating-point arithmetic should hit the cmpxchg fallback
+#       unless a caller explicitly uses a floating-point atomic extension.
 for (op,impl) in [(+)      => atomic_add!,
                   (-)      => atomic_sub!,
                   (&)      => atomic_and!,
@@ -265,7 +286,7 @@ for (op,impl) in [(+)      => atomic_add!,
 end
 
 # fallback using compare-and-swap
-# TODO: for 64-bit types, this depends on cl_khr_int64_base_atomics
+# TODO: for 64-bit types, this depends on backend support for 64-bit cmpxchg.
 function atomic_arrayset(A::AbstractArray{T}, I::Integer, op::Function, val) where {T}
     ptr = pointer(A, I)
     old = Base.unsafe_load(ptr, 1)

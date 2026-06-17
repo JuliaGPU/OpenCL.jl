@@ -1,7 +1,7 @@
 const known_intrinsics = String["printf"]
 
-# OpenCL functions need to be mangled according to the C++ Itanium spec. We implement a very
-# limited version of that spec here, just enough to support OpenCL built-ins.
+# SPIR-V wrapper and OpenCL.std functions need Itanium C++ ABI names. We
+# implement a very limited subset here, just enough to support these builtins.
 #
 # This macro also keeps track of called builtins, generating `ccall("extern...", llvmcall)`
 # expressions for them (so that we can exclude them during IR verification).
