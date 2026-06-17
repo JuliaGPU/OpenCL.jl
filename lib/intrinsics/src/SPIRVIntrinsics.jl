@@ -12,10 +12,11 @@ using GPUToolbox
 include("pointer.jl")
 include("utils.jl")
 
-# OpenCL intrinsics
+# SPIR-V intrinsics
 #
-# we currently don't implement SPIR-V intrinsics directly, but rely on
-# the SPIR-V to LLVM translator supporting OpenCL intrinsics
+# Prefer direct SPIR-V wrapper builtins where LLVM's SPIR-V backend supports
+# them. Math and integer library functions still use OpenCL.std names when
+# those are the SPIR-V extended instruction-set operations.
 include("work_item.jl")
 include("synchronization.jl")
 include("memory.jl")

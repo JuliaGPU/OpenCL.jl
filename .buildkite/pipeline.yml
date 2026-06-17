@@ -10,6 +10,8 @@ steps:
         using Pkg
 
         println("--- :julia: Instantiating project")
+        # Julia 1.10 does not support [sources], so dev the in-tree
+        # SPIRVIntrinsics; Pkg.test then carries it into the test sandbox.
         Pkg.develop(path="lib/intrinsics")
 
         println("+++ :julia: Running tests")
@@ -35,9 +37,13 @@ steps:
             using Pkg
 
             println("--- :julia: Instantiating project")
+            # Julia 1.10 does not support [sources], so dev the in-tree
+            # SPIRVIntrinsics first; otherwise the Pkg.add below resolves
+            # against the registry, which has no SPIRVIntrinsics 1. Pkg.test
+            # then carries the in-tree copy into the test sandbox.
+            Pkg.develop(path="lib/intrinsics")
             Pkg.add("pocl_jll")
             Pkg.add("InteractiveUtils")
-            Pkg.develop(path="lib/intrinsics")
 
             println("+++ :julia: Running tests")
             using InteractiveUtils
