@@ -136,8 +136,9 @@ function compiler_config(dev::cl.Device; kwargs...)
     end
     return config
 end
+@inline _sub_group_size(dev) = "cl_intel_required_subgroup_size" in dev.extensions ? cl.sub_group_size(dev) : nothing
 @noinline function _compiler_config(dev; kernel=true, name=nothing, always_inline=false,
-                                     sub_group_size::Union{Nothing,Int}=cl.sub_group_size(dev), kwargs...)
+                                     sub_group_size::Union{Nothing,Int}=_sub_group_size(dev), kwargs...)
     supports_fp16 = "cl_khr_fp16" in dev.extensions
     supports_fp64 = "cl_khr_fp64" in dev.extensions
 
