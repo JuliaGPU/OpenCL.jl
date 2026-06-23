@@ -47,8 +47,12 @@ function versioninfo(io::IO=stdout)
     println(io, "Julia packages:")
     for name in [:GPUArrays, :GPUCompiler, :KernelAbstractions, :LLVM, :SPIRVIntrinsics]
         mod = getfield(OpenCL, name)
-        println(io, "- $(name): $(Base.pkgversion(mod))")
+        println(io, "- $(name): $(pkgversion(mod))")
     end
+    # Display pocl_jll if present
+    pocl_id = Base.PkgId(Base.UUID("627d6b7a-bbe6-5189-83e7-98cc0a5aeadd"), "pocl_jll")
+    pocl_mod = mod = get(Base.loaded_modules, pocl_id, nothing)
+    isnothing(pocl_mod) || println(io, "- pocl_jll: $(pkgversion(pocl_mod))")
     println(io)
 
     env = filter(var->startswith(var, "JULIA_OPENCL"), keys(ENV))
