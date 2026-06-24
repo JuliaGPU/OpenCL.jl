@@ -7,7 +7,7 @@ import ExprTools
 
 import SpecialFunctions
 
-using GPUToolbox
+using GPUToolbox: u32
 
 include("pointer.jl")
 include("utils.jl")
