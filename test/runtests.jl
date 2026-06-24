@@ -49,11 +49,6 @@ end
 
 # wrap tests in device loops
 function generate_test(test, expr)
-    # some tests require native execution capabilities
-    requires_il = test in ["atomics", "execution", "intrinsics", "kernelabstractions",
-                           "statistics", "linalg", ] ||
-                  startswith(test, "gpuarrays/") || startswith(test, "device/")
-
     # targets is a global variable that is defined in init_code
     return quote
         if isempty(targets)
@@ -82,9 +77,11 @@ function generate_test(test, expr)
             cl.platform!(platform)
             cl.device!(device)
 
-            if !$(requires_il) || "cl_khr_il_program" in device.extensions
-                $(expr)
-            end
+            # Tests run kernels through SPIR-V IL where the device supports it,
+            # and otherwise through the spirv2clc OpenCL C source fallback, so
+            # they run on any device. Set JULIA_OPENCL_TEST_BACKEND=opencl to
+            # force the source path even where IL is available (see init code).
+            $(expr)
         end
     end
 end
@@ -96,6 +93,13 @@ const init_worker_code = quote
     using OpenCL, $pocl_pkg
 
     OpenCL.allowscalar(false)
+
+    # Optionally force how kernels are fed to the driver (:auto/:spirv/:opencl), e.g. to
+    # exercise the spirv2clc OpenCL C source path on a device that also supports IL programs.
+    let b = get(ENV, "JULIA_OPENCL_TEST_BACKEND", "")
+        isempty(b) || OpenCL.program_backend!(Symbol(b))
+    end
+
     const targets = []
 
     # GPUArrays has a testsuite that isn't part of the main package.

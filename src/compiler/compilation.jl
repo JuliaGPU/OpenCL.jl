@@ -192,6 +192,27 @@ function run_and_collect(cmd)
     return proc, log
 end
 
+# How kernels are fed to the driver:
+# - `:auto`   — SPIR-V (clCreateProgramWithIL) when the device supports IL programs, otherwise
+#               OpenCL C source translated from the SPIR-V via spirv2clc.
+# - `:spirv`  — always SPIR-V IL; error if the device doesn't support it.
+# - `:opencl` — always OpenCL C source. Useful to exercise pocl's source path on a device that
+#               also supports IL.
+const program_backend = Ref{Symbol}(:auto)
+
+"""
+    program_backend!(mode::Symbol)
+
+Select how kernels are fed to the driver: `:auto` (default), `:spirv` (SPIR-V IL), or `:opencl`
+(OpenCL C source).
+"""
+function program_backend!(mode::Symbol)
+    mode in (:auto, :spirv, :opencl) ||
+        throw(ArgumentError("invalid program backend $mode (expected :auto, :spirv or :opencl)"))
+    program_backend[] = mode
+    return mode
+end
+
 # link into an executable kernel
 function link(@nospecialize(job::CompilerJob), compiled)
     spirv_bitcode = compiled.obj
@@ -199,11 +220,20 @@ function link(@nospecialize(job::CompilerJob), compiled)
     build_options = ""
 
     dev = cl.device()
-    prog = if "cl_khr_il_program" in dev.extensions
+    il_supported = "cl_khr_il_program" in dev.extensions
+    backend = program_backend[]
+    if backend == :spirv && !il_supported
+        error("Device '$(dev.name)' does not support SPIR-V IL programs, but program_backend is :spirv")
+    end
+    use_il = backend == :spirv || (backend == :auto && il_supported)
+
+    prog = if use_il
         cl.Program(; il=spirv_bitcode)
     else
-        @warn """The current active OpenCL device '$(dev.name)' does not support IL programs.
-                 Falling back to experimental SPIR-V to OpenCL C translation.""" maxlog=1 _id=Symbol(dev.name)
+        if backend == :auto
+            @warn """The current active OpenCL device '$(dev.name)' does not support IL programs.
+                     Falling back to experimental SPIR-V to OpenCL C translation.""" maxlog=1 _id=Symbol(dev.name)
+        end
         # Target the device's highest OpenCL C version: the same -cl-std token goes to spirv2clc
         # (so the translator may emit constructs like the generic address space) and to the driver
         # below (so it compiles the source at that level). The device-reported version is read from
