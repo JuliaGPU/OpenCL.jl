@@ -33,6 +33,7 @@ include("memory.jl")
 include("array.jl")
 
 # compiler implementation
+include("compiler/capabilities.jl")
 include("compiler/compilation.jl")
 include("compiler/execution.jl")
 include("compiler/reflection.jl")
