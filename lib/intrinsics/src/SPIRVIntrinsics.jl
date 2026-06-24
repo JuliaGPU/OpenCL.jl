@@ -7,8 +7,6 @@ import ExprTools
 
 import SpecialFunctions
 
-using GPUToolbox
-
 include("pointer.jl")
 include("utils.jl")
 
