@@ -149,6 +149,9 @@ function compiler_config(dev::cl.Device; kwargs...)
     return config
 end
 @inline _sub_group_size(dev) = "cl_intel_required_subgroup_size" in dev.extensions ? cl.sub_group_size(dev) : nothing
+
+const SPIRV_VERSION = v"1.4"
+
 @noinline function _compiler_config(dev; kernel=true, name=nothing, always_inline=false,
                                      sub_group_size::Union{Nothing,Int}=_sub_group_size(dev), kwargs...)
     supports_fp16 = "cl_khr_fp16" in dev.extensions
@@ -159,7 +162,8 @@ end
     end
 
     # create GPUCompiler objects
-    target = SPIRVCompilerTarget(; supports_fp16, supports_fp64, validate=true, kwargs...)
+    target = SPIRVCompilerTarget(; version=SPIRV_VERSION, supports_fp16, supports_fp64,
+                                   validate=true, kwargs...)
     params = OpenCLCompilerParams(; sub_group_size, features=device_features(dev))
     CompilerConfig(target, params; kernel, name, always_inline)
 end
@@ -234,18 +238,18 @@ function link(@nospecialize(job::CompilerJob), compiled)
             @warn """The current active OpenCL device '$(dev.name)' does not support IL programs.
                      Falling back to experimental SPIR-V to OpenCL C translation.""" maxlog=1 _id=Symbol(dev.name)
         end
-        # Target the device's highest OpenCL C version: the same -cl-std token goes to spirv2clc
-        # (so the translator may emit constructs like the generic address space) and to the driver
-        # below (so it compiles the source at that level). The device-reported version is read from
-        # CL_DEVICE_OPENCL_C_ALL_VERSIONS (the legacy string under-reports as 1.2).
+
+        # Target the device's highest OpenCL C version
         clc_version = max_opencl_c_version(dev)
         cl_std = "CL$(clc_version.major).$(clc_version.minor)"
+
+        # Be consistent with the SPIR-V version we generated code for
+        spv = job.config.target.version
+        spirv_version = "$(spv.major).$(spv.minor)"
+
         spirv_path = tempname(cleanup=false) * ".spv"
         write(spirv_path, spirv_bitcode)
-        # NOTE: we generate SPIR-V 1.4 (the LLVM backend's default, and we rely on
-        #       1.4 features), but spirv2clc defaults to the OpenCL 1.2 target env,
-        #       which only admits SPIR-V <= 1.0. Validate against universal 1.4 instead.
-        proc, log = run_and_collect(`$(spirv2clc_jll.spirv2clc()) --spirv-version=1.4 --cl-std=$cl_std $spirv_path`)
+        proc, log = run_and_collect(`$(spirv2clc_jll.spirv2clc()) --spirv-version=$spirv_version --cl-std=$cl_std $spirv_path`)
         if !success(proc)
             msg = "Failed to translate SPIR-V to OpenCL C source code:\n$(log)"
             msg *= "\nIf you think this is a bug, please file an issue and attach $spirv_path"
@@ -255,6 +259,7 @@ function link(@nospecialize(job::CompilerJob), compiled)
             error(msg)
         end
         rm(spirv_path)
+
         clc_source = strip(log)
         build_options = "-cl-std=$cl_std"
         cl.Program(; source=clc_source)
