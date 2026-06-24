@@ -3,6 +3,8 @@
 Base.@kwdef struct OpenCLCompilerParams <: AbstractCompilerParams
     # request a fixed sub-group width via `intel_reqd_sub_group_size`
     sub_group_size::Union{Nothing,Int} = nothing
+    # optional features the target device supports, exposed to kernels via `has_feature`
+    features::FeatureSet = zero(FeatureSet)
 end
 
 const OpenCLCompilerConfig = CompilerConfig{SPIRVCompilerTarget, OpenCLCompilerParams}
@@ -36,6 +38,16 @@ function GPUCompiler.finish_module!(@nospecialize(job::OpenCLCompilerJob),
     sg_size = job.config.params.sub_group_size
     if sg_size !== nothing
         metadata(entry)["intel_reqd_sub_group_size"] = MDNode([ConstantInt(Int32(sg_size))])
+    end
+
+    # materialize the feature bitset for `has_feature`, if the kernel referenced it. A constant
+    # initializer plus private linkage lets the optimizer fold the loads and drop the global, so it
+    # never reaches SPIR-V.
+    if haskey(globals(mod), "__opencl_feature_bitset")
+        gv = globals(mod)["__opencl_feature_bitset"]
+        initializer!(gv, ConstantInt(LLVM.Int64Type(), job.config.params.features))
+        linkage!(gv, LLVM.API.LLVMPrivateLinkage)
+        constant!(gv, true)
     end
 
     # if this kernel uses our RNG, we should prime the shared state.
@@ -148,7 +160,7 @@ end
 
     # create GPUCompiler objects
     target = SPIRVCompilerTarget(; supports_fp16, supports_fp64, validate=true, kwargs...)
-    params = OpenCLCompilerParams(; sub_group_size)
+    params = OpenCLCompilerParams(; sub_group_size, features=device_features(dev))
     CompilerConfig(target, params; kernel, name, always_inline)
 end
 

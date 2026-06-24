@@ -149,3 +149,21 @@ end
         @test occursin("target triple = \"spir64-unknown-unknown\"", llvm_backend_khronos)
     end
 end
+
+@testset "has_feature folding" begin
+    # has_feature must fold at compile time: the feature-bitset global gets baked in and DCE'd,
+    # leaving only the branch matching the device.
+    function feature_select(a)
+        @inbounds a[] = has_feature(:subgroups) ? Int32(12345) : Int32(54321)
+        return
+    end
+    ir = sprint(io -> OpenCL.code_llvm(io, feature_select,
+                                       Tuple{CLDeviceArray{Int32, 0, AS.CrossWorkgroup}};
+                                       kernel = true))
+    @test !occursin("__opencl_feature_bitset", ir)
+    if OpenCL.feature_supported(cl.device(), :subgroups)
+        @test occursin("12345", ir) && !occursin("54321", ir)
+    else
+        @test occursin("54321", ir) && !occursin("12345", ir)
+    end
+end

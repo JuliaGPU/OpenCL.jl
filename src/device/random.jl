@@ -3,25 +3,45 @@
 using Random
 import RandomNumbers
 
-# local memory with the actual seed, per subgroup, set by `initialize_rng_state`` or overridden by calling `seed!`
-@inline function global_random_keys()
-    n = get_num_sub_groups()
-    ptr = random_keys()::LLVMPtr{UInt32, AS.Workgroup}
-    return CLDeviceArray{UInt32, 1, AS.Workgroup}((n,), ptr)
+# RNG state lives in work-group-local memory. With subgroups, one (key, counter) slot per subgroup
+# indexed by subgroup id; without, one slot per work-item indexed by its linear id in the work-group.
+# `has_feature(:subgroups)` folds at compile time, so only one layout is emitted; the host sizes the
+# local memory to match (see `enqueue_kernel`).
+@inline rng_nslots() =
+    has_feature(:subgroups) ? Int(get_num_sub_groups()) :
+                              Int(get_local_size(1) * get_local_size(2) * get_local_size(3))
+@inline function rng_slot()   # 1-based slot index for this work-item
+    if has_feature(:subgroups)
+        return Int(get_sub_group_id())
+    else
+        lx = get_local_id(1) - 1; ly = get_local_id(2) - 1; lz = get_local_id(3) - 1
+        return lx + get_local_size(1) * (ly + get_local_size(2) * lz) + 1
+    end
+end
+# global linear id from get_global_id/get_global_size (always available), avoiding the OpenCL 2.0
+# get_global_linear_id builtin.
+@inline function global_linear_id()
+    gx = get_global_id(1) - 1; gy = get_global_id(2) - 1; gz = get_global_id(3) - 1
+    return gx + get_global_size(1) * (gy + get_global_size(2) * gz) + 1
 end
 
-# local memory with per-subgroup counters, incremented when generating numbers
+# local memory with the actual seed, set by `initialize_rng_state` or overridden by `seed!`
+@inline function global_random_keys()
+    ptr = random_keys()::LLVMPtr{UInt32, AS.Workgroup}
+    return CLDeviceArray{UInt32, 1, AS.Workgroup}((rng_nslots(),), ptr)
+end
+
+# local memory with per-slot counters, incremented when generating numbers
 @inline function global_random_counters()
-    n = get_num_sub_groups()
     ptr = random_counters()::LLVMPtr{UInt32, AS.Workgroup}
-    return CLDeviceArray{UInt32, 1, AS.Workgroup}((n,), ptr)
+    return CLDeviceArray{UInt32, 1, AS.Workgroup}((rng_nslots(),), ptr)
 end
 
 # initialization function, called automatically at the start of each kernel
 function initialize_rng_state()
-    subgroup_id = get_sub_group_id()
-    @inbounds global_random_keys()[subgroup_id] = kernel_state().random_seed
-    @inbounds global_random_counters()[subgroup_id] = 0
+    slot = rng_slot()
+    @inbounds global_random_keys()[slot] = kernel_state().random_seed
+    @inbounds global_random_counters()[slot] = 0
 end
 
 # generators
@@ -35,24 +55,20 @@ struct Philox2x32{R} <: RandomNumbers.AbstractRNG{UInt64} end
 @inline Philox2x32() = Philox2x32{7}()
 
 @inline function Base.getproperty(rng::Philox2x32, field::Symbol)
-    subgroup_id = get_sub_group_id()
-
     if field === :key
-        @inbounds global_random_keys()[subgroup_id]
+        @inbounds global_random_keys()[rng_slot()]
     elseif field === :ctr1
-        @inbounds global_random_counters()[subgroup_id]
+        @inbounds global_random_counters()[rng_slot()]
     elseif field === :ctr2
-        unsafe_trunc(UInt32, get_global_linear_id())
+        unsafe_trunc(UInt32, global_linear_id())
     end
 end
 
 @inline function Base.setproperty!(rng::Philox2x32, field::Symbol, x)
-    subgroup_id = get_sub_group_id()
-
     if field === :key
-        @inbounds global_random_keys()[subgroup_id] = x
+        @inbounds global_random_keys()[rng_slot()] = x
     elseif field === :ctr1
-        @inbounds global_random_counters()[subgroup_id] = x
+        @inbounds global_random_counters()[rng_slot()] = x
     end
     return rng
 end

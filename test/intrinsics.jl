@@ -35,12 +35,14 @@ const simd_ns = (Sys.iswindows() && ispocl) ? [3, 4] : [2, 3, 4, 8, 16]
 @on_device work_group_barrier(OpenCL.LOCAL_MEM_FENCE, OpenCL.memory_scope_work_group)
 @on_device work_group_barrier(OpenCL.LOCAL_MEM_FENCE, OpenCL.memory_scope_device)
 cl.memory_backend() isa cl.SVMBackend && @on_device work_group_barrier(OpenCL.LOCAL_MEM_FENCE, OpenCL.memory_scope_all_svm_devices)
-@on_device work_group_barrier(OpenCL.LOCAL_MEM_FENCE, OpenCL.memory_scope_sub_group)
+cl.sub_groups_supported(cl.device()) && @on_device work_group_barrier(OpenCL.LOCAL_MEM_FENCE, OpenCL.memory_scope_sub_group)
 
-# sub-group
-@on_device sub_group_barrier(OpenCL.LOCAL_MEM_FENCE)
-@on_device sub_group_barrier(OpenCL.GLOBAL_MEM_FENCE)
-@on_device sub_group_barrier(OpenCL.LOCAL_MEM_FENCE | OpenCL.GLOBAL_MEM_FENCE)
+# sub-group (only when the device supports subgroups)
+if cl.sub_groups_supported(cl.device())
+    @on_device sub_group_barrier(OpenCL.LOCAL_MEM_FENCE)
+    @on_device sub_group_barrier(OpenCL.GLOBAL_MEM_FENCE)
+    @on_device sub_group_barrier(OpenCL.LOCAL_MEM_FENCE | OpenCL.GLOBAL_MEM_FENCE)
+end
 end
 
 @testset "mem_fence" begin
@@ -202,7 +204,7 @@ function test_subgroup_kernel(results)
     return
 end
 
-@testset "Sub-groups" begin
+cl.sub_groups_supported(cl.device()) && @testset "Sub-groups" begin
     sg_size = cl.sub_group_size(cl.device())
 
     @testset "Indexing intrinsics" begin
