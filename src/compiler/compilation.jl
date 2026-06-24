@@ -196,18 +196,26 @@ end
 function link(@nospecialize(job::CompilerJob), compiled)
     spirv_bitcode = compiled.obj
     clc_source = nothing
+    build_options = ""
 
-    prog = if "cl_khr_il_program" in cl.device().extensions
+    dev = cl.device()
+    prog = if "cl_khr_il_program" in dev.extensions
         cl.Program(; il=spirv_bitcode)
     else
-        @warn """The current active OpenCL device '$(cl.device().name)' does not support IL programs.
-                 Falling back to experimental SPIR-V to OpenCL C translation.""" maxlog=1 _id=Symbol(cl.device().name)
+        @warn """The current active OpenCL device '$(dev.name)' does not support IL programs.
+                 Falling back to experimental SPIR-V to OpenCL C translation.""" maxlog=1 _id=Symbol(dev.name)
+        # Target the device's highest OpenCL C version: the same -cl-std token goes to spirv2clc
+        # (so the translator may emit constructs like the generic address space) and to the driver
+        # below (so it compiles the source at that level). The device-reported version is read from
+        # CL_DEVICE_OPENCL_C_ALL_VERSIONS (the legacy string under-reports as 1.2).
+        clc_version = max_opencl_c_version(dev)
+        cl_std = "CL$(clc_version.major).$(clc_version.minor)"
         spirv_path = tempname(cleanup=false) * ".spv"
         write(spirv_path, spirv_bitcode)
         # NOTE: we generate SPIR-V 1.4 (the LLVM backend's default, and we rely on
         #       1.4 features), but spirv2clc defaults to the OpenCL 1.2 target env,
         #       which only admits SPIR-V <= 1.0. Validate against universal 1.4 instead.
-        proc, log = run_and_collect(`$(spirv2clc_jll.spirv2clc()) --spirv-version=1.4 $spirv_path`)
+        proc, log = run_and_collect(`$(spirv2clc_jll.spirv2clc()) --spirv-version=1.4 --cl-std=$cl_std $spirv_path`)
         if !success(proc)
             msg = "Failed to translate SPIR-V to OpenCL C source code:\n$(log)"
             msg *= "\nIf you think this is a bug, please file an issue and attach $spirv_path"
@@ -218,11 +226,12 @@ function link(@nospecialize(job::CompilerJob), compiled)
         end
         rm(spirv_path)
         clc_source = strip(log)
+        build_options = "-cl-std=$cl_std"
         cl.Program(; source=clc_source)
     end
 
     try
-        cl.build!(prog)
+        cl.build!(prog; options=build_options)
     catch e
         spirv_path = tempname(cleanup=false) * ".spv"
         write(spirv_path, spirv_bitcode)
