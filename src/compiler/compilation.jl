@@ -5,6 +5,8 @@ Base.@kwdef struct OpenCLCompilerParams <: AbstractCompilerParams
     sub_group_size::Union{Nothing,Int} = nothing
     # optional features the target device supports, exposed to kernels via `has_feature`
     features::FeatureSet = zero(FeatureSet)
+    # requested backend policy; kept here so the cache keys on it (the backends share a context)
+    program_backend::Symbol = :auto
 end
 
 const OpenCLCompilerConfig = CompilerConfig{SPIRVCompilerTarget, OpenCLCompilerParams}
@@ -140,10 +142,12 @@ end
 const _toolchain = Ref{Any}()
 const _compiler_configs = Dict{UInt, OpenCLCompilerConfig}()
 function compiler_config(dev::cl.Device; kwargs...)
-    h = hash(dev, hash(kwargs))
+    # key on the policy, not the resolved backend: resolving queries the device, so defer it to link
+    backend = program_backend()
+    h = hash(dev, hash(backend, hash(kwargs)))
     config = get(_compiler_configs, h, nothing)
     if config === nothing
-        config = _compiler_config(dev; kwargs...)
+        config = _compiler_config(dev, backend; kwargs...)
         _compiler_configs[h] = config
     end
     return config
@@ -152,7 +156,7 @@ end
 
 const SPIRV_VERSION = v"1.4"
 
-@noinline function _compiler_config(dev; kernel=true, name=nothing, always_inline=false,
+@noinline function _compiler_config(dev, backend; kernel=true, name=nothing, always_inline=false,
                                      sub_group_size::Union{Nothing,Int}=_sub_group_size(dev), kwargs...)
     supports_fp16 = "cl_khr_fp16" in dev.extensions
     supports_fp64 = "cl_khr_fp64" in dev.extensions
@@ -164,7 +168,8 @@ const SPIRV_VERSION = v"1.4"
     # create GPUCompiler objects
     target = SPIRVCompilerTarget(; version=SPIRV_VERSION, supports_fp16, supports_fp64,
                                    validate=true, kwargs...)
-    params = OpenCLCompilerParams(; sub_group_size, features=device_features(dev))
+    params = OpenCLCompilerParams(; sub_group_size, features=device_features(dev),
+                                    program_backend=backend)
     CompilerConfig(target, params; kernel, name, always_inline)
 end
 
@@ -202,19 +207,52 @@ end
 # - `:spirv`  — always SPIR-V IL; error if the device doesn't support it.
 # - `:opencl` — always OpenCL C source. Useful to exercise pocl's source path on a device that
 #               also supports IL.
-const program_backend = Ref{Symbol}(:auto)
+# Task-local, like `cl.device`/`cl.queue`; `resolve_program_backend` maps it to a concrete backend.
+
+"""
+    program_backend() -> Symbol
+
+The requested program backend for the current task (`:auto`, `:spirv`, or `:opencl`).
+"""
+program_backend() = get(task_local_storage(), :CLProgramBackend, :auto)::Symbol
 
 """
     program_backend!(mode::Symbol)
+    program_backend!(f::Function, mode::Symbol)
 
-Select how kernels are fed to the driver: `:auto` (default), `:spirv` (SPIR-V IL), or `:opencl`
-(OpenCL C source).
+Select how kernels are fed to the driver for the current task: `:auto` (default), `:spirv` (SPIR-V
+IL), or `:opencl` (OpenCL C source). The second form applies `mode` only for the duration of `f`.
 """
 function program_backend!(mode::Symbol)
     mode in (:auto, :spirv, :opencl) ||
         throw(ArgumentError("invalid program backend $mode (expected :auto, :spirv or :opencl)"))
-    program_backend[] = mode
+    task_local_storage(:CLProgramBackend, mode)
     return mode
+end
+
+function program_backend!(f::Base.Callable, mode::Symbol)
+    old = program_backend()
+    program_backend!(mode)
+    try
+        f()
+    finally
+        program_backend!(old)
+    end
+end
+
+# Map the policy to a concrete backend for `dev`. Done in `link`, off the per-launch path.
+function resolve_program_backend(dev::cl.Device, mode::Symbol = program_backend())
+    mode === :opencl && return :opencl
+    mode in (:auto, :spirv) ||
+        throw(ArgumentError("invalid program backend $mode (expected :auto, :spirv or :opencl)"))
+    if "cl_khr_il_program" in dev.extensions
+        return :spirv
+    elseif mode === :spirv
+        error("Device '$(dev.name)' does not support SPIR-V IL programs")
+    else  # :auto
+        @warn "Device '$(dev.name)' lacks IL support; using OpenCL C translation." maxlog=1 _id=Symbol(dev.name)
+        return :opencl
+    end
 end
 
 # link into an executable kernel
@@ -224,21 +262,11 @@ function link(@nospecialize(job::CompilerJob), compiled)
     build_options = ""
 
     dev = cl.device()
-    il_supported = "cl_khr_il_program" in dev.extensions
-    backend = program_backend[]
-    if backend == :spirv && !il_supported
-        error("Device '$(dev.name)' does not support SPIR-V IL programs, but program_backend is :spirv")
-    end
-    use_il = backend == :spirv || (backend == :auto && il_supported)
+    backend = resolve_program_backend(dev, job.config.params.program_backend)
 
-    prog = if use_il
+    prog = if backend === :spirv
         cl.Program(; il=spirv_bitcode)
     else
-        if backend == :auto
-            @warn """The current active OpenCL device '$(dev.name)' does not support IL programs.
-                     Falling back to experimental SPIR-V to OpenCL C translation.""" maxlog=1 _id=Symbol(dev.name)
-        end
-
         # Target the device's highest OpenCL C version
         clc_version = max_opencl_c_version(dev)
         cl_std = "CL$(clc_version.major).$(clc_version.minor)"

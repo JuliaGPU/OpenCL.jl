@@ -62,7 +62,12 @@ function generate_test(test, expr)
                         continue
                     end
                 end
-                push!(targets, (; platform, device))
+                # every device runs its preferred backend
+                push!(targets, (; platform, device, backend = :auto))
+                # pocl also runs the OpenCL C source path (:auto already covers SPIR-V IL there)
+                if platform.name == "Portable Computing Language"
+                    push!(targets, (; platform, device, backend = :opencl))
+                end
             end
             if isempty(targets)
                 if platform_filter !== nothing
@@ -73,14 +78,10 @@ function generate_test(test, expr)
             end
         end
 
-        @testset "$(device.name)" for (; platform, device) in targets
+        @testset "$(device.name) [$backend]" for (; platform, device, backend) in targets
             cl.platform!(platform)
             cl.device!(device)
-
-            # Tests run kernels through SPIR-V IL where the device supports it,
-            # and otherwise through the spirv2clc OpenCL C source fallback, so
-            # they run on any device. Set JULIA_OPENCL_TEST_BACKEND=opencl to
-            # force the source path even where IL is available (see init code).
+            OpenCL.program_backend!(backend)
             $(expr)
         end
     end
@@ -93,12 +94,6 @@ const init_worker_code = quote
     using OpenCL, $pocl_pkg
 
     OpenCL.allowscalar(false)
-
-    # Optionally force how kernels are fed to the driver (:auto/:spirv/:opencl), e.g. to
-    # exercise the spirv2clc OpenCL C source path on a device that also supports IL programs.
-    let b = get(ENV, "JULIA_OPENCL_TEST_BACKEND", "")
-        isempty(b) || OpenCL.program_backend!(Symbol(b))
-    end
 
     const targets = []
 
