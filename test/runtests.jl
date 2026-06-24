@@ -93,13 +93,22 @@ for name in collect(keys(testsuite))
 end
 
 ## filter
-if filter_tests!(testsuite, args)
-    if load_preference(OpenCL, "default_memory_backend") == "svm"
-        # GPUArrays' scalar indexing tests assume that indexing is not supported
-        for t in targets
+filter_tests!(testsuite, args)
+
+# "indexing scalar" asserts scalar indexing throws when disallowed, which only
+# holds for device-only memory; host-accessible memory (SVM, host/shared USM)
+# serves it directly. Drop it for targets whose device uses such memory.
+if args.list === nothing
+    host_accessible = (OpenCL.cl.UnifiedHostMemory, OpenCL.cl.UnifiedSharedMemory,
+                       OpenCL.cl.SharedVirtualMemory)
+    for t in targets
+        plat = first(p for p in OpenCL.cl.platforms() if p.name == t.platform)
+        dev = OpenCL.cl.devices(plat)[t.index]
+        OpenCL.cl.platform!(plat)
+        OpenCL.cl.device!(dev)
+        if OpenCL.memory_type() in host_accessible
             delete!(testsuite, "$(t.label)/gpuarrays/indexing scalar")
         end
-        return false
     end
 end
 
