@@ -255,6 +255,40 @@ function resolve_program_backend(dev::cl.Device, mode::Symbol = program_backend(
     end
 end
 
+# Dump compilation artifacts (`extension => data` pairs sharing one random base name, e.g.
+# `dump_artifacts(".spv" => spv, ".cl" => src)`) to a directory for later inspection. The
+# directory is `JULIA_OPENCL_DUMP_DIR` if set, else `$RUNNER_TEMP/opencl-compilation-dumps` on
+# GitHub Actions, else `tempdir()`. On CI the files are surfaced as downloadable artifacts
+# (`buildkite-agent artifact upload`, or a GitHub Actions `::notice`). Returns the written paths.
+function dump_artifacts(artifacts::Pair{String}...)
+    on_github = get(ENV, "GITHUB_ACTIONS", "false") == "true"
+    dir = if haskey(ENV, "JULIA_OPENCL_DUMP_DIR")
+        mkpath(ENV["JULIA_OPENCL_DUMP_DIR"])
+    elseif on_github
+        mkpath(joinpath(get(ENV, "RUNNER_TEMP", tempdir()), "opencl-compilation-dumps"))
+    else
+        tempdir()
+    end
+    stem = tempname(dir; cleanup=false)
+
+    paths = String[]
+    for (ext, data) in artifacts
+        path = stem * ext
+        write(path, data)
+        push!(paths, path)
+    end
+
+    if parse(Bool, get(ENV, "BUILDKITE", "false"))
+        for path in paths
+            run(`buildkite-agent artifact upload $path`)
+        end
+    elseif on_github
+        println("::notice title=OpenCL compilation dump::wrote $(join(basename.(paths), ", ")) to $dir")
+    end
+
+    return paths
+end
+
 # link into an executable kernel
 function link(@nospecialize(job::CompilerJob), compiled)
     spirv_bitcode = compiled.obj
@@ -278,40 +312,34 @@ function link(@nospecialize(job::CompilerJob), compiled)
         spirv_path = tempname(cleanup=false) * ".spv"
         write(spirv_path, spirv_bitcode)
         proc, log = run_and_collect(`$(spirv2clc_jll.spirv2clc()) --spirv-version=$spirv_version --cl-std=$cl_std $spirv_path`)
-        if !success(proc)
-            msg = "Failed to translate SPIR-V to OpenCL C source code:\n$(log)"
-            msg *= "\nIf you think this is a bug, please file an issue and attach $spirv_path"
-            if parse(Bool, get(ENV, "BUILDKITE", "false"))
-                run(`buildkite-agent artifact upload $spirv_path`)
-            end
-            error(msg)
-        end
         rm(spirv_path)
+        if !success(proc)
+            spv_file, = dump_artifacts(".spv" => spirv_bitcode)
+            error("Failed to translate SPIR-V to OpenCL C source code:\n$(log)\n" *
+                  "If you think this is a bug, please file an issue and attach $spv_file")
+        end
 
         clc_source = strip(log)
         build_options = "-cl-std=$cl_std"
         cl.Program(; source=clc_source)
     end
 
+    # optionally dump the artifacts of every kernel (e.g. to debug a runtime miscompile)
+    if haskey(ENV, "JULIA_OPENCL_DUMP_DIR")
+        clc_source === nothing ? dump_artifacts(".spv" => spirv_bitcode) :
+                                 dump_artifacts(".spv" => spirv_bitcode, ".cl" => clc_source)
+    end
+
     try
         cl.build!(prog; options=build_options)
     catch e
-        spirv_path = tempname(cleanup=false) * ".spv"
-        write(spirv_path, spirv_bitcode)
-        files = [spirv_path]
-        if clc_source !== nothing
-            clc_path = tempname(cleanup=false) * ".cl"
-            write(clc_path, clc_source)
-            push!(files, clc_path)
-        end
+        files = clc_source === nothing ?
+            dump_artifacts(".spv" => spirv_bitcode) :
+            dump_artifacts(".spv" => spirv_bitcode, ".cl" => clc_source)
 
-        msg = "Failed to compile OpenCL program"
+        # `build!` already renders the source and build log; keep that and point at the artifacts
+        msg = sprint(showerror, e)
         msg *= "\nIf you think this is a bug, please file an issue and attach $(join(files, " and "))"
-        if parse(Bool, get(ENV, "BUILDKITE", "false"))
-            for file in files
-                run(`buildkite-agent artifact upload $file`)
-            end
-        end
         error(msg)
     end
     (; kernel=cl.Kernel(prog, compiled.entry), compiled.device_rng)
