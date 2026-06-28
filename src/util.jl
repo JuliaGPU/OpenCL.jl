@@ -49,10 +49,13 @@ function versioninfo(io::IO=stdout)
         mod = getfield(OpenCL, name)
         println(io, "- $(name): $(pkgversion(mod))")
     end
-    # Display pocl_jll if present
-    pocl_id = Base.PkgId(Base.UUID("627d6b7a-bbe6-5189-83e7-98cc0a5aeadd"), "pocl_jll")
-    pocl_mod = mod = get(Base.loaded_modules, pocl_id, nothing)
-    isnothing(pocl_mod) || println(io, "- pocl_jll: $(pkgversion(pocl_mod))")
+    # Display pocl_jll / pocl_next_jll if present
+    for (uuid, name) in [("627d6b7a-bbe6-5189-83e7-98cc0a5aeadd", "pocl_jll"),
+                         ("59abdad9-3cfc-5436-8271-411e8cad6b82", "pocl_next_jll")]
+        pocl_id = Base.PkgId(Base.UUID(uuid), name)
+        pocl_mod = get(Base.loaded_modules, pocl_id, nothing)
+        isnothing(pocl_mod) || println(io, "- $name: $(pkgversion(pocl_mod))")
+    end
     println(io)
 
     env = filter(var->startswith(var, "JULIA_OPENCL"), keys(ENV))

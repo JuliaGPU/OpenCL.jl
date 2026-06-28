@@ -153,3 +153,53 @@ jobs:
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: lcov.info
+
+  # Smoke-test against the upcoming PoCL release (pocl_next_jll) so we catch
+  # regressions early. This mirrors the `pocl: jll` path above but swaps in
+  # pocl_next via `--platform=pocl_next`, on a single representative
+  # configuration (rather than the full matrix) to keep it cheap.
+  test-pocl-next:
+    name: Julia ${{ matrix.version }} - PoCL next - ${{ matrix.memory_backend }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 100
+    permissions: # needed to allow julia-actions/cache to proactively delete old caches that it has created
+      actions: write
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        version: ['1.12']
+        memory_backend: [usm, svm, buffer]
+    steps:
+      - name: Checkout OpenCL.jl
+        uses: actions/checkout@v6
+
+      - name: Setup Julia
+        uses: julia-actions/setup-julia@v3
+        with:
+          version: ${{ matrix.version }}
+          arch: x64
+
+      - name: Setup Julia cache
+        uses: julia-actions/cache@v3
+
+      - name: Setup OpenCL.jl
+        run: |
+          echo '[OpenCL]' >> test/LocalPreferences.toml
+          echo 'default_memory_backend="${{ matrix.memory_backend }}"' >> test/LocalPreferences.toml
+          julia --project -e '
+            using Pkg
+            # Julia 1.10 does not support [sources], so dev the in-tree
+            # SPIRVIntrinsics; Pkg.test then carries it into the test sandbox.
+            Pkg.develop(path="lib/intrinsics")'
+
+      - name: Test OpenCL.jl
+        uses: julia-actions/julia-runtest@v1
+        with:
+          test_args: '--quickfail --verbose --platform=pocl_next'
+
+      - uses: julia-actions/julia-processcoverage@v1
+      - uses: codecov/codecov-action@v7
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: lcov.info
