@@ -1,12 +1,25 @@
 using ParallelTestRunner
 using Preferences
-import OpenCL, pocl_jll
+import OpenCL
 import Test
-
-@info "System information:\n" * sprint(io->OpenCL.versioninfo(io))
 
 ## custom arguments
 args = parse_args(ARGS; custom=["platform"])
+
+# `--platform` selects which OpenCL platform to run on, substring-matched against the
+# platform name/vendor (e.g. `pocl`, `cuda`, `intel`). The special value `pocl_next`
+# loads `pocl_next_jll` — a build of the upcoming PoCL release — instead of the released
+# `pocl_jll`, then filters identically to `--platform=pocl` (both register a platform
+# with the same name/vendor, differing only in version). We import exactly one PoCL JLL,
+# so only a single PoCL platform shows up.
+const platform_request = args.custom["platform"] === nothing ? nothing :
+                         args.custom["platform"].value
+const pocl_pkg = platform_request == "pocl_next" ? :pocl_next_jll : :pocl_jll
+const platform_arg = platform_request == "pocl_next" ? Some("pocl") :
+                     args.custom["platform"]
+@eval import $pocl_pkg
+
+@info "System information:\n" * sprint(io->OpenCL.versioninfo(io))
 
 # determine tests to run
 const testsuite = find_tests(@__DIR__)
@@ -44,7 +57,7 @@ function generate_test(test, expr)
     # targets is a global variable that is defined in init_code
     return quote
         if isempty(targets)
-            platform_filter = $(args.custom["platform"])
+            platform_filter = $(platform_arg)
             for platform in cl.platforms(),
                 device in cl.devices(platform)
                 if platform_filter !== nothing
@@ -80,7 +93,7 @@ for test in keys(testsuite)
 end
 
 const init_worker_code = quote
-    using OpenCL, pocl_jll
+    using OpenCL, $pocl_pkg
 
     OpenCL.allowscalar(false)
     const targets = []
@@ -141,7 +154,7 @@ const init_worker_code = quote
 end
 
 const init_code = quote
-    using OpenCL, pocl_jll
+    using OpenCL, $pocl_pkg
 
     # bring used symbols into the temporary module
     import ..GPUArraysTestSuite, ..testf
