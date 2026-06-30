@@ -139,7 +139,7 @@ end
         OpenCL.code_llvm(io, () -> nothing, (); dump_module = true, backend = :llvm)
     end
     if Int === Int64
-        @test occursin("target triple = \"spirv64-unknown-unknown-unknown\"", llvm_backend_llvm)
+        @test occursin("target triple = \"spirv64v1.4-unknown-unknown-unknown\"", llvm_backend_llvm)
     end
 
     llvm_backend_khronos = sprint() do io

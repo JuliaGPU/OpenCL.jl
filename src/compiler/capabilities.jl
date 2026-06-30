@@ -40,6 +40,49 @@ end
 
 has_opencl_c_feature(dev, feat) = feat in opencl_c_features(dev)
 
+# OpenCL 3.0: CL_DEVICE_OPENCL_C_ALL_VERSIONS lists every OpenCL C version the device accepts as
+# an array of cl_name_version {cl_version (4 bytes); char name[64]}. This is the query to trust:
+# the legacy CL_DEVICE_OPENCL_C_VERSION string reports "1.2" on both NVIDIA and pocl even though
+# pocl accepts up to 3.0. Returns the highest version, falling back to the legacy string (or 1.2)
+# on devices that don't support the 3.0 query.
+function max_opencl_c_version(dev::cl.Device)::VersionNumber
+    CL_DEVICE_OPENCL_C_ALL_VERSIONS = 0x1066
+    try
+        sz = Ref{Csize_t}(0)
+        cl.clGetDeviceInfo(dev, CL_DEVICE_OPENCL_C_ALL_VERSIONS, 0, C_NULL, sz)
+        if sz[] != 0
+            buf = Vector{UInt8}(undef, sz[])
+            cl.clGetDeviceInfo(dev, CL_DEVICE_OPENCL_C_ALL_VERSIONS, sz[], buf, C_NULL)
+            entry = 68  # sizeof(cl_name_version)
+            best = v"0"
+            for off in 0:entry:(length(buf) - entry)
+                ver = reinterpret(UInt32, buf[(off + 1):(off + 4)])[1]  # cl_version bitfield
+                vn = VersionNumber(ver >> 22, (ver >> 12) & 0x3ff)      # major[31:22], minor[21:12]
+                vn > best && (best = vn)
+            end
+            best > v"0" && return best
+        end
+    catch
+    end
+    return legacy_opencl_c_version(dev)
+end
+
+# Pre-3.0 fallback: parse the "OpenCL C <major>.<minor> <vendor>" string.
+function legacy_opencl_c_version(dev::cl.Device)::VersionNumber
+    CL_DEVICE_OPENCL_C_VERSION = 0x103d
+    try
+        sz = Ref{Csize_t}(0)
+        cl.clGetDeviceInfo(dev, CL_DEVICE_OPENCL_C_VERSION, 0, C_NULL, sz)
+        buf = Vector{UInt8}(undef, sz[])
+        cl.clGetDeviceInfo(dev, CL_DEVICE_OPENCL_C_VERSION, sz[], buf, C_NULL)
+        str = String(buf[1:(end - 1)])  # drop the trailing NUL
+        m = match(r"OpenCL C (\d+)\.(\d+)", str)
+        m !== nothing && return VersionNumber(parse(Int, m[1]), parse(Int, m[2]))
+    catch
+    end
+    return v"1.2"  # conservative default
+end
+
 const FEATURES = Feature[
     Feature(:fp16, dev -> "cl_khr_fp16" in dev.extensions),
     Feature(:fp64, dev -> "cl_khr_fp64" in dev.extensions),
