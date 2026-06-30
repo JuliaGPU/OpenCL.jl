@@ -40,7 +40,7 @@ jobs:
             pocl: local
     steps:
       - name: Checkout OpenCL.jl
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Setup Julia
         uses: julia-actions/setup-julia@v3
@@ -53,7 +53,7 @@ jobs:
 
       - name: Checkout PoCL
         if: ${{ matrix.pocl == 'local' }}
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           repository: pocl/pocl
           path: pocl
@@ -180,7 +180,7 @@ jobs:
         memory_backend: [usm, svm, buffer]
     steps:
       - name: Checkout OpenCL.jl
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Setup Julia
         uses: julia-actions/setup-julia@v3
