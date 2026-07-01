@@ -84,6 +84,64 @@ end
 end
 
 
+# native floating-point atomic add/sub.
+#
+# Float32 uses SPV_EXT_shader_atomic_float_add (OpAtomicFAddEXT), emitted as OpenCL-style
+# builtins so the Khronos SPIR-V translator lowers them to the EXT atomic-float instructions
+# (the LLVM SPIR-V backend also accepts them when the extension is enabled). Current Intel
+# GPUs have no *native* atomic-add for Float64 (the module fails to link), so Float64 uses a
+# cmpxchg fallback — the device still reports fp64 compute and 64-bit integer atomics.
+for as in atomic_memory_types
+@eval begin
+
+@device_function atomic_add!(p::LLVMPtr{Float32,$as}, val::Float32) =
+    @builtin_ccall("atomic_add", Float32, (LLVMPtr{Float32,$as}, Float32), p, val)
+
+@device_function atomic_sub!(p::LLVMPtr{Float32,$as}, val::Float32) =
+    @builtin_ccall("atomic_sub", Float32, (LLVMPtr{Float32,$as}, Float32), p, val)
+
+@device_function function atomic_add!(p::LLVMPtr{Float64,$as}, val::Float64)
+    old = Base.unsafe_load(p, 1)
+    while true
+        cmp = old
+        old = atomic_cmpxchg!(p, cmp, cmp + val)
+        old == cmp && return old
+    end
+end
+
+@device_function atomic_sub!(p::LLVMPtr{Float64,$as}, val::Float64) = atomic_add!(p, -val)
+
+end
+end
+
+# floating-point atomic min/max via cmpxchg. Native float min/max needs
+# SPV_EXT_shader_atomic_float_min_max, which the LTS extension set doesn't enable, so use a
+# compare-and-swap loop (correct on any device that has integer cmpxchg).
+for gentype in atomic_float_types, as in atomic_memory_types
+@eval begin
+
+@device_function function atomic_min!(p::LLVMPtr{$gentype,$as}, val::$gentype)
+    old = Base.unsafe_load(p, 1)
+    while true
+        cmp = old
+        old = atomic_cmpxchg!(p, cmp, min(cmp, val))
+        old == cmp && return old
+    end
+end
+
+@device_function function atomic_max!(p::LLVMPtr{$gentype,$as}, val::$gentype)
+    old = Base.unsafe_load(p, 1)
+    while true
+        cmp = old
+        old = atomic_cmpxchg!(p, cmp, max(cmp, val))
+        old == cmp && return old
+    end
+end
+
+end
+end
+
+
 # specifically typed
 
 for as in atomic_memory_types
