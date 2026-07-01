@@ -147,11 +147,9 @@ end
             OpenCL.rsqrt,
         ]
         x = rand(T)
-        broken = ispocl && T == Float16 && (f == OpenCL.logb)
-        @test call_on_device(f, x) isa Real broken = broken  # Just check it doesn't error
+        @test call_on_device(f, x) isa Real  # Just check it doesn't error
     end
-    broken = ispocl && T == Float16
-    @test call_on_device(OpenCL.ilogb, T(8.0)) isa Int32 broken = broken
+    @test call_on_device(OpenCL.ilogb, T(8.0)) isa Int32
     @test call_on_device(OpenCL.nan, Base.uinttype(T)(0)) isa T
 end
 
@@ -166,11 +164,9 @@ end
         ]
         x = rand(T)
         y = rand(T)
-        broken = ispocl && T == Float16 && (f in [OpenCL.nextafter, OpenCL.powr])
-        @test call_on_device(f, x, y) isa Real broken = broken  # Just check it doesn't error
+        @test call_on_device(f, x, y) isa Real  # Just check it doesn't error
     end
-    broken = ispocl && T == Float16
-    @test call_on_device(OpenCL.rootn, T(8.0), Int32(3)) ≈ T(2.0) broken = broken
+    @test call_on_device(OpenCL.rootn, T(8.0), Int32(3)) ≈ T(2.0)
 end
 
 @testset "OpenCL-specific ternary - $T" for T in float_types
@@ -298,11 +294,8 @@ end # if cl.sub_groups_supported(cl.device())
     d = call_on_device(max, v, w)
     @test all(d[i] == max(v[i], w[i]) for i in 1:N)
 
-    broken = ispocl && T == Float16
-    if !broken
-        h = call_on_device(hypot, v, w)
-        @test all(h[i] ≈ hypot(v[i], w[i]) for i in 1:N)
-    end
+    h = call_on_device(hypot, v, w)
+    @test all(h[i] ≈ hypot(v[i], w[i]) for i in 1:N)
 
     # ternary op: fma
     x = Vec{N, T}(ntuple(_ -> rand(T), N))
@@ -311,24 +304,24 @@ end # if cl.sub_groups_supported(cl.device())
 
     # special cases: ilogb, ldexp, ^ with Int32, rootn
     v_pos = Vec{N, T}(ntuple(_ -> rand(T) + T(1), N))
-    @test call_on_device(OpenCL.ilogb, v_pos) isa Vec{N, Int32} broken = broken
+    @test call_on_device(OpenCL.ilogb, v_pos) isa Vec{N, Int32}
 
     k = Vec{N, Int32}(ntuple(_ -> rand(Int32.(-5:5)), N))
     @test let
         ldexp_result = call_on_device(ldexp, v_pos, k)
         all(ldexp_result[i] ≈ ldexp(v_pos[i], k[i]) for i in 1:N)
-    end broken = broken
+    end
 
     base = Vec{N, T}(ntuple(_ -> rand(T) + T(0.5), N))
     exp_int = Vec{N, Int32}(ntuple(_ -> rand(Int32.(0:3)), N))
     @test let
         pow_result = call_on_device(^, base, exp_int)
         all(pow_result[i] ≈ base[i] ^ exp_int[i] for i in 1:N)
-    end broken = broken
+    end
 
     rootn_base = Vec{N, T}(ntuple(_ -> rand(T) * T(10) + T(1), N))
     rootn_n = Vec{N, Int32}(ntuple(_ -> rand(Int32.(2:4)), N))
-    @test call_on_device(OpenCL.rootn, rootn_base, rootn_n) isa Vec{N, T} broken = broken
+    @test call_on_device(OpenCL.rootn, rootn_base, rootn_n) isa Vec{N, T}
 
     # special cases: nan
     nan_code = Vec{N, Base.uinttype(T)}(ntuple(_ -> rand(Base.uinttype(T)), N))
