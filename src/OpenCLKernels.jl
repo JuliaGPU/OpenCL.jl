@@ -18,6 +18,8 @@ export OpenCLBackend
 struct OpenCLBackend <: KA.GPU
 end
 
+KA.versioninfo(io::IO, ::OpenCLBackend) = OpenCL.versioninfo(io)
+
 function KA.allocate(::OpenCLBackend, ::Type{T}, dims::Tuple; unified::Bool = false) where T
     if unified
         memory_backend = cl.unified_memory_backend()
