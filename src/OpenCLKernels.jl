@@ -4,7 +4,7 @@ using ..OpenCL
 using ..OpenCL: @device_override, method_table, kernel_convert, clfunction
 
 import KernelAbstractions as KA
-import KernelAbstractions.KernelIntrinsics as KI
+import KernelAbstractions.KernelInterface as KI
 
 import StaticArrays
 
