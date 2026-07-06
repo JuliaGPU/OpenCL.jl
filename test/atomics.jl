@@ -83,13 +83,19 @@ atomic_operations = [
         continue
     end
 
+    # Float64 atomics may fall back to 64-bit cmpxchg
+    if T == Float64 && !("cl_khr_int64_base_atomics" in dev.extensions)
+        continue
+    end
+
     # Bitwise operations (only valid for integers)
     if kernel_func in [test_atomic_and, test_atomic_or, test_atomic_xor] && T <: AbstractFloat
         continue
     end
 
-    # Min/max operations (only supported for 32-bit integers in OpenCL)
-    if kernel_func in [test_atomic_min, test_atomic_max] && !(T in [Int32, UInt32])
+    # Min/max on integers is only supported for 32-bit types; floats use the native
+    # extension or the compare-and-swap fallback
+    if kernel_func in [test_atomic_min, test_atomic_max] && !(T in [Int32, UInt32] || T <: AbstractFloat)
         continue
     end
 

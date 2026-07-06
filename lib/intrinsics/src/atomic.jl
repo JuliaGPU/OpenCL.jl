@@ -345,15 +345,19 @@ end
 # native atomics
 # TODO: support inc/dec
 # TODO: this depends on backend support for the corresponding SPIR-V atomic
-#       operation. Floating-point arithmetic should hit the cmpxchg fallback
-#       unless a caller explicitly uses a floating-point atomic extension.
+#       operation. 64-bit integer atomics require the Int64Atomics capability.
 for (op,impl) in [(+)      => atomic_add!,
                   (-)      => atomic_sub!,
-                  (&)      => atomic_and!,
-                  (|)      => atomic_or!,
-                  (⊻)      => atomic_xor!,
                   Base.max => atomic_max!,
                   Base.min => atomic_min!]
+    @eval @inline atomic_arrayset(A::AbstractArray{T}, I::Integer, ::typeof($op),
+                                  val::T) where {T <: Union{atomic_integer_types...,
+                                                            atomic_float_types...}} =
+        $impl(pointer(A, I), val)
+end
+for (op,impl) in [(&)      => atomic_and!,
+                  (|)      => atomic_or!,
+                  (⊻)      => atomic_xor!]
     @eval @inline atomic_arrayset(A::AbstractArray{T}, I::Integer, ::typeof($op),
                                   val::T) where {T <: Union{atomic_integer_types...}} =
         $impl(pointer(A, I), val)
