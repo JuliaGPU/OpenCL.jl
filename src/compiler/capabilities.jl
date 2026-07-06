@@ -40,6 +40,20 @@ end
 
 has_opencl_c_feature(dev, feat) = feat in opencl_c_features(dev)
 
+# cl_ext_float_atomics: native floating-point atomic capabilities, reported per precision as a
+# bitfield with separate global- and local-memory bits. The device intrinsics operate on either
+# address space, so require both bits.
+function has_fp_atomics(dev::cl.Device, query, caps)
+    "cl_ext_float_atomics" in dev.extensions || return false
+    try
+        supported = Ref{UInt64}(0)  # cl_device_fp_atomic_capabilities_ext
+        cl.clGetDeviceInfo(dev, query, sizeof(UInt64), supported, C_NULL)
+        return supported[] & caps == caps
+    catch
+        return false
+    end
+end
+
 # OpenCL 3.0: CL_DEVICE_OPENCL_C_ALL_VERSIONS lists every OpenCL C version the device accepts as
 # an array of cl_name_version {cl_version (4 bytes); char name[64]}. This is the query to trust:
 # the legacy CL_DEVICE_OPENCL_C_VERSION string reports "1.2" on both NVIDIA and pocl even though
@@ -90,6 +104,22 @@ const FEATURES = Feature[
     Feature(:subgroups, cl.sub_groups_supported),
     Feature(:generic_address_space,
             dev -> has_opencl_c_feature(dev, "__opencl_c_generic_address_space")),
+    Feature(:fp32_atomic_add,
+            dev -> has_fp_atomics(dev, cl.CL_DEVICE_SINGLE_FP_ATOMIC_CAPABILITIES_EXT,
+                                  cl.CL_DEVICE_GLOBAL_FP_ATOMIC_ADD_EXT |
+                                  cl.CL_DEVICE_LOCAL_FP_ATOMIC_ADD_EXT)),
+    Feature(:fp32_atomic_min_max,
+            dev -> has_fp_atomics(dev, cl.CL_DEVICE_SINGLE_FP_ATOMIC_CAPABILITIES_EXT,
+                                  cl.CL_DEVICE_GLOBAL_FP_ATOMIC_MIN_MAX_EXT |
+                                  cl.CL_DEVICE_LOCAL_FP_ATOMIC_MIN_MAX_EXT)),
+    Feature(:fp64_atomic_add,
+            dev -> has_fp_atomics(dev, cl.CL_DEVICE_DOUBLE_FP_ATOMIC_CAPABILITIES_EXT,
+                                  cl.CL_DEVICE_GLOBAL_FP_ATOMIC_ADD_EXT |
+                                  cl.CL_DEVICE_LOCAL_FP_ATOMIC_ADD_EXT)),
+    Feature(:fp64_atomic_min_max,
+            dev -> has_fp_atomics(dev, cl.CL_DEVICE_DOUBLE_FP_ATOMIC_CAPABILITIES_EXT,
+                                  cl.CL_DEVICE_GLOBAL_FP_ATOMIC_MIN_MAX_EXT |
+                                  cl.CL_DEVICE_LOCAL_FP_ATOMIC_MIN_MAX_EXT)),
 ]
 
 const FeatureSet = UInt64

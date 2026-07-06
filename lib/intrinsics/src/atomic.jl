@@ -84,74 +84,75 @@ end
 end
 
 
-# native floating-point atomic add/sub.
+# floating-point atomics.
 #
-# Float32 uses SPV_EXT_shader_atomic_float_add (OpAtomicFAddEXT), emitted as a SPIR-V wrapper
-# builtin like the integer atomics above: OpenCL-style builtins with float arguments are not
-# recognized by the Khronos translator, and only atomic_add by the LLVM SPIR-V backend.
-# Current Intel GPUs have no *native* atomic-add for Float64 (the module fails to link), so
-# Float64 uses a cmpxchg fallback — the device still reports fp64 compute and 64-bit integer
-# atomics.
-for as in atomic_memory_types
-@eval begin
-
-@device_function atomic_add!(p::LLVMPtr{Float32,$as}, val::Float32) =
-    @builtin_ccall("__spirv_AtomicFAddEXT", Float32,
-                   (LLVMPtr{Float32,$as}, UInt32, UInt32, Float32),
-                   p, UInt32(atomic_scope),
-                   UInt32(atomic_memory_semantics(Val($as))), val)
-
-# SPIR-V has no atomic float subtraction; add the negated value
-@device_function atomic_sub!(p::LLVMPtr{Float32,$as}, val::Float32) =
-    atomic_add!(p, -val)
-
-# the loop compares raw bits, not values: `==` on floats would spin forever on a stored NaN,
-# and would treat a failed exchange as successful when -0.0 compares equal to 0.0.
-@device_function function atomic_add!(p::LLVMPtr{Float64,$as}, val::Float64)
-    ip = reinterpret(LLVMPtr{UInt64,$as}, p)
-    cmp = Base.unsafe_load(ip, 1)
-    while true
-        old = reinterpret(Float64, cmp)
-        seen = atomic_cmpxchg!(ip, cmp, reinterpret(UInt64, old + val))
-        seen == cmp && return old
-        cmp = seen
-    end
-end
-
-@device_function atomic_sub!(p::LLVMPtr{Float64,$as}, val::Float64) = atomic_add!(p, -val)
-
-end
-end
-
-# floating-point atomic min/max via cmpxchg. Native float min/max needs
-# SPV_EXT_shader_atomic_float_min_max, which the LTS extension set doesn't enable, so use a
-# compare-and-swap loop (correct on any device that has integer cmpxchg). Like above, the
-# loops compare raw bits, not float values.
+# Native floating-point atomic add and min/max come from the SPV_EXT_shader_atomic_float_add
+# and SPV_EXT_shader_atomic_float_min_max extensions, emitted as SPIR-V wrapper builtins like
+# the integer atomics above (OpenCL-style builtins with float arguments are not recognized by
+# the Khronos translator, and only atomic_add by the LLVM SPIR-V backend). Extension support
+# is an optional device capability (cl_ext_float_atomics), so the generic functions default
+# to a compare-and-swap loop (correct on any device with integer cmpxchg); back-ends that can
+# query the device override them to select the native version at compile time (see OpenCL.jl's
+# `has_feature`).
 for gentype in atomic_float_types, as in atomic_memory_types
     bits = gentype == Float32 ? UInt32 : UInt64
 @eval begin
 
-@device_function function atomic_min!(p::LLVMPtr{$gentype,$as}, val::$gentype)
+@device_function atomic_add_native!(p::LLVMPtr{$gentype,$as}, val::$gentype) =
+    @builtin_ccall("__spirv_AtomicFAddEXT", $gentype,
+                   (LLVMPtr{$gentype,$as}, UInt32, UInt32, $gentype),
+                   p, UInt32(atomic_scope),
+                   UInt32(atomic_memory_semantics(Val($as))), val)
+
+# SPIR-V has no atomic float subtraction; add the negated value
+@device_function atomic_sub_native!(p::LLVMPtr{$gentype,$as}, val::$gentype) =
+    atomic_add_native!(p, -val)
+
+@device_function atomic_min_native!(p::LLVMPtr{$gentype,$as}, val::$gentype) =
+    @builtin_ccall("__spirv_AtomicFMinEXT", $gentype,
+                   (LLVMPtr{$gentype,$as}, UInt32, UInt32, $gentype),
+                   p, UInt32(atomic_scope),
+                   UInt32(atomic_memory_semantics(Val($as))), val)
+
+@device_function atomic_max_native!(p::LLVMPtr{$gentype,$as}, val::$gentype) =
+    @builtin_ccall("__spirv_AtomicFMaxEXT", $gentype,
+                   (LLVMPtr{$gentype,$as}, UInt32, UInt32, $gentype),
+                   p, UInt32(atomic_scope),
+                   UInt32(atomic_memory_semantics(Val($as))), val)
+
+end
+
+# the loops compare raw bits, not values: `==` on floats would spin forever on a stored NaN,
+# and would treat a failed exchange as successful when -0.0 compares equal to 0.0.
+for (op, expr) in [:add => :(old + val), :min => :(min(old, val)), :max => :(max(old, val))]
+    fallback = Symbol("atomic_$(op)_fallback!")
+    fn = Symbol("atomic_$(op)!")
+@eval begin
+
+@device_function @inline function $fallback(p::LLVMPtr{$gentype,$as}, val::$gentype)
     ip = reinterpret(LLVMPtr{$bits,$as}, p)
     cmp = Base.unsafe_load(ip, 1)
     while true
         old = reinterpret($gentype, cmp)
-        seen = atomic_cmpxchg!(ip, cmp, reinterpret($bits, min(old, val)))
+        new = reinterpret($bits, $expr)
+        seen = atomic_cmpxchg!(ip, cmp, new)
         seen == cmp && return old
         cmp = seen
     end
 end
 
-@device_function function atomic_max!(p::LLVMPtr{$gentype,$as}, val::$gentype)
-    ip = reinterpret(LLVMPtr{$bits,$as}, p)
-    cmp = Base.unsafe_load(ip, 1)
-    while true
-        old = reinterpret($gentype, cmp)
-        seen = atomic_cmpxchg!(ip, cmp, reinterpret($bits, max(old, val)))
-        seen == cmp && return old
-        cmp = seen
-    end
+@device_function $fn(p::LLVMPtr{$gentype,$as}, val::$gentype) = $fallback(p, val)
+
 end
+end
+
+@eval begin
+
+@device_function atomic_sub_fallback!(p::LLVMPtr{$gentype,$as}, val::$gentype) =
+    atomic_add_fallback!(p, -val)
+
+@device_function atomic_sub!(p::LLVMPtr{$gentype,$as}, val::$gentype) =
+    atomic_sub_fallback!(p, val)
 
 end
 end

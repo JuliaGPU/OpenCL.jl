@@ -48,6 +48,15 @@ function test_atomic_cas(counter::AbstractArray{T}) where T
     OpenCL.atomic_cmpxchg!(pointer(counter), zero(T), one(T))
     return
 end
+# Floating-point add/sub - use low-level API directly
+function float_add_kernel(counter::AbstractArray{T}, val::T) where T
+    OpenCL.atomic_add!(pointer(counter), val)
+    return
+end
+function float_sub_kernel(counter::AbstractArray{T}, val::T) where T
+    OpenCL.atomic_sub!(pointer(counter), val)
+    return
+end
 
 # Define atomic operations to test
 atomic_operations = [
@@ -96,7 +105,39 @@ atomic_operations = [
 end
 
 
-@testset "atomic_add! ($T)" for T in [Float32, Float64]
+@testset "float atomics ($T)" for T in [Float32, Float64]
+    if T == Float64 && !("cl_khr_fp64" in dev.extensions)
+        continue
+    end
+    if T == Float64 && !("cl_khr_int64_base_atomics" in dev.extensions)
+        continue
+    end
+
+    a = OpenCL.zeros(T)
+    @opencl global_size=1000 float_add_kernel(a, one(T))
+    @test OpenCL.@allowscalar(a[]) == T(1000)
+
+    b = OpenCL.fill(T(1000))
+    @opencl global_size=1000 float_sub_kernel(b, one(T))
+    @test OpenCL.@allowscalar(b[]) == T(0)
+
+    # the native/fallback selection must fold at compile time, leaving only the path
+    # matching the device's capabilities
+    feature = T == Float32 ? :fp32_atomic_add : :fp64_atomic_add
+    ir = sprint() do io
+        OpenCL.code_llvm(io, float_add_kernel, Tuple{CLDeviceArray{T, 0, AS.CrossWorkgroup}, T};
+                         kernel=true, dump_module=true)
+    end
+    if OpenCL.feature_supported(dev, feature)
+        @test occursin("__spirv_AtomicFAddEXT", ir)
+        @test !occursin("__spirv_AtomicCompareExchange", ir)
+    else
+        @test occursin("__spirv_AtomicCompareExchange", ir)
+        @test !occursin("__spirv_AtomicFAddEXT", ir)
+    end
+end
+
+@testset "atomic_add builtin ($T)" for T in [Float32, Float64]
     # Float64 requires cl_khr_fp64 extension
     if T == Float64 && !("cl_khr_fp64" in cl.device().extensions)
         continue
