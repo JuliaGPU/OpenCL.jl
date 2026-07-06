@@ -100,12 +100,16 @@ for as in atomic_memory_types
 @device_function atomic_sub!(p::LLVMPtr{Float32,$as}, val::Float32) =
     @builtin_ccall("atomic_sub", Float32, (LLVMPtr{Float32,$as}, Float32), p, val)
 
+# the loop compares raw bits, not values: `==` on floats would spin forever on a stored NaN,
+# and would treat a failed exchange as successful when -0.0 compares equal to 0.0.
 @device_function function atomic_add!(p::LLVMPtr{Float64,$as}, val::Float64)
-    old = Base.unsafe_load(p, 1)
+    ip = reinterpret(LLVMPtr{UInt64,$as}, p)
+    cmp = Base.unsafe_load(ip, 1)
     while true
-        cmp = old
-        old = atomic_cmpxchg!(p, cmp, cmp + val)
-        old == cmp && return old
+        old = reinterpret(Float64, cmp)
+        seen = atomic_cmpxchg!(ip, cmp, reinterpret(UInt64, old + val))
+        seen == cmp && return old
+        cmp = seen
     end
 end
 
@@ -116,25 +120,31 @@ end
 
 # floating-point atomic min/max via cmpxchg. Native float min/max needs
 # SPV_EXT_shader_atomic_float_min_max, which the LTS extension set doesn't enable, so use a
-# compare-and-swap loop (correct on any device that has integer cmpxchg).
+# compare-and-swap loop (correct on any device that has integer cmpxchg). Like above, the
+# loops compare raw bits, not float values.
 for gentype in atomic_float_types, as in atomic_memory_types
+    bits = gentype == Float32 ? UInt32 : UInt64
 @eval begin
 
 @device_function function atomic_min!(p::LLVMPtr{$gentype,$as}, val::$gentype)
-    old = Base.unsafe_load(p, 1)
+    ip = reinterpret(LLVMPtr{$bits,$as}, p)
+    cmp = Base.unsafe_load(ip, 1)
     while true
-        cmp = old
-        old = atomic_cmpxchg!(p, cmp, min(cmp, val))
-        old == cmp && return old
+        old = reinterpret($gentype, cmp)
+        seen = atomic_cmpxchg!(ip, cmp, reinterpret($bits, min(old, val)))
+        seen == cmp && return old
+        cmp = seen
     end
 end
 
 @device_function function atomic_max!(p::LLVMPtr{$gentype,$as}, val::$gentype)
-    old = Base.unsafe_load(p, 1)
+    ip = reinterpret(LLVMPtr{$bits,$as}, p)
+    cmp = Base.unsafe_load(ip, 1)
     while true
-        cmp = old
-        old = atomic_cmpxchg!(p, cmp, max(cmp, val))
-        old == cmp && return old
+        old = reinterpret($gentype, cmp)
+        seen = atomic_cmpxchg!(ip, cmp, reinterpret($bits, max(old, val)))
+        seen == cmp && return old
+        cmp = seen
     end
 end
 
