@@ -86,19 +86,24 @@ end
 
 # native floating-point atomic add/sub.
 #
-# Float32 uses SPV_EXT_shader_atomic_float_add (OpAtomicFAddEXT), emitted as OpenCL-style
-# builtins so the Khronos SPIR-V translator lowers them to the EXT atomic-float instructions
-# (the LLVM SPIR-V backend also accepts them when the extension is enabled). Current Intel
-# GPUs have no *native* atomic-add for Float64 (the module fails to link), so Float64 uses a
-# cmpxchg fallback — the device still reports fp64 compute and 64-bit integer atomics.
+# Float32 uses SPV_EXT_shader_atomic_float_add (OpAtomicFAddEXT), emitted as a SPIR-V wrapper
+# builtin like the integer atomics above: OpenCL-style builtins with float arguments are not
+# recognized by the Khronos translator, and only atomic_add by the LLVM SPIR-V backend.
+# Current Intel GPUs have no *native* atomic-add for Float64 (the module fails to link), so
+# Float64 uses a cmpxchg fallback — the device still reports fp64 compute and 64-bit integer
+# atomics.
 for as in atomic_memory_types
 @eval begin
 
 @device_function atomic_add!(p::LLVMPtr{Float32,$as}, val::Float32) =
-    @builtin_ccall("atomic_add", Float32, (LLVMPtr{Float32,$as}, Float32), p, val)
+    @builtin_ccall("__spirv_AtomicFAddEXT", Float32,
+                   (LLVMPtr{Float32,$as}, UInt32, UInt32, Float32),
+                   p, UInt32(atomic_scope),
+                   UInt32(atomic_memory_semantics(Val($as))), val)
 
+# SPIR-V has no atomic float subtraction; add the negated value
 @device_function atomic_sub!(p::LLVMPtr{Float32,$as}, val::Float32) =
-    @builtin_ccall("atomic_sub", Float32, (LLVMPtr{Float32,$as}, Float32), p, val)
+    atomic_add!(p, -val)
 
 # the loop compares raw bits, not values: `==` on floats would spin forever on a stored NaN,
 # and would treat a failed exchange as successful when -0.0 compares equal to 0.0.
