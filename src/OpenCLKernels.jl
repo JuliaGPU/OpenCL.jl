@@ -38,7 +38,6 @@ function KA.allocate(::OpenCLBackend, ::Type{T}, dims::Tuple; unified::Bool = fa
 end
 
 KA.supports_unified(::OpenCLBackend) = cl.default_memory_backend(cl.device(); unified=true) !== nothing
-KA.supports_subgroups(::OpenCLBackend) = cl.sub_groups_supported(cl.device())
 
 KA.get_backend(::CLArray) = OpenCLBackend()
 # TODO should be non-blocking
