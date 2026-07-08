@@ -166,6 +166,9 @@ function KI.multiprocessor_count(::OpenCLBackend)::Int
 end
 
 function KI.shfl_down_types(::OpenCLBackend)
+    backend_extensions = cl.device().extensions
+    "cl_khr_subgroup_shuffle" in backend_extensions || return DataType[]
+
     res = copy(SPIRVIntrinsics.gentypes)
 
     backend_extensions = cl.device().extensions
