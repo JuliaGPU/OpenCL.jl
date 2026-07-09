@@ -26,7 +26,7 @@ steps:
   - group: "macos"
     key: "julia"
     steps:
-      - label: "{{matrix.julia}} macos"
+      - label: "{{matrix.julia}} macos - {{matrix.pocl}}"
         plugins:
           - JuliaCI/julia#v1:
               version: "{{matrix.julia}}"
@@ -42,13 +42,13 @@ steps:
             # against the registry, which has no SPIRVIntrinsics 1. Pkg.test
             # then carries the in-tree copy into the test sandbox.
             Pkg.develop(path="lib/intrinsics")
-            Pkg.add("pocl_jll")
+            Pkg.add("{{matrix.pocl}}_jll")
             Pkg.add("InteractiveUtils")
 
             println("+++ :julia: Running tests")
             using InteractiveUtils
             InteractiveUtils.versioninfo()
-            Pkg.test(; coverage=true, test_args=`--platform=pocl`)'
+            Pkg.test(; coverage=true, test_args=`--platform={{matrix.pocl}}`)'
         agents:
           queue: "metal"
         if: build.message !~ /\[skip tests\]/
@@ -58,3 +58,12 @@ steps:
             julia:
               - "1.10"
               - "1.12"
+            pocl:
+              - "pocl"
+              - "pocl_next"
+          adjustments:
+            # the upcoming PoCL release is only smoke-tested on current Julia
+            - with:
+                julia: "1.10"
+                pocl: "pocl_next"
+              skip: true
