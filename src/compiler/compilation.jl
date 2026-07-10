@@ -12,6 +12,32 @@ end
 const OpenCLCompilerConfig = CompilerConfig{SPIRVCompilerTarget, OpenCLCompilerParams}
 const OpenCLCompilerJob = CompilerJob{SPIRVCompilerTarget,OpenCLCompilerParams}
 
+"""
+    OpenCLResults
+
+Cached compilation results for an OpenCL kernel job, managed by
+`GPUCompiler.cached_results`. Fields are populated through the compile pipeline:
+`obj` (SPIR-V bytes) + `entry` + `device_rng` after codegen, and `kernels` after the
+session-local link onto an OpenCL context. The first three are session-portable
+(cached through precompilation, except when GPUCompiler marks the job
+session-dependent and wipes its entries before image serialization); `kernels` is
+session-local and never populated during precompilation. `obj === nothing`
+identifies a job that has not been compiled yet.
+
+`kernels` is a small linear cache of `(cl.Context, cl.Kernel)` pairs. The cache partition
+already covers everything that affects codegen via `GPUCompiler.cache_owner`, so the only
+runtime-visible dimension left is the OpenCL context that owns the linked `cl.Kernel`.
+A linear scan with `===` is fastest in the common case (n=1) and stays cheap for the
+rare workload that bounces between a handful of contexts on the same device.
+"""
+mutable struct OpenCLResults
+    obj::Union{Nothing, Vector{UInt8}}                   # SPIR-V binary
+    entry::Union{Nothing, String}
+    device_rng::Bool
+    kernels::Vector{Tuple{cl.Context, cl.Kernel}}        # session-local; linear-scanned
+    OpenCLResults() = new(nothing, nothing, false, Tuple{cl.Context, cl.Kernel}[])
+end
+
 GPUCompiler.runtime_module(::CompilerJob{<:Any,OpenCLCompilerParams}) = OpenCL
 
 GPUCompiler.method_table_view(job::OpenCLCompilerJob) =
@@ -125,18 +151,7 @@ function GPUCompiler.finish_linked_module!(@nospecialize(job::OpenCLCompilerJob)
     return
 end
 
-## compiler implementation (cache, configure, compile, and link)
-
-# cache of compilation caches, per context
-const _compiler_caches = Dict{cl.Context, Dict{Any, Any}}()
-function compiler_cache(ctx::cl.Context)
-    cache = get(_compiler_caches, ctx, nothing)
-    if cache === nothing
-        cache = Dict{Any, Any}()
-        _compiler_caches[ctx] = cache
-    end
-    return cache
-end
+## compiler implementation (configure, compile, and link)
 
 # cache of compiler configurations, per device (but additionally configurable via kwargs)
 const _toolchain = Ref{Any}()
@@ -157,7 +172,8 @@ end
 const SPIRV_VERSION = v"1.4"
 
 @noinline function _compiler_config(dev, backend; kernel=true, name=nothing, always_inline=false,
-                                     sub_group_size::Union{Nothing,Int}=_sub_group_size(dev), kwargs...)
+                                     sub_group_size::Union{Nothing,Int}=_sub_group_size(dev),
+                                     extensions::AbstractVector{<:AbstractString}=String[], kwargs...)
     supports_fp16 = "cl_khr_fp16" in dev.extensions
     supports_fp64 = "cl_khr_fp64" in dev.extensions
 
@@ -165,26 +181,26 @@ const SPIRV_VERSION = v"1.4"
         error("Device does not support cl_intel_required_subgroup_size")
     end
 
+    spirv_ext = join(("+$ext" for ext in extensions), ",")
+
     # create GPUCompiler objects
     target = SPIRVCompilerTarget(; version=SPIRV_VERSION, supports_fp16, supports_fp64,
-                                   validate=true, kwargs...)
+                                   validate=true, extensions=spirv_ext, kwargs...)
     params = OpenCLCompilerParams(; sub_group_size, features=device_features(dev),
                                     program_backend=backend)
     CompilerConfig(target, params; kernel, name, always_inline)
 end
 
-# compile to executable machine code
+# run inference + LLVM codegen + SPIR-V emission. returns `(obj, entry, device_rng)`,
+# all session-portable so they survive precompilation when stored on a cached `CodeInstance`.
 const compilations = Threads.Atomic{Int}(0)
-function compile(@nospecialize(job::CompilerJob))
-    compilations[] += 1
+function compile_to_obj(@nospecialize(job::CompilerJob))
+    Threads.atomic_add!(compilations, 1)
 
-    # TODO: this creates a context; cache those.
-    obj, meta = JuliaContext() do ctx
+    JuliaContext() do ctx
         obj, meta = GPUCompiler.compile(:obj, job)
-
         entry = LLVM.name(meta.entry)
         device_rng = StringAttribute("julia.opencl.rng", "") in collect(function_attributes(meta.entry))
-
         (; obj, entry, device_rng)
     end
 end
@@ -289,9 +305,9 @@ function dump_artifacts(artifacts::Pair{String}...)
     return paths
 end
 
-# link into an executable kernel
-function link(@nospecialize(job::CompilerJob), compiled)
-    spirv_bitcode = compiled.obj
+# link the SPIR-V bytes into a session-local `cl.Kernel` on the active context.
+function link_kernel(@nospecialize(job::CompilerJob), obj::Vector{UInt8}, entry::String)
+    spirv_bitcode = obj
     clc_source = nothing
     build_options = ""
 
@@ -342,5 +358,5 @@ function link(@nospecialize(job::CompilerJob), compiled)
         msg *= "\nIf you think this is a bug, please file an issue and attach $(join(files, " and "))"
         error(msg)
     end
-    (; kernel=cl.Kernel(prog, compiled.entry), compiled.device_rng)
+    return cl.Kernel(prog, entry)
 end
