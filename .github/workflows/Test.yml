@@ -144,7 +144,7 @@ jobs:
         uses: julia-actions/julia-runtest@v1
         if: runner.os != 'Windows'
         with:
-          test_args: "--quickfail --verbose --platform=${{ matrix.pocl == 'next' && 'pocl_next' || 'pocl' }}"
+          test_args: "--quickfail --verbose --platform=${{ case(matrix.pocl == 'next', 'pocl_next', 'pocl') }}"
 
       - name: Setup BusyBox
         if: runner.os == 'Windows'
