@@ -167,3 +167,45 @@ end
         @test occursin("54321", ir) && !occursin("12345", ir)
     end
 end
+
+@testset "compilation cache" begin
+    mod = @eval module $(gensym())
+        @noinline child() = return
+        kernel() = child()
+    end
+
+    count() = OpenCL.compilations[]
+    launch() = @opencl mod.kernel()
+
+    # the initial launch compiles
+    n = count()
+    Base.invokelatest(launch)
+    @test count() == n+1
+
+    # a second launch hits the cache
+    Base.invokelatest(launch)
+    @test count() == n+1
+
+    # jobs differing only in codegen-level settings get their own artifacts...
+    OpenCL.clfunction(mod.kernel, Tuple{}; name="custom")
+    @test count() == n+2
+    # ... which are cached as well
+    OpenCL.clfunction(mod.kernel, Tuple{}; name="custom")
+    @test count() == n+2
+
+    # reflection observes already-compiled kernels (by forcing recompilation,
+    # which must leave the cached entry in a usable state)
+    @test !isempty(sprint(io->(@device_code_llvm io=io Base.invokelatest(launch))))
+    n = count()
+    Base.invokelatest(launch)
+    @test count() == n
+
+    # redefining the kernel recompiles...
+    @eval mod kernel() = (child(); child())
+    Base.invokelatest(launch)
+    @test count() == n+1
+    # ... as does redefining a callee
+    @eval mod @noinline child() = nothing
+    Base.invokelatest(launch)
+    @test count() == n+2
+end
