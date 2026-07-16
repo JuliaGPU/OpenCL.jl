@@ -203,4 +203,7 @@ function test_worker(_, init_worker_code)
     end
 end
 
-runtests(OpenCL, args; testsuite, init_code, init_worker_code, test_worker)
+# 8GB mac minis can struggle in some julia versions
+max_worker_rss = 2^20 * (Sys.total_memory() > 8*2^30 ? 3800 : 2200)
+
+runtests(OpenCL, args; testsuite, init_code, init_worker_code, test_worker, max_worker_rss)
