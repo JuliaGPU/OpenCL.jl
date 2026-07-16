@@ -48,7 +48,7 @@ steps:
             println("+++ :julia: Running tests")
             using InteractiveUtils
             InteractiveUtils.versioninfo()
-            Pkg.test(; coverage=true, test_args=`--platform={{matrix.pocl}}`)'
+            Pkg.test(; coverage=true, test_args=`--platform={{matrix.pocl}} --verbose`)'
         agents:
           queue: "metal"
         if: build.message !~ /\[skip tests\]/
