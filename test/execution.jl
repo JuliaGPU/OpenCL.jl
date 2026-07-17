@@ -1,5 +1,6 @@
 using SPIRV_LLVM_Translator_jll
 using IOCapture
+using KernelAbstractions
 
 @testset "@opencl" begin
 
@@ -114,6 +115,35 @@ a = CLArray{Int}(undef, 10)
 @opencl global_size=length(a) memset(a, 42)
 @test all(Array(a) .== 42)
 
+end
+
+@kernel cpu=false function partial_workgroup_localmem!(out, pred, @Const(v))
+    temp = @localmem Int8 (1,)
+    i = @index(Global, Linear)
+
+    temp[1] = 0
+    @synchronize()
+
+    if pred(v[i])
+        temp[1] = 1
+    end
+
+    @synchronize()
+    if temp[1] != 0
+        out[1] = 1
+    end
+end
+
+@testset "partial workgroup local memory" begin
+    backend = OpenCLBackend()
+    v = CLArray(zeros(Float32, 16))
+
+    for _ in 1:10
+        out = KernelAbstractions.zeros(backend, Int8, 1)
+        partial_workgroup_localmem!(backend, 256)(out, x -> x < 0, v; ndrange=length(v))
+        KernelAbstractions.synchronize(backend)
+        @test only(Array(out)) == 0
+    end
 end
 
 @testset "broadcasting" begin
