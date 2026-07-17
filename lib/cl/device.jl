@@ -17,7 +17,7 @@ end
 
 @inline function Base.getproperty(d::Device, s::Symbol)
     # simple string properties
-    version_re = r"OpenCL (?<major>\d+)\.(?<minor>\d+)(?<vendor>.+)"
+    version_re = r"OpenCL (?<major>\d+)\.(?<minor>\d+)(?<vendor>.*)"
     @inline function get_string(prop)
         sz = Ref{Csize_t}()
         clGetDeviceInfo(d, prop, 0, C_NULL, sz)
