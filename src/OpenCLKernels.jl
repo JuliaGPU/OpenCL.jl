@@ -171,7 +171,6 @@ function KI.shfl_down_types(::OpenCLBackend)
 
     res = copy(SPIRVIntrinsics.gentypes)
 
-    backend_extensions = cl.device().extensions
     if "cl_khr_fp64" ∉ backend_extensions
         res = setdiff(res, [Float64])
     end
