@@ -33,6 +33,7 @@ OpenCL = {path = ".."}
 SPIRVIntrinsics = {path = "../lib/intrinsics"}
 
 [compat]
+Adapt = "4.7.0"
 IOCapture = "1"
 Statistics = "1"
 pocl_jll = "7.1.3"
