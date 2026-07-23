@@ -3,7 +3,7 @@
 # Integer atomics are emitted as SPIR-V wrapper builtins, so the LLVM SPIR-V
 # backend lowers them to OpAtomic* instructions directly.
 
-const atomic_float_types = [Float32, Float64]
+const atomic_float_types = [Float16, Float32, Float64]
 const atomic_integer_types = [UInt32, Int32, UInt64, Int64]
 const atomic_memory_types = [AS.Workgroup, AS.CrossWorkgroup]
 
@@ -84,6 +84,79 @@ end
 end
 
 
+# floating-point atomics.
+#
+# Native floating-point atomic add and min/max come from the SPV_EXT_shader_atomic_float_add
+# and SPV_EXT_shader_atomic_float_min_max extensions (Float16 add additionally from
+# SPV_EXT_shader_atomic_float16_add), emitted as SPIR-V wrapper builtins like the integer
+# atomics above (OpenCL-style builtins with float arguments are not recognized by the
+# Khronos translator, and only atomic_add by the LLVM SPIR-V backend). Extension support
+# is an optional device capability (cl_ext_float_atomics), so the generic functions default
+# to a compare-and-swap loop (correct on any device with integer cmpxchg); back-ends that can
+# query the device override them to select the native version at compile time (see OpenCL.jl's
+# `has_feature`).
+for gentype in atomic_float_types, as in atomic_memory_types
+@eval begin
+
+@device_function atomic_add_native!(p::LLVMPtr{$gentype,$as}, val::$gentype) =
+    @builtin_ccall("__spirv_AtomicFAddEXT", $gentype,
+                   (LLVMPtr{$gentype,$as}, UInt32, UInt32, $gentype),
+                   p, UInt32(atomic_scope),
+                   UInt32(atomic_memory_semantics(Val($as))), val)
+
+# SPIR-V has no atomic float subtraction; add the negated value
+@device_function atomic_sub_native!(p::LLVMPtr{$gentype,$as}, val::$gentype) =
+    atomic_add_native!(p, -val)
+
+@device_function atomic_min_native!(p::LLVMPtr{$gentype,$as}, val::$gentype) =
+    @builtin_ccall("__spirv_AtomicFMinEXT", $gentype,
+                   (LLVMPtr{$gentype,$as}, UInt32, UInt32, $gentype),
+                   p, UInt32(atomic_scope),
+                   UInt32(atomic_memory_semantics(Val($as))), val)
+
+@device_function atomic_max_native!(p::LLVMPtr{$gentype,$as}, val::$gentype) =
+    @builtin_ccall("__spirv_AtomicFMaxEXT", $gentype,
+                   (LLVMPtr{$gentype,$as}, UInt32, UInt32, $gentype),
+                   p, UInt32(atomic_scope),
+                   UInt32(atomic_memory_semantics(Val($as))), val)
+
+end
+
+# the loops compare with `===`, not `==`: cmpxchg succeeds based on bitwise equality, which
+# is exactly what `===` implements for floats, whereas `==` would spin forever on a stored
+# NaN and mistake a failed exchange for a successful one when -0.0 compares equal to 0.0.
+for (op, expr) in [:add => :(old + val), :min => :(min(old, val)), :max => :(max(old, val))]
+    fallback = Symbol("atomic_$(op)_fallback!")
+    fn = Symbol("atomic_$(op)!")
+@eval begin
+
+@device_function @inline function $fallback(p::LLVMPtr{$gentype,$as}, val::$gentype)
+    old = Base.unsafe_load(p, 1)
+    while true
+        new = $expr
+        seen = atomic_cmpxchg!(p, old, new)
+        seen === old && return old
+        old = seen
+    end
+end
+
+@device_function $fn(p::LLVMPtr{$gentype,$as}, val::$gentype) = $fallback(p, val)
+
+end
+end
+
+@eval begin
+
+@device_function atomic_sub_fallback!(p::LLVMPtr{$gentype,$as}, val::$gentype) =
+    atomic_add_fallback!(p, -val)
+
+@device_function atomic_sub!(p::LLVMPtr{$gentype,$as}, val::$gentype) =
+    atomic_sub_fallback!(p, val)
+
+end
+end
+
+
 # specifically typed
 
 for as in atomic_memory_types
@@ -106,6 +179,41 @@ for as in atomic_memory_types
     reinterpret(Float64, atomic_cmpxchg!(reinterpret(LLVMPtr{UInt64,$as}, p),
                                          reinterpret(UInt64, cmp),
                                          reinterpret(UInt64, val)))
+
+# Float16 has no same-width integer atomics in the OpenCL SPIR-V environment, so exchange
+# operations compare-and-swap the containing aligned 32-bit word, splicing in the halfword
+# (assuming little-endian byte order, like every supported target).
+
+@device_function @inline function atomic_xchg!(p::LLVMPtr{Float16,$as}, val::Float16)
+    addr = UInt(p)
+    wp = reinterpret(LLVMPtr{UInt32,$as}, addr & ~UInt(3))
+    shift = ((addr & 0x2) << 3) % UInt32   # 0 for the low halfword, 16 for the high
+    mask = UInt32(0xffff) << shift
+    valbits = UInt32(reinterpret(UInt16, val)) << shift
+    word = Base.unsafe_load(wp, 1)
+    while true
+        seen = atomic_cmpxchg!(wp, word, (word & ~mask) | valbits)
+        seen === word && return reinterpret(Float16, ((word & mask) >> shift) % UInt16)
+        word = seen
+    end
+end
+
+@device_function @inline function atomic_cmpxchg!(p::LLVMPtr{Float16,$as}, cmp::Float16, val::Float16)
+    addr = UInt(p)
+    wp = reinterpret(LLVMPtr{UInt32,$as}, addr & ~UInt(3))
+    shift = ((addr & 0x2) << 3) % UInt32
+    mask = UInt32(0xffff) << shift
+    cmpbits = UInt32(reinterpret(UInt16, cmp)) << shift
+    valbits = UInt32(reinterpret(UInt16, val)) << shift
+    word = Base.unsafe_load(wp, 1)
+    while true
+        (word & mask) == cmpbits ||
+            return reinterpret(Float16, ((word & mask) >> shift) % UInt16)
+        seen = atomic_cmpxchg!(wp, word, (word & ~mask) | valbits)
+        seen === word && return cmp
+        word = seen
+    end
+end
 
 end
 end
@@ -271,15 +379,19 @@ end
 # native atomics
 # TODO: support inc/dec
 # TODO: this depends on backend support for the corresponding SPIR-V atomic
-#       operation. Floating-point arithmetic should hit the cmpxchg fallback
-#       unless a caller explicitly uses a floating-point atomic extension.
+#       operation. 64-bit integer atomics require the Int64Atomics capability.
 for (op,impl) in [(+)      => atomic_add!,
                   (-)      => atomic_sub!,
-                  (&)      => atomic_and!,
-                  (|)      => atomic_or!,
-                  (⊻)      => atomic_xor!,
                   Base.max => atomic_max!,
                   Base.min => atomic_min!]
+    @eval @inline atomic_arrayset(A::AbstractArray{T}, I::Integer, ::typeof($op),
+                                  val::T) where {T <: Union{atomic_integer_types...,
+                                                            atomic_float_types...}} =
+        $impl(pointer(A, I), val)
+end
+for (op,impl) in [(&)      => atomic_and!,
+                  (|)      => atomic_or!,
+                  (⊻)      => atomic_xor!]
     @eval @inline atomic_arrayset(A::AbstractArray{T}, I::Integer, ::typeof($op),
                                   val::T) where {T <: Union{atomic_integer_types...}} =
         $impl(pointer(A, I), val)
