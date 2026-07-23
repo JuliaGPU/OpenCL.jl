@@ -120,6 +120,14 @@ const FEATURES = Feature[
             dev -> has_fp_atomics(dev, cl.CL_DEVICE_DOUBLE_FP_ATOMIC_CAPABILITIES_EXT,
                                   cl.CL_DEVICE_GLOBAL_FP_ATOMIC_MIN_MAX_EXT |
                                   cl.CL_DEVICE_LOCAL_FP_ATOMIC_MIN_MAX_EXT)),
+    Feature(:fp16_atomic_add,
+            dev -> has_fp_atomics(dev, cl.CL_DEVICE_HALF_FP_ATOMIC_CAPABILITIES_EXT,
+                                  cl.CL_DEVICE_GLOBAL_FP_ATOMIC_ADD_EXT |
+                                  cl.CL_DEVICE_LOCAL_FP_ATOMIC_ADD_EXT)),
+    Feature(:fp16_atomic_min_max,
+            dev -> has_fp_atomics(dev, cl.CL_DEVICE_HALF_FP_ATOMIC_CAPABILITIES_EXT,
+                                  cl.CL_DEVICE_GLOBAL_FP_ATOMIC_MIN_MAX_EXT |
+                                  cl.CL_DEVICE_LOCAL_FP_ATOMIC_MIN_MAX_EXT)),
 ]
 
 const FeatureSet = UInt64

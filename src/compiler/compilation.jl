@@ -180,10 +180,12 @@ const SPIRV_VERSION = v"1.4"
     features = device_features(dev)
 
     if backend === :opencl || !("cl_khr_il_program" in dev.extensions)
-        # programs on the OpenCL C source backend go through spirv2clc, which does not
-        # implement the SPV_EXT_shader_atomic_float_min_max capabilities; mask the features
-        # so kernels take the compare-and-swap fallback instead.
-        features &= ~(feature_bit(:fp32_atomic_min_max) | feature_bit(:fp64_atomic_min_max))
+        # programs on the OpenCL C source backend go through spirv2clc, which implements
+        # neither the SPV_EXT_shader_atomic_float_min_max capabilities nor the fp16 one from
+        # SPV_EXT_shader_atomic_float16_add; mask the features so kernels take the
+        # compare-and-swap fallback instead.
+        features &= ~(feature_bit(:fp32_atomic_min_max) | feature_bit(:fp64_atomic_min_max) |
+                      feature_bit(:fp16_atomic_min_max) | feature_bit(:fp16_atomic_add))
     end
 
     if extensions === nothing
@@ -192,11 +194,17 @@ const SPIRV_VERSION = v"1.4"
         # ends up in modules that use the corresponding instructions.
         extensions = String[]
         if feature_supported(features, :fp32_atomic_add) ||
-           feature_supported(features, :fp64_atomic_add)
+           feature_supported(features, :fp64_atomic_add) ||
+           feature_supported(features, :fp16_atomic_add)
             push!(extensions, "SPV_EXT_shader_atomic_float_add")
         end
+        if feature_supported(features, :fp16_atomic_add)
+            # provides the fp16 capability on top of SPV_EXT_shader_atomic_float_add
+            push!(extensions, "SPV_EXT_shader_atomic_float16_add")
+        end
         if feature_supported(features, :fp32_atomic_min_max) ||
-           feature_supported(features, :fp64_atomic_min_max)
+           feature_supported(features, :fp64_atomic_min_max) ||
+           feature_supported(features, :fp16_atomic_min_max)
             push!(extensions, "SPV_EXT_shader_atomic_float_min_max")
         end
     end

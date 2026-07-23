@@ -2,7 +2,7 @@ using SPIRVIntrinsics: @builtin_ccall, @typed_ccall, LLVMPtr, known_intrinsics
 
 # Define the types to test
 integer_types = [Int32, UInt32, Int64, UInt64]
-float_types = [Float32, Float64]
+float_types = [Float16, Float32, Float64]
 all_types = vcat(integer_types, float_types)
 
 dev = OpenCL.cl.device()
@@ -88,6 +88,11 @@ atomic_operations = [
         continue
     end
 
+    # Skip Float16 if not supported
+    if T == Float16 && !("cl_khr_fp16" in dev.extensions)
+        continue
+    end
+
     # Bitwise operations (only valid for integers)
     if kernel_func in [test_atomic_and, test_atomic_or, test_atomic_xor] && T <: AbstractFloat
         continue
@@ -111,11 +116,14 @@ atomic_operations = [
 end
 
 
-@testset "float atomics ($T)" for T in [Float32, Float64]
+@testset "float atomics ($T)" for T in [Float16, Float32, Float64]
     if T == Float64 && !("cl_khr_fp64" in dev.extensions)
         continue
     end
     if T == Float64 && !("cl_khr_int64_base_atomics" in dev.extensions)
+        continue
+    end
+    if T == Float16 && !("cl_khr_fp16" in dev.extensions)
         continue
     end
 
@@ -129,12 +137,19 @@ end
 
     # the native/fallback selection must fold at compile time, leaving only the path
     # matching the device's capabilities
-    feature = T == Float32 ? :fp32_atomic_add : :fp64_atomic_add
+    feature = T == Float32 ? :fp32_atomic_add :
+              T == Float64 ? :fp64_atomic_add : :fp16_atomic_add
+    native = OpenCL.feature_supported(dev, feature)
+    if T == Float16 &&
+       (OpenCL.program_backend() === :opencl || !("cl_khr_il_program" in dev.extensions))
+        # the fp16 natives are masked on the OpenCL C source backend (see `_compiler_config`)
+        native = false
+    end
     ir = sprint() do io
         OpenCL.code_llvm(io, float_add_kernel, Tuple{CLDeviceArray{T, 0, AS.CrossWorkgroup}, T};
                          kernel=true, dump_module=true)
     end
-    if OpenCL.feature_supported(dev, feature)
+    if native
         @test occursin("__spirv_AtomicFAddEXT", ir)
         @test !occursin("__spirv_AtomicCompareExchange", ir)
     else

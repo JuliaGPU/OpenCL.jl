@@ -3,7 +3,7 @@
 # Integer atomics are emitted as SPIR-V wrapper builtins, so the LLVM SPIR-V
 # backend lowers them to OpAtomic* instructions directly.
 
-const atomic_float_types = [Float32, Float64]
+const atomic_float_types = [Float16, Float32, Float64]
 const atomic_integer_types = [UInt32, Int32, UInt64, Int64]
 const atomic_memory_types = [AS.Workgroup, AS.CrossWorkgroup]
 
@@ -87,9 +87,10 @@ end
 # floating-point atomics.
 #
 # Native floating-point atomic add and min/max come from the SPV_EXT_shader_atomic_float_add
-# and SPV_EXT_shader_atomic_float_min_max extensions, emitted as SPIR-V wrapper builtins like
-# the integer atomics above (OpenCL-style builtins with float arguments are not recognized by
-# the Khronos translator, and only atomic_add by the LLVM SPIR-V backend). Extension support
+# and SPV_EXT_shader_atomic_float_min_max extensions (Float16 add additionally from
+# SPV_EXT_shader_atomic_float16_add), emitted as SPIR-V wrapper builtins like the integer
+# atomics above (OpenCL-style builtins with float arguments are not recognized by the
+# Khronos translator, and only atomic_add by the LLVM SPIR-V backend). Extension support
 # is an optional device capability (cl_ext_float_atomics), so the generic functions default
 # to a compare-and-swap loop (correct on any device with integer cmpxchg); back-ends that can
 # query the device override them to select the native version at compile time (see OpenCL.jl's
@@ -178,6 +179,41 @@ for as in atomic_memory_types
     reinterpret(Float64, atomic_cmpxchg!(reinterpret(LLVMPtr{UInt64,$as}, p),
                                          reinterpret(UInt64, cmp),
                                          reinterpret(UInt64, val)))
+
+# Float16 has no same-width integer atomics in the OpenCL SPIR-V environment, so exchange
+# operations compare-and-swap the containing aligned 32-bit word, splicing in the halfword
+# (assuming little-endian byte order, like every supported target).
+
+@device_function @inline function atomic_xchg!(p::LLVMPtr{Float16,$as}, val::Float16)
+    addr = UInt(p)
+    wp = reinterpret(LLVMPtr{UInt32,$as}, addr & ~UInt(3))
+    shift = ((addr & 0x2) << 3) % UInt32   # 0 for the low halfword, 16 for the high
+    mask = UInt32(0xffff) << shift
+    valbits = UInt32(reinterpret(UInt16, val)) << shift
+    word = Base.unsafe_load(wp, 1)
+    while true
+        seen = atomic_cmpxchg!(wp, word, (word & ~mask) | valbits)
+        seen === word && return reinterpret(Float16, ((word & mask) >> shift) % UInt16)
+        word = seen
+    end
+end
+
+@device_function @inline function atomic_cmpxchg!(p::LLVMPtr{Float16,$as}, cmp::Float16, val::Float16)
+    addr = UInt(p)
+    wp = reinterpret(LLVMPtr{UInt32,$as}, addr & ~UInt(3))
+    shift = ((addr & 0x2) << 3) % UInt32
+    mask = UInt32(0xffff) << shift
+    cmpbits = UInt32(reinterpret(UInt16, cmp)) << shift
+    valbits = UInt32(reinterpret(UInt16, val)) << shift
+    word = Base.unsafe_load(wp, 1)
+    while true
+        (word & mask) == cmpbits ||
+            return reinterpret(Float16, ((word & mask) >> shift) % UInt16)
+        seen = atomic_cmpxchg!(wp, word, (word & ~mask) | valbits)
+        seen === word && return cmp
+        word = seen
+    end
+end
 
 end
 end

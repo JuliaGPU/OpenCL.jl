@@ -6,7 +6,8 @@
 # is emitted, and `_compiler_config` only allows the corresponding SPIR-V extensions on
 # devices that support them.
 for (T, add_feature, min_max_feature) in
-        ((Float32, :fp32_atomic_add, :fp32_atomic_min_max),
+        ((Float16, :fp16_atomic_add, :fp16_atomic_min_max),
+         (Float32, :fp32_atomic_add, :fp32_atomic_min_max),
          (Float64, :fp64_atomic_add, :fp64_atomic_min_max)),
     as in (AS.Workgroup, AS.CrossWorkgroup)
 @eval begin
