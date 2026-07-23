@@ -4,7 +4,7 @@ import OpenCL
 import Test
 
 ## custom arguments
-args = parse_args(ARGS; custom=["platform"])
+args = parse_args(ARGS; custom=["platform", "llvm_to_spirv_backend"])
 
 # `--platform` selects which OpenCL platform to run on, substring-matched against the
 # platform name/vendor (e.g. `pocl`, `cuda`, `intel`). The special value `pocl_next`
@@ -26,6 +26,9 @@ platform_selected(p) = platform_filter === nothing ||
     any(contains(platform_filter.value), lowercase.([p.name, p.vendor]))
 
 ispocl(p) = occursin("portable", lowercase(p.name))
+
+const llvm_to_spirv_backend = args.custom["llvm_to_spirv_backend"] === nothing ? :llvm :
+                              Symbol(args.custom["llvm_to_spirv_backend"].value)
 
 # short, stable label for a platform, used to prefix its tests
 function target_label(p)
@@ -83,7 +86,7 @@ for name in keys(GPUArraysTestSuite.tests)
     testsuite[test] = :(GPUArraysTestSuite.tests[$name](CLArray))
 end
 # wrap a test body on a specific device of the named platform, with a fixed backend
-function generate_test(expr, platform_name, device_index, backend)
+function generate_test(expr, platform_name, device_index, backend, llvm_to_spirv_backend)
     return quote
         platform = first(p for p in cl.platforms() if p.name == $platform_name)
         device = cl.devices(platform)[$device_index]
@@ -91,6 +94,7 @@ function generate_test(expr, platform_name, device_index, backend)
             cl.platform!(platform)
             cl.device!(device)
             OpenCL.program_backend!($(QuoteNode(backend)))
+            OpenCL.llvm_to_spirv_backend!($(QuoteNode(llvm_to_spirv_backend)))
             $(expr)
         end
     end
@@ -102,7 +106,7 @@ for name in collect(keys(testsuite))
     body = testsuite[name]
     delete!(testsuite, name)
     for t in targets
-        testsuite["$(t.label)/$name"] = generate_test(body, t.platform, t.index, t.backend)
+        testsuite["$(t.label)/$name"] = generate_test(body, t.platform, t.index, t.backend, llvm_to_spirv_backend)
     end
 end
 
@@ -188,6 +192,7 @@ end
 
 const init_code = quote
     using OpenCL, $pocl_pkg
+    $(llvm_to_spirv_backend === :khronos && :(using SPIRV_LLVM_Translator_jll))
 
     # bring used symbols into the temporary module
     import ..GPUArraysTestSuite, ..testf
