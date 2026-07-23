@@ -95,7 +95,6 @@ end
 # query the device override them to select the native version at compile time (see OpenCL.jl's
 # `has_feature`).
 for gentype in atomic_float_types, as in atomic_memory_types
-    bits = gentype == Float32 ? UInt32 : UInt64
 @eval begin
 
 @device_function atomic_add_native!(p::LLVMPtr{$gentype,$as}, val::$gentype) =
@@ -122,22 +121,21 @@ for gentype in atomic_float_types, as in atomic_memory_types
 
 end
 
-# the loops compare raw bits, not values: `==` on floats would spin forever on a stored NaN,
-# and would treat a failed exchange as successful when -0.0 compares equal to 0.0.
+# the loops compare with `===`, not `==`: cmpxchg succeeds based on bitwise equality, which
+# is exactly what `===` implements for floats, whereas `==` would spin forever on a stored
+# NaN and mistake a failed exchange for a successful one when -0.0 compares equal to 0.0.
 for (op, expr) in [:add => :(old + val), :min => :(min(old, val)), :max => :(max(old, val))]
     fallback = Symbol("atomic_$(op)_fallback!")
     fn = Symbol("atomic_$(op)!")
 @eval begin
 
 @device_function @inline function $fallback(p::LLVMPtr{$gentype,$as}, val::$gentype)
-    ip = reinterpret(LLVMPtr{$bits,$as}, p)
-    cmp = Base.unsafe_load(ip, 1)
+    old = Base.unsafe_load(p, 1)
     while true
-        old = reinterpret($gentype, cmp)
-        new = reinterpret($bits, $expr)
-        seen = atomic_cmpxchg!(ip, cmp, new)
-        seen == cmp && return old
-        cmp = seen
+        new = $expr
+        seen = atomic_cmpxchg!(p, old, new)
+        seen === old && return old
+        old = seen
     end
 end
 
