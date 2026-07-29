@@ -10,13 +10,14 @@ steps:
         using Pkg
 
         println("--- :julia: Instantiating project")
+        # Julia 1.10 does not support [sources], so dev the in-tree
+        # SPIRVIntrinsics; Pkg.test then carries it into the test sandbox.
         Pkg.develop(path="lib/intrinsics")
 
         println("+++ :julia: Running tests")
         Pkg.test(; coverage=true, test_args=`--platform=cuda`)'
     agents:
-      queue: "juliagpu"
-      cuda: "*"
+      queue: "cuda"
     if: build.message !~ /\[skip tests\]/
     env:
       OCL_ICD_FILENAMES: "libnvidia-opencl.so.1"
@@ -25,7 +26,7 @@ steps:
   - group: "macos"
     key: "julia"
     steps:
-      - label: "{{matrix.julia}} macos"
+      - label: "{{matrix.julia}} macos - {{matrix.pocl}}"
         plugins:
           - JuliaCI/julia#v1:
               version: "{{matrix.julia}}"
@@ -36,18 +37,20 @@ steps:
             using Pkg
 
             println("--- :julia: Instantiating project")
-            Pkg.add("pocl_jll")
-            Pkg.add("InteractiveUtils")
+            # Julia 1.10 does not support [sources], so dev the in-tree
+            # SPIRVIntrinsics first; otherwise the Pkg.add below resolves
+            # against the registry, which has no SPIRVIntrinsics 1. Pkg.test
+            # then carries the in-tree copy into the test sandbox.
             Pkg.develop(path="lib/intrinsics")
+            Pkg.add("{{matrix.pocl}}_jll")
+            Pkg.add("InteractiveUtils")
 
             println("+++ :julia: Running tests")
             using InteractiveUtils
             InteractiveUtils.versioninfo()
-            Pkg.test(; coverage=true, test_args=`--platform=pocl`)'
+            Pkg.test(; coverage=true, test_args=`--platform={{matrix.pocl}} --verbose`)'
         agents:
-          queue: "juliaecosystem"
-          os: "macos"
-          arch: "aarch64"
+          queue: "metal"
         if: build.message !~ /\[skip tests\]/
         timeout_in_minutes: 120
         matrix:
@@ -55,3 +58,12 @@ steps:
             julia:
               - "1.10"
               - "1.12"
+            pocl:
+              - "pocl"
+              - "pocl_next"
+          adjustments:
+            # the upcoming PoCL release is only smoke-tested on current Julia
+            - with:
+                julia: "1.10"
+                pocl: "pocl_next"
+              skip: true

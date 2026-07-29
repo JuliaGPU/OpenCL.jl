@@ -1,6 +1,6 @@
 using SPIRV_LLVM_Translator_jll
-
-@testset "execution" begin
+using IOCapture
+using KernelAbstractions
 
 @testset "@opencl" begin
 
@@ -117,6 +117,35 @@ a = CLArray{Int}(undef, 10)
 
 end
 
+@kernel cpu=false function partial_workgroup_localmem!(out, pred, @Const(v))
+    temp = @localmem Int8 (1,)
+    i = @index(Global, Linear)
+
+    temp[1] = 0
+    @synchronize()
+
+    if pred(v[i])
+        temp[1] = 1
+    end
+
+    @synchronize()
+    if temp[1] != 0
+        out[1] = 1
+    end
+end
+
+@testset "partial workgroup local memory" begin
+    backend = OpenCLBackend()
+    v = CLArray(zeros(Float32, 16))
+
+    for _ in 1:10
+        out = KernelAbstractions.zeros(backend, Int8, 1)
+        partial_workgroup_localmem!(backend, 256)(out, x -> x < 0, v; ndrange=length(v))
+        KernelAbstractions.synchronize(backend)
+        @test only(Array(out)) == 0
+    end
+end
+
 @testset "broadcasting" begin
     a = rand(Float32, 2, 3)
     b = rand(Float32, 2)
@@ -140,7 +169,7 @@ end
         OpenCL.code_llvm(io, () -> nothing, (); dump_module = true, backend = :llvm)
     end
     if Int === Int64
-        @test occursin("target triple = \"spirv64-unknown-unknown-unknown\"", llvm_backend_llvm)
+        @test occursin("target triple = \"spirv64v1.4-unknown-unknown-unknown\"", llvm_backend_llvm)
     end
 
     llvm_backend_khronos = sprint() do io
@@ -151,4 +180,62 @@ end
     end
 end
 
+@testset "has_feature folding" begin
+    # has_feature must fold at compile time: the feature-bitset global gets baked in and DCE'd,
+    # leaving only the branch matching the device.
+    function feature_select(a)
+        @inbounds a[] = has_feature(:subgroups) ? Int32(12345) : Int32(54321)
+        return
+    end
+    ir = sprint(io -> OpenCL.code_llvm(io, feature_select,
+                                       Tuple{CLDeviceArray{Int32, 0, AS.CrossWorkgroup}};
+                                       kernel = true))
+    @test !occursin("__opencl_feature_bitset", ir)
+    if OpenCL.feature_supported(cl.device(), :subgroups)
+        @test occursin("12345", ir) && !occursin("54321", ir)
+    else
+        @test occursin("54321", ir) && !occursin("12345", ir)
+    end
+end
+
+@testset "compilation cache" begin
+    mod = @eval module $(gensym())
+        @noinline child() = return
+        kernel() = child()
+    end
+
+    count() = OpenCL.compilations[]
+    launch() = @opencl mod.kernel()
+
+    # the initial launch compiles
+    n = count()
+    Base.invokelatest(launch)
+    @test count() == n+1
+
+    # a second launch hits the cache
+    Base.invokelatest(launch)
+    @test count() == n+1
+
+    # jobs differing only in codegen-level settings get their own artifacts...
+    OpenCL.clfunction(mod.kernel, Tuple{}; name="custom")
+    @test count() == n+2
+    # ... which are cached as well
+    OpenCL.clfunction(mod.kernel, Tuple{}; name="custom")
+    @test count() == n+2
+
+    # reflection observes already-compiled kernels (by forcing recompilation,
+    # which must leave the cached entry in a usable state)
+    @test !isempty(sprint(io->(@device_code_llvm io=io Base.invokelatest(launch))))
+    n = count()
+    Base.invokelatest(launch)
+    @test count() == n
+
+    # redefining the kernel recompiles...
+    @eval mod kernel() = (child(); child())
+    Base.invokelatest(launch)
+    @test count() == n+1
+    # ... as does redefining a callee
+    @eval mod @noinline child() = nothing
+    Base.invokelatest(launch)
+    @test count() == n+2
 end

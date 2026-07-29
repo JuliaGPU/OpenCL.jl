@@ -41,9 +41,14 @@ considerations:
   ```
 
 
-## OpenCL intrinsics
+## SPIR-V representation
 
-The current set of intrinsics implemented by this package are OpenCL intrinsics,
-assuming that the generated LLVM IR will be compiled to SPIR-V using the
-Khronos LLVM to SPIR-V translator. That tool will take care of the conversion to
-actual SPIR-V intrinsics.
+Intrinsics that map to core SPIR-V operations should be encoded using LLVM's
+SPIR-V wrapper builtins, such as `__spirv_AtomicIAdd` or
+`__spirv_GroupNonUniformShuffle`. This keeps the emitted LLVM IR independent of
+OpenCL C builtin spellings.
+
+Some math and integer functions intentionally keep OpenCL.std names. In SPIR-V,
+those operations are represented through the OpenCL extended instruction set,
+so the OpenCL spelling is the SPIR-V-level contract rather than an OpenCL.jl API
+dependency.

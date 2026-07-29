@@ -3,11 +3,11 @@ name: Docs
 on:
   push:
     branches:
-      - master
+      - main
     tags: ["*"]
   pull_request:
     branches:
-      - master
+      - main
     types: [opened, synchronize, reopened]
 
 concurrency:
@@ -21,12 +21,12 @@ jobs:
     name: Documentation
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
-      - uses: julia-actions/setup-julia@v2
+      - uses: actions/checkout@v7
+      - uses: julia-actions/setup-julia@v3
         with:
           version: "1"
       - name: Use Julia cache
-        uses: julia-actions/cache@v2
+        uses: julia-actions/cache@v3
       - name: Instantiate environment with development version of the package
         run: |
           julia --project=docs -e '

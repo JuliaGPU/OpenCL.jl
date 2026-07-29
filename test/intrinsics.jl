@@ -16,8 +16,6 @@ const ispocl = cl.platform().name == "Portable Computing Language"
 # XXX: Why does pocl on windows not support vectors of size 2, 8, 16?
 const simd_ns = (Sys.iswindows() && ispocl) ? [3, 4] : [2, 3, 4, 8, 16]
 
-@testset "intrinsics" begin
-
 @testset "barrier" begin
 
 # work-group
@@ -37,12 +35,14 @@ const simd_ns = (Sys.iswindows() && ispocl) ? [3, 4] : [2, 3, 4, 8, 16]
 @on_device work_group_barrier(OpenCL.LOCAL_MEM_FENCE, OpenCL.memory_scope_work_group)
 @on_device work_group_barrier(OpenCL.LOCAL_MEM_FENCE, OpenCL.memory_scope_device)
 cl.memory_backend() isa cl.SVMBackend && @on_device work_group_barrier(OpenCL.LOCAL_MEM_FENCE, OpenCL.memory_scope_all_svm_devices)
-@on_device work_group_barrier(OpenCL.LOCAL_MEM_FENCE, OpenCL.memory_scope_sub_group)
+cl.sub_groups_supported(cl.device()) && @on_device work_group_barrier(OpenCL.LOCAL_MEM_FENCE, OpenCL.memory_scope_sub_group)
 
-# sub-group
-@on_device sub_group_barrier(OpenCL.LOCAL_MEM_FENCE)
-@on_device sub_group_barrier(OpenCL.GLOBAL_MEM_FENCE)
-@on_device sub_group_barrier(OpenCL.LOCAL_MEM_FENCE | OpenCL.GLOBAL_MEM_FENCE)
+# sub-group (only when the device supports subgroups)
+if cl.sub_groups_supported(cl.device())
+    @on_device sub_group_barrier(OpenCL.LOCAL_MEM_FENCE)
+    @on_device sub_group_barrier(OpenCL.GLOBAL_MEM_FENCE)
+    @on_device sub_group_barrier(OpenCL.LOCAL_MEM_FENCE | OpenCL.GLOBAL_MEM_FENCE)
+end
 end
 
 @testset "mem_fence" begin
@@ -96,8 +96,7 @@ end
         if f == acosh
             x += 1
         end
-        broken = ispocl && T == Float16 && f in [acosh, asinh, atanh, cbrt, cospi, expm1, log1p, sinpi, tanpi]
-        @test call_on_device(f, x) ≈ f(x) broken = broken
+        @test call_on_device(f, x) ≈ f(x)
     end
 end
 
@@ -112,8 +111,7 @@ end
         ]
         x = rand(T)
         y = rand(T)
-        broken = ispocl && T == Float16 && f == atan
-        @test call_on_device(f, x, y) ≈ f(x, y) broken = broken
+        @test call_on_device(f, x, y) ≈ f(x, y)
     end
 end
 
@@ -128,6 +126,17 @@ end
     end
 end
 
+# Regression test for #428: `^(::Float, ::Int64)` must not truncate the
+# exponent through Int32, since `y % Int32` wraps for |y| ≥ 2^31 and would
+# flip the sign of the exponent (producing 0 instead of Inf, etc.).
+@testset "^(::$T, ::Int64) with out-of-Int32 exponent" for T in float_types
+    y = Int64(typemax(Int32)) + Int64(1)  # smallest Int64 not representable as Int32
+    for x in (T(1.5), T(0.5))
+        @test call_on_device(^, x, y) === x ^ y
+        @test call_on_device(^, x, -y) === x ^ -y
+    end
+end
+
 @testset "OpenCL-specific unary - $T" for T in float_types
     @testset "$f" for f in [
             OpenCL.acospi,
@@ -138,11 +147,9 @@ end
             OpenCL.rsqrt,
         ]
         x = rand(T)
-        broken = ispocl && T == Float16 && !(f in [OpenCL.rint, OpenCL.rsqrt])
-        @test call_on_device(f, x) isa Real broken = broken  # Just check it doesn't error
+        @test call_on_device(f, x) isa Real  # Just check it doesn't error
     end
-    broken = ispocl && T == Float16
-    @test call_on_device(OpenCL.ilogb, T(8.0)) isa Int32 broken = broken
+    @test call_on_device(OpenCL.ilogb, T(8.0)) isa Int32
     @test call_on_device(OpenCL.nan, Base.uinttype(T)(0)) isa T
 end
 
@@ -157,11 +164,9 @@ end
         ]
         x = rand(T)
         y = rand(T)
-        broken = ispocl && T == Float16 && !(f in [OpenCL.maxmag, OpenCL.minmag])
-        @test call_on_device(f, x, y) isa Real broken = broken  # Just check it doesn't error
+        @test call_on_device(f, x, y) isa Real  # Just check it doesn't error
     end
-    broken = ispocl && T == Float16
-    @test call_on_device(OpenCL.rootn, T(8.0), Int32(3)) ≈ T(2.0) broken = broken
+    @test call_on_device(OpenCL.rootn, T(8.0), Int32(3)) ≈ T(2.0)
 end
 
 @testset "OpenCL-specific ternary - $T" for T in float_types
@@ -195,7 +200,7 @@ function test_subgroup_kernel(results)
     return
 end
 
-@testset "Sub-groups" begin
+cl.sub_groups_supported(cl.device()) && @testset "Sub-groups" begin
     sg_size = cl.sub_group_size(cl.device())
 
     @testset "Indexing intrinsics" begin
@@ -289,11 +294,8 @@ end # if cl.sub_groups_supported(cl.device())
     d = call_on_device(max, v, w)
     @test all(d[i] == max(v[i], w[i]) for i in 1:N)
 
-    broken = ispocl && T == Float16
-    if !broken
-        h = call_on_device(hypot, v, w)
-        @test all(h[i] ≈ hypot(v[i], w[i]) for i in 1:N)
-    end
+    h = call_on_device(hypot, v, w)
+    @test all(h[i] ≈ hypot(v[i], w[i]) for i in 1:N)
 
     # ternary op: fma
     x = Vec{N, T}(ntuple(_ -> rand(T), N))
@@ -302,31 +304,29 @@ end # if cl.sub_groups_supported(cl.device())
 
     # special cases: ilogb, ldexp, ^ with Int32, rootn
     v_pos = Vec{N, T}(ntuple(_ -> rand(T) + T(1), N))
-    @test call_on_device(OpenCL.ilogb, v_pos) isa Vec{N, Int32} broken = broken
+    @test call_on_device(OpenCL.ilogb, v_pos) isa Vec{N, Int32}
 
     k = Vec{N, Int32}(ntuple(_ -> rand(Int32.(-5:5)), N))
     @test let
         ldexp_result = call_on_device(ldexp, v_pos, k)
         all(ldexp_result[i] ≈ ldexp(v_pos[i], k[i]) for i in 1:N)
-    end broken = broken
+    end
 
     base = Vec{N, T}(ntuple(_ -> rand(T) + T(0.5), N))
     exp_int = Vec{N, Int32}(ntuple(_ -> rand(Int32.(0:3)), N))
     @test let
         pow_result = call_on_device(^, base, exp_int)
         all(pow_result[i] ≈ base[i] ^ exp_int[i] for i in 1:N)
-    end broken = broken
+    end
 
     rootn_base = Vec{N, T}(ntuple(_ -> rand(T) * T(10) + T(1), N))
     rootn_n = Vec{N, Int32}(ntuple(_ -> rand(Int32.(2:4)), N))
-    @test call_on_device(OpenCL.rootn, rootn_base, rootn_n) isa Vec{N, T} broken = broken
+    @test call_on_device(OpenCL.rootn, rootn_base, rootn_n) isa Vec{N, T}
 
     # special cases: nan
     nan_code = Vec{N, Base.uinttype(T)}(ntuple(_ -> rand(Base.uinttype(T)), N))
     nan_result = call_on_device(OpenCL.nan, nan_code)
     @test all(isnan(nan_result[i]) for i in 1:N)
-end
-
 end
 
 end

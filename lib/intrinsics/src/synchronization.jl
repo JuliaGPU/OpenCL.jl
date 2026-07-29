@@ -67,7 +67,7 @@ end
     convert(UInt32, memory_scope),
     convert(UInt32, memory_semantics))
 
-## OpenCL types
+## OpenCL-compatible fence API
 
 const cl_mem_fence_flags = UInt32
 const LOCAL_MEM_FENCE = cl_mem_fence_flags(1)
@@ -94,7 +94,7 @@ end
     memory_scope_all_devices
 end
 
-@inline function cl_scope_to_spirv(scope)
+@inline function memory_scope_to_spirv(scope)
     if scope == memory_scope_work_item
         Scope.Invocation
     elseif scope == memory_scope_sub_group
@@ -119,7 +119,7 @@ end
 end
 
 
-## OpenCL memory barriers
+## Memory barriers
 
 export atomic_work_item_fence, mem_fence, read_mem_fence, write_mem_fence
 
@@ -138,7 +138,7 @@ export atomic_work_item_fence, mem_fence, read_mem_fence, write_mem_fence
     else
         error("Invalid memory order: $order")
     end
-    memory_barrier(cl_scope_to_spirv(scope), semantics)
+    memory_barrier(memory_scope_to_spirv(scope), semantics)
 end
 
 # legacy fence functions
@@ -147,16 +147,16 @@ read_mem_fence(flags) = atomic_work_item_fence(flags, memory_order_acquire, memo
 write_mem_fence(flags) = atomic_work_item_fence(flags, memory_order_release, memory_scope_work_group)
 
 
-## OpenCL execution barriers
+## Execution barriers
 
 export barrier, work_group_barrier, sub_group_barrier
 
 @inline work_group_barrier(flags, scope = memory_scope_work_group) =
-    control_barrier(Scope.Workgroup, cl_scope_to_spirv(scope),
+    control_barrier(Scope.Workgroup, memory_scope_to_spirv(scope),
                     MemorySemantics.SequentiallyConsistent | mem_fence_flags_to_semantics(flags))
 
 @inline sub_group_barrier(flags, scope = memory_scope_sub_group) =
-    control_barrier(Scope.Subgroup, cl_scope_to_spirv(scope),
+    control_barrier(Scope.Subgroup, memory_scope_to_spirv(scope),
                     MemorySemantics.SequentiallyConsistent | mem_fence_flags_to_semantics(flags))
 
 barrier(flags) = work_group_barrier(flags)

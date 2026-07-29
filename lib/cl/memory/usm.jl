@@ -1,5 +1,8 @@
 abstract type UnifiedMemory <: AbstractPointerMemory end
 
+usm_alloc_properties(flags::Integer) =
+    flags == 0 ? C_NULL : cl_mem_properties_intel[CL_MEM_ALLOC_FLAGS_INTEL, flags, 0]
+
 function usm_free(mem::UnifiedMemory; blocking::Bool = false)
     if blocking
         clMemBlockingFreeINTEL(context(mem), mem)
@@ -35,7 +38,7 @@ function device_alloc(bytesize::Integer;
     end
 
     error_code = Ref{Cint}()
-    props = cl_mem_properties_intel[CL_MEM_ALLOC_FLAGS_INTEL, flags, 0]
+    props = usm_alloc_properties(flags)
     ptr = clDeviceMemAllocINTEL(context(), device(), props, bytesize, alignment, error_code)
     if error_code[] != CL_SUCCESS
         throw(CLError(error_code[]))
@@ -81,7 +84,7 @@ function host_alloc(bytesize::Integer;
     end
 
     error_code = Ref{Cint}()
-    props = cl_mem_properties_intel[CL_MEM_ALLOC_FLAGS_INTEL, flags, 0]
+    props = usm_alloc_properties(flags)
     ptr = clHostMemAllocINTEL(context(), props, bytesize, alignment, error_code)
     if error_code[] != CL_SUCCESS
         throw(CLError(error_code[]))
@@ -135,7 +138,7 @@ function shared_alloc(bytesize::Integer;
     end
 
     error_code = Ref{Cint}()
-    props = cl_mem_properties_intel[CL_MEM_ALLOC_FLAGS_INTEL, flags, 0]
+    props = usm_alloc_properties(flags)
     ptr = clSharedMemAllocINTEL(context(), device(), props, bytesize, alignment, error_code)
     if error_code[] != CL_SUCCESS
         throw(CLError(error_code[]))

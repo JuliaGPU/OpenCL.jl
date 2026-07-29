@@ -2,7 +2,7 @@ module OpenCL
 
 using GPUCompiler
 using LLVM, LLVM.Interop
-using SPIRV_LLVM_Backend_jll, SPIRV_Tools_jll
+using SPIRV_LLVM_Backend_jll, SPIRV_Tools_jll, spirv2clc_jll
 using Adapt
 using Reexport
 using GPUArrays
@@ -28,15 +28,18 @@ include("device/runtime.jl")
 include("device/array.jl")
 include("device/quirks.jl")
 include("device/random.jl")
+include("device/atomics.jl")
 
 # high level implementation
 include("memory.jl")
 include("array.jl")
 
 # compiler implementation
+include("compiler/capabilities.jl")
 include("compiler/compilation.jl")
 include("compiler/execution.jl")
 include("compiler/reflection.jl")
+include("compiler/precompile.jl")
 
 # integrations and specialized functionality
 include("util.jl")

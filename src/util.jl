@@ -47,7 +47,14 @@ function versioninfo(io::IO=stdout)
     println(io, "Julia packages:")
     for name in [:GPUArrays, :GPUCompiler, :KernelAbstractions, :LLVM, :SPIRVIntrinsics]
         mod = getfield(OpenCL, name)
-        println(io, "- $(name): $(Base.pkgversion(mod))")
+        println(io, "- $(name): $(pkgversion(mod))")
+    end
+    # Display pocl_jll / pocl_next_jll if present
+    for (uuid, name) in [("627d6b7a-bbe6-5189-83e7-98cc0a5aeadd", "pocl_jll"),
+                         ("59abdad9-3cfc-5436-8271-411e8cad6b82", "pocl_next_jll")]
+        pocl_id = Base.PkgId(Base.UUID(uuid), name)
+        pocl_mod = get(Base.loaded_modules, pocl_id, nothing)
+        isnothing(pocl_mod) || println(io, "- $name: $(pkgversion(pocl_mod))")
     end
     println(io)
 
@@ -86,10 +93,10 @@ function versioninfo(io::IO=stdout)
             print(io, "   · $(device.name)")
 
             # show a list of tags
-            tags = []
+            tags = String[]
             ## memory back-ends
             let
-                svm_tags = []
+                svm_tags = String[]
                 svm_caps = cl.svm_capabilities(device)
                 if svm_caps.coarse_grain_buffer
                     push!(svm_tags, "c")
@@ -100,7 +107,7 @@ function versioninfo(io::IO=stdout)
                 push!(tags, "svm:"*join(svm_tags, "+"))
             end
             if cl.usm_supported(device)
-                usm_tags = []
+                usm_tags = String[]
                 usm_caps = cl.usm_capabilities(device)
                 if usm_caps.host.access
                     push!(usm_tags, "h")
@@ -125,6 +132,16 @@ function versioninfo(io::IO=stdout)
             end
             if in("cl_khr_il_program", device.extensions)
                 push!(tags, "il")
+            end
+            if cl.sub_groups_supported(device)
+                sg_tags = String[]
+                if in("cl_khr_subgroup_shuffle", device.extensions)
+                    push!(sg_tags, "shfl")
+                end
+                # if in("cl_khr_subgroup_ballot", device.extensions)
+                #     push!(sg_tags, "blt")
+                # end
+                push!(tags, "sg:"*join(sg_tags, "+"))
             end
             ## render
             if !isempty(tags)

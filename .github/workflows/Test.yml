@@ -2,7 +2,7 @@ name: Test
 
 on:
   push:
-    branches: [master]
+    branches: [main]
     tags: ["*"]
   pull_request:
   workflow_dispatch:
@@ -21,44 +21,49 @@ jobs:
       contents: read
     strategy:
       fail-fast: false
+      # Hand-picked configurations instead of a full cross-product: the memory backend
+      # is a host-side, load-time preference that's essentially orthogonal to OS, arch,
+      # Julia version and PoCL build, so we cover all backends on the primary platform
+      # (Linux x64) and rotate them across the other platforms. The `pocl` axis selects
+      # the released JLL (`jll`), the upcoming release (`next`, via pocl_next_jll, run
+      # on every platform), or upstream PoCL HEAD built from source (`local`, one job,
+      # Linux-only).
       matrix:
-        version: ['1.10', '1.12']
-        os: [ubuntu-24.04, ubuntu-24.04-arm, macOS-15-intel, windows-2022]
-        arch: [x64, arm64]
-        pocl: [jll, local]
-        memory_backend: [usm, svm, buffer]
-        exclude:
-          # unsupported combinations
-          - os: ubuntu-24.04
-            arch: arm64
-          - os: windows-2022
-            arch: arm64
-          - os: ubuntu-24.04-arm
-            arch: x64
-          # macOS-15-intel is Intel-only
-          - os: macOS-15-intel
-            arch: arm64
-          # we only test building PoCL on Linux
-          - os: macOS-15-intel
-            pocl: local
-          - os: windows-2022
-            pocl: local
+        include:
+          # full memory-backend coverage on the primary platform
+          - { os: ubuntu-24.04, arch: x64, version: '1.12', pocl: jll, memory_backend: usm }
+          - { os: ubuntu-24.04, arch: x64, version: '1.12', pocl: jll, memory_backend: svm }
+          - { os: ubuntu-24.04, arch: x64, version: '1.12', pocl: jll, memory_backend: buffer }
+          # oldest supported Julia
+          - { os: ubuntu-24.04, arch: x64, version: '1.10', pocl: jll, memory_backend: usm }
+          # Julia version coverage on the primary platform
+          - { os: ubuntu-24.04, arch: x64, version: '1.11', pocl: jll, memory_backend: usm }
+          - { os: ubuntu-24.04, arch: x64, version: '1.13-nightly', pocl: jll, memory_backend: usm }
+          # other platforms, one job each (backends rotated for extra cross-coverage)
+          - { os: ubuntu-24.04-arm, arch: arm64, version: '1.12', pocl: jll, memory_backend: svm }
+          - { os: windows-2022, arch: x64, version: '1.12', pocl: jll, memory_backend: usm }
+          # upcoming PoCL release (pocl_next_jll) on every platform
+          - { os: ubuntu-24.04, arch: x64, version: '1.12', pocl: next, memory_backend: usm }
+          - { os: ubuntu-24.04-arm, arch: arm64, version: '1.12', pocl: next, memory_backend: svm }
+          - { os: windows-2022, arch: x64, version: '1.12', pocl: next, memory_backend: buffer }
+          # upstream PoCL HEAD, built from source
+          - { os: ubuntu-24.04, arch: x64, version: '1.12', pocl: local, memory_backend: usm }
     steps:
       - name: Checkout OpenCL.jl
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Setup Julia
-        uses: julia-actions/setup-julia@v2
+        uses: julia-actions/setup-julia@v3
         with:
           version: ${{ matrix.version }}
           arch: ${{ matrix.arch }}
 
       - name: Setup Julia cache
-        uses: julia-actions/cache@v2
+        uses: julia-actions/cache@v3
 
       - name: Checkout PoCL
         if: ${{ matrix.pocl == 'local' }}
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           repository: pocl/pocl
           path: pocl
@@ -67,7 +72,7 @@ jobs:
         if: ${{ matrix.pocl == 'local' }}
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential cmake ninja-build pkg-config
+          sudo apt-get install -y build-essential cmake ninja-build pkg-config libsleef-dev
 
       - name: Install Julia dependencies
         if: ${{ matrix.pocl == 'local' }}
@@ -131,13 +136,15 @@ jobs:
           echo 'default_memory_backend="${{ matrix.memory_backend }}"' >> test/LocalPreferences.toml
           julia --project -e '
             using Pkg
+            # Julia 1.10 does not support [sources], so dev the in-tree
+            # SPIRVIntrinsics; Pkg.test then carries it into the test sandbox.
             Pkg.develop(path="lib/intrinsics")'
 
       - name: Test OpenCL.jl
         uses: julia-actions/julia-runtest@v1
         if: runner.os != 'Windows'
         with:
-          test_args: '--quickfail --platform=pocl'
+          test_args: "--quickfail --verbose --platform=${{ case(matrix.pocl == 'next', 'pocl_next', 'pocl') }}"
 
       - name: Setup BusyBox
         if: runner.os == 'Windows'
@@ -149,10 +156,18 @@ jobs:
         run: |
           using Pkg
           Pkg.activate(".")
-          Pkg.test(; test_args=`--quickfail --platform=pocl`)
+          Pkg.test(; test_args=`--quickfail --verbose --platform=${{ matrix.pocl == 'next' && 'pocl_next' || 'pocl' }}`)
+
+      - name: Upload compilation dumps
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: compilation-dumps-${{ matrix.version }}-${{ matrix.os }}-${{ matrix.arch }}-${{ matrix.memory_backend }}-pocl-${{ matrix.pocl }}
+          path: ${{ runner.temp }}/opencl-compilation-dumps/
+          if-no-files-found: ignore
 
       - uses: julia-actions/julia-processcoverage@v1
-      - uses: codecov/codecov-action@v5
+      - uses: codecov/codecov-action@v7
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: lcov.info

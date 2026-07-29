@@ -202,15 +202,22 @@ function enqueue_kernel(k::Kernel, global_work_size, local_work_size=nothing;
     end
 
     if rng_state
-        if local_work_size !== nothing
-            num_sub_groups = KernelSubGroupInfo(k, device(), lsize).sub_group_count
+        # match the device-side RNG layout (src/device/random.jl): one slot per subgroup when the
+        # device supports subgroups, else one slot per work-item.
+        use_subgroups = sub_groups_supported(device())
+        num_slots = if use_subgroups
+            if local_work_size !== nothing
+                KernelSubGroupInfo(k, device(), lsize).sub_group_count
+            else
+                KernelSubGroupInfo(k, device(), Csize_t[]).max_num_sub_groups
+            end
         else
-            num_sub_groups = KernelSubGroupInfo(k, device(), Csize_t[]).max_num_sub_groups
+            local_work_size !== nothing ? prod(lsize) : device().max_work_group_size
         end
         if nargs === nothing
             nargs = k.num_args - 2
         end
-        rng_state_size = sizeof(UInt32) * num_sub_groups
+        rng_state_size = sizeof(UInt32) * num_slots
         set_arg!(k, nargs + 1, LocalMem(UInt32, rng_state_size))
         set_arg!(k, nargs + 2, LocalMem(UInt32, rng_state_size))
     end

@@ -1,6 +1,9 @@
 name = "OpenCL"
 uuid = "08131aa3-fb12-5dee-8b74-c09406e224a2"
-version = "0.10.9"
+version = "0.10.10"
+
+[workspace]
+projects = ["lib/intrinsics", "test", "docs", "res"]
 
 [deps]
 AcceleratedKernels = "6a4ca0a5-0e36-4168-a932-d9be78d558f1"
@@ -21,6 +24,7 @@ SPIRVIntrinsics = "71d1d633-e7e8-4a92-83a1-de8814b09ba8"
 SPIRV_LLVM_Backend_jll = "4376b9bf-cff8-51b6-bb48-39421dff0d0c"
 SPIRV_Tools_jll = "6ac6d60f-d740-5983-97d7-a4482c0689f4"
 StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
+spirv2clc_jll = "f0274c0c-8c8a-59f1-85b7-f7d60330c5fb"
 
 [sources]
 SPIRVIntrinsics = {path = "lib/intrinsics"}
@@ -29,9 +33,9 @@ SPIRVIntrinsics = {path = "lib/intrinsics"}
 AcceleratedKernels = "0.3.1, 0.4"
 Adapt = "4"
 GPUArrays = "11.2.1"
-GPUCompiler = "1.7.1"
+GPUCompiler = "2"
 KernelAbstractions = "0.9.38"
-LLVM = "9.1"
+LLVM = "9.6"
 LinearAlgebra = "1"
 OpenCL_jll = "=2024.10.24"
 Preferences = "1"
@@ -40,8 +44,9 @@ Random = "1"
 Random123 = "1.7.1"
 RandomNumbers = "1.6.0"
 Reexport = "1"
-SPIRVIntrinsics = "0.5.7"
-SPIRV_LLVM_Backend_jll = "20"
+SPIRVIntrinsics = "1.1"
+SPIRV_LLVM_Backend_jll = "22"
 SPIRV_Tools_jll = "2025.1"
 StaticArrays = "1"
 julia = "1.10"
+spirv2clc_jll = "0.2.0"
