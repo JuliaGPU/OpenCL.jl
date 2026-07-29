@@ -110,6 +110,7 @@ atomic_operations = [
     @test result_val === T(expected_val)
 end
 
+
 @testset "float atomics ($T)" for T in [Float32, Float64]
     if T == Float64 && !("cl_khr_fp64" in dev.extensions)
         continue

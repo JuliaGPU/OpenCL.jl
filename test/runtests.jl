@@ -26,10 +26,6 @@ platform_selected(p) = platform_filter === nothing ||
 
 ispocl(p) = occursin("portable", lowercase(p.name))
 
-# which backend translates LLVM IR to SPIR-V is a load-time preference of OpenCL.jl
-# (set through `LocalPreferences.toml`), not something tests can switch at run time.
-const llvm_to_spirv_backend = OpenCL.llvm_to_spirv_backend
-
 # short, stable label for a platform, used to prefix its tests
 function target_label(p)
     str = lowercase(p.name * " " * p.vendor)
@@ -191,7 +187,7 @@ end
 
 const init_code = quote
     using OpenCL, $pocl_pkg
-    $(llvm_to_spirv_backend === :khronos && :(using SPIRV_LLVM_Translator_jll))
+    $(OpenCL.llvm_to_spirv_backend === :khronos && :(using SPIRV_LLVM_Translator_jll))
 
     # bring used symbols into the temporary module
     import ..GPUArraysTestSuite, ..testf
