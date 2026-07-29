@@ -112,3 +112,9 @@ end
     resize!(b, 1)
     @test length(b) == 1
 end
+
+@testset "mapreducedim! returning same type" begin
+    R = transpose(OpenCL.zeros(Float32, 2, 3))
+    A = CLArray(rand(Float32, 3, 2, 10))
+    @test @inferred(OpenCL.GPUArrays.mapreducedim!(identity, +, R, A)) === R
+end
