@@ -136,6 +136,7 @@ jobs:
         run: |
           echo '[OpenCL]' >> test/LocalPreferences.toml
           echo 'default_memory_backend="${{ matrix.memory_backend }}"' >> test/LocalPreferences.toml
+          echo 'llvm_to_spirv_backend="${{ matrix.llvm_to_spirv_backend }}"' >> test/LocalPreferences.toml
           julia --project -e '
             using Pkg
             # Julia 1.10 does not support [sources], so dev the in-tree
@@ -146,7 +147,7 @@ jobs:
         uses: julia-actions/julia-runtest@v1
         if: runner.os != 'Windows'
         with:
-          test_args: "--quickfail --verbose --platform=${{ case(matrix.pocl == 'next', 'pocl_next', 'pocl') }} --llvm_to_spirv_backend=${{ matrix.llvm_to_spirv_backend }}"
+          test_args: "--quickfail --verbose --platform=${{ case(matrix.pocl == 'next', 'pocl_next', 'pocl') }}"
 
       - name: Setup BusyBox
         if: runner.os == 'Windows'
@@ -158,7 +159,7 @@ jobs:
         run: |
           using Pkg
           Pkg.activate(".")
-          Pkg.test(; test_args=`--quickfail --verbose --platform=${{ matrix.pocl == 'next' && 'pocl_next' || 'pocl' }} --llvm_to_spirv_backend=${{ matrix.llvm_to_spirv_backend }}`)
+          Pkg.test(; test_args=`--quickfail --verbose --platform=${{ matrix.pocl == 'next' && 'pocl_next' || 'pocl' }}`)
 
       - name: Upload compilation dumps
         if: always()

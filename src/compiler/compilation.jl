@@ -209,7 +209,7 @@ const SPIRV_VERSION = v"1.4"
 
     # create GPUCompiler objects
     target = SPIRVCompilerTarget(; version=SPIRV_VERSION, supports_fp16, supports_fp64,
-                                   validate=true, extensions=spirv_ext, backend=llvm_to_spirv_backend(),
+                                   validate=true, extensions=spirv_ext, backend=llvm_to_spirv_backend,
                                    kwargs...)
     params = OpenCLCompilerParams(; sub_group_size, features, program_backend=backend)
     CompilerConfig(target, params; kernel, name, always_inline)
@@ -242,34 +242,23 @@ function run_and_collect(cmd)
 end
 
 """
-    llvm_to_spirv_backend() -> Symbol
+    OpenCL.llvm_to_spirv_backend :: Symbol
 
-The requested backend for compiling LLVM IR to SPIRV for the current task (`:llvm` (default), or `:khronos`).
+The backend used to compile LLVM IR to SPIRV (`:llvm` (default), or `:khronos`). This is a
+load-time preference, as compiler configurations are cached across compilations:
+
+```julia
+using OpenCL, Preferences
+set_preferences!(OpenCL, "llvm_to_spirv_backend" => "khronos")
+```
+
+Changing it requires restarting Julia. The `:khronos` backend additionally requires
+`SPIRV_LLVM_Translator_jll` (or `SPIRV_LLVM_Translator_unified_jll`) to be loaded.
 """
-llvm_to_spirv_backend() = get(task_local_storage(), :CLLLVMToSPIRVBackend, :llvm)::Symbol
-
-"""
-    llvm_to_spirv_backend!(mode::Symbol)
-    llvm_to_spirv_backend!(f::Function, mode::Symbol)
-
-Select how LLVM IR is compiled to SPIRV for the current task: (`:llvm` (default), or `:khronos`).
-The second form applies `mode` only for the duration of `f`.
-"""
-function llvm_to_spirv_backend!(mode::Symbol)
-    mode in (:llvm, :khronos) ||
-        throw(ArgumentError("invalid LLVM to SPIRV backend $mode (expected :llvm, :khronos)"))
-    task_local_storage(:CLLLVMToSPIRVBackend, mode)
-    return mode
-end
-
-function llvm_to_spirv_backend!(f::Base.Callable, mode::Symbol)
-    old = llvm_to_spirv_backend()
-    llvm_to_spirv_backend!(mode)
-    try
-        f()
-    finally
-        llvm_to_spirv_backend!(old)
-    end
+const llvm_to_spirv_backend = let backend = @load_preference("llvm_to_spirv_backend", "llvm")
+    backend in ("llvm", "khronos") ||
+        error("Invalid LLVM to SPIRV backend '$backend' requested (expected \"llvm\" or \"khronos\")")
+    Symbol(backend)
 end
 
 # How kernels are fed to the driver:
