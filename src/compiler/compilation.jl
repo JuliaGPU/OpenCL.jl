@@ -173,9 +173,33 @@ const SPIRV_VERSION = v"1.4"
 
 @noinline function _compiler_config(dev, backend; kernel=true, name=nothing, always_inline=false,
                                      sub_group_size::Union{Nothing,Int}=_sub_group_size(dev),
-                                     extensions::AbstractVector{<:AbstractString}=String[], kwargs...)
+                                     extensions::Union{Nothing,AbstractVector{<:AbstractString}}=nothing,
+                                     kwargs...)
     supports_fp16 = "cl_khr_fp16" in dev.extensions
     supports_fp64 = "cl_khr_fp64" in dev.extensions
+    features = device_features(dev)
+
+    if backend === :opencl || !("cl_khr_il_program" in dev.extensions)
+        # programs on the OpenCL C source backend go through spirv2clc, which does not
+        # implement the SPV_EXT_shader_atomic_float_min_max capabilities; mask the features
+        # so kernels take the compare-and-swap fallback instead.
+        features &= ~(feature_bit(:fp32_atomic_min_max) | feature_bit(:fp64_atomic_min_max))
+    end
+
+    if extensions === nothing
+        # allow the SPIR-V float-atomics extensions on devices that support them, so kernels
+        # can use the native atomic instructions (see `device/atomics.jl`); OpExtension only
+        # ends up in modules that use the corresponding instructions.
+        extensions = String[]
+        if feature_supported(features, :fp32_atomic_add) ||
+           feature_supported(features, :fp64_atomic_add)
+            push!(extensions, "SPV_EXT_shader_atomic_float_add")
+        end
+        if feature_supported(features, :fp32_atomic_min_max) ||
+           feature_supported(features, :fp64_atomic_min_max)
+            push!(extensions, "SPV_EXT_shader_atomic_float_min_max")
+        end
+    end
 
     if sub_group_size !== nothing && !("cl_intel_required_subgroup_size" in dev.extensions)
         error("Device does not support cl_intel_required_subgroup_size")
@@ -186,8 +210,7 @@ const SPIRV_VERSION = v"1.4"
     # create GPUCompiler objects
     target = SPIRVCompilerTarget(; version=SPIRV_VERSION, supports_fp16, supports_fp64,
                                    validate=true, extensions=spirv_ext, kwargs...)
-    params = OpenCLCompilerParams(; sub_group_size, features=device_features(dev),
-                                    program_backend=backend)
+    params = OpenCLCompilerParams(; sub_group_size, features, program_backend=backend)
     CompilerConfig(target, params; kernel, name, always_inline)
 end
 
