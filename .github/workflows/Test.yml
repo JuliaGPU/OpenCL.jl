@@ -158,7 +158,7 @@ jobs:
         run: |
           using Pkg
           Pkg.activate(".")
-          Pkg.test(; test_args=`--quickfail --verbose --platform=${{ matrix.pocl == 'next' && 'pocl_next' || 'pocl' }}`)
+          Pkg.test(; test_args=`--verbose --platform=${{ matrix.pocl == 'next' && 'pocl_next' || 'pocl' }}`)
 
       - name: Upload compilation dumps
         if: always()
