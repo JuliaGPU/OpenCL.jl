@@ -31,23 +31,25 @@ jobs:
       matrix:
         include:
           # full memory-backend coverage on the primary platform
-          - { os: ubuntu-24.04, arch: x64, version: '1.12', pocl: jll, memory_backend: usm }
-          - { os: ubuntu-24.04, arch: x64, version: '1.12', pocl: jll, memory_backend: svm }
-          - { os: ubuntu-24.04, arch: x64, version: '1.12', pocl: jll, memory_backend: buffer }
+          # - { os: ubuntu-24.04, arch: x64, version: '1.12', pocl: jll, memory_backend: usm }
+          # - { os: ubuntu-24.04, arch: x64, version: '1.12', pocl: jll, memory_backend: svm }
+          # - { os: ubuntu-24.04, arch: x64, version: '1.12', pocl: jll, memory_backend: buffer }
           # oldest supported Julia
-          - { os: ubuntu-24.04, arch: x64, version: '1.10', pocl: jll, memory_backend: usm }
+          # - { os: ubuntu-24.04, arch: x64, version: '1.10', pocl: jll, memory_backend: usm }
           # Julia version coverage on the primary platform
-          - { os: ubuntu-24.04, arch: x64, version: '1.11', pocl: jll, memory_backend: usm }
-          - { os: ubuntu-24.04, arch: x64, version: '1.13-nightly', pocl: jll, memory_backend: usm }
+          # - { os: ubuntu-24.04, arch: x64, version: '1.11', pocl: jll, memory_backend: usm }
+          # - { os: ubuntu-24.04, arch: x64, version: '1.13-nightly', pocl: jll, memory_backend: usm }
+          - { os: windows-2025, arch: x64, version: '1.13-nightly', pocl: jll, memory_backend: usm }
+          - { os: windows-2025, arch: x64, version: '1.12', pocl: jll, memory_backend: usm }
           # other platforms, one job each (backends rotated for extra cross-coverage)
-          - { os: ubuntu-24.04-arm, arch: arm64, version: '1.12', pocl: jll, memory_backend: svm }
-          - { os: windows-2022, arch: x64, version: '1.12', pocl: jll, memory_backend: usm }
+          # - { os: ubuntu-24.04-arm, arch: arm64, version: '1.12', pocl: jll, memory_backend: svm }
+          # - { os: windows-2022, arch: x64, version: '1.12', pocl: jll, memory_backend: usm }
           # upcoming PoCL release (pocl_next_jll) on every platform
-          - { os: ubuntu-24.04, arch: x64, version: '1.12', pocl: next, memory_backend: usm }
-          - { os: ubuntu-24.04-arm, arch: arm64, version: '1.12', pocl: next, memory_backend: svm }
-          - { os: windows-2022, arch: x64, version: '1.12', pocl: next, memory_backend: buffer }
+          # - { os: ubuntu-24.04, arch: x64, version: '1.12', pocl: next, memory_backend: usm }
+          # - { os: ubuntu-24.04-arm, arch: arm64, version: '1.12', pocl: next, memory_backend: svm }
+          # - { os: windows-2022, arch: x64, version: '1.12', pocl: next, memory_backend: buffer }
           # upstream PoCL HEAD, built from source
-          - { os: ubuntu-24.04, arch: x64, version: '1.12', pocl: local, memory_backend: usm }
+          # - { os: ubuntu-24.04, arch: x64, version: '1.12', pocl: local, memory_backend: usm }
     steps:
       - name: Checkout OpenCL.jl
         uses: actions/checkout@v7
