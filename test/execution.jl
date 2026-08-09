@@ -138,12 +138,193 @@ end
     backend = OpenCLBackend()
     v = CLArray(zeros(Float32, 16))
 
+    # The old PoCL lowering was nondeterministic across launches.
     for _ in 1:10
         out = KernelAbstractions.zeros(backend, Int8, 1)
         partial_workgroup_localmem!(backend, 256)(out, x -> x < 0, v; ndrange=length(v))
         KernelAbstractions.synchronize(backend)
         @test only(Array(out)) == 0
     end
+end
+
+@kernel cpu=false unsafe_indices=true function scatter_partial_workgroup!(
+    dest, src, offsets,
+)
+    @uniform N = @groupsize()[1]
+    values = @localmem eltype(src) (N,)
+    digits = @localmem UInt32 (N,)
+    bases = @localmem UInt32 (256,)
+
+    group = Int(@index(Group, Linear)) - 1
+    lane = Int(@index(Local, Linear)) - 1
+    len = Int(length(src))
+    groups = Int(length(offsets)) ÷ 256
+    i = group * Int(N) + lane
+
+    if i < len
+        values[lane + 1] = src[i + 1]
+    end
+    j = lane
+    while j < 256
+        bases[j + 1] = offsets[j * groups + group + 1]
+        j += Int(N)
+    end
+    @synchronize()
+
+    digit = UInt32(i < len ? values[lane + 1] & 0xff : 0)
+    digits[lane + 1] = digit
+    @synchronize()
+
+    if i < len
+        rank = UInt32(0)
+        for j in UInt32(1):UInt32(lane)
+            rank += UInt32(digits[j] == digit)
+        end
+        dest[Int(bases[digit + 1]) + Int(rank) + 1] = values[lane + 1]
+    end
+end
+
+@testset "partial workgroup scatter" begin
+    backend = OpenCLBackend()
+    input = UInt32[1, 0, 0]
+    src = CLArray(input)
+
+    counts = zeros(UInt32, 256 * 2)
+    for group in 0:1
+        for i in 2group:min(length(input), 2group + 2) - 1
+            digit = input[i + 1] & 0xff
+            counts[Int(digit) * 2 + group + 1] += 1
+        end
+    end
+    offsets = CLArray(vcat(UInt32(0), cumsum(counts)[1:end-1]))
+
+    for _ in 1:10
+        dest = similar(src)
+        scatter_partial_workgroup!(backend, 2)(dest, src, offsets; ndrange=4)
+        KernelAbstractions.synchronize(backend)
+        @test Array(dest) == sort(input)
+    end
+end
+
+const SCAN_LOG_NUM_BANKS = 5
+@inline scan_conflict_free_offset(n) = n >> SCAN_LOG_NUM_BANKS
+
+@kernel cpu=false inbounds=true unsafe_indices=true function scan_blocks!(
+    op, values, init, neutral, inclusive, flags, prefixes,
+)
+    len = length(values)
+    @uniform block_size = @groupsize()[1]
+    temp = @localmem eltype(values) (
+        2block_size + scan_conflict_free_offset(2block_size),
+    )
+
+    group = @index(Group, Linear) - 1
+    lane = @index(Local, Linear) - 1
+    groups = @ndrange()[1] ÷ block_size
+    block_offset = group * block_size * 2
+    ai = lane
+    bi = lane + block_size
+    bank_offset_a = scan_conflict_free_offset(ai)
+    bank_offset_b = scan_conflict_free_offset(bi)
+
+    temp[ai + bank_offset_a + 1] =
+        block_offset + ai < len ? values[block_offset + ai + 1] : neutral
+    temp[bi + bank_offset_b + 1] =
+        block_offset + bi < len ? values[block_offset + bi + 1] : neutral
+
+    offset = typeof(lane)(1)
+    next_pow2 = 2block_size
+    d = next_pow2 >> 1
+    while d > 0
+        @synchronize()
+        if lane < d
+            a = offset * (2lane + 1) - 1
+            b = offset * (2lane + 2) - 1
+            a += scan_conflict_free_offset(a)
+            b += scan_conflict_free_offset(b)
+            temp[b + 1] = op(temp[b + 1], temp[a + 1])
+        end
+        offset <<= 1
+        d >>= 1
+    end
+
+    if lane == 0
+        root = next_pow2 - 1
+        temp[root + scan_conflict_free_offset(root) + 1] = group == 0 ? init : neutral
+    end
+
+    d = typeof(lane)(1)
+    while d < next_pow2
+        offset >>= 1
+        @synchronize()
+        if lane < d
+            a = offset * (2lane + 1) - 1
+            b = offset * (2lane + 2) - 1
+            a += scan_conflict_free_offset(a)
+            b += scan_conflict_free_offset(b)
+            t = temp[a + 1]
+            temp[a + 1] = temp[b + 1]
+            temp[b + 1] = op(temp[b + 1], t)
+        end
+        d <<= 1
+    end
+
+    if inclusive || (group != 0 && !isnothing(flags))
+        @synchronize()
+        first_value = temp[ai + bank_offset_a + 1]
+        second_value = temp[bi + bank_offset_b + 1]
+        @synchronize()
+
+        if ai > 0
+            temp[ai - 1 + scan_conflict_free_offset(ai - 1) + 1] = first_value
+        end
+        temp[bi - 1 + scan_conflict_free_offset(bi - 1) + 1] = second_value
+        if bi == 2block_size - 1
+            if group < groups - 1
+                temp[bi + bank_offset_b + 1] =
+                    op(second_value, values[(group + 1) * block_size * 2])
+            else
+                temp[bi + bank_offset_b + 1] = op(second_value, values[len])
+            end
+        end
+    end
+
+    @synchronize()
+
+    if bi == 2block_size - 1 && !isnothing(prefixes)
+        if isnothing(flags) && !inclusive
+            last_global = block_offset + bi
+            prefixes[group + 1] = last_global < len ?
+                op(temp[bi + bank_offset_b + 1], values[last_global + 1]) :
+                temp[bi + bank_offset_b + 1]
+        else
+            prefixes[group + 1] = temp[bi + bank_offset_b + 1]
+        end
+    end
+
+    if block_offset + ai < len
+        values[block_offset + ai + 1] = temp[ai + bank_offset_a + 1]
+    end
+    if block_offset + bi < len
+        values[block_offset + bi + 1] = temp[bi + bank_offset_b + 1]
+    end
+end
+
+@testset "local memory loads across barriers" begin
+    backend = OpenCLBackend()
+    input = UInt32.(1:128)
+    values = CLArray(input)
+    prefixes = similar(values, 1)
+
+    # Both launches are needed to exercise context handling across barriers.
+    kernel = scan_blocks!(backend, 64)
+    kernel(+, values, UInt32(0), UInt32(0), false, nothing, prefixes; ndrange=64)
+    KernelAbstractions.synchronize(backend)
+    kernel(+, prefixes, UInt32(0), UInt32(0), true, nothing, nothing; ndrange=64)
+    KernelAbstractions.synchronize(backend)
+
+    @test Array(values) == vcat(UInt32(0), cumsum(input)[1:end-1])
+    @test only(Array(prefixes)) == sum(input)
 end
 
 @testset "broadcasting" begin
