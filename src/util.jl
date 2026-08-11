@@ -20,15 +20,14 @@ function build_kernel(program::String, kernel_name::String; vars...)
     return cl.Kernel(p, kernel_name)
 end
 
-const CACHED_KERNELS = Dict{Any, cl.Kernel}()
+const cached_kernels = Dict{Any, cl.Kernel}()
+const cached_kernels_lock = ReentrantLock()
 function get_kernel(program_file::String, kernel_name::String; vars...)
     key = (cl.context(), program_file, kernel_name, Dict(vars))
-    if in(key, keys(CACHED_KERNELS))
-        return CACHED_KERNELS[key]
-    else
-        kernel = build_kernel(read(program_file, String), kernel_name; vars...)
-        CACHED_KERNELS[key] = kernel
-        return kernel
+    return Base.@lock cached_kernels_lock begin
+        get!(cached_kernels, key) do
+            build_kernel(read(program_file, String), kernel_name; vars...)
+        end
     end
 end
 
