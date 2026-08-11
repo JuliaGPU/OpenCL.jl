@@ -63,7 +63,8 @@ macro opencl(ex...)
                 $kernel_f = $kernel_convert($f_var)
                 $kernel_args = map($kernel_convert, ($(var_exprs...),))
                 $kernel_tt = Tuple{map(Core.Typeof, $kernel_args)...}
-                $kernel = $clfunction($kernel_f, $kernel_tt; $(compiler_kwargs...))
+                $kernel = $clfunction($kernel_f, $kernel_tt;
+                                      source=$f_var, $(compiler_kwargs...))
                 if $launch
                     $kernel($(var_exprs...); $(call_kwargs...))
                 end
@@ -149,7 +150,8 @@ pass_arg(@nospecialize dt) = !(isghosttype(dt) || Core.Compiler.isconstType(dt))
 @inline @generated function (kernel::AbstractKernel{F,TT})(args...;
                                                            call_kwargs...) where {F,TT}
     sig = Tuple{F, TT.parameters...}    # Base.signature_type with a function type
-    args = (:(kernel.f), (:(kernel_convert(args[$i], indirect_memory, managed)) for i in 1:length(args))...)
+    args = (:(kernel_convert(source, indirect_memory, managed)),
+            (:(kernel_convert(args[$i], indirect_memory, managed)) for i in 1:length(args))...)
 
     # filter out ghost arguments that shouldn't be passed
     to_pass = map(pass_arg, sig.parameters)
@@ -170,15 +172,16 @@ pass_arg(@nospecialize dt) = !(isghosttype(dt) || Core.Compiler.isconstType(dt))
     # convert arguments before locking (conversion is pure, and collects the managed
     # allocations to lock), then perform the launch transaction: with all participating
     # allocations locked in stable order, migrate their queue ownership and enqueue the
-    # kernel. the original arguments are preserved throughout, keeping the converted
-    # pointers valid: neither the converted values nor the collected `Managed` objects
-    # retain the `DataRef` ownership of their allocation.
+    # kernel. the source callable and arguments are preserved throughout, keeping the
+    # converted pointers valid: neither the converted values nor the collected `Managed`
+    # objects retain the `DataRef` ownership of their allocation.
     converted = [gensym(:arg) for _ in call_args]
     conversions = [:($(converted[i]) = $(call_args[i])) for i in 1:length(call_args)]
     quote
         indirect_memory = cl.AbstractMemory[]
         managed = Managed[]
-        GC.@preserve args begin
+        source = kernel.source
+        GC.@preserve source args begin
             $(conversions...)
             locked = lock_managed(managed)
             try
@@ -196,8 +199,9 @@ end
 
 ## host-side kernels
 
-struct HostKernel{F,TT} <: AbstractKernel{F,TT}
+struct HostKernel{F,S,TT} <: AbstractKernel{F,TT}
     f::F
+    source::S
     fun::cl.Kernel
     rng_state::Bool
 end
@@ -207,11 +211,11 @@ end
 
 const clfunction_lock = ReentrantLock()
 
-function clfunction(f::F, tt::TT=Tuple{}; kwargs...) where {F,TT}
+function clfunction(f::F, tt::TT=Tuple{}; source=f, kwargs...) where {F,TT}
     Base.@lock clfunction_lock begin
         config = compiler_config(cl.device(); kwargs...)::OpenCLCompilerConfig
-        source = methodinstance(F, tt)
-        job = CompilerJob(source, config)
+        mi = methodinstance(F, tt)
+        job = CompilerJob(mi, config)
 
         res = compile_or_lookup(job)::OpenCLResults
 
@@ -235,10 +239,7 @@ function clfunction(f::F, tt::TT=Tuple{}; kwargs...) where {F,TT}
             end
         end
 
-        h = hash(kernel, hash(f, hash(tt)))
-        get!(_kernel_instances, h) do
-            HostKernel{F,tt}(f, kernel, res.device_rng)
-        end::HostKernel{F,tt}
+        HostKernel{F,typeof(source),tt}(f, source, kernel, res.device_rng)
     end
 end
 
@@ -260,6 +261,3 @@ function compile_or_lookup(@nospecialize(job::CompilerJob))::OpenCLResults
     end
     return res
 end
-
-# cache of kernel instances
-const _kernel_instances = Dict{UInt, Any}()
