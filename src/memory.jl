@@ -5,9 +5,9 @@
 # to safely use allocated memory across tasks and devices, we don't simply return raw
 # memory objects, but wrap them in a manager that ensures synchronization and ownership.
 
-# XXX: immutable with atomic refs?
 mutable struct Managed{M}
     const mem::M
+    const lock::ReentrantLock
 
     # which stream is currently using the memory.
     queue::cl.CmdQueue
@@ -23,27 +23,82 @@ mutable struct Managed{M}
         #       guaranteed to be physically allocated at a synchronization event.
         # NOTE: memory also starts as device-owned, because we need to map it as soon as
         #       the host accesses it.
-        return new{typeof(mem)}(mem, queue, dirty, user)
+        return new{typeof(mem)}(mem, ReentrantLock(), queue, dirty, user)
     end
 end
 
 Base.sizeof(managed::Managed) = sizeof(managed.mem)
 
-# wait for the current owner of memory to finish processing
-function synchronize(managed::Managed)
-    cl.finish(managed.queue)
-    managed.dirty = false
+function lock_managed(managed::AbstractVector{<:Managed})
+    locked = unique(managed)
+    sort!(locked; by=memory -> objectid(memory.lock))
+    for memory in locked
+        lock(memory.lock)
+    end
+    return locked
+end
+
+function unlock_managed(locked::AbstractVector{<:Managed})
+    for memory in Iterators.reverse(locked)
+        unlock(memory.lock)
+    end
     return
 end
 
-function maybe_synchronize(managed::Managed)
-    if managed.dirty
-        synchronize(managed)
+function with_managed_locks(f::F, managed::AbstractVector{<:Managed}) where {F}
+    locked = lock_managed(managed)
+    try
+        return f()
+    finally
+        unlock_managed(locked)
     end
-    return nothing
 end
 
-function Base.convert(typ::Union{Type{<:CLPtr}, Type{cl.Buffer}}, managed::Managed{M}) where {M}
+# wait for the current owner of memory to finish processing
+function synchronize(managed::Managed)
+    return Base.@lock managed.lock begin
+        cl.finish(managed.queue)
+        managed.dirty = false
+        nothing
+    end
+end
+
+function maybe_synchronize(managed::Managed)
+    return Base.@lock managed.lock begin
+        if managed.dirty
+            synchronize(managed)
+        end
+        nothing
+    end
+end
+
+# transfer queue ownership of an allocation, synchronizing the previous owner if needed,
+# and mark it dirty in anticipation of a device-side operation. the caller must hold
+# `managed.lock`, and keep holding it until that operation has been submitted to `queue`:
+# the recorded ownership describes the submitted operation, so another task may only
+# observe it together with the submission it describes.
+function take_ownership!(managed::Managed{M}; queue=cl.queue()) where {M}
+    sizeof(managed) == 0 && return managed
+
+    # accessing memory on another queue: ensure the data is ready and take ownership
+    if managed.queue != queue
+        managed.dirty && synchronize(managed)
+        managed.queue = queue
+    end
+
+    # coarse-grained SVM needs to be unmapped when accessing it back from the device
+    # TODO: support fine-grained SVM
+    if M == cl.SharedVirtualMemory && managed.user == :host
+        cl.enqueue_svm_unmap(pointer(managed.mem); queue)
+        managed.user = :device
+    end
+
+    managed.dirty = true
+    return managed
+end
+
+function device_convert(typ::Union{Type{<:CLPtr}, Type{cl.Buffer}},
+                        managed::Managed{M}) where {M}
     # let null pointers pass through as-is
     # XXX: does not work for buffers
     ptr = convert(typ, managed.mem)
@@ -51,22 +106,12 @@ function Base.convert(typ::Union{Type{<:CLPtr}, Type{cl.Buffer}}, managed::Manag
         return ptr
     end
 
-    # accessing memory on another queue: ensure the data is ready and take ownership
-    if managed.queue != cl.queue()
-        maybe_synchronize(managed)
-        managed.queue = cl.queue()
-    end
-
-    # coarse-grained SVM needs to be unmapped when accessing it back from the device
-    # TODO: support fine-grained SVM
-    if M == cl.SharedVirtualMemory && managed.user == :host
-        cl.enqueue_svm_unmap(pointer(managed.mem))
-        managed.user = :device
-    end
-
-    managed.dirty = true
+    take_ownership!(managed)
     return ptr
 end
+
+Base.convert(typ::Union{Type{<:CLPtr}, Type{cl.Buffer}}, managed::Managed) =
+    Base.@lock managed.lock device_convert(typ, managed)
 
 function Base.convert(typ::Type{<:Ptr}, managed::Managed{M}) where {M}
     # let null pointers pass through as-is
@@ -84,17 +129,19 @@ function Base.convert(typ::Type{<:Ptr}, managed::Managed{M}) where {M}
         )
     end
 
-    # make sure any work on the memory has finished.
-    maybe_synchronize(managed)
+    return Base.@lock managed.lock begin
+        # make sure any work on the memory has finished.
+        managed.dirty && synchronize(managed)
 
-    # coarse-grained SVM needs to be mapped when initially accessing it from the host
-    # TODO: support fine-grained SVM
-    if M == cl.SharedVirtualMemory && managed.user != :host
-        cl.enqueue_svm_map(pointer(managed.mem), sizeof(managed.mem), :rw; blocking = true)
-        managed.user = :host
+        # coarse-grained SVM needs to be mapped when initially accessing it from the host
+        # TODO: support fine-grained SVM
+        if M == cl.SharedVirtualMemory && managed.user != :host
+            cl.enqueue_svm_map(pointer(managed.mem), sizeof(managed.mem), :rw; blocking=true)
+            managed.user = :host
+        end
+
+        ptr
     end
-
-    return ptr
 end
 
 
@@ -170,8 +217,8 @@ end
 
 function free(managed::Managed)
     sizeof(managed) == 0 && return
-    mem = managed.mem
-    cl.context!(cl.context(mem)) do
+    return Base.@lock managed.lock begin
+        mem = managed.mem
         # "`clSVMFree` does not wait for previously enqueued commands that may be using
         # svm_pointer to finish before freeing svm_pointer. It is the responsibility of the
         # application to make sure that enqueued commands that use svm_pointer have finished
@@ -182,9 +229,11 @@ function free(managed::Managed)
         end
 
         if mem isa cl.SharedVirtualMemory
-            if managed.user == :host
-                # if the coarse-grained SVM buffer is mapped on the host, unmap it first.
-                cl.enqueue_svm_unmap(pointer(mem))
+            if managed.user == :host && managed.queue.valid
+                # Finalizers must not query or mutate task-local state, so use the queue owned by
+                # the allocation. Finish the unmap before releasing the SVM allocation.
+                cl.enqueue_svm_unmap(pointer(mem); queue=managed.queue)
+                cl.finish(managed.queue)
             end
             cl.svm_free(mem)
         elseif mem isa cl.UnifiedMemory
@@ -192,7 +241,7 @@ function free(managed::Managed)
         else
             cl.release(mem)
         end
-    end
 
-    return
+        nothing
+    end
 end

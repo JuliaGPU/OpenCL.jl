@@ -81,7 +81,10 @@ end
 ## argument conversion
 
 struct KernelAdaptor
+    # memory objects to pass to `clSetKernelExecInfo` for indirect access
     indirect_memory::Vector{cl.AbstractMemory}
+    # managed allocations whose ownership needs to be established at launch
+    managed::Vector{Managed}
 end
 
 # when converting to pointers, we need to keep track of the underlying memory type
@@ -91,8 +94,16 @@ function Adapt.adapt_storage(to::KernelAdaptor, buf::cl.AbstractMemory)
     return ptr
 end
 function Adapt.adapt_storage(to::KernelAdaptor, arr::CLArray{T, N}) where {T, N}
-    push!(to.indirect_memory, arr.data[].mem)
-    return Base.unsafe_convert(CLDeviceArray{T, N, AS.CrossWorkgroup}, arr)
+    managed = arr.data[]
+    push!(to.indirect_memory, managed.mem)
+    push!(to.managed, managed)
+    # note that conversion is pure: it does not migrate ownership of the allocation,
+    # which only happens as part of the launch transaction (`take_ownership!`), under
+    # the allocation lock and atomically with the enqueue of the kernel.
+    ptr = convert(CLPtr{T}, managed.mem) + arr.offset
+    return CLDeviceArray{T, N, AS.CrossWorkgroup}(
+        size(arr), reinterpret(LLVMPtr{T, AS.CrossWorkgroup}, ptr),
+        arr.maxsize - arr.offset)
 end
 
 # Base.RefValue isn't GPU compatible, so provide a compatible alternative
@@ -125,8 +136,9 @@ input object `x` as-is.
 Do not add methods to this function, but instead extend the underlying Adapt.jl package and
 register methods for the the `OpenCL.KernelAdaptor` type.
 """
-kernel_convert(arg, indirect_memory::Vector{cl.AbstractMemory} = cl.AbstractMemory[]) =
-    adapt(KernelAdaptor(indirect_memory), arg)
+kernel_convert(arg, indirect_memory::Vector{cl.AbstractMemory} = cl.AbstractMemory[],
+               managed::Vector{Managed} = Managed[]) =
+    adapt(KernelAdaptor(indirect_memory, managed), arg)
 
 ## abstract kernel functionality
 
@@ -137,7 +149,7 @@ pass_arg(@nospecialize dt) = !(isghosttype(dt) || Core.Compiler.isconstType(dt))
 @inline @generated function (kernel::AbstractKernel{F,TT})(args...;
                                                            call_kwargs...) where {F,TT}
     sig = Tuple{F, TT.parameters...}    # Base.signature_type with a function type
-    args = (:(kernel.f), (:(kernel_convert(args[$i], indirect_memory)) for i in 1:length(args))...)
+    args = (:(kernel.f), (:(kernel_convert(args[$i], indirect_memory, managed)) for i in 1:length(args))...)
 
     # filter out ghost arguments that shouldn't be passed
     to_pass = map(pass_arg, sig.parameters)
@@ -155,12 +167,28 @@ pass_arg(@nospecialize dt) = !(isghosttype(dt) || Core.Compiler.isconstType(dt))
     pushfirst!(call_t, KernelState)
     pushfirst!(call_args, :(KernelState(kernel.rng_state ? Base.rand(UInt32) : UInt32(0))))
 
-    # finalize types
-    call_tt = Base.to_tuple_type(call_t)
-
+    # convert arguments before locking (conversion is pure, and collects the managed
+    # allocations to lock), then perform the launch transaction: with all participating
+    # allocations locked in stable order, migrate their queue ownership and enqueue the
+    # kernel. the original arguments are preserved throughout, keeping the converted
+    # pointers valid: neither the converted values nor the collected `Managed` objects
+    # retain the `DataRef` ownership of their allocation.
+    converted = [gensym(:arg) for _ in call_args]
+    conversions = [:($(converted[i]) = $(call_args[i])) for i in 1:length(call_args)]
     quote
         indirect_memory = cl.AbstractMemory[]
-        clcall(kernel.fun, $call_tt, $(call_args...); indirect_memory, kernel.rng_state, call_kwargs...)
+        managed = Managed[]
+        GC.@preserve args begin
+            $(conversions...)
+            locked = lock_managed(managed)
+            try
+                foreach(take_ownership!, locked)
+                cl.call(kernel.fun, $(converted...);
+                        indirect_memory, kernel.rng_state, call_kwargs...)
+            finally
+                unlock_managed(locked)
+            end
+        end
     end
 end
 
