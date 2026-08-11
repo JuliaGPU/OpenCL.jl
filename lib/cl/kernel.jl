@@ -7,14 +7,19 @@ export clcall
 
 mutable struct Kernel <: CLObject
     const id::cl_kernel
+    const lock::ReentrantLock
 
     function Kernel(k::cl_kernel, retain::Bool=false)
-        kernel = new(k)
+        kernel = new(k, ReentrantLock())
         retain && clRetainKernel(kernel)
         finalizer(clReleaseKernel, kernel)
         return kernel
     end
 end
+
+Base.lock(k::Kernel) = lock(getfield(k, :lock))
+Base.lock(f::Function, k::Kernel) = lock(f, getfield(k, :lock))
+Base.unlock(k::Kernel) = unlock(getfield(k, :lock))
 
 Base.unsafe_convert(::Type{cl_kernel}, k::Kernel) = k.id
 
@@ -261,6 +266,7 @@ function call(
         indirect_memory::Vector{AbstractMemory} = AbstractMemory[],
         rng_state=false,
     )
+    return Base.@lock k begin
     set_args!(k, args...)
     if !isempty(indirect_memory)
         svm_pointers = CLPtr{Cvoid}[]
@@ -313,7 +319,9 @@ function call(
             clSetKernelExecInfo(k, CL_KERNEL_EXEC_INFO_USM_PTRS_INTEL, sizeof(usm_pointers), usm_pointers)
         end
     end
-    enqueue_kernel(k, global_size, local_size; global_work_offset, wait_on, rng_state, nargs=length(args))
+    enqueue_kernel(k, global_size, local_size; global_work_offset, wait_on, rng_state,
+                   nargs=length(args))
+    end
 end
 
 # From `julia/base/reflection.jl`, adjusted to add specialization on `t`.
@@ -336,6 +344,14 @@ function _to_tuple_type(t)
     t
 end
 
+"""
+    clcall(kernel, types, args...; kwargs...)
+
+Set the arguments of `kernel` and enqueue it as one atomic operation with respect to other
+uses of the same kernel object. Manual use of `cl.set_arg!`, `cl.set_args!`, or
+`cl.enqueue_kernel` is not internally synchronized; hold `lock(kernel)` across the complete
+argument-setup and enqueue sequence.
+"""
 clcall(f::F, types::Tuple, args::Vararg{Any,N}; kwargs...) where {N,F} =
     clcall(f, _to_tuple_type(types), args...; kwargs...)
 
