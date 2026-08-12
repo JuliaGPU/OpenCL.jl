@@ -156,16 +156,16 @@ end
 # cache of compiler configurations, per device (but additionally configurable via kwargs)
 const _toolchain = Ref{Any}()
 const _compiler_configs = Dict{UInt, OpenCLCompilerConfig}()
+const compiler_config_lock = ReentrantLock()
 function compiler_config(dev::cl.Device; kwargs...)
     # key on the policy, not the resolved backend: resolving queries the device, so defer it to link
     backend = program_backend()
     h = hash(dev, hash(backend, hash(kwargs)))
-    config = get(_compiler_configs, h, nothing)
-    if config === nothing
-        config = _compiler_config(dev, backend; kwargs...)
-        _compiler_configs[h] = config
+    return Base.@lock compiler_config_lock begin
+        get!(_compiler_configs, h) do
+            _compiler_config(dev, backend; kwargs...)
+        end
     end
-    return config
 end
 @inline _sub_group_size(dev) = "cl_intel_required_subgroup_size" in dev.extensions ? cl.sub_group_size(dev) : nothing
 

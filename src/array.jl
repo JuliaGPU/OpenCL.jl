@@ -273,12 +273,16 @@ Base.convert(::Type{T}, x::T) where {T <: CLArray} = x
 
 function Base.getindex(x::CLArray{<:Any, <:Any, <:Union{cl.UnifiedHostMemory, cl.UnifiedSharedMemory, cl.SharedVirtualMemory}}, I::Int)
     @boundscheck checkbounds(x, I)
-    return GC.@preserve x unsafe_load(host_pointer(x, I))
+    return Base.@lock x.data[].lock begin
+        GC.@preserve x unsafe_load(host_pointer(x, I))
+    end
 end
 
 function Base.setindex!(x::CLArray{<:Any, <:Any, <:Union{cl.UnifiedHostMemory, cl.UnifiedSharedMemory, cl.SharedVirtualMemory}}, v, I::Int)
     @boundscheck checkbounds(x, I)
-    return GC.@preserve x unsafe_store!(host_pointer(x, I), v)
+    return Base.@lock x.data[].lock begin
+        GC.@preserve x unsafe_store!(host_pointer(x, I), v)
+    end
 end
 
 
@@ -298,10 +302,20 @@ function Base.unsafe_convert(::Type{CLPtr{T}}, x::CLArray{T}) where {T}
     return convert(CLPtr{T}, x.data[]) + x.offset
 end
 
-# when passing to OpenCL kernels with `clcall`, don't convert directly to a pointer,
-# but keep the underlying memory around so that we can configure the kernel correctly.
-function cl.clconvert(::Type{<:Union{Ptr, CLPtr}}, x::CLArray)
+# when passing to OpenCL kernels with `clcall`, don't convert directly to a pointer, but
+# to the array itself: `convert_arguments` keeps the converted values alive and locked
+# through enqueue, so returning the owner both preserves the `DataRef` (preventing
+# finalization of the allocation mid-launch) and carries the allocation lock.
+# the pointer is only extracted by `unsafe_clconvert`, under that lock.
+cl.clconvert(::Type{<:Union{Ptr, CLPtr}}, x::CLArray) = x
+cl.argument_lock(x::CLArray) = x.data[].lock
+function cl.unsafe_clconvert(typ::Type{<:Union{Ptr, CLPtr}}, x::CLArray{<:Any, <:Any, <:cl.AbstractMemoryObject})
+    device_convert(cl.Buffer, x.data[])
     return x.data[].mem
+end
+function cl.unsafe_clconvert(typ::Type{<:Union{Ptr{T}, CLPtr{T}}}, x::CLArray{<:Any, <:Any, M}) where {T,M<:cl.AbstractPointerMemory}
+    ptr = device_convert(typ, x.data[])
+    return cl.TrackedPtr{T,M}(ptr)
 end
 
 
@@ -389,26 +403,31 @@ for (srcty, dstty) in [(:Array, :CLArray), (:CLArray, :Array), (:CLArray, :CLArr
 
             device_array = $dstty == CLArray ? dst : src
             cl.context!(context(device_array)) do
-                if memtype(device_array) == cl.SharedVirtualMemory
-                    cl.enqueue_svm_copy(pointer(dst, dst_off), pointer(src, src_off), nbytes; blocking)
-                elseif memtype(device_array) <: cl.UnifiedMemory
-                    cl.enqueue_usm_copy(pointer(dst, dst_off), pointer(src, src_off), nbytes; blocking)
-                else
-                    if src isa CLArray && dst isa CLArray
-                        cl.enqueue_copy(convert(cl.Buffer, dst.data[]),
-                            dst.offset + (dst_off - 1) * sizeof(T),
-                            convert(cl.Buffer, src.data[]),
-                            src.offset + (src_off - 1) * sizeof(T),
-                            nbytes; blocking)
-                    elseif dst isa CLArray
-                        cl.enqueue_write(convert(cl.Buffer, dst.data[]),
-                            dst.offset + (dst_off - 1) * sizeof(T),
-                            pointer(src, src_off), nbytes; blocking)
-                    elseif src isa CLArray
-                        cl.enqueue_read(pointer(dst, dst_off),
-                            convert(cl.Buffer, src.data[]),
-                            src.offset + (src_off - 1) * sizeof(T),
-                            nbytes; blocking)
+                managed = Managed[]
+                dst isa CLArray && push!(managed, dst.data[])
+                src isa CLArray && push!(managed, src.data[])
+                with_managed_locks(managed) do
+                    if memtype(device_array) == cl.SharedVirtualMemory
+                        cl.enqueue_svm_copy(pointer(dst, dst_off), pointer(src, src_off), nbytes; blocking)
+                    elseif memtype(device_array) <: cl.UnifiedMemory
+                        cl.enqueue_usm_copy(pointer(dst, dst_off), pointer(src, src_off), nbytes; blocking)
+                    else
+                        if src isa CLArray && dst isa CLArray
+                            cl.enqueue_copy(convert(cl.Buffer, dst.data[]),
+                                dst.offset + (dst_off - 1) * sizeof(T),
+                                convert(cl.Buffer, src.data[]),
+                                src.offset + (src_off - 1) * sizeof(T),
+                                nbytes; blocking)
+                        elseif dst isa CLArray
+                            cl.enqueue_write(convert(cl.Buffer, dst.data[]),
+                                dst.offset + (dst_off - 1) * sizeof(T),
+                                pointer(src, src_off), nbytes; blocking)
+                        elseif src isa CLArray
+                            cl.enqueue_read(pointer(dst, dst_off),
+                                convert(cl.Buffer, src.data[]),
+                                src.offset + (src_off - 1) * sizeof(T),
+                                nbytes; blocking)
+                        end
                     end
                 end
             end
@@ -448,13 +467,15 @@ fill(v, dims::Dims) = fill!(CLArray{typeof(v)}(undef, dims...), v)
 function Base.fill!(A::DenseCLArray{T}, val) where {T}
     isempty(A) && return A
     cl.context!(context(A)) do
-        GC.@preserve A begin
-            if memtype(A) == cl.SharedVirtualMemory
-                cl.enqueue_svm_fill(pointer(A), convert(T, val), length(A))
-            elseif memtype(A) <: cl.UnifiedMemory
-                cl.enqueue_usm_fill(pointer(A), convert(T, val), length(A))
-            else
-                cl.enqueue_fill(convert(cl.Buffer, A.data[]), A.offset, convert(T, val), length(A))
+        Base.@lock A.data[].lock begin
+            GC.@preserve A begin
+                if memtype(A) == cl.SharedVirtualMemory
+                    cl.enqueue_svm_fill(pointer(A), convert(T, val), length(A))
+                elseif memtype(A) <: cl.UnifiedMemory
+                    cl.enqueue_usm_fill(pointer(A), convert(T, val), length(A))
+                else
+                    cl.enqueue_fill(convert(cl.Buffer, A.data[]), A.offset, convert(T, val), length(A))
+                end
             end
         end
     end
@@ -524,16 +545,18 @@ function Base.resize!(a::CLVector{T}, n::Integer) where {T}
     # as a result, we can safely support resizing unowned buffers.
     new_data = cl.context!(context(a)) do
         mem = managed_alloc(memtype(a), bufsize; alignment=Base.datatype_alignment(T))
-        ptr = convert(CLPtr{T}, mem)
-        m = min(length(a), n)
-        if m > 0
-            GC.@preserve a begin
-                if memtype(a) == cl.SharedVirtualMemory
-                    cl.enqueue_svm_copy(ptr, pointer(a), m*sizeof(T); blocking=false)
-                elseif memtype(a) <: cl.UnifiedMemory
-                    cl.enqueue_usm_copy(ptr, pointer(a), m*sizeof(T); blocking=false)
-                else
-                    cl.enqueue_copy(convert(cl.Buffer, mem), 0, convert(cl.Buffer, a.data[]), a.offset, m*sizeof(T); blocking=false)
+        with_managed_locks(Managed[mem, a.data[]]) do
+            ptr = convert(CLPtr{T}, mem)
+            m = min(length(a), n)
+            if m > 0
+                GC.@preserve a begin
+                    if memtype(a) == cl.SharedVirtualMemory
+                        cl.enqueue_svm_copy(ptr, pointer(a), m*sizeof(T); blocking=false)
+                    elseif memtype(a) <: cl.UnifiedMemory
+                        cl.enqueue_usm_copy(ptr, pointer(a), m*sizeof(T); blocking=false)
+                    else
+                        cl.enqueue_copy(convert(cl.Buffer, mem), 0, convert(cl.Buffer, a.data[]), a.offset, m*sizeof(T); blocking=false)
+                    end
                 end
             end
         end

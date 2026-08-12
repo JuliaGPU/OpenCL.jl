@@ -2,6 +2,16 @@ using SPIRV_LLVM_Translator_jll
 using IOCapture
 using KernelAbstractions
 
+struct CapturedArray{A}
+    array::A
+end
+OpenCL.Adapt.@adapt_structure CapturedArray
+
+function (f::CapturedArray)()
+    @inbounds f.array[1] = 7
+    return
+end
+
 @testset "@opencl" begin
 
 dummy() = nothing
@@ -35,6 +45,25 @@ end
     k = @opencl launch=false dummy()
     k()
     k(; global_size=1)
+
+    function captured_kernel()
+        array = CLArray(Int32[0])
+        owner = WeakRef(array)
+        kernel = @opencl launch=false CapturedArray(array)()
+        return kernel, owner
+    end
+
+    kernel, owner = captured_kernel()
+    GC.gc(true)
+    @test owner.value !== nothing
+
+    queue = cl.CmdQueue()
+    cl.queue!(queue) do
+        kernel()
+        @test owner.value.data[].queue === queue
+        cl.finish(queue)
+    end
+    @test Array(owner.value) == Int32[7]
 end
 
 @testset "inference" begin

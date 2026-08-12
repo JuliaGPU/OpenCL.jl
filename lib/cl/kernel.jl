@@ -7,14 +7,19 @@ export clcall
 
 mutable struct Kernel <: CLObject
     const id::cl_kernel
+    const lock::ReentrantLock
 
     function Kernel(k::cl_kernel, retain::Bool=false)
-        kernel = new(k)
+        kernel = new(k, ReentrantLock())
         retain && clRetainKernel(kernel)
         finalizer(clReleaseKernel, kernel)
         return kernel
     end
 end
+
+Base.lock(k::Kernel) = lock(getfield(k, :lock))
+Base.lock(f::Function, k::Kernel) = lock(f, getfield(k, :lock))
+Base.unlock(k::Kernel) = unlock(getfield(k, :lock))
 
 Base.unsafe_convert(::Type{cl_kernel}, k::Kernel) = k.id
 
@@ -261,6 +266,7 @@ function call(
         indirect_memory::Vector{AbstractMemory} = AbstractMemory[],
         rng_state=false,
     )
+    return Base.@lock k begin
     set_args!(k, args...)
     if !isempty(indirect_memory)
         svm_pointers = CLPtr{Cvoid}[]
@@ -313,7 +319,9 @@ function call(
             clSetKernelExecInfo(k, CL_KERNEL_EXEC_INFO_USM_PTRS_INTEL, sizeof(usm_pointers), usm_pointers)
         end
     end
-    enqueue_kernel(k, global_size, local_size; global_work_offset, wait_on, rng_state, nargs=length(args))
+    enqueue_kernel(k, global_size, local_size; global_work_offset, wait_on, rng_state,
+                   nargs=length(args))
+    end
 end
 
 # From `julia/base/reflection.jl`, adjusted to add specialization on `t`.
@@ -336,6 +344,14 @@ function _to_tuple_type(t)
     t
 end
 
+"""
+    clcall(kernel, types, args...; kwargs...)
+
+Set the arguments of `kernel` and enqueue it as one atomic operation with respect to other
+uses of the same kernel object. Manual use of `cl.set_arg!`, `cl.set_args!`, or
+`cl.enqueue_kernel` is not internally synchronized; hold `lock(kernel)` across the complete
+argument-setup and enqueue sequence.
+"""
 clcall(f::F, types::Tuple, args::Vararg{Any,N}; kwargs...) where {N,F} =
     clcall(f, _to_tuple_type(types), args...; kwargs...)
 
@@ -346,33 +362,53 @@ function clcall(k::Kernel, types::Type{T}, args::Vararg{Any,N}; kwargs...) where
     convert_arguments(call_closure, types, args...)
 end
 
-
 ## generic argument conversion
 
 # convert the argument values to match the kernel's signature (specified by the user)
 # (this mimics `lower-ccall` in julia-syntax.scm)
 clconvert(typ, arg) = Base.cconvert(typ, arg)
 unsafe_clconvert(typ, arg) = Base.unsafe_convert(typ, arg)
+argument_lock(arg) = nothing
+
+function lock_arguments(args...)
+    locks = unique(filter(!isnothing, map(argument_lock, args)))
+    sort!(locks; by=objectid)
+    foreach(lock, locks)
+    return locks
+end
+
+unlock_arguments(locks) = foreach(unlock, Iterators.reverse(locks))
+
 @inline @generated function convert_arguments(f::Function, ::Type{tt}, args...) where {tt}
-    types = tt.parameters
-
     ex = quote end
-
     converted_args = Vector{Symbol}(undef, length(args))
     arg_ptrs = Vector{Symbol}(undef, length(args))
     for i in 1:length(args)
         converted_args[i] = gensym()
         arg_ptrs[i] = gensym()
-        push!(ex.args, :($(converted_args[i]) = clconvert($(types[i]), args[$i])))
-        push!(ex.args, :($(arg_ptrs[i]) = unsafe_clconvert($(types[i]), $(converted_args[i]))))
+        push!(ex.args, :($(converted_args[i]) = clconvert($(tt.parameters[i]), args[$i])))
     end
 
-    append!(ex.args, (quote
+    locked = gensym()
+    push!(ex.args, :($locked = lock_arguments($(converted_args...))))
+    body = quote end
+    for i in 1:length(args)
+        push!(body.args,
+              :($(arg_ptrs[i]) = unsafe_clconvert($(tt.parameters[i]), $(converted_args[i]))))
+    end
+
+    append!(body.args, (quote
         GC.@preserve $(converted_args...) begin
             f($(arg_ptrs...))
         end
     end).args)
-
+    push!(ex.args, quote
+        try
+            $body
+        finally
+            unlock_arguments($locked)
+        end
+    end)
     return ex
 end
 
