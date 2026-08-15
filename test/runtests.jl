@@ -1,5 +1,4 @@
 using ParallelTestRunner
-using Preferences
 import OpenCL
 import Test
 
@@ -188,6 +187,7 @@ end
 
 const init_code = quote
     using OpenCL, $pocl_pkg
+    $(OpenCL.llvm_to_spirv_backend === :khronos && :(using SPIRV_LLVM_Translator_jll))
 
     # bring used symbols into the temporary module
     import ..GPUArraysTestSuite, ..testf

@@ -13,7 +13,7 @@ concurrency:
 
 jobs:
   test:
-    name: Julia ${{ matrix.version }} - ${{ matrix.os }} - ${{ matrix.arch }} - ${{ matrix.memory_backend }} - PoCL ${{ matrix.pocl }}
+    name: Julia ${{ matrix.version }} - ${{ matrix.os }} - ${{ matrix.arch }} - ${{ matrix.memory_backend }} - PoCL ${{ matrix.pocl }} - ${{ matrix.llvm_to_spirv_backend }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 100
     permissions: # needed to allow julia-actions/cache to proactively delete old caches that it has created
@@ -31,23 +31,25 @@ jobs:
       matrix:
         include:
           # full memory-backend coverage on the primary platform
-          - { os: ubuntu-24.04, arch: x64, version: '1.12', pocl: jll, memory_backend: usm }
-          - { os: ubuntu-24.04, arch: x64, version: '1.12', pocl: jll, memory_backend: svm }
-          - { os: ubuntu-24.04, arch: x64, version: '1.12', pocl: jll, memory_backend: buffer }
+          - { os: ubuntu-24.04, arch: x64, version: '1.12', pocl: jll, memory_backend: usm, llvm_to_spirv_backend: llvm }
+          - { os: ubuntu-24.04, arch: x64, version: '1.12', pocl: jll, memory_backend: svm, llvm_to_spirv_backend: llvm }
+          - { os: ubuntu-24.04, arch: x64, version: '1.12', pocl: jll, memory_backend: buffer, llvm_to_spirv_backend: llvm }
           # oldest supported Julia
-          - { os: ubuntu-24.04, arch: x64, version: '1.10', pocl: jll, memory_backend: usm }
+          - { os: ubuntu-24.04, arch: x64, version: '1.10', pocl: jll, memory_backend: usm, llvm_to_spirv_backend: llvm }
           # Julia version coverage on the primary platform
-          - { os: ubuntu-24.04, arch: x64, version: '1.11', pocl: jll, memory_backend: usm }
-          - { os: ubuntu-24.04, arch: x64, version: '1.13-nightly', pocl: jll, memory_backend: usm }
+          - { os: ubuntu-24.04, arch: x64, version: '1.11', pocl: jll, memory_backend: usm, llvm_to_spirv_backend: llvm }
+          - { os: ubuntu-24.04, arch: x64, version: '1.13-nightly', pocl: jll, memory_backend: usm, llvm_to_spirv_backend: llvm }
           # other platforms, one job each (backends rotated for extra cross-coverage)
-          - { os: ubuntu-24.04-arm, arch: arm64, version: '1.12', pocl: jll, memory_backend: svm }
-          - { os: windows-2022, arch: x64, version: '1.12', pocl: jll, memory_backend: usm }
+          - { os: ubuntu-24.04-arm, arch: arm64, version: '1.12', pocl: jll, memory_backend: svm, llvm_to_spirv_backend: llvm }
+          - { os: windows-2022, arch: x64, version: '1.12', pocl: jll, memory_backend: usm, llvm_to_spirv_backend: llvm }
           # upcoming PoCL release (pocl_next_jll) on every platform
-          - { os: ubuntu-24.04, arch: x64, version: '1.12', pocl: next, memory_backend: usm }
-          - { os: ubuntu-24.04-arm, arch: arm64, version: '1.12', pocl: next, memory_backend: svm }
-          - { os: windows-2022, arch: x64, version: '1.12', pocl: next, memory_backend: buffer }
+          - { os: ubuntu-24.04, arch: x64, version: '1.12', pocl: next, memory_backend: usm, llvm_to_spirv_backend: llvm }
+          - { os: ubuntu-24.04-arm, arch: arm64, version: '1.12', pocl: next, memory_backend: svm, llvm_to_spirv_backend: llvm }
+          - { os: windows-2022, arch: x64, version: '1.12', pocl: next, memory_backend: buffer, llvm_to_spirv_backend: llvm }
           # upstream PoCL HEAD, built from source
-          - { os: ubuntu-24.04, arch: x64, version: '1.12', pocl: local, memory_backend: usm }
+          - { os: ubuntu-24.04, arch: x64, version: '1.12', pocl: local, memory_backend: usm, llvm_to_spirv_backend: llvm }
+          # khronos backend for LLVM -> SPIRV translation
+          - { os: ubuntu-24.04, arch: x64, version: '1.12', pocl: jll, memory_backend: usm, llvm_to_spirv_backend: khronos }
     steps:
       - name: Checkout OpenCL.jl
         uses: actions/checkout@v7
@@ -134,6 +136,7 @@ jobs:
         run: |
           echo '[OpenCL]' >> test/LocalPreferences.toml
           echo 'default_memory_backend="${{ matrix.memory_backend }}"' >> test/LocalPreferences.toml
+          echo 'llvm_to_spirv_backend="${{ matrix.llvm_to_spirv_backend }}"' >> test/LocalPreferences.toml
           julia --project -e '
             using Pkg
             # Julia 1.10 does not support [sources], so dev the in-tree
@@ -162,7 +165,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: compilation-dumps-${{ matrix.version }}-${{ matrix.os }}-${{ matrix.arch }}-${{ matrix.memory_backend }}-pocl-${{ matrix.pocl }}
+          name: compilation-dumps-${{ matrix.version }}-${{ matrix.os }}-${{ matrix.arch }}-${{ matrix.memory_backend }}-pocl-${{ matrix.pocl }}-${{ matrix.llvm_to_spirv_backend }}
           path: ${{ runner.temp }}/opencl-compilation-dumps/
           if-no-files-found: ignore
 

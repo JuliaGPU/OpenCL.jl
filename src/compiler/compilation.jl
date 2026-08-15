@@ -209,7 +209,8 @@ const SPIRV_VERSION = v"1.4"
 
     # create GPUCompiler objects
     target = SPIRVCompilerTarget(; version=SPIRV_VERSION, supports_fp16, supports_fp64,
-                                   validate=true, extensions=spirv_ext, kwargs...)
+                                   validate=true, extensions=spirv_ext, backend=llvm_to_spirv_backend,
+                                   kwargs...)
     params = OpenCLCompilerParams(; sub_group_size, features, program_backend=backend)
     CompilerConfig(target, params; kernel, name, always_inline)
 end
@@ -238,6 +239,26 @@ function run_and_collect(cmd)
     log = strip(fetch(reader))
 
     return proc, log
+end
+
+"""
+    OpenCL.llvm_to_spirv_backend :: Symbol
+
+The backend used to compile LLVM IR to SPIRV (`:llvm` (default), or `:khronos`). This is a
+load-time preference, as compiler configurations are cached across compilations:
+
+```julia
+using OpenCL, Preferences
+set_preferences!(OpenCL, "llvm_to_spirv_backend" => "khronos")
+```
+
+Changing it requires restarting Julia. The `:khronos` backend additionally requires
+`SPIRV_LLVM_Translator_jll` (or `SPIRV_LLVM_Translator_unified_jll`) to be loaded.
+"""
+const llvm_to_spirv_backend = let backend = @load_preference("llvm_to_spirv_backend", "llvm")
+    backend in ("llvm", "khronos") ||
+        error("Invalid LLVM to SPIRV backend '$backend' requested (expected \"llvm\" or \"khronos\")")
+    Symbol(backend)
 end
 
 # How kernels are fed to the driver:

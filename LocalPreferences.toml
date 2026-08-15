@@ -5,3 +5,9 @@
 # - "svm": Shared Virtual Memory (requiring coarse-grained SVM support)
 # If unspecified, the default will be used based on the platform and device capabilities.
 #default_memory_backend="..."
+
+# Which back-end to use for translating LLVM IR to SPIR-V. This can be:
+# - "llvm": LLVM's SPIR-V back-end (the default)
+# - "khronos": the Khronos SPIRV-LLVM-Translator, which additionally requires
+#   `SPIRV_LLVM_Translator_jll` (or `SPIRV_LLVM_Translator_unified_jll`) to be loaded
+#llvm_to_spirv_backend="llvm"
