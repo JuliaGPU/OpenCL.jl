@@ -44,16 +44,18 @@ function versioninfo(io::IO=stdout)
     println(io)
 
     println(io, "Julia packages:")
-    for name in [:GPUArrays, :GPUCompiler, :KernelAbstractions, :LLVM, :SPIRVIntrinsics]
-        mod = getfield(OpenCL, name)
-        println(io, "- $(name): $(pkgversion(mod))")
+
+    get_module(name::Symbol) = (name, getfield(OpenCL, name))
+    function get_module(pkg::Tuple{String, String})
+        id = Base.PkgId(Base.UUID(pkg[1]), pkg[2])
+        (pkg[2], get(Base.loaded_modules, id, nothing))
     end
-    # Display pocl_jll / pocl_next_jll if present
-    for (uuid, name) in [("627d6b7a-bbe6-5189-83e7-98cc0a5aeadd", "pocl_jll"),
-                         ("59abdad9-3cfc-5436-8271-411e8cad6b82", "pocl_next_jll")]
-        pocl_id = Base.PkgId(Base.UUID(uuid), name)
-        pocl_mod = get(Base.loaded_modules, pocl_id, nothing)
-        isnothing(pocl_mod) || println(io, "- $name: $(pkgversion(pocl_mod))")
+
+    for pkg in [:GPUArrays, :GPUCompiler, ("63c18a36-062a-441e-b654-da1e3ab1ce7c", "KernelAbstractions"),
+                 :LLVM, :SPIRVIntrinsics, ("627d6b7a-bbe6-5189-83e7-98cc0a5aeadd", "pocl_jll"),
+                 ("59abdad9-3cfc-5436-8271-411e8cad6b82", "pocl_next_jll")]
+        name, mod = get_module(pkg)
+        isnothing(mod) || println(io, "- $(name): $(Base.pkgversion(mod))")
     end
     println(io)
 
