@@ -31,6 +31,7 @@ pocl_next_jll = "59abdad9-3cfc-5436-8271-411e8cad6b82"
 
 [sources]
 KernelAbstractions = {rev = "main", url = "https://github.com/JuliaGPU/KernelAbstractions.jl"}
+KernelInterface = {rev = "main", subdir = "lib/KernelInterface", url = "https://github.com/JuliaGPU/KernelAbstractions.jl"}
 OpenCL = {path = ".."}
 SPIRVIntrinsics = {path = "../lib/intrinsics"}
 
