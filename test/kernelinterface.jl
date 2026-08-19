@@ -1,6 +1,6 @@
 import KernelInterface
-using OpenCL.OpenCLInterface
+using OpenCL
 
 include(joinpath(dirname(pathof(KernelInterface)), "..", "test", "testsuite.jl"))
 
-Testsuite.testsuite(OpenCLInterface.OpenCLBackend, "OpenCL", OpenCL, CLArray, OpenCL.CLDeviceArray)
+Testsuite.testsuite(OpenCLBackend, "OpenCL", OpenCL, CLArray, OpenCL.CLDeviceArray)

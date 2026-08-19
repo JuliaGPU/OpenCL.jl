@@ -1,7 +1,7 @@
-module OpenCLKernels
+module KernelAbstractionsExt
 
-using ..OpenCL
-using ..OpenCL: @device_override, method_table
+using OpenCL
+using OpenCL: @device_override, method_table
 
 import KernelAbstractions as KA
 
@@ -9,48 +9,7 @@ import StaticArrays
 
 import Adapt
 
-
-## Back-end Definition
-
-export OpenCLBackend
-
-struct OpenCLBackend <: KA.GPU
-end
-
-function KA.allocate(::OpenCLBackend, ::Type{T}, dims::Tuple; unified::Bool = false) where T
-    if unified
-        memory_backend = cl.unified_memory_backend()
-        if memory_backend === cl.USMBackend()
-            return CLArray{T, length(dims), cl.UnifiedSharedMemory}(undef, dims)
-        elseif memory_backend === cl.SVMBackend()
-            return CLArray{T, length(dims), cl.SharedVirtualMemory}(undef, dims)
-        else
-            throw(ArgumentError("Unified memory not supported"))
-        end
-    else
-        return CLArray{T}(undef, dims)
-    end
-end
-
-KA.supports_unified(::OpenCLBackend) = cl.default_memory_backend(cl.device(); unified=true) !== nothing
-
-KA.get_backend(::CLArray) = OpenCLBackend()
-# TODO should be non-blocking
-KA.synchronize(::OpenCLBackend) = cl.finish(cl.queue())
-KA.supports_float64(::OpenCLBackend) = in("cl_khr_fp64", cl.device().extensions)
-
-Adapt.adapt_storage(::OpenCLBackend, a::Array) = Adapt.adapt(CLArray, a)
-Adapt.adapt_storage(::OpenCLBackend, a::CLArray) = a
 Adapt.adapt_storage(::KA.CPU, a::CLArray) = convert(Array, a)
-
-
-## Memory Operations
-
-function KA.copyto!(::OpenCLBackend, A, B)
-    copyto!(A, B)
-    # TODO: Address device to host copies in jl being synchronizing
-end
-
 
 ## Kernel Launch
 
@@ -126,35 +85,6 @@ function (obj::KA.Kernel{OpenCLBackend})(args...; ndrange=nothing, workgroupsize
     return nothing
 end
 
-
-## Indexing Functions
-
-@device_override @inline function KA.__index_Local_Linear(ctx)
-    return get_local_id(1)
-end
-
-@device_override @inline function KA.__index_Group_Linear(ctx)
-    return get_group_id(1)
-end
-
-@device_override @inline function KA.__index_Global_Linear(ctx)
-    #return get_global_id(1)    # JuliaGPU/OpenCL.jl#346
-    I = KA.__index_Global_Cartesian(ctx)
-    @inbounds LinearIndices(KA.__ndrange(ctx))[I]
-end
-
-@device_override @inline function KA.__index_Local_Cartesian(ctx)
-    @inbounds KA.workitems(KA.__iterspace(ctx))[get_local_id(1)]
-end
-
-@device_override @inline function KA.__index_Group_Cartesian(ctx)
-    @inbounds KA.blocks(KA.__iterspace(ctx))[get_group_id(1)]
-end
-
-@device_override @inline function KA.__index_Global_Cartesian(ctx)
-    return @inbounds KA.expand(KA.__iterspace(ctx), get_group_id(1), get_local_id(1))
-end
-
 @device_override @inline function KA.__validindex(ctx)
     if KA.__dynamic_checkbounds(ctx)
         I = KA.__index_Global_Cartesian(ctx)
@@ -164,31 +94,9 @@ end
     end
 end
 
-
-## Shared and Scratch Memory
-
-@device_override @inline function KA.SharedMemory(::Type{T}, ::Val{Dims}, ::Val{Id}) where {T, Dims, Id}
-    ptr = OpenCL.emit_localmemory(T, Val(prod(Dims)))
-    CLDeviceArray(Dims, ptr)
-end
-
 @device_override @inline function KA.Scratchpad(ctx, ::Type{T}, ::Val{Dims}) where {T, Dims}
     StaticArrays.MArray{KA.__size(Dims), T}(undef)
 end
-
-
-## Synchronization and Printing
-
-@device_override @inline function KA.__synchronize()
-    work_group_barrier(OpenCL.LOCAL_MEM_FENCE | OpenCL.GLOBAL_MEM_FENCE)
-end
-
-@device_override @inline function KA.__print(args...)
-    OpenCL._print(args...)
-end
-
-
-## Other
 
 KA.argconvert(::KA.Kernel{OpenCLBackend}, arg) = OpenCL.kernel_convert(arg)
 

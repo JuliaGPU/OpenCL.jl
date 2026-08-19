@@ -9,7 +9,6 @@ projects = ["lib/intrinsics", "test", "docs", "res"]
 Adapt = "79e6a3ab-5dfb-504d-930d-738a2a938a0e"
 GPUArrays = "0c68f7d7-f131-5f86-a1c3-88cf8149b2d7"
 GPUCompiler = "61eb1bfa-7361-4325-ad38-22787b887f55"
-KernelAbstractions = "63c18a36-062a-441e-b654-da1e3ab1ce7c"
 KernelInterface = "4ee993da-d684-4d17-a7dd-4e58e78d92bf"
 LLVM = "929cbde3-209d-540e-8aea-75f648917ca0"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
@@ -26,14 +25,20 @@ SPIRV_Tools_jll = "6ac6d60f-d740-5983-97d7-a4482c0689f4"
 StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 spirv2clc_jll = "f0274c0c-8c8a-59f1-85b7-f7d60330c5fb"
 
+[weakdeps]
+KernelAbstractions = "63c18a36-062a-441e-b654-da1e3ab1ce7c"
+
 [sources]
 SPIRVIntrinsics = {path = "lib/intrinsics"}
+
+[extensions]
+KernelAbstractionsExt = "KernelAbstractions"
 
 [compat]
 Adapt = "4"
 GPUArrays = "11.2.1"
 GPUCompiler = "2"
-KernelAbstractions = "0.9.38"
+KernelAbstractions = "0.10"
 KernelInterface = "0.1"
 LLVM = "9.6"
 LinearAlgebra = "1"
