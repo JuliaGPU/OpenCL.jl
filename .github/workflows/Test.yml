@@ -142,7 +142,11 @@ jobs:
             using Pkg
             # Julia 1.10 does not support [sources], so dev the in-tree
             # SPIRVIntrinsics; Pkg.test then carries it into the test sandbox.
-            Pkg.develop(path="lib/intrinsics")'
+            Pkg.develop(path="lib/intrinsics")
+            Pkg.develop("KernelAbstractions")
+            # Pkg < 1.12 drops a developed weak dependency from the project, breaking the
+            # extension; restore the project, keeping the developed package in the manifest.
+            VERSION < v"1.12" && run(`git checkout Project.toml`)'
 
       - name: Test OpenCL.jl
         uses: julia-actions/julia-runtest@v1
