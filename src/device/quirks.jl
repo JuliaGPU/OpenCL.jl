@@ -10,6 +10,10 @@ end
     @print_and_throw "This operation requires a complex input to return a complex result"
 @device_override @noinline Base.Math.throw_exp_domainerror(x) =
     @print_and_throw "Exponentiation yielding a complex result requires a complex argument"
+@static if isdefined(Base.Math, :throw_finite_domainerror)
+    @device_override @noinline Base.Math.throw_finite_domainerror(f::Symbol, x) =
+        @print_and_throw f "(x) is only defined for finite x."
+end
 
 # intfuncs.jl
 @device_override @noinline Base.throw_domerr_powbysq(::Any, p) =
@@ -34,8 +38,10 @@ end
     @print_and_throw "Out-of-bounds array access"
 
 # trig.jl
-@device_override @noinline Base.Math.sincos_domain_error(x) =
-    @print_and_throw "sincos(x) is only defined for finite x."
+@static if isdefined(Base.Math, :sincos_domain_error)
+    @device_override @noinline Base.Math.sincos_domain_error(x) =
+        @print_and_throw "sincos(x) is only defined for finite x."
+end
 
 # diagonal.jl
 # XXX: remove when we have malloc
