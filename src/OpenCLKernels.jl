@@ -1,4 +1,4 @@
-module OpenCLInterface
+module OpenCLKernels
 
 using ..OpenCL
 using ..OpenCL: @device_override, method_table, kernel_convert, clfunction
@@ -14,7 +14,7 @@ import Adapt
 
 ## Back-end Definition
 
-# export OpenCLBackend
+export OpenCLBackend
 
 struct OpenCLBackend <: KI.GPU
 end
