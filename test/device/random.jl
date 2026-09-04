@@ -156,3 +156,27 @@ end
         @test Array(a) == Array(b)
     end
 end
+
+# Cover both OpenCL's device RNG and GPUArrays' `ElementRNG` path for `Complex{Float16}`.
+if Float16 in GPUArraysTestSuite.supported_eltypes(CLArray)
+    @testset "randn(Float16) is finite" begin
+        function kernel(A)
+            Random.seed!(1)
+            tid = get_global_id(1)
+            A[tid] = randn(Float16)
+            return
+        end
+        len = 2^20
+        a = OpenCL.zeros(Float16, len)
+        @opencl global_size=len local_size=256 kernel(a)
+        @test all(isfinite, Array(a))
+    end
+
+    @testset "randn!(Complex{Float16}) is finite" begin
+        rng = OpenCL.GPUArrays.default_rng(CLArray)
+        Random.seed!(rng, 1)
+        A = CLArray{Complex{Float16}}(undef, 4096)
+        randn!(rng, A)
+        @test all(isfinite, Array(A))
+    end
+end
