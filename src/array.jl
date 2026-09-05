@@ -430,6 +430,9 @@ for (srcty, dstty) in [(:Array, :CLArray), (:CLArray, :Array), (:CLArray, :CLArr
                         end
                     end
                 end
+                # a blocking copy completes the kernels queued before it, so surface any
+                # exception they threw rather than returning their garbage
+                blocking && cl.finish(cl.queue())
             end
         end
         Base.unsafe_copyto!(dst::$dstty, src::$srcty, N; kwargs...) =

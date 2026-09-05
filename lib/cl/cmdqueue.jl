@@ -60,8 +60,11 @@ function flush(q::CmdQueue)
     return q
 end
 
-function finish(q::CmdQueue)
-    clFinish(q)
+# `check_exceptions` surfaces device-side exceptions thrown by kernels that ran on the
+# queue; disable it where throwing is not an option (e.g. finalizers), in which case the
+# exception remains pending until the next check.
+function finish(q::CmdQueue; check_exceptions::Bool=true)
+    OpenCL.check_exceptions(q; rethrow=check_exceptions)
     return q
 end
 

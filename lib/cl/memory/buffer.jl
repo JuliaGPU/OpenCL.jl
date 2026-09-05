@@ -130,7 +130,8 @@ enqueue_copy(dst::Buffer, src::Buffer, N; kwargs...) =
 
 # map a buffer into the host address space, returning a pointer and an event
 function enqueue_map(buf::Buffer, offset::Integer, nbytes::Int, flags=:rw;
-                     blocking::Bool=false, wait_for::Vector{Event}=Event[])
+                     queue::CmdQueue=queue(), blocking::Bool=false,
+                     wait_for::Vector{Event}=Event[])
     flags = if flags == :rw
         CL_MAP_READ | CL_MAP_WRITE
     elseif flags == :r
@@ -146,7 +147,7 @@ function enqueue_map(buf::Buffer, offset::Integer, nbytes::Int, flags=:rw;
     evt_ids = isempty(wait_for) ? C_NULL : [pointer(evt) for evt in wait_for]
     GC.@preserve wait_for begin
         status  = Ref{Cint}()
-        ptr = clEnqueueMapBuffer(queue(), buf, blocking, flags, offset, nbytes,
+        ptr = clEnqueueMapBuffer(queue, buf, blocking, flags, offset, nbytes,
                                  n_evts, evt_ids, ret_evt, status)
         if status[] != CL_SUCCESS
             throw(CLError(status[]))
@@ -159,12 +160,13 @@ enqueue_map(buf::Buffer, nbytes::Int, flags=:rw; kwargs...) =
     enqueue_map(buf, 0, nbytes, flags; kwargs...)
 
 # unmap a buffer, return an event
-function enqueue_unmap(buf::Buffer, ptr::Ptr; wait_for::Vector{Event}=Event[])
+function enqueue_unmap(buf::Buffer, ptr::Ptr; queue::CmdQueue=queue(),
+                       wait_for::Vector{Event}=Event[])
     n_evts  = length(wait_for)
     evt_ids = isempty(wait_for) ? C_NULL : [pointer(evt) for evt in wait_for]
     GC.@preserve wait_for begin
         ret_evt = Ref{cl_event}()
-        clEnqueueUnmapMemObject(queue(), buf, ptr, n_evts, evt_ids, ret_evt)
+        clEnqueueUnmapMemObject(queue, buf, ptr, n_evts, evt_ids, ret_evt)
         return Event(ret_evt[])
     end
 end

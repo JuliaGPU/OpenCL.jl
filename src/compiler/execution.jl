@@ -4,9 +4,30 @@ export @opencl, clfunction
 ## high-level @opencl interface
 
 const MACRO_KWARGS = [:launch]
-const COMPILER_KWARGS = [:kernel, :name, :always_inline, :extensions, :backend, :validate, :sub_group_size]
+const COMPILER_KWARGS = [:kernel, :name, :always_inline, :debug_level, :extensions, :backend, :validate, :sub_group_size]
 const LAUNCH_KWARGS = [:global_size, :local_size, :queue]
 
+"""
+    @opencl [kwargs...] func(args...)
+
+High-level interface for executing code on an OpenCL device.
+
+The `@opencl` macro should prefix a call, with `func` a callable function or object that
+should return nothing. It will be compiled to an OpenCL kernel upon first use, and to a
+certain extent arguments will be converted and managed automatically using
+`kernel_convert`. Finally, the kernel is launched on the current queue.
+
+There are a few keyword arguments that influence the behavior of `@opencl`:
+
+- `launch`: whether to launch this kernel, defaults to `true`. If `false`, the returned
+  kernel object should be launched by calling it and passing arguments again.
+- `name`: the name of the kernel in the generated code. Defaults to an automatically-
+  generated name.
+- `debug_level`: how much a device-side exception reports, from `0` (only that one was
+  thrown) to `2` (its type, reason, position and backtrace). Defaults to the session's
+  `-g` level; see [`KernelException`](@ref).
+- `global_size`, `local_size`: the launch configuration, as in OpenCL.
+"""
 macro opencl(ex...)
     call = ex[end]
     kwargs = map(ex[1:end-1]) do kwarg
@@ -166,9 +187,6 @@ pass_arg(@nospecialize dt) = !(isghosttype(dt) || Core.Compiler.isconstType(dt))
         end
     end
 
-    pushfirst!(call_t, KernelState)
-    pushfirst!(call_args, :(KernelState(kernel.rng_state ? Base.rand(UInt32) : UInt32(0))))
-
     # convert arguments before locking (conversion is pure, and collects the managed
     # allocations to lock), then perform the launch transaction: with all participating
     # allocations locked in stable order, migrate their queue ownership and enqueue the
@@ -186,8 +204,9 @@ pass_arg(@nospecialize dt) = !(isghosttype(dt) || Core.Compiler.isconstType(dt))
             locked = lock_managed(managed)
             try
                 foreach(take_ownership!, locked)
-                cl.call(kernel.fun, $(converted...);
-                        indirect_memory, kernel.rng_state, call_kwargs...)
+                launch_with_exception_mailbox(kernel.fun, $(converted...);
+                                              indirect_memory, rng_state=kernel.rng_state,
+                                              call_kwargs...)
             finally
                 unlock_managed(locked)
             end
