@@ -55,9 +55,9 @@ function with_managed_locks(f::F, managed::AbstractVector{<:Managed}) where {F}
 end
 
 # wait for the current owner of memory to finish processing
-function synchronize(managed::Managed)
+function synchronize(managed::Managed; check_exceptions::Bool=true)
     return Base.@lock managed.lock begin
-        cl.finish(managed.queue)
+        cl.finish(managed.queue; check_exceptions)
         managed.dirty = false
         nothing
     end
@@ -225,7 +225,8 @@ function free(managed::Managed)
         # before freeing svm_pointer". USM has `clMemBlockingFreeINTEL`, but by doing the
         # synchronization ourselves we provide more opportunity for concurrent execution.
         if managed.queue.valid
-            synchronize(managed)
+            # this may run from a finalizer, where a device-side exception cannot be thrown
+            synchronize(managed; check_exceptions=false)
         end
 
         if mem isa cl.SharedVirtualMemory
@@ -233,7 +234,7 @@ function free(managed::Managed)
                 # Finalizers must not query or mutate task-local state, so use the queue owned by
                 # the allocation. Finish the unmap before releasing the SVM allocation.
                 cl.enqueue_svm_unmap(pointer(mem); queue=managed.queue)
-                cl.finish(managed.queue)
+                cl.finish(managed.queue; check_exceptions=false)
             end
             cl.svm_free(mem)
         elseif mem isa cl.UnifiedMemory

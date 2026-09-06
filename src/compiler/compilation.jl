@@ -172,6 +172,7 @@ end
 const SPIRV_VERSION = v"1.4"
 
 @noinline function _compiler_config(dev, backend; kernel=true, name=nothing, always_inline=false,
+                                     debug_level=Base.JLOptions().debug_level,
                                      sub_group_size::Union{Nothing,Int}=_sub_group_size(dev),
                                      extensions::Union{Nothing,AbstractVector{<:AbstractString}}=nothing,
                                      kwargs...)
@@ -212,7 +213,7 @@ const SPIRV_VERSION = v"1.4"
                                    validate=true, extensions=spirv_ext, backend=llvm_to_spirv_backend,
                                    kwargs...)
     params = OpenCLCompilerParams(; sub_group_size, features, program_backend=backend)
-    CompilerConfig(target, params; kernel, name, always_inline)
+    CompilerConfig(target, params; kernel, name, always_inline, debug_level)
 end
 
 # run inference + LLVM codegen + SPIR-V emission. returns `(obj, entry, device_rng)`,
