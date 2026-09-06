@@ -6,6 +6,7 @@ version = "0.10.11"
 projects = ["lib/intrinsics", "test", "docs", "res"]
 
 [deps]
+AcceleratedKernels = "6a4ca0a5-0e36-4168-a932-d9be78d558f1"
 Adapt = "79e6a3ab-5dfb-504d-930d-738a2a938a0e"
 GPUArrays = "0c68f7d7-f131-5f86-a1c3-88cf8149b2d7"
 GPUCompiler = "61eb1bfa-7361-4325-ad38-22787b887f55"
@@ -29,6 +30,7 @@ spirv2clc_jll = "f0274c0c-8c8a-59f1-85b7-f7d60330c5fb"
 SPIRVIntrinsics = {path = "lib/intrinsics"}
 
 [compat]
+AcceleratedKernels = "0.3.1, 0.4"
 Adapt = "4"
 GPUArrays = "11.2.1"
 GPUCompiler = "2.5.2"
