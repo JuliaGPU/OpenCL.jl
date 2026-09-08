@@ -37,6 +37,9 @@ steps:
           julia --project -e '
             using Pkg
 
+            pkgctx = Pkg.API.Context();
+            println(pkgctx.env.project.name)
+
             println("--- :julia: Instantiating project")
             # Julia 1.10 does not support [sources], so dev the in-tree
             # SPIRVIntrinsics first; otherwise the Pkg.add below resolves
