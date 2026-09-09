@@ -29,6 +29,7 @@ pocl_jll = "627d6b7a-bbe6-5189-83e7-98cc0a5aeadd"
 pocl_next_jll = "59abdad9-3cfc-5436-8271-411e8cad6b82"
 
 [sources]
+GPUCompiler = {url = "https://github.com/JuliaGPU/GPUCompiler.jl", rev = "tb/jll-libraries"}
 OpenCL = {path = ".."}
 SPIRVIntrinsics = {path = "../lib/intrinsics"}
 
