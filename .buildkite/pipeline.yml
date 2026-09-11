@@ -13,6 +13,7 @@ steps:
         # Julia 1.10 does not support [sources], so dev the in-tree
         # SPIRVIntrinsics; Pkg.test then carries it into the test sandbox.
         Pkg.develop(path="lib/intrinsics")
+        Pkg.develop("KernelAbstractions")
 
         println("+++ :julia: Running tests")
         Pkg.test(; coverage=true, test_args=`--platform=cuda`)'
@@ -36,12 +37,16 @@ steps:
           julia --project -e '
             using Pkg
 
+            pkgctx = Pkg.API.Context();
+            println(pkgctx.env.project.name)
+
             println("--- :julia: Instantiating project")
             # Julia 1.10 does not support [sources], so dev the in-tree
             # SPIRVIntrinsics first; otherwise the Pkg.add below resolves
             # against the registry, which has no SPIRVIntrinsics 1. Pkg.test
             # then carries the in-tree copy into the test sandbox.
             Pkg.develop(path="lib/intrinsics")
+            Pkg.develop("KernelAbstractions")
             Pkg.add("{{matrix.pocl}}_jll")
             Pkg.add("InteractiveUtils")
 
