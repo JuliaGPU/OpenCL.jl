@@ -47,6 +47,43 @@ Adapt.adapt_storage(::OpenCLBackend, a::Array) = Adapt.adapt(CLArray, a)
 Adapt.adapt_storage(::OpenCLBackend, a::CLArray) = a
 # Adapt.adapt_storage(::KI.CPU, a::CLArray) = convert(Array, a)
 
+## Device Selection
+
+# devices are numbered consecutively across all platforms, in enumeration order
+
+function KI.ndevices(::OpenCLBackend)
+    n = 0
+    for p in cl.platforms()
+        n += length(cl.devices(p))
+    end
+    return n
+end
+
+function KI.device(::OpenCLBackend)
+    current = cl.device()
+    i = 0
+    for p in cl.platforms()
+        for d in cl.devices(p)
+            i += 1
+            d == current && return i
+        end
+    end
+    error("Active OpenCL device $current not found among the available platforms.")
+end
+
+function KI.device!(::OpenCLBackend, id::Int)
+    i = 0
+    for p in cl.platforms()
+        for d in cl.devices(p)
+            i += 1
+            if i == id
+                cl.device!(d)
+                return nothing
+            end
+        end
+    end
+    throw(ArgumentError("Device id $id out of bounds."))
+end
 
 ## Memory Operations
 
