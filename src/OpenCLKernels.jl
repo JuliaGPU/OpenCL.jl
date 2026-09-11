@@ -15,6 +15,12 @@ import Adapt
 export OpenCLBackend
 
 struct OpenCLBackend <: KA.GPU
+    platform::cl.Platform
+
+    function OpenCLBackend(; platform=cl.platform())
+        cl.platform!(platform)
+        new(platform)
+    end
 end
 
 function KA.allocate(::OpenCLBackend, ::Type{T}, dims::Tuple; unified::Bool = false) where T
@@ -48,6 +54,31 @@ Adapt.adapt_storage(::KA.CPU, a::CLArray) = convert(Array, a)
 # rather than for `CLArray`.
 Adapt.adapt_storage(::KA.ConstAdaptor, a::CLDeviceArray) = Base.Experimental.Const(a)
 
+## Device Selection
+
+# devices are numbered consecutively across all platforms, in enumeration order
+
+function KA.ndevices(b::OpenCLBackend)
+    length(cl.devices(b.platform))
+end
+
+function KA.device(b::OpenCLBackend)
+    current = cl.device()
+    i = 0
+    for d in cl.devices(b.platform)
+        i += 1
+        d == current && return i
+    end
+    error("Active OpenCL device $current not found in the current OpenCL platform \"$(b.platform.name)\".")
+end
+
+function KA.device!(b::OpenCLBackend, id::Int)
+    devs = cl.devices(b.platform)
+    id > length(devs) && throw(ArgumentError("Device id $id out of bounds."))
+
+    cl.device!(devs[id])
+    return nothing
+end
 
 ## Memory Operations
 
