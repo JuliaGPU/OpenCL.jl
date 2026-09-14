@@ -269,7 +269,9 @@ end
 # `obj === nothing` identifies an `OpenCLResults` that hasn't been compiled yet. The
 # `compile_hook` check additionally forces the compile path so reflection-style
 # consumers (`@device_code_*`) observe the compilation even on a cache hit.
-function compile_or_lookup(@nospecialize(job::CompilerJob))::OpenCLResults
+# Specialize on the target/parameter types so callers can avoid boxing CompilerJob.
+# Keep the body out of callers that specialize per kernel.
+@noinline function compile_or_lookup(job::CompilerJob)::OpenCLResults
     res = GPUCompiler.cached_results(OpenCLResults, job)
     if res === nothing || res.obj === nothing || GPUCompiler.compile_hook[] !== nothing
         compiled = compile_to_obj(job)
