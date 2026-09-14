@@ -95,3 +95,21 @@ end
 
     @test cl.svm_capabilities(cl.device()).fine_grain_buffer isa Bool
 end
+
+@testset "UUID" begin
+    device = cl.device()
+    if cl.device_uuid_supported(device)
+        @test cl.uuid(device) isa Base.UUID
+        @test cl.uuid(device) == cl.uuid(device)
+        @test cl.driver_uuid(device) isa Base.UUID
+
+        # all devices on the platform should have distinct UUIDs
+        devices = cl.devices(cl.platform())
+        if all(cl.device_uuid_supported, devices)
+            @test allunique(cl.uuid.(devices))
+        end
+    else
+        @test cl.uuid(device) === missing
+        @test cl.driver_uuid(device) === missing
+    end
+end

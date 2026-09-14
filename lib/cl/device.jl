@@ -288,6 +288,43 @@ end
 
 bda_supported(d::Device) = "cl_ext_buffer_device_address" in d.extensions
 
+"""
+    device_uuid_supported(d::Device)
+
+Whether the device supports the `cl_khr_device_uuid` extension, making [`uuid`](@ref) and
+[`driver_uuid`](@ref) available.
+"""
+device_uuid_supported(d::Device) = "cl_khr_device_uuid" in d.extensions
+
+"""
+    uuid(d::Device)
+
+Return the universally unique identifier of the device as a `Base.UUID`, or `missing` if
+the device does not support the `cl_khr_device_uuid` extension.
+"""
+function uuid(d::Device)
+    device_uuid_supported(d) || return missing
+
+    bytes = Vector{UInt8}(undef, CL_UUID_SIZE_KHR)
+    clGetDeviceInfo(d, CL_DEVICE_UUID_KHR, sizeof(bytes), bytes, C_NULL)
+    return Base.UUID(ntoh(only(reinterpret(UInt128, bytes))))
+end
+
+"""
+    driver_uuid(d::Device)
+
+Return the universally unique identifier of the driver backing the device as a
+`Base.UUID`, or `missing` if the device does not support the `cl_khr_device_uuid`
+extension. Devices using the same driver report the same driver UUID.
+"""
+function driver_uuid(d::Device)
+    device_uuid_supported(d) || return missing
+
+    bytes = Vector{UInt8}(undef, CL_UUID_SIZE_KHR)
+    clGetDeviceInfo(d, CL_DRIVER_UUID_KHR, sizeof(bytes), bytes, C_NULL)
+    return Base.UUID(ntoh(only(reinterpret(UInt128, bytes))))
+end
+
 function cl_device_type(dtype::Symbol)
     if dtype == :all
         cl_dtype = CL_DEVICE_TYPE_ALL
