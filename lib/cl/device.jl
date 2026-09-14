@@ -174,6 +174,25 @@ end
     return getfield(d, s)
 end
 
+function Base.propertynames(::Device, private::Bool=false)
+    props = (
+        # string properties
+        :profile, :version, :opencl_version, :driver_version, :name,
+        # scalar values
+        :vendor_id, :max_compute_units, :max_work_item_dims, :max_clock_frequency,
+        :address_bits, :max_read_image_args, :max_write_image_args, :global_mem_size,
+        :max_mem_alloc_size, :max_const_buffer_size, :local_mem_size,
+        :max_work_group_size, :max_parameter_size, :profiling_timer_resolution,
+        # boolean properties
+        :has_image_support, :has_local_mem, :host_unified_memory, :available,
+        :compiler_available,
+        # other
+        :extensions, :platform, :device_type, :max_work_item_size, :sub_group_sizes,
+        :max_image2d_shape, :max_image3d_shape,
+    )
+    return private ? (fieldnames(Device)..., props...) : props
+end
+
 function queue_properties(d::Device, type=:host)
     result = Ref{cl_command_queue_properties}()
     if type === :host

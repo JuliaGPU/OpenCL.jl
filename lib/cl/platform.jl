@@ -49,6 +49,11 @@ function Base.getproperty(p::Platform, s::Symbol)
     return getfield(p, s)
 end
 
+function Base.propertynames(::Platform, private::Bool=false)
+    props = (:profile, :version, :opencl_version, :name, :vendor, :extensions)
+    return private ? (fieldnames(Platform)..., props...) : props
+end
+
 function Base.show(io::IO, p::Platform)
     strip_extra_whitespace = r"\s+"
     platform_name = replace(p.name, strip_extra_whitespace => " ")
