@@ -112,4 +112,18 @@ end
         @test cl.uuid(device) === missing
         @test cl.driver_uuid(device) === missing
     end
+
+    if cl.pci_bus_info_supported(device)
+        info = cl.pci_bus_info(device)
+        @test info.domain isa UInt32 && info.bus isa UInt32 &&
+              info.device isa UInt32 && info.func isa UInt32
+    else
+        @test cl.pci_bus_info(device) === missing
+    end
+
+    # device enumeration is sorted by PCI address, UUID, then name and vendor
+    devices = cl.devices(cl.platform())
+    sort_key(d) = (cl.pci_bus_info(d), cl.uuid(d), d.name, d.vendor_id)
+    @test issorted(devices; by = sort_key)
+    @test devices == cl.devices(cl.platform())
 end

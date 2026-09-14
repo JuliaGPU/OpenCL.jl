@@ -325,6 +325,29 @@ function driver_uuid(d::Device)
     return Base.UUID(ntoh(only(reinterpret(UInt128, bytes))))
 end
 
+"""
+    pci_bus_info_supported(d::Device)
+
+Whether the device supports the `cl_khr_pci_bus_info` extension, making
+[`pci_bus_info`](@ref) available.
+"""
+pci_bus_info_supported(d::Device) = "cl_khr_pci_bus_info" in d.extensions
+
+"""
+    pci_bus_info(d::Device)
+
+Return the PCI address of the device as a named tuple `(; domain, bus, device, func)`, or
+`missing` if the device does not support the `cl_khr_pci_bus_info` extension.
+"""
+function pci_bus_info(d::Device)
+    pci_bus_info_supported(d) || return missing
+
+    info = Ref{cl_device_pci_bus_info_khr}()
+    clGetDeviceInfo(d, CL_DEVICE_PCI_BUS_INFO_KHR, sizeof(cl_device_pci_bus_info_khr), info, C_NULL)
+    return (; domain = info[].pci_domain, bus = info[].pci_bus,
+              device = info[].pci_device, func = info[].pci_function)
+end
+
 function cl_device_type(dtype::Symbol)
     if dtype == :all
         cl_dtype = CL_DEVICE_TYPE_ALL
