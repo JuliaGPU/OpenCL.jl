@@ -72,7 +72,7 @@ end
 
 function KA.device!(b::OpenCLBackend, id::Int)
     devs = cl.devices(b.platform)
-    0 < id < length(devs) || throw(ArgumentError("Device id $id out of bounds."))
+    0 < id <= length(devs) || throw(ArgumentError("Device id $id out of bounds."))
 
     cl.device!(devs[id])
     return nothing
