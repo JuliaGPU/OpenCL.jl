@@ -67,7 +67,7 @@ function KA.device(b::OpenCLBackend)
     for (i, d) in enumerate(cl.devices(b.platform))
         d == current && return i
     end
-    error("Active OpenCL device $current not found in the current OpenCL platform \"$(b.platform.name)\".")
+    error("Active OpenCL device $current not found in the OpenCLBackend's platform \"$(b.platform.name)\".")
 end
 
 function KA.device!(b::OpenCLBackend, id::Int)
