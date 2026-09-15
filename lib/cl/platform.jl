@@ -91,7 +91,11 @@ function devices(p::Platform, dtype)
     end
     result = Vector{cl_device_id}(undef, ndevices[])
     clGetDeviceIDs(p, dtype, ndevices[], result, C_NULL)
-    return Device[Device(id) for id in result]
+    devs = Device[Device(id) for id in result]
+
+    # OpenCL does not guarantee a stable enumeration order, so sort deterministically
+    sort_key(d) = (pci_bus_info(d), uuid(d), d.name, d.vendor_id)
+    return sort!(devs; by = sort_key)
 end
 
 devices(p::Platform) = devices(p, CL_DEVICE_TYPE_ALL)
