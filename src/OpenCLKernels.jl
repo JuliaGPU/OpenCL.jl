@@ -59,7 +59,7 @@ Adapt.adapt_storage(::KA.ConstAdaptor, a::CLDeviceArray) = Base.Experimental.Con
 # devices are numbered consecutively within the backend's platform, in enumeration order
 
 function KA.ndevices(b::OpenCLBackend)
-    length(cl.devices(b.platform))
+    Int(cl.ndevices(b.platform))
 end
 
 function KA.device(b::OpenCLBackend)
@@ -71,8 +71,8 @@ function KA.device(b::OpenCLBackend)
 end
 
 function KA.device!(b::OpenCLBackend, id::Int)
+    0 < id <= KA.ndevices(b) || throw(ArgumentError("Device id $id out of bounds."))
     devs = cl.devices(b.platform)
-    0 < id <= length(devs) || throw(ArgumentError("Device id $id out of bounds."))
 
     cl.device!(devs[id])
     return nothing
