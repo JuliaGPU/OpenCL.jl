@@ -1,3 +1,6 @@
+env:
+  JULIA_NUM_THREADS: auto
+
 steps:
   - label: "CUDA"
     plugins:
