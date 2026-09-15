@@ -56,7 +56,7 @@ Adapt.adapt_storage(::KA.ConstAdaptor, a::CLDeviceArray) = Base.Experimental.Con
 
 ## Device Selection
 
-# devices are numbered consecutively across all platforms, in enumeration order
+# devices are numbered consecutively within the backend's platform, in enumeration order
 
 function KA.ndevices(b::OpenCLBackend)
     length(cl.devices(b.platform))
