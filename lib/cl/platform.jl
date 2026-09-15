@@ -81,16 +81,23 @@ function num_platforms()
     return Int(nplatforms[])
 end
 
-function devices(p::Platform, dtype)
-    ndevices = Ref{Cuint}()
-    ret = unchecked_clGetDeviceIDs(p, dtype, 0, C_NULL, ndevices)
-    if ret == CL_DEVICE_NOT_FOUND || ndevices[] == 0
-        return Device[]
+function ndevices(p::Platform, dtype=CL_DEVICE_TYPE_ALL)
+    ndevs = Ref{Cuint}()
+    ret = unchecked_clGetDeviceIDs(p, dtype, 0, C_NULL, ndevs)
+    if ret == CL_DEVICE_NOT_FOUND
+        return Cuint(0)
     elseif ret != CL_SUCCESS
         throw(CLError(ret))
     end
-    result = Vector{cl_device_id}(undef, ndevices[])
-    clGetDeviceIDs(p, dtype, ndevices[], result, C_NULL)
+
+    return ndevs[]
+end
+
+function devices(p::Platform, dtype)
+    ndevs = ndevices(p, dtype)
+    ndevs > 0 || return Device[]
+    result = Vector{cl_device_id}(undef, ndevs)
+    clGetDeviceIDs(p, dtype, ndevs, result, C_NULL)
     devs = Device[Device(id) for id in result]
 
     # OpenCL does not guarantee a stable enumeration order, so sort deterministically
