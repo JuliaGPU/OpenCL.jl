@@ -14,16 +14,17 @@ import Adapt
 
 export OpenCLBackend
 
-struct OpenCLBackend <: KA.GPU
-    platform::cl.Platform
-
-    function OpenCLBackend(; platform=cl.platform())
-        cl.platform!(platform)
-        new(platform)
-    end
+Base.@kwdef struct OpenCLBackend <: KA.GPU
+    platform::cl.Platform = cl.platform()
 end
 
-function KA.allocate(::OpenCLBackend, ::Type{T}, dims::Tuple; unified::Bool = false) where T
+function check_platform(b::OpenCLBackend)
+    b.platform === cl.platform() || @warn "OpenCLBackend platform \"$(b.platform.name)\" is not the active platform \"$(cl.platform().name)\""
+    return nothing
+end
+
+function KA.allocate(b::OpenCLBackend, ::Type{T}, dims::Tuple; unified::Bool = false) where T
+    check_platform(b)
     if unified
         memory_backend = cl.unified_memory_backend()
         if memory_backend === cl.USMBackend()
@@ -130,6 +131,8 @@ function threads_to_workgroupsize(threads, ndrange)
 end
 
 function (obj::KA.Kernel{OpenCLBackend})(args...; ndrange=nothing, workgroupsize=nothing)
+    check_platform(obj.backend)
+
     ndrange, workgroupsize, iterspace, dynamic =
         KA.launch_config(obj, ndrange, workgroupsize)
 
