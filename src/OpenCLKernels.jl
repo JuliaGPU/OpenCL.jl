@@ -18,13 +18,13 @@ Base.@kwdef struct OpenCLBackend <: KA.GPU
     platform::cl.Platform = cl.platform()
 end
 
-function check_platform(b::OpenCLBackend)
-    b.platform === cl.platform() || @warn "OpenCLBackend platform \"$(b.platform.name)\" is not the active platform \"$(cl.platform().name)\""
+@noinline function platform_mismatch_warning(expected::cl.Platform, active::cl.Platform)
+    @warn "OpenCLBackend platform \"$(expected.name)\" is not the active platform \"$(active.name)\""
     return nothing
 end
 
 function KA.allocate(b::OpenCLBackend, ::Type{T}, dims::Tuple; unified::Bool = false) where T
-    check_platform(b)
+    b.platform === cl.platform() || platform_mismatch_warning(b.platform, cl.platform())
     if unified
         memory_backend = cl.unified_memory_backend()
         if memory_backend === cl.USMBackend()
@@ -131,7 +131,7 @@ function threads_to_workgroupsize(threads, ndrange)
 end
 
 function (obj::KA.Kernel{OpenCLBackend})(args...; ndrange=nothing, workgroupsize=nothing)
-    check_platform(obj.backend)
+    obj.backend.platform === cl.platform() || platform_mismatch_warning(obj.backend.platform, cl.platform())
 
     ndrange, workgroupsize, iterspace, dynamic =
         KA.launch_config(obj, ndrange, workgroupsize)
