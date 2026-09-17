@@ -194,16 +194,7 @@ const init_code = quote
     import ..@on_device
 end
 
-# avoid handle exhaustion on Windows by running each test in a separate process (pocl/pocl#1941)
-function test_worker(_, init_worker_code)
-    if Sys.iswindows()
-        addworker(; init_worker_code)
-    else
-        nothing
-    end
-end
-
 # 8GB mac minis can struggle in some julia versions
 max_worker_rss = 2^20 * (Sys.total_memory() > 8*2^30 ? 3800 : 2200)
 
-runtests(OpenCL, args; testsuite, init_code, init_worker_code, test_worker, max_worker_rss)
+runtests(OpenCL, args; testsuite, init_code, init_worker_code, max_worker_rss)
