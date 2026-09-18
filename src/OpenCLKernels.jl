@@ -14,10 +14,17 @@ import Adapt
 
 export OpenCLBackend
 
-struct OpenCLBackend <: KA.GPU
+Base.@kwdef struct OpenCLBackend <: KA.GPU
+    platform::cl.Platform = cl.platform()
 end
 
-function KA.allocate(::OpenCLBackend, ::Type{T}, dims::Tuple; unified::Bool = false) where T
+@noinline function platform_mismatch_warning(expected::cl.Platform, active::cl.Platform)
+    @warn "OpenCLBackend platform \"$(expected.name)\" is not the active platform \"$(active.name)\""
+    return nothing
+end
+
+function KA.allocate(b::OpenCLBackend, ::Type{T}, dims::Tuple; unified::Bool = false) where T
+    b.platform === cl.platform() || platform_mismatch_warning(b.platform, cl.platform())
     if unified
         memory_backend = cl.unified_memory_backend()
         if memory_backend === cl.USMBackend()
@@ -48,6 +55,29 @@ Adapt.adapt_storage(::KA.CPU, a::CLArray) = convert(Array, a)
 # rather than for `CLArray`.
 Adapt.adapt_storage(::KA.ConstAdaptor, a::CLDeviceArray) = Base.Experimental.Const(a)
 
+## Device Selection
+
+# devices are numbered consecutively within the backend's platform, in enumeration order
+
+function KA.ndevices(b::OpenCLBackend)
+    Int(cl.ndevices(b.platform))
+end
+
+function KA.device(b::OpenCLBackend)
+    current = cl.device()
+    for (i, d) in enumerate(cl.devices(b.platform))
+        d == current && return i
+    end
+    error("Active OpenCL device $current not found in the OpenCLBackend's platform \"$(b.platform.name)\".")
+end
+
+function KA.device!(b::OpenCLBackend, id::Int)
+    0 < id <= KA.ndevices(b) || throw(ArgumentError("Device id $id out of bounds."))
+    devs = cl.devices(b.platform)
+
+    cl.device!(devs[id])
+    return nothing
+end
 
 ## Memory Operations
 
@@ -101,6 +131,8 @@ function threads_to_workgroupsize(threads, ndrange)
 end
 
 function (obj::KA.Kernel{OpenCLBackend})(args...; ndrange=nothing, workgroupsize=nothing)
+    obj.backend.platform === cl.platform() || platform_mismatch_warning(obj.backend.platform, cl.platform())
+
     ndrange, workgroupsize, iterspace, dynamic =
         KA.launch_config(obj, ndrange, workgroupsize)
 
