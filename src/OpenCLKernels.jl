@@ -191,6 +191,29 @@ end
     CLDeviceArray(Dims, ptr)
 end
 
+## Events
+
+# The queue is task-local, so a marker with an empty wait list captures every command the
+# calling task has enqueued so far, on both in-order and out-of-order queues. The queue is
+# flushed so that other queues (or the host) waiting on the marker cannot deadlock on
+# commands that were never submitted to the device.
+function KI.record_event(::OpenCLBackend)
+    ev = cl.enqueue_marker_with_wait_list(cl.AbstractEvent[])
+    cl.flush(cl.queue())
+    return ev
+end
+
+function KI.wait_event(::OpenCLBackend, ev::cl.Event)
+    if ev.context == cl.context()
+        # queues within a context can wait on each other's events without blocking the host
+        cl.enqueue_barrier_with_wait_list(cl.AbstractEvent[ev])
+    else
+        # events cannot be shared across contexts (i.e. across devices), so wait on the host
+        wait(ev)
+    end
+    return
+end
+
 ## Synchronization and Printing
 
 @device_override @inline function KI.barrier()
