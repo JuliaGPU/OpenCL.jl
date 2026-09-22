@@ -191,14 +191,16 @@ end
 # literal expressions like `Float32(2)^(-32)` const-fold to a compile-time
 # constant, and fall back to the float-exponent `pow` for the tail (matches
 # Base's own fallback for out-of-range integer exponents since 1.12; see
-# `base/special/pow.jl`).
+# `base/special/pow.jl`), restoring the sign for odd exponents that aren't
+# exactly representable as a float.
 @device_override @assume_effects :foldable @inline function Base.:(^)(x::Float16, y::Int64)
     y == -1 && return inv(x)
     y == 0  && return one(x)
     y == 1  && return x
     y == 2  && return x * x
     y == 3  && return x * x * x
-    x ^ Float16(y)
+    z = abs(x) ^ Float16(y)
+    isodd(y) ? copysign(z, x) : z
 end
 @device_override @assume_effects :foldable @inline function Base.:(^)(x::Float32, y::Int64)
     y == -1 && return inv(x)
@@ -206,7 +208,8 @@ end
     y == 1  && return x
     y == 2  && return x * x
     y == 3  && return x * x * x
-    x ^ Float32(y)
+    z = abs(x) ^ Float32(y)
+    isodd(y) ? copysign(z, x) : z
 end
 @device_override @assume_effects :foldable @inline function Base.:(^)(x::Float64, y::Int64)
     y == -1 && return inv(x)
@@ -214,7 +217,8 @@ end
     y == 1  && return x
     y == 2  && return x * x
     y == 3  && return x * x * x
-    x ^ Float64(y)
+    z = abs(x) ^ Float64(y)
+    isodd(y) ? copysign(z, x) : z
 end
 
 # remquo(x::Float32{n}, y::Float32{n}, Int32{n} *quo) = @builtin_ccall("remquo", Float32{n}, (Float32{n}, Float32{n}, Int32{n} *), x, y, quo)
