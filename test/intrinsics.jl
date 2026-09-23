@@ -137,11 +137,15 @@ end
 # Regression test for #428: `^(::Float, ::Int64)` must not truncate the
 # exponent through Int32, since `y % Int32` wraps for |y| ≥ 2^31 and would
 # flip the sign of the exponent (producing 0 instead of Inf, etc.).
+# The reference is computed in Float64: Julia 1.13's Float16/Float32 `^(x, ::Integer)`
+# drops the sign for large odd exponents (JuliaLang/julia#62527).
 @testset "^(::$T, ::Int64) with out-of-Int32 exponent" for T in float_types
     y = Int64(typemax(Int32)) + Int64(1)  # smallest Int64 not representable as Int32
-    for x in (T(1.5), T(0.5))
-        @test call_on_device(^, x, y) === x ^ y
-        @test call_on_device(^, x, -y) === x ^ -y
+    pow(x, n) = T(Float64(x) ^ n)
+    for x in (T(1.5), T(0.5), T(-1))
+        @test call_on_device(^, x, y) === pow(x, y)
+        @test call_on_device(^, x, -y) === pow(x, -y)
+        @test call_on_device(^, x, y + 1) === pow(x, y + 1)
     end
 end
 
