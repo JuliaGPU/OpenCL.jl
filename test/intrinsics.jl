@@ -1,4 +1,5 @@
 using SIMD
+import GPUCompiler
 
 function call_on_device(f, args...)
     function kernel(res, f, args...)
@@ -336,4 +337,22 @@ end # if cl.sub_groups_supported(cl.device())
     @test all(isnan(nan_result[i]) for i in 1:N)
 end
 
+end
+
+@testset "devices without Float64" begin
+    # Base computes some single-precision math in double precision; on devices that lack
+    # it, GPUToolbox's overrides are used instead. Compile for such a device by disabling
+    # Float64 support (which makes the compiler reject any use of it).
+    config = OpenCL.compiler_config(cl.device())
+    target = GPUCompiler.SPIRVCompilerTarget(;
+        (field => getfield(config.target, field) for field in fieldnames(GPUCompiler.SPIRVCompilerTarget))...,
+        supports_fp64=false)
+    config = GPUCompiler.CompilerConfig(config; target)
+    kernel(out, f, args...) = (@inbounds out[] = f(args...); return)
+    for (f, T, args) in ((div, Float32, (Float32, Float32)), (sind, Float32, (Float32,)),
+                         (inv, ComplexF32, (ComplexF32,)))
+        tt = Tuple{CLDeviceArray{T,0,AS.CrossWorkgroup}, typeof(f), args...}
+        job = GPUCompiler.CompilerJob(GPUCompiler.methodinstance(typeof(kernel), tt), config)
+        @test GPUCompiler.JuliaContext(_ -> GPUCompiler.compile(:llvm, job)) !== nothing
+    end
 end
