@@ -53,9 +53,8 @@ for gentype in generic_types
 
 @device_override Base.fma(a::$gentype, b::$gentype, c::$gentype) = @builtin_ccall("fma", $gentype, ($gentype, $gentype, $gentype), a, b, c)
 
-@device_override Base.max(x::$gentype, y::$gentype) = @builtin_ccall("fmax", $gentype, ($gentype, $gentype), x, y)
-
-@device_override Base.min(x::$gentype, y::$gentype) = @builtin_ccall("fmin", $gentype, ($gentype, $gentype), x, y)
+# `min` and `max` propagate NaNs and order -0.0 before +0.0, unlike OpenCL's `fmin` and
+# `fmax`; Base's versions use `llvm.minimum` and `llvm.maximum`, which GPUCompiler lowers
 
 # NOTE: Julia's mod behaves differently than fmod
 #@device_override Base.mod(x::$gentype, y::$gentype) = @builtin_ccall("fmod", $gentype, ($gentype, $gentype), x, y)
