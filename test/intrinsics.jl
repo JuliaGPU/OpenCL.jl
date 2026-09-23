@@ -115,6 +115,13 @@ end
     end
 end
 
+# `round` rounds ties to even, unlike OpenCL's `round`
+@testset "round ties - $T" for T in float_types
+    for x in T[0.5, 1.5, 2.5, -0.5, -2.5]
+        @test isequal(call_on_device(round, x), round(x))
+    end
+end
+
 @testset "ternary - $T" for T in float_types
     @testset "$f" for f in [
             fma,
