@@ -123,6 +123,14 @@ end
     end
 end
 
+# `min` and `max` propagate NaNs and order -0.0 before +0.0, unlike OpenCL's `fmin`/`fmax`
+@testset "min and max special values - $T" for T in float_types
+    for (x, y) in ((T(NaN), one(T)), (one(T), T(NaN)), (-zero(T), zero(T)), (zero(T), -zero(T)))
+        @test isequal(call_on_device(min, x, y), min(x, y))
+        @test isequal(call_on_device(max, x, y), max(x, y))
+    end
+end
+
 @testset "ternary - $T" for T in float_types
     @testset "$f" for f in [
             fma,
