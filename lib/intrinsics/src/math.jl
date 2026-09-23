@@ -88,7 +88,7 @@ end
 
 @device_function rint(x::$gentype) = @builtin_ccall("rint", $gentype, ($gentype,), x)
 
-@device_override Base.round(x::$gentype) = @builtin_ccall("round", $gentype, ($gentype,), x)
+# `round` rounds ties to even, unlike OpenCL's `round`; Base's version uses `llvm.rint`
 
 @device_function rsqrt(x::$gentype) = @builtin_ccall("rsqrt", $gentype, ($gentype,), x)
 
