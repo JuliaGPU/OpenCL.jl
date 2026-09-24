@@ -69,7 +69,15 @@ function retry_reclaim(f, isfailed)
     ret
 end
 
+# extension functions are looked up for the task's current platform, unless a platform is
+# passed explicitly (e.g. when called from a finalizer, which may run on any task)
 macro ext_ccall(ex)
+    ext_ccall(:(platform()), ex)
+end
+macro ext_ccall(platform, ex)
+    ext_ccall(platform, ex)
+end
+function ext_ccall(platform, ex)
     # decode the expression
     @assert Meta.isexpr(ex, :(::))
     call, ret = ex.args
@@ -80,7 +88,7 @@ macro ext_ccall(ex)
 
     @gensym fptr
     esc(quote
-        $fptr = $clGetExtensionFunctionAddressForPlatform(platform(), $fn)
+        $fptr = $clGetExtensionFunctionAddressForPlatform($platform, $fn)
         @ccall $(Expr(:($), fptr))($(argexprs...))::$ret
     end)
 end

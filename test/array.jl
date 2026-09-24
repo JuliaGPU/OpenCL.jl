@@ -118,3 +118,41 @@ end
     A = CLArray(rand(Float32, 3, 2, 10))
     @test @inferred(OpenCL.GPUArrays.mapreducedim!(identity, +, R, A)) === R
 end
+
+# finalizers run in no particular order, e.g. at exit (JuliaGPU/OpenCL.jl#279), so memory
+# has to remain freeable after the queue and context it was allocated with are finalized
+@testset "freeing after finalizing its queue and context" begin
+    memtypes = Dict(cl.USMBackend() => cl.UnifiedDeviceMemory,
+                    cl.SVMBackend() => cl.SharedVirtualMemory,
+                    cl.BufferBackend() => cl.Buffer)
+    @testset "$M" for M in [memtypes[b] for b in cl.supported_memory_backends(cl.device())]
+        ctx = cl.Context(cl.device())
+        cl.context!(ctx) do
+            queue = cl.CmdQueue()
+            cl.queue!(queue) do
+                a = CLVector{Float32, M}(ones(Float32, 1024))
+                # leave coarse-grained SVM mapped, so that freeing it needs the queue
+                M == cl.SharedVirtualMemory && unsafe_wrap(Array, a)
+
+                # get rid of temporary objects that also reference the context
+                GC.gc()
+
+                finalize(queue)
+                finalize(ctx)
+                @test (OpenCL.unsafe_free!(a); true)
+            end
+        end
+    end
+end
+
+# finalizers can run on a task that is bound to a different platform
+let other = findfirst(p -> p != cl.platform() && !isempty(cl.devices(p)), cl.platforms())
+    if other !== nothing && cl.USMBackend() in cl.supported_memory_backends(cl.device())
+        @testset "freeing USM from a task bound to another platform" begin
+            a = CLVector{Float32, cl.UnifiedDeviceMemory}(ones(Float32, 1024))
+            cl.device!(first(cl.devices(cl.platforms()[other]))) do
+                @test (OpenCL.unsafe_free!(a); true)
+            end
+        end
+    end
+end

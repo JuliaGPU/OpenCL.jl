@@ -2,15 +2,11 @@
 
 mutable struct CmdQueue <: CLObject
     const id::cl_command_queue
-    Base.@atomic valid::Bool
 
     function CmdQueue(q_id::cl_command_queue; retain::Bool=false)
-        q = new(q_id, true)
+        q = new(q_id)
         retain && clRetainCommandQueue(q)
-        finalizer(q) do _
-            Base.@atomic q.valid = false
-            clReleaseCommandQueue(q)
-        end
+        finalizer(clReleaseCommandQueue, q)
         return q
     end
 end

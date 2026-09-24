@@ -24,18 +24,29 @@ function svm_alloc(bytesize::Integer;
         flags |= CL_MEM_SVM_FINE_GRAIN_BUFFER
     end
 
-    ptr = clSVMAlloc(context(), flags, bytesize, alignment)
+    ctx = context()
+    ptr = clSVMAlloc(ctx, flags, bytesize, alignment)
     @assert ptr != C_NULL
+
+    # SVM allocations are not objects attached to their context, so implementations need
+    # not keep the context alive for them. since finalizers run in no particular order,
+    # e.g., at exit, hold a reference to the context until the allocation is freed.
+    clRetainContext(ctx)
 
     # JuliaGPU/OpenCL.jl#252: uninitialized SVM memory doesn't work on Intel
     if platform().name == "Intel(R) OpenCL Graphics"
         enqueue_svm_fill(ptr, UInt8(0), bytesize)
     end
 
-    return SharedVirtualMemory(ptr, bytesize, context())
+    return SharedVirtualMemory(ptr, bytesize, ctx)
 end
 
-svm_free(mem::SharedVirtualMemory) = clSVMFree(context(mem), mem)
+function svm_free(mem::SharedVirtualMemory)
+    sizeof(mem) == 0 && return
+    clSVMFree(context(mem), mem)
+    clReleaseContext(context(mem))
+    return
+end
 
 Base.pointer(mem::SharedVirtualMemory) = mem.ptr
 Base.sizeof(mem::SharedVirtualMemory) = mem.bytesize

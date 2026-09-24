@@ -9,7 +9,9 @@ mutable struct Managed{M}
     const mem::M
     const lock::ReentrantLock
 
-    # which stream is currently using the memory.
+    # which queue is currently using the memory. finalizers run in no particular order
+    # (e.g., at exit, JuliaGPU/OpenCL.jl#279), so the queue object may be finalized before
+    # this memory is freed. we hold our own reference to it, released by `free`.
     queue::cl.CmdQueue
 
     # whether there are outstanding operations that haven't been synchronized
@@ -23,6 +25,8 @@ mutable struct Managed{M}
         #       guaranteed to be physically allocated at a synchronization event.
         # NOTE: memory also starts as device-owned, because we need to map it as soon as
         #       the host accesses it.
+        # NOTE: empty allocations never use their queue, and aren't freed.
+        sizeof(mem) == 0 || cl.clRetainCommandQueue(queue)
         return new{typeof(mem)}(mem, ReentrantLock(), queue, dirty, user)
     end
 end
@@ -83,7 +87,10 @@ function take_ownership!(managed::Managed{M}; queue=cl.queue()) where {M}
     # accessing memory on another queue: ensure the data is ready and take ownership
     if managed.queue != queue
         managed.dirty && synchronize(managed)
+        cl.clRetainCommandQueue(queue)
+        old_queue = managed.queue
         managed.queue = queue
+        cl.clReleaseCommandQueue(old_queue)
     end
 
     # coarse-grained SVM needs to be unmapped when accessing it back from the device
@@ -224,25 +231,27 @@ function free(managed::Managed)
         # application to make sure that enqueued commands that use svm_pointer have finished
         # before freeing svm_pointer". USM has `clMemBlockingFreeINTEL`, but by doing the
         # synchronization ourselves we provide more opportunity for concurrent execution.
-        if managed.queue.valid
+        try
             # this may run from a finalizer, where a device-side exception cannot be thrown
             synchronize(managed; check_exceptions=false)
-        end
 
-        if mem isa cl.SharedVirtualMemory
-            if managed.user == :host && managed.queue.valid
-                # Finalizers must not query or mutate task-local state, so use the queue owned by
-                # the allocation. Finish the unmap before releasing the SVM allocation.
-                cl.enqueue_svm_unmap(pointer(mem); queue=managed.queue)
-                cl.finish(managed.queue; check_exceptions=false)
+            if mem isa cl.SharedVirtualMemory
+                if managed.user == :host
+                    # Finalizers must not query or mutate task-local state, so use the queue
+                    # owned by the allocation. Finish the unmap before releasing the SVM
+                    # allocation.
+                    cl.enqueue_svm_unmap(pointer(mem); queue=managed.queue)
+                    cl.finish(managed.queue; check_exceptions=false)
+                end
+                cl.svm_free(mem)
+            elseif mem isa cl.UnifiedMemory
+                cl.usm_free(mem)
+            else
+                cl.release(mem)
             end
-            cl.svm_free(mem)
-        elseif mem isa cl.UnifiedMemory
-            cl.usm_free(mem)
-        else
-            cl.release(mem)
+        finally
+            cl.clReleaseCommandQueue(managed.queue)
         end
-
         nothing
     end
 end

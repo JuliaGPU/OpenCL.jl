@@ -3,12 +3,33 @@ abstract type UnifiedMemory <: AbstractPointerMemory end
 usm_alloc_properties(flags::Integer) =
     flags == 0 ? C_NULL : cl_mem_properties_intel[CL_MEM_ALLOC_FLAGS_INTEL, flags, 0]
 
+# USM allocations are not objects attached to their context, so implementations need not
+# keep the context alive for them (Intel's CPU runtime rejects a context whose reference
+# count dropped to zero). since finalizers run in no particular order, e.g., at exit, each
+# allocation holds its own reference to the context, released when it is freed.
+
 function usm_free(mem::UnifiedMemory; blocking::Bool = false)
+    sizeof(mem) == 0 && return
+    ctx = context(mem)
+    # this may run from a finalizer, on a task bound to a different platform
+    p = first(ctx.devices).platform
     if blocking
-        clMemBlockingFreeINTEL(context(mem), mem)
+        clMemBlockingFreeINTEL(p, ctx, mem)
     else
-        clMemFreeINTEL(context(mem), mem)
+        clMemFreeINTEL(p, ctx, mem)
     end
+    clReleaseContext(ctx)
+    return
+end
+
+# variants of the generated wrappers that look up the extension for a specific platform
+@checked function clMemFreeINTEL(platform::Platform, context, ptr)
+    @ext_ccall platform libopencl.clMemFreeINTEL(context::cl_context,
+                                                 ptr::PtrOrCLPtr{Cvoid})::cl_int
+end
+@checked function clMemBlockingFreeINTEL(platform::Platform, context, ptr)
+    @ext_ccall platform libopencl.clMemBlockingFreeINTEL(context::cl_context,
+                                                         ptr::PtrOrCLPtr{Cvoid})::cl_int
 end
 
 
@@ -37,14 +58,16 @@ function device_alloc(bytesize::Integer;
         flags |= CL_MEM_ALLOC_WRITE_COMBINED_INTEL
     end
 
+    ctx = context()
     error_code = Ref{Cint}()
     props = usm_alloc_properties(flags)
-    ptr = clDeviceMemAllocINTEL(context(), device(), props, bytesize, alignment, error_code)
+    ptr = clDeviceMemAllocINTEL(ctx, device(), props, bytesize, alignment, error_code)
     if error_code[] != CL_SUCCESS
         throw(CLError(error_code[]))
     end
+    clRetainContext(ctx)
 
-    return UnifiedDeviceMemory(ptr, bytesize, context())
+    return UnifiedDeviceMemory(ptr, bytesize, ctx)
 end
 
 Base.pointer(mem::UnifiedDeviceMemory) = mem.ptr
@@ -83,14 +106,16 @@ function host_alloc(bytesize::Integer;
         flags |= CL_MEM_ALLOC_WRITE_COMBINED_INTEL
     end
 
+    ctx = context()
     error_code = Ref{Cint}()
     props = usm_alloc_properties(flags)
-    ptr = clHostMemAllocINTEL(context(), props, bytesize, alignment, error_code)
+    ptr = clHostMemAllocINTEL(ctx, props, bytesize, alignment, error_code)
     if error_code[] != CL_SUCCESS
         throw(CLError(error_code[]))
     end
+    clRetainContext(ctx)
 
-    return UnifiedHostMemory(ptr, bytesize, context())
+    return UnifiedHostMemory(ptr, bytesize, ctx)
 end
 
 Base.pointer(mem::UnifiedHostMemory) = mem.ptr
@@ -137,14 +162,16 @@ function shared_alloc(bytesize::Integer;
         end
     end
 
+    ctx = context()
     error_code = Ref{Cint}()
     props = usm_alloc_properties(flags)
-    ptr = clSharedMemAllocINTEL(context(), device(), props, bytesize, alignment, error_code)
+    ptr = clSharedMemAllocINTEL(ctx, device(), props, bytesize, alignment, error_code)
     if error_code[] != CL_SUCCESS
         throw(CLError(error_code[]))
     end
+    clRetainContext(ctx)
 
-    return UnifiedSharedMemory(ptr, bytesize, context())
+    return UnifiedSharedMemory(ptr, bytesize, ctx)
 end
 
 Base.pointer(mem::UnifiedSharedMemory) = mem.ptr
