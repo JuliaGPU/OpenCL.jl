@@ -220,11 +220,16 @@ end
     end
 end
 
+# Signature of Random's generic `AbstractFloat` fallbacks. Kept as a constant because
+# spelling it inline (e.g. with `@invoke`) constructs the `UnionAll` at run time, which
+# inference no longer folds away as of Julia 1.14 (JuliaLang/julia#62001).
+const AbstractFloatFallback = Tuple{AbstractRNG, Type{<:AbstractFloat}}
+
 # Use the table-free fallback, but compute it in Float32 because its polar transform can
 # overflow in Float16. Keep this scoped to our RNG: overlay methods take precedence over
 # regular dispatch and an AbstractRNG method would shadow methods for other device RNGs.
 @device_override @inline function Random.randn(rng::Philox2x32, ::Type{T}) where {T <: Union{Float16, Float32}}
-    T(@invoke Random.randn(rng::AbstractRNG, Float32::Type{<:AbstractFloat}))
+    T(invoke(Random.randn, AbstractFloatFallback, rng, Float32))
 end
 
 ## randexp
@@ -250,7 +255,7 @@ end
 
 # Compute through Float32 to avoid requiring Float16 `log1p` support.
 @device_override @inline function Random.randexp(rng::Philox2x32, ::Type{T}) where {T <: Union{Float16, Float32}}
-    T(@invoke Random.randexp(rng::AbstractRNG, Float32::Type{<:AbstractFloat}))
+    T(invoke(Random.randexp, AbstractFloatFallback, rng, Float32))
 end
 
 # NOTE: not a consistent overlay (as used by `@device_override`), as this returns a different
