@@ -146,6 +146,46 @@ a = CLArray{Int}(undef, 10)
 
 end
 
+# a scalar field inserted before a nested one used to be lost on Intel's GPU driver (#502)
+struct FlagFirst
+    valid::Bool
+    value::Tuple{Float32, Int32}
+end
+
+@testset "nested aggregates" begin
+
+function store_flag_first(out, x)
+    i = get_global_id()
+    @inbounds out[i] = FlagFirst(x[i] >= 0, (x[i], Int32(i)))
+    return
+end
+
+function reduce_flag_first(out, x)
+    i = get_global_id()
+    acc = (false, (0f0, Int32(0)))
+    for j in 1:length(x)
+        @inbounds v = x[j] * i
+        if !acc[1] || v > acc[2][1]
+            acc = (true, (v, Int32(j)))
+        end
+    end
+    @inbounds out[i] = acc
+    return
+end
+
+x = Float32[0.5, 1.5, 2.5, 3.5]
+dx = CLArray(x)
+
+out = CLArray{FlagFirst}(undef, length(x))
+@opencl global_size=length(x) store_flag_first(out, dx)
+@test Array(out) == [FlagFirst(true, (x[i], Int32(i))) for i in 1:length(x)]
+
+out = CLArray{Tuple{Bool, Tuple{Float32, Int32}}}(undef, length(x))
+@opencl global_size=length(x) reduce_flag_first(out, dx)
+@test Array(out) == [(true, (x[end] * i, Int32(length(x)))) for i in 1:length(x)]
+
+end
+
 @kernel cpu=false function partial_workgroup_localmem!(out, pred, @Const(v))
     temp = @localmem Int8 (1,)
     i = @index(Global, Linear)
