@@ -469,6 +469,11 @@ fill(v, dims::Dims) = fill!(CLArray{typeof(v)}(undef, dims...), v)
 
 function Base.fill!(A::DenseCLArray{T}, val) where {T}
     isempty(A) && return A
+    # the OpenCL fill commands only accept patterns of 1, 2, 4, ..., 128 bytes,
+    # so fall back to a kernel for other element types
+    if !ispow2(sizeof(T)) || sizeof(T) > 128
+        return invoke(fill!, Tuple{AnyGPUArray, Any}, A, val)
+    end
     cl.context!(context(A)) do
         Base.@lock A.data[].lock begin
             GC.@preserve A begin

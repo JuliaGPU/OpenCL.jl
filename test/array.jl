@@ -47,6 +47,18 @@ end
     @test Array(xs) == [0, 1, 0]
 end
 
+@testset "fill! with sizes unsupported by the OpenCL fill commands" begin
+    # patterns must be 1, 2, 4, ..., 128 bytes
+    for (T, val) in ((NTuple{3, UInt8}, (0x01, 0x02, 0x03)),
+                     (NTuple{5, Int32}, ntuple(Int32, 5)),
+                     (NTuple{48, Int32}, ntuple(Int32, 48)),
+                     (Nothing, nothing))
+        xs = CLArray{T}(undef, 5)
+        fill!(xs, val)
+        @test Array(xs) == fill(val, 5)
+    end
+end
+
 @testset "reinterpret of view with non-aligned offset" begin
     # reinterpreting a view to a larger element type where the byte offset
     # is not a multiple of the new element size
