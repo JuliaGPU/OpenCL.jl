@@ -253,5 +253,8 @@ end
     T(@invoke Random.randexp(rng::AbstractRNG, Float32::Type{<:AbstractFloat}))
 end
 
-@device_override Random.Sampler(::Type{<:AbstractRNG}, r::AbstractUnitRange{T},
+# NOTE: not a consistent overlay (as used by `@device_override`), as this returns a different
+#       sampler than the host method: concrete evaluation would otherwise substitute the
+#       latter, which our overlaid `rand` methods then fail to handle.
+Base.Experimental.@overlay method_table Random.Sampler(::Type{<:AbstractRNG}, r::AbstractUnitRange{T},
                                 ::Random.Repetition) where {T<:Union{Int64, UInt64}} = Random.SamplerRangeFast(r)

@@ -64,9 +64,22 @@ Base.Experimental.@MethodTable(method_table)
 
 macro device_override(ex)
     # `method_table` is not interpolated so that the local backend method_table is used
-    esc(quote
-        Base.Experimental.@overlay(method_table, $ex)
-    end)
+    if VERSION >= v"1.12.0-DEV.745" || v"1.11-rc1" <= VERSION < v"1.12-"
+        # this requires that the overlay method f′ is consistent with f, i.e.,
+        #   - if f(x) returns a value, f′(x) must return the identical value.
+        #   - if f(x) throws an exception, f′(x) must also throw an exception
+        #     (although the exceptions do not need to be identical).
+        # in return, calls that only reach overlays through their error paths (e.g.
+        # `checked_add` via `throw_overflowerr_binaryop`) remain eligible for concrete
+        # evaluation, which e.g. keyword-argument handling relies on.
+        esc(quote
+            Base.Experimental.@consistent_overlay(method_table, $ex)
+        end)
+    else
+        esc(quote
+            Base.Experimental.@overlay(method_table, $ex)
+        end)
+    end
 end
 
 macro device_function(ex)

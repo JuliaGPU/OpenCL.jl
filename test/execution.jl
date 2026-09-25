@@ -74,6 +74,16 @@ end
     kernel(a) = return
     bar(a) = @opencl kernel(a)
     @inferred bar(CLArray([1]))
+
+    # keyword-argument handling relies on concrete evaluation of helpers that grow
+    # arrays, which our overlays of error paths must not inhibit
+    function range_kernel(a)
+        a[1] = last(range(1; step=2, length=3))
+        return
+    end
+    a = CLArray([0])
+    @opencl range_kernel(a)
+    @test Array(a) == [5]
 end
 
 
