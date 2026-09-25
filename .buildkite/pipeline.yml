@@ -1,3 +1,6 @@
+# Tests on hardware that GitHub Actions doesn't provide. Draft pull requests skip them, unless
+# selected by name in the last commit message: `[only cuda]`, `[only macos]`, or `[only tests]`
+# for both. `[skip macos]` or `[skip tests]` does the opposite (as in GPUCompiler.jl's CI).
 steps:
   - label: "CUDA"
     plugins:
@@ -18,7 +21,10 @@ steps:
         Pkg.test(; coverage=true, test_args=`--platform=cuda`)'
     agents:
       queue: "cuda"
-    if: build.message !~ /\[skip tests\]/
+    if: |
+      build.message !~ /\[skip [^\]]*(tests|cuda)/ &&
+      (build.message =~ /\[only [^\]]*(tests|cuda)/ ||
+       build.message !~ /\[only / && !build.pull_request.draft)
     env:
       OCL_ICD_FILENAMES: "libnvidia-opencl.so.1"
     timeout_in_minutes: 60
@@ -51,7 +57,10 @@ steps:
             Pkg.test(; coverage=true, test_args=`--platform={{matrix.pocl}} --verbose`)'
         agents:
           queue: "metal"
-        if: build.message !~ /\[skip tests\]/
+        if: |
+          build.message !~ /\[skip [^\]]*(tests|macos)/ &&
+          (build.message =~ /\[only [^\]]*(tests|macos)/ ||
+           build.message !~ /\[only / && !build.pull_request.draft)
         timeout_in_minutes: 120
         matrix:
           setup:
