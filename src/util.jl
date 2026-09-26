@@ -31,15 +31,36 @@ function get_kernel(program_file::String, kernel_name::String; vars...)
     end
 end
 
+# describe where a JLL's products come from when they have been overridden, either with a
+# `<product>_path` preference or with an `Overrides.toml` entry for its artifact
+function jll_overrides(jll::Module)
+    # JLLs that aren't available on this platform don't define any of this
+    isdefined(jll, :artifact_dir) || return ""
+    artifact_dir = jll.artifact_dir
+    overrides = String[]
+    if !any(dir -> startswith(artifact_dir, joinpath(dir, "artifacts")), DEPOT_PATH)
+        push!(overrides, "artifact = $artifact_dir")
+    end
+    for name in names(jll; all=true)
+        str = string(name)
+        endswith(str, "_path") && isdefined(jll, name) || continue
+        path = getfield(jll, name)
+        if path isa String && !startswith(path, artifact_dir)
+            push!(overrides, "$(chopsuffix(str, "_path")) = $path")
+        end
+    end
+    isempty(overrides) ? "" : " (overridden: $(join(overrides, ", ")))"
+end
+
 function versioninfo(io::IO=stdout)
     println(io, "OpenCL.jl version $(pkgversion(@__MODULE__))")
     println(io)
 
     println(io, "Toolchain:")
     println(io, " - Julia v$(VERSION)")
-    for jll in [cl.OpenCL_jll, SPIRV_LLVM_Backend_jll]
+    for jll in [cl.OpenCL_jll, SPIRV_LLVM_Backend_jll, SPIRV_Tools_jll, spirv2clc_jll]
         name = string(jll)
-        println(io, " - $(name[1:end-4]): $(pkgversion(jll))")
+        println(io, " - $(name[1:end-4]): $(pkgversion(jll))$(jll_overrides(jll))")
     end
     println(io)
 
@@ -55,7 +76,9 @@ function versioninfo(io::IO=stdout)
                  :LLVM, :SPIRVIntrinsics, ("627d6b7a-bbe6-5189-83e7-98cc0a5aeadd", "pocl_jll"),
                  ("59abdad9-3cfc-5436-8271-411e8cad6b82", "pocl_next_jll")]
         name, mod = get_module(pkg)
-        isnothing(mod) || println(io, "- $(name): $(Base.pkgversion(mod))")
+        isnothing(mod) && continue
+        overrides = endswith(string(name), "_jll") ? jll_overrides(mod) : ""
+        println(io, "- $(name): $(Base.pkgversion(mod))$overrides")
     end
     println(io)
 
