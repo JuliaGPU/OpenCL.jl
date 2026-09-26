@@ -10,8 +10,6 @@ using GPUArrays
 using Random
 using Preferences
 
-import KernelAbstractions: KernelAbstractions
-
 import KernelInterface
 
 using Core: LLVMPtr
@@ -51,12 +49,8 @@ include("mapreduce.jl")
 include("gpuarrays.jl")
 include("random.jl")
 
-include("OpenCLKernelsOld.jl")
+include("OpenCLKernels.jl")
 import .OpenCLKernels: OpenCLBackend
 export OpenCLBackend
-
-# KernelInterface - NOT PUBLIC. Use KernelInterface.get_backend on an CLArray to get the backend
-include("OpenCLKernels.jl")
-import .OpenCLInterface
 
 end
