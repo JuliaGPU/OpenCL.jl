@@ -179,6 +179,21 @@ end
 
 const SPIRV_VERSION = v"1.4"
 
+# identify the driver that will consume the SPIR-V, so that GPUCompiler can work around its bugs
+function spirv_driver(dev::cl.Device)
+    vendor = dev.platform.vendor
+    if occursin("pocl", vendor)
+        :pocl
+    elseif occursin("NVIDIA", vendor)
+        :nvidia
+    elseif occursin("Intel", vendor) && dev.device_type === :gpu
+        # Intel's CPU runtime uses a different compiler than the GPU driver (NEO, with IGC)
+        :intel
+    else
+        :generic
+    end
+end
+
 @noinline function _compiler_config(dev, backend; kernel=true, name=nothing, always_inline=false,
                                      debug_level=Base.JLOptions().debug_level,
                                      sub_group_size::Union{Nothing,Int}=_sub_group_size(dev),
@@ -219,7 +234,7 @@ const SPIRV_VERSION = v"1.4"
     # create GPUCompiler objects
     target = SPIRVCompilerTarget(; version=SPIRV_VERSION, supports_fp16, supports_fp64,
                                    validate=true, extensions=spirv_ext, backend=llvm_to_spirv_backend,
-                                   kwargs...)
+                                   driver=spirv_driver(dev), kwargs...)
     params = OpenCLCompilerParams(; sub_group_size, features, program_backend=backend)
     CompilerConfig(target, params; kernel, name, always_inline, debug_level)
 end
