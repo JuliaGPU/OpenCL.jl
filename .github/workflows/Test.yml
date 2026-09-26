@@ -42,11 +42,11 @@ jobs:
           - { os: ubuntu-24.04, arch: x64, version: 'nightly', pocl: jll, memory_backend: usm, llvm_to_spirv_backend: llvm }
           # other platforms, one job each (backends rotated for extra cross-coverage)
           - { os: ubuntu-24.04-arm, arch: arm64, version: '1.13', pocl: jll, memory_backend: svm, llvm_to_spirv_backend: llvm }
-          - { os: windows-2022, arch: x64, version: '1.13', pocl: jll, memory_backend: usm, llvm_to_spirv_backend: llvm }
+          - { os: windows-2022, arch: x64, version: '1.13-nightly', pocl: jll, memory_backend: usm, llvm_to_spirv_backend: llvm }  # requires 1.13.1 (JuliaLang/julia#63123)
           # upcoming PoCL release (pocl_next_jll) on every platform
           - { os: ubuntu-24.04, arch: x64, version: '1.13', pocl: next, memory_backend: usm, llvm_to_spirv_backend: llvm }
           - { os: ubuntu-24.04-arm, arch: arm64, version: '1.13', pocl: next, memory_backend: svm, llvm_to_spirv_backend: llvm }
-          - { os: windows-2022, arch: x64, version: '1.13', pocl: next, memory_backend: buffer, llvm_to_spirv_backend: llvm }
+          - { os: windows-2022, arch: x64, version: '1.13-nightly', pocl: next, memory_backend: buffer, llvm_to_spirv_backend: llvm }  # requires 1.13.1 (JuliaLang/julia#63123)
           # upstream PoCL HEAD, built from source
           - { os: ubuntu-24.04, arch: x64, version: '1.13', pocl: local, memory_backend: usm, llvm_to_spirv_backend: llvm }
           # khronos backend for LLVM -> SPIRV translation
