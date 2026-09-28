@@ -35,6 +35,11 @@ for (julia_name, (spirv_name, julia_type, offset)) in [
 end
 
 # 3D values
+#
+# These are called as functions, which the SPIR-V back-end lowers to a load of the built-in
+# variable and an extract of the component. Emitting that load and extract ourselves lets
+# InstCombine fold a truncation of the result into a load of a vector type that SPIR-V
+# doesn't have (e.g. `trunc i64 to i8` into a load of `<24 x i8>`).
 for (julia_name, (spirv_name, offset)) in [
         # indices
         :get_global_id              => (:BuiltInGlobalInvocationId, 1),
@@ -46,19 +51,21 @@ for (julia_name, (spirv_name, offset)) in [
         :get_local_size             => (:BuiltInWorkgroupSize, 0),
         :get_enqueued_local_size    => (:BuiltInEnqueuedWorkgroupSize, 0),
         :get_num_groups             => (:BuiltInNumWorkgroups, 0)]
-    gvar_name = Symbol("@__spirv_$(spirv_name)")
+    fname = "__spirv_$(spirv_name)"
+    mangled = "_Z$(length(fname))$(fname)i"
+    push!(known_intrinsics, mangled)
     width = Int === Int64 ? 64 : 32
     @eval begin
         export $julia_name
         @device_function $julia_name(dimindx::Integer=1u32) =
             Base.llvmcall(
-                $("""$gvar_name = external addrspace($(AS.Input)) global <3 x i$(width)>
-                     define i$(width) @entry(i$(width) %idx) #0 {
-                         %val = load <3 x i$(width)>, <3 x i$(width)> addrspace($(AS.Input))* $gvar_name
-                         %element = extractelement <3 x i$(width)> %val, i$(width) %idx
-                         ret i$(width) %element
+                $("""declare i$(width) @$(mangled)(i32) #0
+                     define i$(width) @entry(i32 %idx) #1 {
+                         %val = call i$(width) @$(mangled)(i32 %idx)
+                         ret i$(width) %val
                      }
-                     attributes #0 = { alwaysinline }
-                """, "entry"), UInt, Tuple{UInt}, UInt(dimindx - 1u32)) % Int + $offset
+                     attributes #0 = { nounwind readnone willreturn }
+                     attributes #1 = { alwaysinline }
+                """, "entry"), UInt, Tuple{Int32}, (dimindx - 1u32) % Int32) % Int + $offset
     end
 end

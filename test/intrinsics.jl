@@ -196,6 +196,32 @@ end
     @test call_on_device(OpenCL.mad, x, y, z) ≈ x * y + z
 end
 
+# truncating the 3-D builtins used to produce loads of vector types SPIR-V doesn't have
+function truncated_builtins_kernel(a, b, c)
+    # only the last work-item writes
+    if get_global_id(1) == get_global_size(1) && get_global_id(2) == get_global_size(2) &&
+       get_global_id(3) == get_global_size(3)
+        @inbounds for d in 1:3
+            a[d] = get_local_id(d) % Int8
+            a[3 + d] = get_local_size(d) % Int8
+            b[d] = get_group_id(d) % Int32
+            b[3 + d] = get_num_groups(d) % Int32
+            c[d] = get_global_id(d) % UInt16
+            c[3 + d] = get_global_size(d) % UInt16
+        end
+    end
+    return
+end
+@testset "truncated work-item builtins" begin
+    a = CLArray(zeros(Int8, 6))
+    b = CLArray(zeros(Int32, 6))
+    c = CLArray(zeros(UInt16, 6))
+    @opencl global_size = (4, 6, 4) local_size = (2, 3, 4) truncated_builtins_kernel(a, b, c)
+    @test Array(a) == [2, 3, 4, 2, 3, 4]
+    @test Array(b) == [2, 2, 1, 2, 2, 1]
+    @test Array(c) == [4, 6, 4, 4, 6, 4]
+end
+
 if cl.sub_groups_supported(cl.device())
 
 struct SubgroupData
