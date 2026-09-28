@@ -142,7 +142,7 @@ end
     throw(ArgumentError("Cannot launch a kernel compiled for $(kernel_device(kernel).name) on $(cl.device().name)"))
 end
 
-function KI.launch(kernel::KI.Kernel{OpenCLBackend}, groups::Dims{3}, items::Dims{3}, args...; kwargs...)
+function KI.launch(kernel::KI.Kernel{OpenCLBackend}, groups::Dims{3}, items::Dims{3}, args::Vararg{Any, N}; kwargs...) where {N}
     activate(kernel.backend)
     kernel_context(kernel) == cl.context().id || throw_device_mismatch(kernel)
     kernel.kern(args...; local_size = items, global_size = items .* groups, kwargs...)
