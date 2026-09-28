@@ -259,30 +259,10 @@ function additional_arg_intr(mod::LLVM.Module, T_state, name)
 end
 
 # run-time equivalent
-function additional_arg_value(state, name)
-    @dispose ctx=Context() begin
-        T_state = convert(LLVMType, state)
-
-        # create function
-        llvm_f, _ = create_function(T_state)
-        mod = LLVM.parent(llvm_f)
-
-        # get intrinsic
-        state_intr = additional_arg_intr(mod, T_state, name)
-        state_intr_ft = function_type(state_intr)
-
-        # generate IR
-        @dispose builder=IRBuilder() begin
-            entry = BasicBlock(llvm_f, "entry")
-            position!(builder, entry)
-
-            val = call!(builder, state_intr_ft, state_intr, Value[], name)
-
-            ret!(builder, val)
-        end
-
-        call_function(llvm_f, state)
-    end
+additional_arg_value(state, name) = generate_llvmcall(state, Tuple{}) do builder
+    T_state = convert(LLVMType, state)
+    state_intr = additional_arg_intr(current_module(builder), T_state, name)
+    call!(builder, function_type(state_intr), state_intr, Value[], name)
 end
 
 for name in [:random_keys, :random_counters]

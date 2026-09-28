@@ -28,70 +28,54 @@ end
     arg_exprs = [:( argspec[$i] ) for i in 1:length(argspec)]
     arg_types = [argspec...]
 
-    Context() do ctx
-        T_void = LLVM.VoidType()
+    generate_llvmcall(Int32, Tuple{arg_types...}, arg_exprs...) do builder, args...
         T_int32 = LLVM.Int32Type()
         T_pint8 = LLVM.PointerType(LLVM.Int8Type(), AS.UniformConstant)
 
-        # create functions
-        param_types = LLVMType[convert(LLVMType, typ) for typ in arg_types]
-        llvm_f, _ = create_function(T_int32, param_types)
-        mod = LLVM.parent(llvm_f)
-
-        IRBuilder() do builder
-            entry = BasicBlock(llvm_f, "entry")
-            position!(builder, entry)
-
-            # `printf` needs to be invoked very specifically, e.g., the format string needs
-            # to be a pointer to a string, and arguments need to match exactly what is
-            # expected by the format string, so we cannot rely on how the arguments to this
-            # function have been passed in (by `llvmcall`).
-            T_actual_args = LLVMType[]
-            actual_args = LLVM.Value[]
-            for (_, (arg, argtyp)) in enumerate(zip(parameters(llvm_f), arg_types))
-                if argtyp <: LLVMPtr
-                    # passed as i8*
-                    T,AS = argtyp.parameters
-                    actual_typ = LLVM.PointerType(convert(LLVMType, T), AS)
-                    actual_arg = bitcast!(builder, arg, actual_typ)
-                elseif argtyp <: Ptr
-                    T = eltype(argtyp)
-                    if T === Nothing
-                        T = Int8
-                    end
-                    actual_typ = LLVM.PointerType(convert(LLVMType, T))
-                    actual_arg = if value_type(arg) isa LLVM.PointerType
-                        # passed as i8* or ptr
-                        bitcast!(builder, arg, actual_typ)
-                    else
-                        # passed as i64
-                        inttoptr!(builder, arg, actual_typ)
-                    end
-                elseif argtyp <: Bool
-                    # passed as i8
-                    T = eltype(argtyp)
-                    actual_typ = LLVM.Int1Type()
-                    actual_arg = trunc!(builder, arg, actual_typ)
-                else
-                    actual_typ = convert(LLVMType, argtyp)
-                    actual_arg = arg
+        # `printf` needs to be invoked very specifically, e.g., the format string needs
+        # to be a pointer to a string, and arguments need to match exactly what is
+        # expected by the format string, so we cannot rely on how the arguments to this
+        # function have been passed in (by `llvmcall`).
+        T_actual_args = LLVMType[]
+        actual_args = LLVM.Value[]
+        for (arg, argtyp) in zip(args, arg_types)
+            if argtyp <: LLVMPtr
+                # passed as i8*
+                T,AS = argtyp.parameters
+                actual_typ = LLVM.PointerType(convert(LLVMType, T), AS)
+                actual_arg = bitcast!(builder, arg, actual_typ)
+            elseif argtyp <: Ptr
+                T = eltype(argtyp)
+                if T === Nothing
+                    T = Int8
                 end
-                push!(T_actual_args, actual_typ)
-                push!(actual_args, actual_arg)
+                actual_typ = LLVM.PointerType(convert(LLVMType, T))
+                actual_arg = if value_type(arg) isa LLVM.PointerType
+                    # passed as i8* or ptr
+                    bitcast!(builder, arg, actual_typ)
+                else
+                    # passed as i64
+                    inttoptr!(builder, arg, actual_typ)
+                end
+            elseif argtyp <: Bool
+                # passed as i8
+                actual_typ = LLVM.Int1Type()
+                actual_arg = trunc!(builder, arg, actual_typ)
+            else
+                actual_typ = convert(LLVMType, argtyp)
+                actual_arg = arg
             end
-
-            str = globalstring_ptr!(builder, String(fmt); addrspace=AS.UniformConstant)
-
-            # invoke printf and return
-            printf_typ = LLVM.FunctionType(T_int32, [T_pint8]; vararg=true)
-            printf = LLVM.Function(mod, "printf", printf_typ)
-            push!(function_attributes(printf), EnumAttribute("nobuiltin"))
-            chars = call!(builder, printf_typ, printf, [str, actual_args...])
-
-            ret!(builder, chars)
+            push!(T_actual_args, actual_typ)
+            push!(actual_args, actual_arg)
         end
 
-        call_function(llvm_f, Int32, Tuple{arg_types...}, arg_exprs...)
+        str = globalstring_ptr!(builder, String(fmt); addrspace=AS.UniformConstant)
+
+        # invoke printf and return
+        printf_typ = LLVM.FunctionType(T_int32, [T_pint8]; vararg=true)
+        printf = LLVM.Function(current_module(builder), "printf", printf_typ)
+        push!(function_attributes(printf), EnumAttribute("nobuiltin"))
+        call!(builder, printf_typ, printf, [str, actual_args...])
     end
 end
 

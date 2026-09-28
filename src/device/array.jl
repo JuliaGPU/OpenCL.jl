@@ -165,40 +165,24 @@ end
 # there is no SPIR-V equivalent of NVPTX's `ld.global.nc`, so instead of a dedicated
 # instruction we mark the load `!invariant.load`, which lets LLVM hoist it out of loops
 # and reorder it across stores to other objects.
-@inline @generated function unsafe_invariant_load(ptr::LLVMPtr{T,AS}, i::I,
-                                                  ::Val{align}) where {T,AS,I,align}
+@inline function unsafe_invariant_load(ptr::LLVMPtr{T}, i::I, ::Val{align}) where {T,I,align}
     sizeof(T) == 0 && return T.instance
-    ispow2(align) ||
-        return :(error("unsafe_invariant_load: alignment must be a power of 2, got $($align)"))
-    @dispose ctx=Context() begin
-        eltyp = convert(LLVMType, T)
-        T_idx = convert(LLVMType, I)
-        T_ptr = convert(LLVMType, ptr)
-        T_typed_ptr = LLVM.PointerType(eltyp, AS)
-
-        llvm_f, _ = create_function(eltyp, LLVMType[T_ptr, T_idx])
-
-        @dispose builder=IRBuilder() begin
-            entry = BasicBlock(llvm_f, "entry")
-            position!(builder, entry)
-            base = if supports_typed_pointers(ctx)
-                bitcast!(builder, parameters(llvm_f)[1], T_typed_ptr)
-            else
-                parameters(llvm_f)[1]
-            end
-            gep = inbounds_gep!(builder, eltyp, base, [parameters(llvm_f)[2]])
-            ld = load!(builder, eltyp, gep)
-            if AS != 0
-                metadata(ld)[LLVM.MD_tbaa] = tbaa_addrspace(AS)
-            end
-            metadata(ld)[LLVM.MD_invariant_load] = MDNode(LLVM.Metadata[])
-            alignment!(ld, align)
-
-            ret!(builder, ld)
-        end
-
-        call_function(llvm_f, T, Tuple{LLVMPtr{T,AS},I}, :ptr, :(i-one(I)))
+    ispow2(align) || error("unsafe_invariant_load: alignment must be a power of 2, got ", align)
+    return _unsafe_invariant_load(ptr, i - one(I), Val(align))
+end
+@llvmgenerated builder function _unsafe_invariant_load(ptr::LLVMPtr{T,AS}, i::Integer,
+                                                       ::Val{align})::T where {T,AS,align}
+    eltyp = convert(LLVMType, T)
+    if supports_typed_pointers(LLVM.context())
+        ptr = bitcast!(builder, ptr, LLVM.PointerType(eltyp, AS))
     end
+    ld = load!(builder, eltyp, inbounds_gep!(builder, eltyp, ptr, [i]))
+    if AS != 0
+        metadata(ld)[LLVM.MD_tbaa] = tbaa_addrspace(AS)
+    end
+    metadata(ld)[LLVM.MD_invariant_load] = MDNode(LLVM.Metadata[])
+    alignment!(ld, align)
+    ld
 end
 
 @device_function @inline function const_arrayref(A::CLDeviceArray{T}, index::Integer) where {T}
