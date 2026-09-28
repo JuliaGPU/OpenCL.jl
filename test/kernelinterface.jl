@@ -51,3 +51,33 @@ end
         end
     end
 end
+
+function ki_slow_kernel(a, iters)
+    acc = UInt32(KI.get_global_id().x)
+    for k in UInt32(1):iters
+        acc = acc * 0x0019660d + k
+    end
+    @inbounds a[1] = acc
+    return
+end
+
+@testset "cooperative synchronize" begin
+    backend = OpenCLInterface.OpenCLBackend()
+    a = KI.zeros(backend, UInt32, 1)
+    KI.@launch backend ki_slow_kernel(a, UInt32(1))
+    KI.synchronize(backend)
+
+    # another task on this thread gets to run while `synchronize` waits for the device
+    done = Ref(false)
+    ticks = Ref(0)
+    task = @async while !done[]
+        ticks[] += 1
+        yield()
+    end
+    KI.@launch backend ki_slow_kernel(a, UInt32(2)^24)
+    KI.synchronize(backend)
+    during = ticks[]
+    done[] = true
+    wait(task)
+    @test during > 0
+end

@@ -66,10 +66,10 @@ function KI.get_backend(A::CLArray)
     return OpenCLBackend(context_device(ctx).platform)
 end
 
-# TODO should be non-blocking
 function KI.synchronize(b::OpenCLBackend)
     activate(b)
-    cl.finish(cl.queue())
+    cl.finish(cl.queue(); blocking=false)
+    return
 end
 
 ## Device Selection

@@ -58,8 +58,10 @@ end
 
 # `check_exceptions` surfaces device-side exceptions thrown by kernels that ran on the
 # queue; disable it where throwing is not an option (e.g. finalizers), in which case the
-# exception remains pending until the next check.
-function finish(q::CmdQueue; check_exceptions::Bool=true)
+# exception remains pending until the next check. `blocking=false` waits cooperatively,
+# letting other tasks run, which is not possible in finalizers either.
+function finish(q::CmdQueue; check_exceptions::Bool=true, blocking::Bool=true)
+    blocking || wait_cooperatively(q)
     OpenCL.check_exceptions(q; rethrow=check_exceptions)
     return q
 end
