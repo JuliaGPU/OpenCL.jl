@@ -17,7 +17,7 @@ import Adapt
 # export OpenCLBackend
 
 
-Base.@kwdef struct OpenCLBackend <: KI.GPU
+Base.@kwdef struct OpenCLBackend <: KI.Backend
     platform::cl.Platform = cl.platform()
 end
 
@@ -44,12 +44,9 @@ function KI.allocate(b::OpenCLBackend, ::Type{T}, dims::Tuple; unified::Bool = f
     end
 end
 
-KI.supports_unified(::OpenCLBackend) = cl.default_memory_backend(cl.device(); unified=true) !== nothing
-
 KI.get_backend(::CLArray) = OpenCLBackend()
 # TODO should be non-blocking
 KI.synchronize(::OpenCLBackend) = cl.finish(cl.queue())
-KI.supports_float64(::OpenCLBackend) = in("cl_khr_fp64", cl.device().extensions)
 
 ## Device Selection
 
@@ -78,9 +75,13 @@ end
 ## Memory Operations
 
 function KI.copyto!(::OpenCLBackend, A, B)
+    length(A) == length(B) ||
+        throw(ArgumentError("Arrays must have the same length, got $(length(A)) and $(length(B))"))
     copyto!(A, B)
-    # TODO: Address device to host copies in jl being synchronizing
+    return A
 end
+
+KI.unsafe_free!(A::CLArray) = OpenCL.unsafe_free!(A)
 
 
 ## Kernel Launch
@@ -88,106 +89,115 @@ end
 
 KI.argconvert(::OpenCLBackend, arg) = kernel_convert(arg)
 
-function KI.kernel_function(::OpenCLBackend, f::F, tt::TT=Tuple{}; name = nothing, kwargs...) where {F,TT}
+function KI.kernel_function(backend::OpenCLBackend, f::F, tt::TT=Tuple{}; name = nothing, kwargs...) where {F,TT}
+    # on devices that support it, `clfunction` fixes the sub-group width to
+    # `cl.sub_group_size(dev)`, as `KI.sub_group_size` promises
     kern = clfunction(f, tt; name, kwargs...)
-    KI.Kernel{OpenCLBackend, typeof(kern)}(OpenCLBackend(), kern)
+    KI.Kernel{OpenCLBackend, typeof(kern)}(backend, kern)
 end
 
-function (obj::KI.Kernel{OpenCLBackend})(args...; numworkgroups=(), workgroupsize=(), ndrange=(), max_work_group_size=typemax(Int))
-    obj.backend.platform === cl.platform() || platform_mismatch_warning(obj.backend.platform, cl.platform())
-    KI.check_launch_args(numworkgroups, workgroupsize, ndrange)
-    prod(ndrange) == 0 && return nothing
-
-    numworkgroups, workgroupsize = KI.auto_launch_sizes(obj, numworkgroups, workgroupsize, ndrange, max_work_group_size)
-    local_size = (workgroupsize..., ntuple(_ -> 1, 3 - length(workgroupsize))...)
-    numworkgroups = (numworkgroups..., ntuple(_ -> 1, 3 - length(numworkgroups))...)
-    global_size = local_size .* numworkgroups
-
-    obj.kern(args...; local_size, global_size)
-    return nothing
+function KI.launch(kernel::KI.Kernel{OpenCLBackend}, groups::Dims{3}, items::Dims{3}, args...; kwargs...)
+    kernel.backend.platform === cl.platform() || platform_mismatch_warning(kernel.backend.platform, cl.platform())
+    kernel.kern(args...; local_size = items, global_size = items .* groups, kwargs...)
+    return
 end
 
-
-function KI.kernel_max_work_group_size(kernel::KI.Kernel{<:OpenCLBackend}; max_work_items::Int=typemax(Int))::Int
+function KI.max_work_group_size(kernel::KI.Kernel{OpenCLBackend})::Int
     wginfo = cl.work_group_info(kernel.kern.fun, cl.device())
-    Int(min(wginfo.size, max_work_items))
+    Int(wginfo.size)
 end
 
-# querying the device allocates, so cache the limits that every launch needs. the cache is
+
+## Device Properties
+
+# querying the device allocates, so cache what launches and kernels need. the cache is
 # keyed on the device, because the task-local device can be switched.
-const DeviceLimits = @NamedTuple{max_work_group_size::Int, max_work_group_dims::NTuple{3, Int}}
-function device_limits()
-    dev = cl.device()
-    cache = get!(task_local_storage(), :CLDeviceLimits) do
-        Dict{cl.Device, DeviceLimits}()
-    end::Dict{cl.Device, DeviceLimits}
+const DeviceProperties = @NamedTuple{
+    max_work_group_size::Int, max_work_group_dims::NTuple{3, Int}, compute_units::Int,
+    float64::Bool, float16::Bool, unified::Bool,
+    # 0 if the device doesn't support sub-groups of a fixed width
+    sub_group_size::Int, sub_group_shuffle::Bool,
+}
+function device_properties(dev::cl.Device = cl.device())
+    cache = get!(task_local_storage(), :CLDeviceProperties) do
+        Dict{cl.Device, DeviceProperties}()
+    end::Dict{cl.Device, DeviceProperties}
     return get!(cache, dev) do
         sizes = dev.max_work_item_size
+        extensions = dev.extensions
+        # the sub-group width is only fixed for kernels that request it, which `clfunction`
+        # does for devices with `cl_intel_required_subgroup_size`
+        fixed_sub_groups = cl.sub_groups_supported(dev) &&
+                           "cl_intel_required_subgroup_size" in extensions
         (; max_work_group_size = Int(dev.max_work_group_size),
-           max_work_group_dims = ntuple(d -> d <= length(sizes) ? sizes[d] : 1, 3))
+           max_work_group_dims = ntuple(d -> d <= length(sizes) ? Int(sizes[d]) : 1, 3),
+           compute_units = Int(dev.max_compute_units),
+           float64 = "cl_khr_fp64" in extensions,
+           float16 = "cl_khr_fp16" in extensions,
+           unified = cl.default_memory_backend(dev; unified=true) !== nothing,
+           sub_group_size = fixed_sub_groups ? cl.sub_group_size(dev) : 0,
+           sub_group_shuffle = fixed_sub_groups && "cl_khr_subgroup_shuffle" in extensions)
     end
 end
-KI.max_work_group_size(::OpenCLBackend)::Int = device_limits().max_work_group_size
-KI.max_work_group_dims(::OpenCLBackend)::NTuple{3, Int} = device_limits().max_work_group_dims
-function KI.sub_group_size(::OpenCLBackend)::Int
-    cl.sub_group_size(cl.device())
+
+KI.max_work_group_size(::OpenCLBackend)::Int = device_properties().max_work_group_size
+KI.max_work_group_dims(::OpenCLBackend)::NTuple{3, Int} = device_properties().max_work_group_dims
+# OpenCL doesn't limit the number of work-groups, only the global size (to `size_t`)
+function KI.max_num_groups(b::OpenCLBackend)::NTuple{3, Int}
+    return typemax(Int) .÷ KI.max_work_group_dims(b)
 end
-function KI.multiprocessor_count(::OpenCLBackend)::Int
-    Int(cl.device().max_compute_units)
-end
+KI.multiprocessor_count(::OpenCLBackend)::Int = device_properties().compute_units
 
-function KI.shfl_down_types(::OpenCLBackend)
-    backend_extensions = cl.device().extensions
-    "cl_khr_subgroup_shuffle" in backend_extensions || return DataType[]
+KI.supports_float64(::OpenCLBackend) = device_properties().float64
+KI.supports_unified(::OpenCLBackend) = device_properties().unified
+# 32-bit integer atomics are core OpenCL; float atomics fall back to compare-and-swap
+KI.supports_atomics(::OpenCLBackend) = true
 
-    res = copy(SPIRVIntrinsics.gentypes)
-
-    if "cl_khr_fp64" ∉ backend_extensions
-        res = setdiff(res, [Float64])
-    end
-    if "cl_khr_fp16" ∉ backend_extensions
-        res = setdiff(res, [Float16])
-    end
-
-    return res
+KI.supports_subgroups(::OpenCLBackend) = device_properties().sub_group_size > 0
+KI.sub_group_size(::OpenCLBackend)::Int = device_properties().sub_group_size
+function KI.supports_shuffle(::OpenCLBackend, ::Type{T}) where {T}
+    props = device_properties()
+    props.sub_group_shuffle || return false
+    T in SPIRVIntrinsics.gentypes || return false
+    T === Float64 && return props.float64
+    T === Float16 && return props.float16
+    return true
 end
 
 ## Indexing Functions
 ## COV_EXCL_START
 
+# computed with `% T`, which unlike `T(x)` has no error path. KernelInterface derives the
+# global queries from these.
+
 @device_override @inline function KI.get_local_id(::Type{T}) where {T}
-    return (; x = T(get_local_id(1)), y = T(get_local_id(2)), z = T(get_local_id(3)))
+    return (; x = get_local_id(1) % T, y = get_local_id(2) % T, z = get_local_id(3) % T)
 end
 
 @device_override @inline function KI.get_group_id(::Type{T}) where {T}
-    return (; x = T(get_group_id(1)), y = T(get_group_id(2)), z = T(get_group_id(3)))
-end
-
-@device_override @inline function KI.get_global_id(::Type{T}) where {T}
-    return (; x = T(get_global_id(1)), y = T(get_global_id(2)), z = T(get_global_id(3)))
+    return (; x = get_group_id(1) % T, y = get_group_id(2) % T, z = get_group_id(3) % T)
 end
 
 @device_override @inline function KI.get_local_size(::Type{T}) where {T}
-    return (; x = T(get_local_size(1)), y = T(get_local_size(2)), z = T(get_local_size(3)))
+    return (; x = get_local_size(1) % T, y = get_local_size(2) % T, z = get_local_size(3) % T)
 end
 
 @device_override @inline function KI.get_num_groups(::Type{T}) where {T}
-    return (; x = T(get_num_groups(1)), y = T(get_num_groups(2)), z = T(get_num_groups(3)))
+    return (; x = get_num_groups(1) % T, y = get_num_groups(2) % T, z = get_num_groups(3) % T)
 end
 
-@device_override @inline function KI.get_global_size(::Type{T}) where {T}
-    return (; x = T(get_global_size(1)), y = T(get_global_size(2)), z = T(get_global_size(3)))
-end
+# OpenCL's sub-group queries already have KernelInterface's semantics: the last sub-group
+# of a work-group can be partial, and `get_sub_group_size` counts the work-items present
 
-@device_override KI.get_sub_group_size() = get_sub_group_size() % UInt32
+@device_override KI.get_sub_group_size(::Type{T}) where {T} = get_sub_group_size() % T
 
-@device_override KI.get_max_sub_group_size() = get_max_sub_group_size() % UInt32
+@device_override KI.get_max_sub_group_size(::Type{T}) where {T} = get_max_sub_group_size() % T
 
-@device_override KI.get_num_sub_groups() = get_num_sub_groups() % UInt32
+@device_override KI.get_num_sub_groups(::Type{T}) where {T} = get_num_sub_groups() % T
 
-@device_override KI.get_sub_group_id() = get_sub_group_id() % UInt32
+@device_override KI.get_sub_group_id(::Type{T}) where {T} = get_sub_group_id() % T
 
-@device_override KI.get_sub_group_local_id() = get_sub_group_local_id() % UInt32
+@device_override KI.get_sub_group_local_id(::Type{T}) where {T} = get_sub_group_local_id() % T
 
 ## Shared and Scratch Memory
 
@@ -206,8 +216,9 @@ end
     sub_group_barrier(OpenCL.LOCAL_MEM_FENCE | OpenCL.GLOBAL_MEM_FENCE)
 end
 
+# out-of-range source lanes give an undefined value, as KernelInterface allows
 @device_override function KI.shfl_down(val::T, offset::Integer) where T
-    sub_group_shuffle(val, get_sub_group_local_id() + offset)
+    sub_group_shuffle(val, get_sub_group_local_id() % UInt32 + offset % UInt32)
 end
 
 @device_override @inline function KI._print(args...)
