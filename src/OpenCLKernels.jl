@@ -43,7 +43,7 @@ KA.supports_unified(::OpenCLBackend) = cl.default_memory_backend(cl.device(); un
 
 KA.get_backend(::CLArray) = OpenCLBackend()
 # TODO should be non-blocking
-KA.synchronize(::OpenCLBackend) = cl.finish(cl.queue())
+KA.synchronize(::OpenCLBackend) = OpenCL.synchronize()
 KA.supports_float64(::OpenCLBackend) = in("cl_khr_fp64", cl.device().extensions)
 
 Adapt.adapt_storage(::OpenCLBackend, a::Array) = Adapt.adapt(CLArray, a)

@@ -52,4 +52,10 @@ include("random.jl")
 include("OpenCLKernels.jl")
 import .OpenCLKernels: OpenCLBackend
 export OpenCLBackend
+
+# not exported, because `@sync` would clash with `Base.@sync`
+@static if VERSION >= v"1.11.0-DEV.469"
+    eval(Expr(:public, :synchronize, Symbol("@sync")))
+end
+
 end
