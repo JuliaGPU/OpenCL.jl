@@ -59,8 +59,11 @@ virtual memory (`cl.SharedVirtualMemory`), or host memory that was wrapped as sh
 The memory type can be selected when allocating the array, e.g.,
 `CLArray{Float32, 1, cl.UnifiedSharedMemory}(undef, 4)`.
 
-The returned `Array` does not keep the `CLArray` alive, so the caller has to keep a
-reference to it for as long as the `Array` is used.
+!!! warning
+
+    The returned `Array` does **not** keep the `CLArray` alive. The caller has to keep a
+    reference to the `CLArray` for as long as the `Array`, or anything derived from it, is
+    used; otherwise the `Array` may end up referring to freed memory.
 
 ## Caveats
 

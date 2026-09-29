@@ -545,10 +545,16 @@ only possible if that memory is accessible from the host: unified host or shared
 shared virtual memory, or host memory that was itself wrapped using
 `unsafe_wrap(CLArray, ...)`.
 
-The returned array does not keep `arr` alive, so the caller must keep a reference to `arr`
-for as long as the `Array` is used. Device operations execute asynchronously, so wait for
-them to finish (e.g., using `cl.finish(cl.queue())`) before accessing the returned array
-after using `arr` on the device.
+Device operations execute asynchronously, so wait for them to finish (e.g., using
+`cl.finish(cl.queue())`) before accessing the returned array after using `arr` on the
+device.
+
+!!! warning
+
+    The returned `Array` does **not** keep `arr` alive. If `arr` is garbage collected (or
+    freed using `unsafe_free!`), its memory is released and the `Array` refers to invalid
+    memory. The caller must keep a reference to `arr` for as long as the `Array`, or
+    anything derived from it, is used.
 
 !!! warning
 
