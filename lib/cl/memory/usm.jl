@@ -9,7 +9,7 @@ usm_alloc_properties(flags::Integer) =
 # allocation holds its own reference to the context, released when it is freed.
 
 function usm_free(mem::UnifiedMemory; blocking::Bool = false)
-    sizeof(mem) == 0 && return
+    (sizeof(mem) == 0 || is_system(mem)) && return
     ctx = context(mem)
     # this may run from a finalizer, on a task bound to a different platform
     p = first(ctx.devices).platform
@@ -140,9 +140,17 @@ struct UnifiedSharedMemory <: UnifiedMemory
     ptr::CLPtr{Cvoid}
     bytesize::Int
     context::Context
+
+    # whether this is ordinary host memory, not allocated by OpenCL, which devices with
+    # shared system USM support can access directly. such memory is not owned by us.
+    system::Bool
 end
 
+UnifiedSharedMemory(ptr, bytesize, context) =
+    UnifiedSharedMemory(ptr, bytesize, context, false)
 UnifiedSharedMemory() = UnifiedSharedMemory(CL_NULL, 0, context())
+
+is_system(mem::UnifiedSharedMemory) = mem.system
 
 function shared_alloc(bytesize::Integer;
         alignment::Integer = 0, write_combined = false, placement = nothing
@@ -179,7 +187,8 @@ Base.sizeof(mem::UnifiedSharedMemory) = mem.bytesize
 context(mem::UnifiedSharedMemory) = mem.context
 
 Base.show(io::IO, mem::UnifiedSharedMemory) =
-    @printf(io, "UnifiedSharedMemory(%s at %p)", Base.format_bytes(sizeof(mem)), Int(pointer(mem)))
+    @printf(io, "UnifiedSharedMemory(%s%s at %p)", Base.format_bytes(sizeof(mem)),
+            mem.system ? " of system memory" : "", Int(pointer(mem)))
 
 Base.convert(::Type{Ptr{T}}, mem::UnifiedSharedMemory) where {T} =
     convert(Ptr{T}, reinterpret(Ptr{Cvoid}, pointer(mem)))

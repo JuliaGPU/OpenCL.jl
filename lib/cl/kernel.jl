@@ -280,7 +280,10 @@ function call(
             end
 
             if memory isa SharedVirtualMemory
-                push!(svm_pointers, ptr)
+                # system memory is not an SVM allocation and needs no registration:
+                # indirect access to it is governed by `SVM_FINE_GRAIN_SYSTEM`, which
+                # defaults to true on devices that support it.
+                is_system(memory) || push!(svm_pointers, ptr)
             elseif memory isa Buffer
                 push!(bda_pointers, ptr)
             elseif memory isa UnifiedDeviceMemory

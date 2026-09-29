@@ -94,8 +94,8 @@ function take_ownership!(managed::Managed{M}; queue=cl.queue()) where {M}
     end
 
     # coarse-grained SVM needs to be unmapped when accessing it back from the device
-    # TODO: support fine-grained SVM
-    if M == cl.SharedVirtualMemory && managed.user == :host
+    # TODO: support fine-grained SVM (system memory is fine-grained, so never mapped)
+    if M == cl.SharedVirtualMemory && !cl.is_system(managed.mem) && managed.user == :host
         cl.enqueue_svm_unmap(pointer(managed.mem); queue)
         managed.user = :device
     end
@@ -141,8 +141,8 @@ function Base.convert(typ::Type{<:Ptr}, managed::Managed{M}) where {M}
         managed.dirty && synchronize(managed)
 
         # coarse-grained SVM needs to be mapped when initially accessing it from the host
-        # TODO: support fine-grained SVM
-        if M == cl.SharedVirtualMemory && managed.user != :host
+        # TODO: support fine-grained SVM (system memory is fine-grained, so never mapped)
+        if M == cl.SharedVirtualMemory && !cl.is_system(managed.mem) && managed.user != :host
             cl.enqueue_svm_map(pointer(managed.mem), sizeof(managed.mem), :rw; blocking=true)
             managed.user = :host
         end
@@ -236,7 +236,7 @@ function free(managed::Managed)
             synchronize(managed; check_exceptions=false)
 
             if mem isa cl.SharedVirtualMemory
-                if managed.user == :host
+                if !cl.is_system(mem) && managed.user == :host
                     # Finalizers must not query or mutate task-local state, so use the queue
                     # owned by the allocation. Finish the unmap before releasing the SVM
                     # allocation.

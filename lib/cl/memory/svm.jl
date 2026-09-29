@@ -2,9 +2,18 @@ struct SharedVirtualMemory <: AbstractPointerMemory
     ptr::CLPtr{Cvoid}
     bytesize::Int
     context::Context
+
+    # whether this is ordinary host memory, not allocated by OpenCL, which devices with
+    # fine-grained system SVM can access directly. such memory is not owned by us, and
+    # never needs to be mapped.
+    system::Bool
 end
 
+SharedVirtualMemory(ptr, bytesize, context) =
+    SharedVirtualMemory(ptr, bytesize, context, false)
 SharedVirtualMemory() = SharedVirtualMemory(CL_NULL, 0, context())
+
+is_system(mem::SharedVirtualMemory) = mem.system
 
 function svm_alloc(bytesize::Integer;
         alignment::Integer = 0, access::Symbol = :rw, fine_grained = false
@@ -42,7 +51,7 @@ function svm_alloc(bytesize::Integer;
 end
 
 function svm_free(mem::SharedVirtualMemory)
-    sizeof(mem) == 0 && return
+    (sizeof(mem) == 0 || is_system(mem)) && return
     clSVMFree(context(mem), mem)
     clReleaseContext(context(mem))
     return
@@ -53,7 +62,8 @@ Base.sizeof(mem::SharedVirtualMemory) = mem.bytesize
 context(mem::SharedVirtualMemory) = mem.context
 
 Base.show(io::IO, mem::SharedVirtualMemory) =
-    @printf(io, "SharedVirtualMemory(%s at %p)", Base.format_bytes(sizeof(mem)), Int(pointer(mem)))
+    @printf(io, "SharedVirtualMemory(%s%s at %p)", Base.format_bytes(sizeof(mem)),
+            mem.system ? " of system memory" : "", Int(pointer(mem)))
 
 Base.convert(::Type{Ptr{T}}, mem::SharedVirtualMemory) where {T} =
     convert(Ptr{T}, reinterpret(Ptr{Cvoid}, pointer(mem)))

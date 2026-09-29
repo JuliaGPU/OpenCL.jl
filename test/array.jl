@@ -104,6 +104,120 @@ if cl.USMBackend() in cl.supported_memory_backends(cl.device())
     end
 end
 
+@testset "merging memory types in broadcasts" begin
+    style(M) = OpenCL.CLArrayStyle{1, M}()
+    merged(M1, M2) = Base.Broadcast.BroadcastStyle(style(M1), style(M2))
+    @test merged(cl.Buffer, cl.Buffer) == style(cl.Buffer)
+    @test merged(cl.UnifiedDeviceMemory, cl.UnifiedHostMemory) == style(cl.UnifiedSharedMemory)
+    @test merged(cl.UnifiedDeviceMemory, cl.SharedVirtualMemory) == style(cl.UnifiedSharedMemory)
+    # without USM, fall back to SVM, which is also accessible from both host and device
+    @test merged(cl.Buffer, cl.SharedVirtualMemory) == style(cl.SharedVirtualMemory)
+end
+
+function wrap_kernel(a)
+    i = get_global_id()
+    @inbounds a[i] = i
+    return
+end
+
+@testset "wrapping host memory" begin
+    M = OpenCL.system_memory_type()
+    if M === nothing
+        @test_throws ArgumentError unsafe_wrap(CLArray, Float32[1])
+    else
+        a = Float32[1, 2, 3, 4]
+        b = unsafe_wrap(CLArray, a)
+        @test b isa CLVector{Float32, M}
+        @test size(b) == size(a)
+        @test UInt(pointer(b)) == UInt(pointer(a))
+        @test host_accessible(b) && device_accessible(b)
+
+        # changes are visible in both directions
+        b .+= 1
+        cl.finish(cl.queue())
+        @test a == [2, 3, 4, 5]
+        a[1] = 10
+        @test Array(b) == [10, 3, 4, 5]
+        @test b[1] == 10
+
+        # wrapping the wrapper again gives back the original memory
+        @test pointer(unsafe_wrap(Array, b)) == pointer(a)
+
+        for AT in [CLArray, CLArray{Float32}, CLArray{Float32, 1}, CLArray{Float32, 1, M}],
+            f in [x -> unsafe_wrap(AT, pointer(x), length(x)),
+                  x -> unsafe_wrap(AT, pointer(x), size(x)),
+                  x -> unsafe_wrap(AT, x)]
+            c = f(a)
+            @test c isa CLVector{Float32, M}
+            @test Array(c) == a
+        end
+        let m = rand(Float32, 3, 4)
+            c = unsafe_wrap(CLArray, m)
+            @test c isa CLMatrix{Float32, M}
+            @test Array(c) == m
+        end
+        @test isempty(Array(unsafe_wrap(CLArray, Float32[])))
+
+        # allocating broadcasts, also when mixing with regular arrays
+        @test Array(b .* 2) == 2 .* a
+        @test Array(b .+ CLArray(a)) == 2 .* a
+
+        # copies between wrapped memory, host arrays, and regular device arrays
+        c = CLArray{Float32}(undef, 4)
+        copyto!(c, b)
+        @test Array(c) == a
+        copyto!(b, CLArray(Float32[5, 6, 7, 8]))
+        cl.finish(cl.queue())
+        @test a == [5, 6, 7, 8]
+        copyto!(b, Float32[1, 2, 3, 4])
+        @test a == [1, 2, 3, 4]
+        copyto!(b, unsafe_wrap(CLArray, Float32[4, 3, 2, 1]))
+        @test a == [4, 3, 2, 1]
+
+        fill!(b, 42)
+        cl.finish(cl.queue())
+        @test all(==(42), a)
+        view(b, 2:3) .= 0
+        cl.finish(cl.queue())
+        @test a == [42, 0, 0, 42]
+        @test sum(b) == 84
+
+        @opencl global_size=length(b) wrap_kernel(b)
+        cl.finish(cl.queue())
+        @test a == [1, 2, 3, 4]
+
+        prog = cl.Program(source="""
+            __kernel void add_one(__global float *a) {
+                a[get_global_id(0)] += 1;
+            }""") |> cl.build!
+        clcall(cl.Kernel(prog, "add_one"), Tuple{CLPtr{Float32}}, b; global_size=length(b))
+        cl.finish(cl.queue())
+        @test a == [2, 3, 4, 5]
+
+        # elements that are only aligned to part of their size
+        bytes = zeros(UInt8, 20)
+        GC.@preserve bytes begin
+            c = unsafe_wrap(CLArray, Ptr{NTuple{2, Float32}}(pointer(bytes) + 4), 2)
+            fill!(c, (1.0f0, 2.0f0))
+            cl.finish(cl.queue())
+        end
+        @test reinterpret(Float32, bytes[5:20]) == [1, 2, 1, 2]
+
+        # the wrapper keeps the array alive
+        c = unsafe_wrap(CLArray, fill(1.0f0, 1024))
+        GC.gc(true)
+        @test sum(c) == 1024
+
+        @test_throws ArgumentError resize!(b, 5)
+        @test_throws ArgumentError unsafe_wrap(CLVector{Float32, cl.UnifiedDeviceMemory}, a)
+        @test_throws ArgumentError unsafe_wrap(CLArray, Ptr{Float32}(C_NULL), 1)
+        @test_throws ArgumentError unsafe_wrap(CLArray, pointer(a), (-1,))
+        GC.@preserve bytes begin
+            @test_throws ArgumentError unsafe_wrap(CLArray, Ptr{Float32}(pointer(bytes) + 1), 1)
+        end
+    end
+end
+
 @testset "resizing" begin
     a = CLArray([1, 2, 3])
 
