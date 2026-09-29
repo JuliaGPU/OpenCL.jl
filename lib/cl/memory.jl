@@ -14,6 +14,9 @@ Base.convert(T::Type{<:Union{Ptr, CLPtr}}, mem::AbstractMemory) =
 # and not the pointer of the object itself.
 Base.unsafe_convert(P::Type{<:Union{Ptr, CLPtr}}, mem::AbstractMemory) = convert(P, mem)
 
+# whether the memory is ordinary host memory, not allocated (or owned) by OpenCL
+is_system(mem::AbstractMemory) = false
+
 
 ## opaque memory objects
 

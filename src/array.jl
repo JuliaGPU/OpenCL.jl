@@ -391,6 +391,11 @@ end
 Base.copyto!(dest::DenseCLArray{T}, src::DenseCLArray{T}) where {T} =
     copyto!(dest, 1, src, 1, length(src))
 
+# the host address of an array operand in a copy. for arrays wrapping host memory, the
+# device pointer is used, which is identical but also records the device-side use.
+host_address(a::Array, i) = pointer(a, i)
+host_address(a::CLArray{T}, i) where {T} = reinterpret(Ptr{T}, pointer(a, i))
+
 for (srcty, dstty) in [(:Array, :CLArray), (:CLArray, :Array), (:CLArray, :CLArray)]
     @eval begin
         function Base.unsafe_copyto!(
@@ -401,29 +406,39 @@ for (srcty, dstty) in [(:Array, :CLArray), (:CLArray, :Array), (:CLArray, :CLArr
             nbytes = N * sizeof(T)
             nbytes == 0 && return
 
-            device_array = $dstty == CLArray ? dst : src
+            # arrays wrapping host memory can be treated like host arrays, so dispatch on
+            # the memory type of the other array
+            device_array = if $dstty == CLArray && $srcty == CLArray
+                is_system(dst) ? src : dst
+            else
+                $dstty == CLArray ? dst : src
+            end
             cl.context!(context(device_array)) do
                 managed = Managed[]
                 dst isa CLArray && push!(managed, dst.data[])
                 src isa CLArray && push!(managed, src.data[])
-                with_managed_locks(managed) do
+                # the copy has to be submitted before the arrays can be freed, which for
+                # arrays wrapping host memory also releases that memory
+                GC.@preserve dst src with_managed_locks(managed) do
                     if memtype(device_array) == cl.SharedVirtualMemory
                         cl.enqueue_svm_copy(pointer(dst, dst_off), pointer(src, src_off), nbytes; blocking)
                     elseif memtype(device_array) <: cl.UnifiedMemory
                         cl.enqueue_usm_copy(pointer(dst, dst_off), pointer(src, src_off), nbytes; blocking)
                     else
-                        if src isa CLArray && dst isa CLArray
+                        dst_buffer = dst isa CLArray && !is_system(dst)
+                        src_buffer = src isa CLArray && !is_system(src)
+                        if dst_buffer && src_buffer
                             cl.enqueue_copy(convert(cl.Buffer, dst.data[]),
                                 dst.offset + (dst_off - 1) * sizeof(T),
                                 convert(cl.Buffer, src.data[]),
                                 src.offset + (src_off - 1) * sizeof(T),
                                 nbytes; blocking)
-                        elseif dst isa CLArray
+                        elseif dst_buffer
                             cl.enqueue_write(convert(cl.Buffer, dst.data[]),
                                 dst.offset + (dst_off - 1) * sizeof(T),
-                                pointer(src, src_off), nbytes; blocking)
-                        elseif src isa CLArray
-                            cl.enqueue_read(pointer(dst, dst_off),
+                                host_address(src, src_off), nbytes; blocking)
+                        elseif src_buffer
+                            cl.enqueue_read(host_address(dst, dst_off),
                                 convert(cl.Buffer, src.data[]),
                                 src.offset + (src_off - 1) * sizeof(T),
                                 nbytes; blocking)
@@ -467,11 +482,17 @@ ones(dims...) = ones(Float32, dims...)
 fill(v, dims...) = fill!(CLArray{typeof(v)}(undef, dims...), v)
 fill(v, dims::Dims) = fill!(CLArray{typeof(v)}(undef, dims...), v)
 
+fill_aligned(A::CLArray{T, <:Any, <:cl.AbstractPointerMemory}) where {T} =
+    iszero((UInt(convert(CLPtr{T}, A.data[].mem)) + A.offset) % sizeof(T))
+fill_aligned(A::CLArray{T}) where {T} = iszero(A.offset % sizeof(T))
+
 function Base.fill!(A::DenseCLArray{T}, val) where {T}
     isempty(A) && return A
-    # the OpenCL fill commands only accept patterns of 1, 2, 4, ..., 128 bytes,
-    # so fall back to a kernel for other element types
-    if !ispow2(sizeof(T)) || sizeof(T) > 128
+    # the OpenCL fill commands only accept patterns of 1, 2, 4, ..., 128 bytes, and
+    # require the destination to be aligned to that size, so fall back to a kernel
+    # otherwise. we also do so for host memory wrapped using `unsafe_wrap`, which
+    # implementations do not expect here (PoCL crashes).
+    if !ispow2(sizeof(T)) || sizeof(T) > 128 || !fill_aligned(A) || is_system(A)
         return invoke(fill!, Tuple{AnyGPUArray, Any}, A, val)
     end
     cl.context!(context(A)) do
@@ -519,13 +540,161 @@ Base.unsafe_convert(::Type{CLPtr{T}}, A::PermutedDimsArray) where {T} =
 """
     unsafe_wrap(Array, arr::CLArray)
 
-Wrap a Julia `Array` around the buffer that backs a `CLArray`. This is only possible if the
-GPU array is backed by host memory, such as unified (host or shared) memory, or shared
-virtual memory.
+Wrap a Julia `Array` around the memory that backs a `CLArray`, without copying. This is
+only possible if that memory is accessible from the host: unified host or shared memory,
+shared virtual memory, or host memory that was itself wrapped using
+`unsafe_wrap(CLArray, ...)`.
+
+Device operations execute asynchronously, so wait for them to finish (e.g., using
+`cl.finish(cl.queue())`) before accessing the returned array after using `arr` on the
+device.
+
+!!! warning
+
+    The returned `Array` does **not** keep `arr` alive. If `arr` is garbage collected (or
+    freed using `unsafe_free!`), its memory is released and the `Array` refers to invalid
+    memory. The caller must keep a reference to `arr` for as long as the `Array`, or
+    anything derived from it, is used.
+
+!!! warning
+
+    Coarse-grained shared virtual memory is only accessible from the host while it is
+    mapped. Using `arr` on the device unmaps it, after which the returned array must not
+    be accessed until an operation on `arr` has mapped it again (e.g., indexing it, or
+    calling `unsafe_wrap(Array, arr)` again).
 """
 function Base.unsafe_wrap(::Type{Array}, arr::CLArray{T, N}) where {T, N}
     return unsafe_wrap(Array, host_pointer(arr), size(arr))
 end
+
+"""
+    unsafe_wrap(CLArray, a::Array)
+    unsafe_wrap(CLArray, ptr::Ptr{T}, dims)
+    unsafe_wrap(CLArray{T,N,M}, ...)
+
+Wrap a `CLArray` around host memory, without copying, so that it can be used on the
+device, e.g., in kernels or broadcasts. Changes made through the `CLArray` are visible in
+the original array, and vice versa.
+
+This requires a device that can directly access ordinary host memory, i.e., one that
+supports fine-grained system shared virtual memory (like PoCL's CPU device), or shared
+system allocations in the `cl_intel_unified_shared_memory` extension. On other devices an
+`ArgumentError` is thrown; use `CLArray(a)` to copy the data instead. The memory type `M`
+of the resulting array is either `cl.SharedVirtualMemory` or `cl.UnifiedSharedMemory`,
+depending on what the device supports. It can be selected explicitly by passing the full
+array type.
+
+When wrapping an `Array`, the returned `CLArray` keeps it alive. When wrapping a pointer,
+the caller has to make sure the memory stays valid for as long as the `CLArray` is used.
+In both cases, the memory must not be freed or reallocated while it is wrapped (e.g., by
+calling `resize!` on the original array), and resizing the wrapper is not supported.
+
+Device operations execute asynchronously, so wait for them to finish (e.g., using
+`cl.finish(cl.queue())`) before accessing the original memory on the host. Wrapping the
+same memory multiple times results in independent arrays whose operations are not
+synchronized with each other.
+
+```julia
+a = rand(Float32, 1024)
+b = unsafe_wrap(CLArray, a)
+b .= sin.(b)        # executes on the device, updating `a`
+cl.finish(cl.queue())
+```
+"""
+unsafe_wrap(::Type{<:CLArray}, ::Any, ::Any...)
+
+function system_usm_supported(dev::cl.Device)
+    cl.usm_supported(dev) || return false
+    caps = cl.usm_capabilities(dev)
+    # the resulting arrays are typed as shared memory, so operations like `similar` also
+    # need to be able to allocate regular shared memory.
+    return caps.shared.access && caps.single_device.access
+end
+
+function system_svm_supported(dev::cl.Device)
+    caps = cl.svm_capabilities(dev)
+    # operations like `similar` need to be able to allocate regular SVM
+    return caps.fine_grain_system && caps.coarse_grain_buffer
+end
+
+# the memory type to use for wrapping system memory, or `nothing` if not supported
+function system_memory_type(dev::cl.Device = cl.device())
+    usm = system_usm_supported(dev)
+    svm = system_svm_supported(dev)
+    # stick to the same extension as regular allocations, if possible
+    if usm && (!svm || cl.memory_backend() == cl.USMBackend())
+        return cl.UnifiedSharedMemory
+    elseif svm
+        return cl.SharedVirtualMemory
+    else
+        return nothing
+    end
+end
+
+# `owner` is kept alive for as long as the wrapper
+function wrap_system_memory(::Type{CLArray{T, N, M}}, ptr::Ptr{T}, dims::NTuple{N, Int},
+                            owner = nothing) where {T, N, M}
+    check_eltype(T)
+    isbitstype(T) || throw(ArgumentError("Can only unsafe_wrap a pointer to a bits type"))
+    all(>=(0), dims) || throw(ArgumentError("Invalid dimensions $dims"))
+    bytesize = Base.checked_mul(foldl(Base.checked_mul, dims; init = 1), sizeof(T))
+    if bytesize > 0 && ptr == C_NULL
+        throw(ArgumentError("Cannot wrap a NULL pointer"))
+    end
+    if !iszero(UInt(ptr) % Base.datatype_alignment(T))
+        throw(ArgumentError("Pointer $ptr is not sufficiently aligned for elements of type $T"))
+    end
+
+    dev = cl.device()
+    supported = if M == cl.SharedVirtualMemory
+        system_svm_supported(dev)
+    elseif M == cl.UnifiedSharedMemory
+        system_usm_supported(dev)
+    else
+        throw(ArgumentError("Cannot wrap host memory as $M; use cl.SharedVirtualMemory or cl.UnifiedSharedMemory"))
+    end
+    supported || throw(ArgumentError("Device $(dev.name) does not support accessing host memory as $M"))
+
+    mem = M(reinterpret(CLPtr{Cvoid}, ptr), bytesize, cl.context(), true)
+    # the memory is only ever freed by its owner, but we still need to synchronize
+    # outstanding operations before releasing it (and our reference to the queue)
+    data = DataRef(Managed(mem; dirty = false)) do managed
+        GC.@preserve owner free(managed)
+    end
+    return CLArray{T, N}(data, dims)
+end
+function wrap_system_memory(::Type{CLArray{T, N}}, ptr::Ptr{T}, dims::NTuple{N, Int},
+                            owner = nothing) where {T, N}
+    M = system_memory_type()
+    if M === nothing
+        throw(ArgumentError("""Device $(cl.device().name) cannot access host memory directly, which is required to wrap it as a CLArray.
+                               Use `CLArray(a)` to copy the data instead."""))
+    end
+    return wrap_system_memory(CLArray{T, N, M}, ptr, dims, owner)
+end
+
+Base.unsafe_wrap(::Union{Type{CLArray}, Type{CLArray{T}}, Type{CLArray{T, N}}},
+                 ptr::Ptr{T}, dims::NTuple{N, Int}) where {T, N} =
+    wrap_system_memory(CLArray{T, N}, ptr, dims)
+Base.unsafe_wrap(::Type{CLArray{T, N, M}}, ptr::Ptr{T}, dims::NTuple{N, Int}) where {T, N, M} =
+    wrap_system_memory(CLArray{T, N, M}, ptr, dims)
+
+# integer size input
+Base.unsafe_wrap(::Union{Type{CLArray}, Type{CLArray{T}}, Type{CLArray{T, 1}}},
+                 ptr::Ptr{T}, dim::Integer) where {T} =
+    unsafe_wrap(CLArray{T, 1}, ptr, (Int(dim),))
+Base.unsafe_wrap(::Type{CLArray{T, 1, M}}, ptr::Ptr{T}, dim::Integer) where {T, M} =
+    unsafe_wrap(CLArray{T, 1, M}, ptr, (Int(dim),))
+
+# array input: keep the array alive for as long as the wrapper
+Base.unsafe_wrap(::Union{Type{CLArray}, Type{CLArray{T}}, Type{CLArray{T, N}}},
+                 a::Array{T, N}) where {T, N} =
+    wrap_system_memory(CLArray{T, N}, pointer(a), size(a), a)
+Base.unsafe_wrap(::Type{CLArray{T, N, M}}, a::Array{T, N}) where {T, N, M} =
+    wrap_system_memory(CLArray{T, N, M}, pointer(a), size(a), a)
+
+# whether an array wraps host memory using `unsafe_wrap`
+is_system(a::CLArray) = cl.is_system(a.data[].mem)
 
 
 ## resizing
@@ -539,6 +708,8 @@ guaranteed to be initialized.
 """
 function Base.resize!(a::CLVector{T}, n::Integer) where {T}
     n == length(a) && return a
+    # resizing would detach the array from the host memory it wraps
+    is_system(a) && throw(ArgumentError("Cannot resize a CLArray that wraps host memory"))
 
     # TODO: add additional space to allow for quicker resizing
     maxsize = n * sizeof(T)
