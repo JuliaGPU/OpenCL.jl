@@ -178,10 +178,10 @@ end
     end
     ld = load!(builder, eltyp, inbounds_gep!(builder, eltyp, ptr, [i]))
     if AS != 0
-        metadata(ld)[LLVM.MD_tbaa] = tbaa_addrspace(AS)
+        ld.metadata[LLVM.MD_tbaa] = tbaa_addrspace(AS)
     end
-    metadata(ld)[LLVM.MD_invariant_load] = MDNode(LLVM.Metadata[])
-    alignment!(ld, align)
+    ld.metadata[LLVM.MD_invariant_load] = MDNode(LLVM.Metadata[])
+    ld.alignment = align
     ld
 end
 

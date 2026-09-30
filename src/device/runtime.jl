@@ -248,12 +248,12 @@ end
 # then get propagated across function calls to the caller.
 
 function additional_arg_intr(mod::LLVM.Module, T_state, name)
-    state_intr = if haskey(functions(mod), "julia.opencl.$name")
-        functions(mod)["julia.opencl.$name"]
+    state_intr = if haskey(mod.functions, "julia.opencl.$name")
+        mod.functions["julia.opencl.$name"]
     else
         LLVM.Function(mod, "julia.opencl.$name", LLVM.FunctionType(T_state))
     end
-    push!(function_attributes(state_intr), EnumAttribute("readnone", 0))
+    push!(state_intr.function_attributes, EnumAttribute(:readnone))
 
     return state_intr
 end
@@ -262,7 +262,7 @@ end
 additional_arg_value(state, name) = generate_llvmcall(state, Tuple{}) do builder
     T_state = convert(LLVMType, state)
     state_intr = additional_arg_intr(current_module(builder), T_state, name)
-    call!(builder, function_type(state_intr), state_intr, Value[], name)
+    call!(builder, state_intr.function_type, state_intr, Value[], name)
 end
 
 for name in [:random_keys, :random_counters]

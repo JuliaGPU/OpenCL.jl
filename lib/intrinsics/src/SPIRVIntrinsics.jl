@@ -1,6 +1,6 @@
 module SPIRVIntrinsics
 
-using LLVM, LLVM.Interop
+using LLVM, LLVM.IR, LLVM.Build, LLVM.Interop
 using Core: LLVMPtr
 
 import ExprTools

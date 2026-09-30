@@ -50,7 +50,7 @@ end
                     T = Int8
                 end
                 actual_typ = LLVM.PointerType(convert(LLVMType, T))
-                actual_arg = if value_type(arg) isa LLVM.PointerType
+                actual_arg = if arg.value_type isa LLVM.PointerType
                     # passed as i8* or ptr
                     bitcast!(builder, arg, actual_typ)
                 else
@@ -74,7 +74,7 @@ end
         # invoke printf and return
         printf_typ = LLVM.FunctionType(T_int32, [T_pint8]; vararg=true)
         printf = LLVM.Function(current_module(builder), "printf", printf_typ)
-        push!(function_attributes(printf), EnumAttribute("nobuiltin"))
+        push!(printf.function_attributes, EnumAttribute(:nobuiltin))
         call!(builder, printf_typ, printf, [str, actual_args...])
     end
 end
