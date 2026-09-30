@@ -79,8 +79,8 @@ function GPUCompiler.finish_module!(@nospecialize(job::OpenCLCompilerJob),
     # materialize the feature bitset for `has_feature`, if the kernel referenced it. A constant
     # initializer plus private linkage lets the optimizer fold the loads and drop the global, so it
     # never reaches SPIR-V.
-    if haskey(mod.globals, "__opencl_feature_bitset")
-        gv = mod.globals["__opencl_feature_bitset"]
+    gv = get(mod.globals, "__opencl_feature_bitset", nothing)
+    if gv !== nothing
         gv.initializer = ConstantInt(LLVM.Int64Type(), job.config.params.features)
         gv.linkage = LLVM.Linkage.Private
         gv.constant = true
@@ -122,9 +122,7 @@ function GPUCompiler.finish_module!(@nospecialize(job::OpenCLCompilerJob),
             end
             T_id = convert(LLVMType, Int)
             deferred_codegen_ft = LLVM.FunctionType(T_ptr, [T_id])
-            deferred_codegen = if haskey(mod.functions, "deferred_codegen")
-                mod.functions["deferred_codegen"]
-            else
+            deferred_codegen = get!(mod.functions, "deferred_codegen") do
                 LLVM.Function(mod, "deferred_codegen", deferred_codegen_ft)
             end
             fptr = call!(builder, deferred_codegen_ft, deferred_codegen, [ConstantInt(id)])
@@ -247,7 +245,7 @@ function compile_to_obj(@nospecialize(job::CompilerJob))
     JuliaContext() do ctx
         obj, meta = GPUCompiler.compile(:obj, job)
         entry = meta.entry.name
-        device_rng = StringAttribute("julia.opencl.rng", "") in collect(meta.entry.function_attributes)
+        device_rng = haskey(meta.entry.function_attributes, "julia.opencl.rng")
         (; obj, entry, device_rng)
     end
 end
