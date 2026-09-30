@@ -176,3 +176,42 @@ function versioninfo(io::IO=stdout)
         end
     end
 end
+
+
+## synchronization
+
+"""
+    OpenCL.synchronize([queue::cl.CmdQueue])
+
+Wait for all operations submitted to `queue` to finish. By default, this is the command
+queue of the current task, `cl.queue()`; operations submitted by other tasks, which use
+their own queues, are not waited for.
+
+If a kernel threw an exception, it is reported here as a [`KernelException`](@ref). Because
+queues targeting the same device share their exception state, this may also wait for, and
+report a failure from, another queue on that device.
+
+See also: [`OpenCL.@sync`](@ref).
+"""
+function synchronize(queue::cl.CmdQueue = cl.queue())
+    cl.finish(queue)
+    return
+end
+
+"""
+    OpenCL.@sync ex
+
+Run expression `ex`, then wait for the operations it submitted to the current task's queue
+to finish, using [`OpenCL.synchronize`](@ref). Returns the value of `ex`.
+
+This blocks the calling thread while waiting. Only the current task's queue is waited for:
+work that `ex` submits to other queues, e.g., inside a `cl.queue!(q) do ... end` block, or
+from Julia tasks it spawns (unlike `Base.@sync`), needs to be synchronized separately.
+"""
+macro sync(ex)
+    quote
+        local ret = $(esc(ex))
+        synchronize()
+        ret
+    end
+end

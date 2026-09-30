@@ -2,14 +2,15 @@
 
 OpenCL kernels report device-side exceptions to the host as `KernelException`s. The
 faulting work-item exits, and the exception is raised at the next synchronization point:
-`cl.finish`, a blocking copy such as `Array(x)`, or `KernelAbstractions.synchronize`.
+`OpenCL.synchronize()` (or `OpenCL.@sync`), a blocking copy such as `Array(x)`, or
+`KernelAbstractions.synchronize`.
 
 ```julia-repl
 julia> a = OpenCL.zeros(Float32, 1);
 
 julia> @opencl (a -> (a[2] = 1f0; return))(a)
 
-julia> cl.finish(cl.queue())
+julia> OpenCL.synchronize()
 ERROR: KernelException: A BoundsError was thrown on device cpu-...: Out-of-bounds array access
 For more details, run Julia with `-g2`, or launch the kernel with `@opencl debug_level=2`
 ```
@@ -32,7 +33,7 @@ Kernels default to Julia's `-g` setting. Use `@opencl debug_level=N`, or the sam
 ```julia
 @opencl debug_level=2 (a -> (a[2] = 1f0; return))(a)
 try
-    cl.finish(cl.queue())
+    OpenCL.synchronize()
 catch exc
     @show exc.dev exc.name exc.reason
     @show exc.work_item exc.work_group exc.backtrace
