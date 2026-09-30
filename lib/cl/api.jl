@@ -1,5 +1,5 @@
 import OpenCL_jll
-using GPUToolbox: @gcsafe_ccall
+using GPUToolbox: @gcsafe_ccall, cooperative_wait
 
 const libopencl = OpenCL_jll.libopencl
 

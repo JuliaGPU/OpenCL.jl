@@ -94,6 +94,7 @@ function versioninfo(io::IO=stdout)
     prefs = [
         "default_memory_backend" => load_preference(OpenCL, "default_memory_backend"),
         "llvm_to_spirv_backend" => load_preference(OpenCL, "llvm_to_spirv_backend"),
+        "nonblocking_synchronization" => load_preference(OpenCL, "nonblocking_synchronization"),
     ]
     if any(x->!isnothing(x[2]), prefs)
         println(io, "Preferences:")

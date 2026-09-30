@@ -143,26 +143,12 @@ function add_callback(evt::AbstractEvent, callback::Function)
     end
 end
 
-function Base.wait(evt::AbstractEvent)
-    evt_id = [evt.id]
-    clWaitForEvents(cl_uint(1), evt_id)
-    return evt
-end
-
-function Base.wait(evts::Vector{AbstractEvent})
-    isempty(evts) && return evts
-    evt_ids = [pointer(evt) for evt in evts]
-    GC.@preserve evts begin
-        clWaitForEvents(length(evt_ids), evt_ids)
-    end
-    return evts
-end
-
-function enqueue_marker_with_wait_list(wait_for::Vector{AbstractEvent})
+function enqueue_marker_with_wait_list(wait_for::Vector{AbstractEvent};
+                                       queue::CmdQueue=queue())
     n_wait_events = cl_uint(length(wait_for))
     wait_evt_ids = [evt.id for evt in wait_for]
     ret_evt = Ref{cl_event}()
-    clEnqueueMarkerWithWaitList(queue(), n_wait_events,
+    clEnqueueMarkerWithWaitList(queue, n_wait_events,
                                 isempty(wait_evt_ids) ? C_NULL : wait_evt_ids,
                                 ret_evt)
     @return_event ret_evt[]

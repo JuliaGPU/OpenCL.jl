@@ -11,3 +11,8 @@
 # - "khronos": the Khronos SPIRV-LLVM-Translator, which additionally requires
 #   `SPIRV_LLVM_Translator_jll` (or `SPIRV_LLVM_Translator_unified_jll`) to be loaded
 #llvm_to_spirv_backend="llvm"
+
+# Whether to wait for the device cooperatively, yielding to other tasks instead of blocking
+# the calling thread in the OpenCL driver. Disable for bisecting issues, or to compare
+# against the blocking behavior.
+#nonblocking_synchronization=true

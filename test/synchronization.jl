@@ -71,3 +71,65 @@ end
     @test !Base.isexported(OpenCL, :synchronize)
     @test !Base.isexported(OpenCL, Symbol("@sync"))
 end
+
+# a marker that only completes once `gate` is completed. waiting for it deadlocks unless
+# waiting yields to the task that completes the gate.
+#
+# these markers go on a queue of their own: freeing memory waits for the queue it was used
+# on, blocking the thread when done by a finalizer, which would deadlock if that queue were
+# waiting for a gate that only another task on this thread can complete.
+const gated_queue = cl.CmdQueue()
+function gated_marker()
+    gate = cl.UserEvent()
+    return gate, cl.enqueue_marker_with_wait_list(cl.AbstractEvent[gate]; queue=gated_queue)
+end
+
+# complete `gate` from another task, after a delay that makes waiting go past polling
+open_later(gate) = @async (sleep(0.1); cl.complete(gate))
+
+@testset "cooperative waiting" begin
+    gate, evt = gated_marker()
+    opener = open_later(gate)
+    @test wait(evt) === evt
+    @test istaskdone(opener)
+    @test evt.status == :complete
+
+    gate, evt = gated_marker()
+    opener = open_later(gate)
+    @test wait(cl.AbstractEvent[evt]) == [evt]
+    @test istaskdone(opener)
+end
+
+@testset "failed commands" begin
+    gate, evt = gated_marker()
+    @async (sleep(0.1); cl.clSetUserEventStatus(gate, cl.CL_INVALID_VALUE))
+    @test_throws cl.CLError wait(evt)
+end
+
+# cancel a task waiting for the device, which is what ^C does on Julia 1.14+. (earlier
+# versions throw an `InterruptException` into the task, but that cannot be done reliably
+# from Julia code, as it is incorrect to `schedule` a task that has already started.)
+if isdefined(Base, :CANCEL_TOKEN)
+@testset "cancellation" begin
+    # like `Threads.@spawn`, running `f` under a cancellation token that can be cancelled
+    function cancellable_task(f)
+        src = Base.CancellationTokenSource()
+        task = Base.ScopedValues.with(() -> Threads.@spawn(f()),
+                                      Base.CANCEL_TOKEN => Base.CancellationToken(src))
+        return task, () -> Base.cancel!(src)
+    end
+
+    gate, evt = gated_marker()
+    task, cancel = cancellable_task(() -> wait(evt))
+    sleep(0.1)
+    @test !istaskdone(task)
+    cancel()
+    @test_throws TaskFailedException wait(task)
+    @test evt.status != :complete
+
+    # the command keeps executing, and can be waited for again
+    opener = open_later(gate)
+    @test wait(evt) === evt
+    @test istaskdone(opener)
+end
+end
