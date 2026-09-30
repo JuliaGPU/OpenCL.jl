@@ -137,3 +137,7 @@ end
     end
     @test Array(a) == fill(Int32(5), 4)
 end
+
+@testset "versioninfo" begin
+    @test occursin("OpenCL.jl version", sprint(KI.versioninfo, OpenCLBackend()))
+end
