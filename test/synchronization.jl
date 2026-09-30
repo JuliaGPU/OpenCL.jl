@@ -98,6 +98,12 @@ open_later(gate) = @async (sleep(0.1); cl.complete(gate))
     opener = open_later(gate)
     @test wait(cl.AbstractEvent[evt]) == [evt]
     @test istaskdone(opener)
+
+    gate, evt = gated_marker()
+    opener = open_later(gate)
+    OpenCL.synchronize(gated_queue)
+    @test istaskdone(opener)
+    @test evt.status == :complete
 end
 
 @testset "failed commands" begin

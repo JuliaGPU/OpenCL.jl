@@ -78,3 +78,16 @@ function Base.wait(evts::Vector{AbstractEvent})
     isempty(evts) || wait_events(evts)
     return evts
 end
+
+# wait for the commands submitted to `queue` so far to complete. this does not check for
+# device-side exceptions, as `finish` does.
+function wait_idle(queue::CmdQueue; cancellable::Bool=true)
+    if nonblocking_synchronization
+        # there is no way to query whether a queue is idle, so wait for a marker instead
+        marker = enqueue_marker_with_wait_list(AbstractEvent[]; queue)
+        wait_events([marker]; cancellable)
+    else
+        clFinish(queue)
+    end
+    return
+end
