@@ -128,8 +128,18 @@ KI.argconvert(::OpenCLBackend, arg) = kernel_convert(arg)
 # it captures
 function KI.kernel_function(backend::OpenCLBackend, f::F, tt::TT=Tuple{}; name = nothing, kwargs...) where {F,TT}
     activate(backend)
+    check_sub_group_size(backend, kwargs)
     kern = GC.@preserve f clfunction(kernel_convert(f), tt; source=f, name, kwargs...)
     KI.Kernel{OpenCLBackend, typeof(kern)}(backend, kern)
+end
+
+# kernels have to execute with the sub-group width that `KI.sub_group_size` reports
+function check_sub_group_size(backend::OpenCLBackend, kwargs)
+    haskey(kwargs, :sub_group_size) && KI.supports_subgroups(backend) || return
+    width = KI.sub_group_size(backend)
+    kwargs[:sub_group_size] == width ||
+        throw(ArgumentError("KernelInterface kernels execute with sub-group width $width, got `sub_group_size=$(kwargs[:sub_group_size])`"))
+    return
 end
 
 # the context that a kernel was compiled for
@@ -180,6 +190,8 @@ end
 const DeviceProperties = @NamedTuple{
     max_work_group_size::Int, max_work_group_dims::NTuple{3, Int}, compute_units::Int,
     float64::Bool, unified::Bool,
+    # 0 if the device doesn't support sub-groups of a fixed width
+    sub_group_size::Int, shuffle_types::Vector{DataType},
 }
 function device_properties(dev::cl.Device)
     cache = get!(task_local_storage(), :CLDeviceProperties) do
@@ -187,11 +199,17 @@ function device_properties(dev::cl.Device)
     end::Dict{cl.Device, DeviceProperties}
     return get!(cache, dev) do
         sizes = dev.max_work_item_size
+        # the sub-group width is only fixed for kernels that request it, which `clfunction`
+        # does for devices with `cl_intel_required_subgroup_size`
+        fixed_sub_groups = cl.sub_groups_supported(dev) &&
+                           "cl_intel_required_subgroup_size" in dev.extensions
         (; max_work_group_size = Int(dev.max_work_group_size),
            max_work_group_dims = ntuple(d -> d <= length(sizes) ? Int(sizes[d]) : 1, 3),
            compute_units = Int(dev.max_compute_units),
            float64 = "cl_khr_fp64" in dev.extensions,
-           unified = cl.default_memory_backend(dev; unified=true) !== nothing)
+           unified = cl.default_memory_backend(dev; unified=true) !== nothing,
+           sub_group_size = fixed_sub_groups ? cl.sub_group_size(dev) : 0,
+           shuffle_types = fixed_sub_groups ? cl.sub_group_shuffle_supported_types(dev) : DataType[])
     end
 end
 
@@ -209,6 +227,10 @@ KI.supports_float64(b::OpenCLBackend) = device_properties(b).float64
 KI.supports_unified(b::OpenCLBackend) = device_properties(b).unified
 # 32-bit integer atomics are core OpenCL; float atomics fall back to compare-and-swap
 KI.supports_atomics(::OpenCLBackend) = true
+
+KI.supports_subgroups(b::OpenCLBackend) = device_properties(b).sub_group_size > 0
+KI.sub_group_size(b::OpenCLBackend)::Int = device_properties(b).sub_group_size
+KI.supports_shuffle(b::OpenCLBackend, ::Type{T}) where {T} = T in device_properties(b).shuffle_types
 
 
 ## Indexing Functions
@@ -232,6 +254,19 @@ end
     return (; x = get_num_groups(1) % T, y = get_num_groups(2) % T, z = get_num_groups(3) % T)
 end
 
+# OpenCL's sub-group queries already have KernelInterface's semantics: the last sub-group
+# of a work-group can be partial, and `get_sub_group_size` counts the work-items present
+
+@device_override KI.get_sub_group_size(::Type{T}) where {T} = get_sub_group_size() % T
+
+@device_override KI.get_max_sub_group_size(::Type{T}) where {T} = get_max_sub_group_size() % T
+
+@device_override KI.get_num_sub_groups(::Type{T}) where {T} = get_num_sub_groups() % T
+
+@device_override KI.get_sub_group_id(::Type{T}) where {T} = get_sub_group_id() % T
+
+@device_override KI.get_sub_group_local_id(::Type{T}) where {T} = get_sub_group_local_id() % T
+
 
 ## Shared Memory
 
@@ -245,6 +280,15 @@ end
 
 @device_override @inline function KI.barrier()
     work_group_barrier(OpenCL.LOCAL_MEM_FENCE | OpenCL.GLOBAL_MEM_FENCE)
+end
+
+@device_override @inline function KI.sub_group_barrier()
+    sub_group_barrier(OpenCL.LOCAL_MEM_FENCE | OpenCL.GLOBAL_MEM_FENCE)
+end
+
+# out-of-range source lanes give an unspecified value, as KernelInterface allows
+@device_override function KI.shfl_down(val::T, offset::Integer) where T
+    sub_group_shuffle(val, get_sub_group_local_id() % UInt32 + offset % UInt32)
 end
 
 @device_override @inline function KI._print(args...)
