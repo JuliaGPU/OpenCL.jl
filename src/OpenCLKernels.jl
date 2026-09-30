@@ -26,6 +26,8 @@ Base.@kwdef struct OpenCLBackend <: KI.Backend
     platform::cl.Platform = cl.platform()
 end
 
+KI.versioninfo(io::IO, ::OpenCLBackend) = OpenCL.versioninfo(io)
+
 # the device that `b` works with
 function backend_device(b::OpenCLBackend)
     cl.platform() == b.platform && return cl.device()
