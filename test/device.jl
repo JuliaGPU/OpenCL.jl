@@ -50,6 +50,7 @@ end
             :host_unified_memory,
             :available,
             :compiler_available,
+            :non_uniform_work_group_support,
             :max_work_group_size,
             :max_parameter_size,
             :profiling_timer_resolution,
