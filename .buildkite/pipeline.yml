@@ -47,7 +47,17 @@ steps:
             # SPIRVIntrinsics first; otherwise the Pkg.add below resolves
             # against the registry, which has no SPIRVIntrinsics 1. Pkg.test
             # then carries the in-tree copy into the test sandbox.
-            Pkg.develop(path="lib/intrinsics")
+            if VERSION < v"1.12"
+              # XXX: KernelAbstractions 0.10 and KernelInterface 0.4 aren't registered yet,
+              #      so develop them from their branch, in the same Pkg operation
+              run(`git clone --depth 1 --branch main https://github.com/JuliaGPU/KernelAbstractions.jl ka`)
+              Pkg.develop([PackageSpec(; path) for path in ("lib/intrinsics", "ka", "ka/lib/KernelInterface")])
+              # Pkg < 1.12 turns the developed weak dependency into a strong one; restore
+              # the project, keeping the developed package in the manifest
+              run(`git checkout Project.toml`)
+            else
+              Pkg.develop(path="lib/intrinsics")
+            end
             Pkg.add("{{matrix.pocl}}_jll")
             Pkg.add("InteractiveUtils")
 
