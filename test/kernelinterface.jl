@@ -122,3 +122,18 @@ end
     end
     @test !KI.supports_shuffle(backend, Complex{Float32})
 end
+
+@testset "events" begin
+    backend = OpenCLBackend()
+    a = KI.zeros(backend, Int32, 4)
+    KI.@launch backend ndrange = 4 ki_fill_kernel(a, Int32(5))
+    event = KI.record_event(backend)
+    @test event isa cl.Event
+
+    # queues of another context can't wait for the event, so the host does
+    cl.context!(cl.Context(cl.device())) do
+        @test KI.wait_event(backend, event) === nothing
+        @test event.status == :complete
+    end
+    @test Array(a) == fill(Int32(5), 4)
+end
