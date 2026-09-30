@@ -260,14 +260,15 @@ function enqueue_task(k::Kernel; wait_for=nothing)
     return ret_event[]
 end
 
+# the arguments are passed as a tuple, see `set_args!`
 function call(
-        k::Kernel, args...; global_size = (1,), local_size = nothing,
+        k::Kernel, args::Tuple; global_size = (1,), local_size = nothing,
         global_work_offset = nothing, wait_on::Vector{Event} = Event[],
         indirect_memory::Vector{AbstractMemory} = AbstractMemory[],
         rng_state=false,
     )
     return Base.@lock k begin
-    set_args!(k, args...)
+    _set_args!(k, args)
     if !isempty(indirect_memory)
         svm_pointers = CLPtr{Cvoid}[]
         usm_pointers = CLPtr{Cvoid}[]
@@ -360,7 +361,7 @@ clcall(f::F, types::Tuple, args::Vararg{Any,N}; kwargs...) where {N,F} =
 
 function clcall(k::Kernel, types::Type{T}, args::Vararg{Any,N}; kwargs...) where {T,N}
     call_closure = function (converted_args::Vararg{Any,N})
-        call(k, converted_args...; kwargs...)
+        call(k, converted_args; kwargs...)
     end
     convert_arguments(call_closure, types, args...)
 end
@@ -415,10 +416,12 @@ unlock_arguments(locks) = foreach(unlock, Iterators.reverse(locks))
     return ex
 end
 
-function set_args!(k::Kernel, args...)
-    for (i, a) in enumerate(args)
-        set_arg!(k, i, a)
-    end
+set_args!(k::Kernel, args::Vararg{Any,N}) where {N} = _set_args!(k, args)
+
+# one call per argument: a splat of more than 32 arguments isn't a direct call
+@inline @generated function _set_args!(k::Kernel, args::Tuple)
+    calls = (:(set_arg!(k, $i, args[$i])) for i in 1:fieldcount(args))
+    return :($(calls...); nothing)
 end
 
 function set_arg!(k::Kernel, idx::Integer, arg::T) where {T}

@@ -1,11 +1,9 @@
 module OpenCLKernels
 
 using ..OpenCL
-using ..OpenCL: @device_override, method_table
+using ..OpenCL: @device_override, method_table, kernel_convert, clfunction
 
-import KernelAbstractions as KA
-
-import StaticArrays
+import KernelInterface as KI
 
 import Adapt
 
@@ -14,17 +12,38 @@ import Adapt
 
 export OpenCLBackend
 
-Base.@kwdef struct OpenCLBackend <: KA.GPU
+"""
+    OpenCLBackend(; platform=cl.platform())
+
+KernelInterface back end for the OpenCL devices of `platform`.
+
+A backend works with the task's active device if that is on its platform. Otherwise, work
+for the backend (allocations, copies, compilation and launches) first activates the default
+device of its platform, as `KernelInterface.device!` would, so that the arrays it creates
+can be used afterwards.
+"""
+Base.@kwdef struct OpenCLBackend <: KI.Backend
     platform::cl.Platform = cl.platform()
 end
 
-@noinline function platform_mismatch_warning(expected::cl.Platform, active::cl.Platform)
-    @warn "OpenCLBackend platform \"$(expected.name)\" is not the active platform \"$(active.name)\""
-    return nothing
+KI.versioninfo(io::IO, ::OpenCLBackend) = OpenCL.versioninfo(io)
+
+# the device that `b` works with
+function backend_device(b::OpenCLBackend)
+    cl.platform() == b.platform && return cl.device()
+    dev = cl.default_device(b.platform)
+    dev === nothing && throw(ArgumentError("OpenCL platform \"$(b.platform.name)\" has no devices"))
+    return dev
 end
 
-function KA.allocate(b::OpenCLBackend, ::Type{T}, dims::Tuple; unified::Bool = false) where T
-    b.platform === cl.platform() || platform_mismatch_warning(b.platform, cl.platform())
+# make the backend's device the task's active device
+@inline function activate(b::OpenCLBackend)
+    cl.platform() == b.platform || cl.platform!(b.platform)
+    return
+end
+
+function KI.allocate(b::OpenCLBackend, ::Type{T}, dims::Tuple; unified::Bool = false) where T
+    activate(b)
     if unified
         memory_backend = cl.unified_memory_backend()
         if memory_backend === cl.USMBackend()
@@ -39,194 +58,276 @@ function KA.allocate(b::OpenCLBackend, ::Type{T}, dims::Tuple; unified::Bool = f
     end
 end
 
-KA.supports_unified(::OpenCLBackend) = cl.default_memory_backend(cl.device(); unified=true) !== nothing
+# OpenCL.jl creates a context per device
+context_device(ctx::cl.Context) = ctx == cl.context() ? cl.device() : only(ctx.devices)
 
-KA.get_backend(::CLArray) = OpenCLBackend()
-# TODO should be non-blocking
-KA.synchronize(::OpenCLBackend) = OpenCL.synchronize()
-KA.supports_float64(::OpenCLBackend) = in("cl_khr_fp64", cl.device().extensions)
+function KI.get_backend(A::CLArray)
+    ctx = OpenCL.context(A)
+    ctx == cl.context() && return OpenCLBackend(cl.platform())
+    return OpenCLBackend(context_device(ctx).platform)
+end
 
-Adapt.adapt_storage(::OpenCLBackend, a::Array) = Adapt.adapt(CLArray, a)
+# XXX: this blocks the thread instead of waiting cooperatively
+function KI.synchronize(b::OpenCLBackend)
+    activate(b)
+    OpenCL.synchronize()
+    return
+end
+
+# queues are task-local, so work is ordered across tasks with a marker event on the
+# recording task's queue
+function KI.record_event(b::OpenCLBackend)
+    activate(b)
+    event = cl.enqueue_marker_with_wait_list(cl.AbstractEvent[])
+    # the waiting queue only makes progress if this one is submitted
+    cl.flush(cl.queue())
+    return event
+end
+
+function event_context(event::cl.Event)
+    ctx = Ref{cl.cl_context}()
+    cl.clGetEventInfo(event, cl.CL_EVENT_CONTEXT, sizeof(cl.cl_context), ctx, C_NULL)
+    return ctx[]
+end
+
+function KI.wait_event(b::OpenCLBackend, event::cl.Event)
+    activate(b)
+    # the event has to stay alive until the driver has retained it
+    GC.@preserve event begin
+        if event_context(event) == cl.context().id
+            cl.enqueue_barrier_with_wait_list(cl.AbstractEvent[event])
+        else
+            # XXX: queues can only wait for events of their own context, and OpenCL.jl
+            #      creates a context per device, so wait for other devices on the host.
+            #      this blocks the thread instead of waiting cooperatively.
+            wait(event)
+        end
+    end
+    return
+end
+
+function Adapt.adapt_storage(b::OpenCLBackend, a::Array)
+    activate(b)
+    return Adapt.adapt(CLArray, a)
+end
 Adapt.adapt_storage(::OpenCLBackend, a::CLArray) = a
-Adapt.adapt_storage(::KA.CPU, a::CLArray) = convert(Array, a)
 
-# `@Const` applies `constify` inside the kernel, where arguments have already been
-# converted to device arrays, so the rule has to be registered for `CLDeviceArray`
-# rather than for `CLArray`.
-Adapt.adapt_storage(::KA.ConstAdaptor, a::CLDeviceArray) = Base.Experimental.Const(a)
 
 ## Device Selection
 
 # devices are numbered consecutively within the backend's platform, in enumeration order
 
-function KA.ndevices(b::OpenCLBackend)
+function KI.ndevices(b::OpenCLBackend)
     Int(cl.ndevices(b.platform))
 end
 
-function KA.device(b::OpenCLBackend)
-    current = cl.device()
-    for (i, d) in enumerate(cl.devices(b.platform))
-        d == current && return i
-    end
-    error("Active OpenCL device $current not found in the OpenCLBackend's platform \"$(b.platform.name)\".")
+function device_index(b::OpenCLBackend, dev::cl.Device)
+    id = findfirst(==(dev), cl.devices(b.platform))
+    id === nothing &&
+        throw(ArgumentError("OpenCL device $(dev.name) is not on the backend's platform \"$(b.platform.name)\""))
+    return id
 end
 
-function KA.device!(b::OpenCLBackend, id::Int)
-    0 < id <= KA.ndevices(b) || throw(ArgumentError("Device id $id out of bounds."))
+KI.device(b::OpenCLBackend) = device_index(b, backend_device(b))
+
+KI.device(b::OpenCLBackend, A::CLArray) = device_index(b, context_device(OpenCL.context(A)))
+
+function KI.device!(b::OpenCLBackend, id::Int)
+    0 < id <= KI.ndevices(b) || throw(ArgumentError("Device id $id out of bounds."))
     devs = cl.devices(b.platform)
 
     cl.device!(devs[id])
     return nothing
 end
 
+
 ## Memory Operations
 
-function KA.copyto!(::OpenCLBackend, A, B)
+function KI.copyto!(b::OpenCLBackend, A, B)
+    length(A) == length(B) ||
+        throw(ArgumentError("Arrays must have the same length, got $(length(A)) and $(length(B))"))
+    activate(b)
     copyto!(A, B)
-    # TODO: Address device to host copies in jl being synchronizing
+    return A
 end
+
+KI.unsafe_free!(A::CLArray) = OpenCL.unsafe_free!(A)
 
 
 ## Kernel Launch
 
-function KA.mkcontext(kernel::KA.Kernel{OpenCLBackend}, _ndrange, iterspace)
-    KA.CompilerMetadata{KA.ndrange(kernel), KA.DynamicCheck}(_ndrange, iterspace)
-end
-function KA.mkcontext(kernel::KA.Kernel{OpenCLBackend}, I, _ndrange, iterspace,
-                      ::Dynamic) where Dynamic
-    KA.CompilerMetadata{KA.ndrange(kernel), Dynamic}(I, _ndrange, iterspace)
-end
+KI.argconvert(::OpenCLBackend, arg) = kernel_convert(arg)
 
-function KA.launch_config(kernel::KA.Kernel{OpenCLBackend}, ndrange, workgroupsize)
-    if ndrange isa Integer
-        ndrange = (ndrange,)
-    end
-    if workgroupsize isa Integer
-        workgroupsize = (workgroupsize, )
-    end
-
-    # partition checked that the ndrange's agreed
-    if KA.ndrange(kernel) <: KA.StaticSize
-        ndrange = nothing
-    end
-
-    iterspace, dynamic = if KA.workgroupsize(kernel) <: KA.DynamicSize &&
-        workgroupsize === nothing
-        # use ndrange as preliminary workgroupsize for autotuning
-        KA.partition(kernel, ndrange, ndrange)
-    else
-        KA.partition(kernel, ndrange, workgroupsize)
-    end
-
-    return ndrange, workgroupsize, iterspace, dynamic
+# `f` is the host-side callable: the kernel keeps it as its `source`, which is converted
+# again at every launch, because the converted callable only holds pointers to the arrays
+# it captures
+function KI.kernel_function(backend::OpenCLBackend, f::F, tt::TT=Tuple{}; name = nothing, kwargs...) where {F,TT}
+    activate(backend)
+    check_sub_group_size(backend, kwargs)
+    kern = GC.@preserve f clfunction(kernel_convert(f), tt; source=f, name, kwargs...)
+    KI.Kernel{OpenCLBackend, typeof(kern)}(backend, kern)
 end
 
-function threads_to_workgroupsize(threads, ndrange)
-    total = 1
-    return map(ndrange) do n
-        x = min(div(threads, total), n)
-        total *= x
-        return x
+# kernels have to execute with the sub-group width that `KI.sub_group_size` reports
+function check_sub_group_size(backend::OpenCLBackend, kwargs)
+    haskey(kwargs, :sub_group_size) && KI.supports_subgroups(backend) || return
+    width = KI.sub_group_size(backend)
+    kwargs[:sub_group_size] == width ||
+        throw(ArgumentError("KernelInterface kernels execute with sub-group width $width, got `sub_group_size=$(kwargs[:sub_group_size])`"))
+    return
+end
+
+# the context that a kernel was compiled for
+function kernel_context(kernel::KI.Kernel{OpenCLBackend})
+    ctx = Ref{cl.cl_context}()
+    cl.clGetKernelInfo(kernel.kern.fun, cl.CL_KERNEL_CONTEXT, sizeof(cl.cl_context), ctx, C_NULL)
+    return ctx[]
+end
+
+function kernel_device(kernel::KI.Kernel{OpenCLBackend})
+    ctx = kernel_context(kernel)
+    ctx == cl.context().id && return cl.device()
+    return context_device(cl.Context(ctx; retain=true))
+end
+
+@noinline function throw_device_mismatch(kernel)
+    throw(ArgumentError("Cannot launch a kernel compiled for $(kernel_device(kernel).name) on $(cl.device().name)"))
+end
+
+@noinline function throw_geometry_keyword()
+    throw(ArgumentError("KernelInterface kernels take `numgroups`, `workgroupsize` or `ndrange`, not `global_size` or `local_size`"))
+end
+
+# passes the arguments on as a tuple, like calling the `HostKernel` does
+function KI.launch(kernel::KI.Kernel{OpenCLBackend}, groups::Dims{3}, items::Dims{3},
+                   args::Tuple; kwargs...)
+    # KernelInterface has validated the launch geometry
+    if haskey(kwargs, :global_size) || haskey(kwargs, :local_size)
+        throw_geometry_keyword()
+    end
+    activate(kernel.backend)
+    kernel_context(kernel) == cl.context().id || throw_device_mismatch(kernel)
+    OpenCL.launch_tuple(kernel.kern, args; local_size = items, global_size = items .* groups,
+                        kwargs...)
+    return
+end
+
+function KI.max_work_group_size(kernel::KI.Kernel{OpenCLBackend})::Int
+    wginfo = cl.work_group_info(kernel.kern.fun, kernel_device(kernel))
+    Int(wginfo.size)
+end
+
+
+## Device Properties
+
+# querying the device allocates, so cache what launches and kernels need. the cache is
+# keyed on the device, because the task-local device can be switched.
+const DeviceProperties = @NamedTuple{
+    max_work_group_size::Int, max_work_group_dims::NTuple{3, Int}, compute_units::Int,
+    float64::Bool, unified::Bool,
+    # 0 if the device doesn't support sub-groups of a fixed width
+    sub_group_size::Int, shuffle_types::Vector{DataType},
+}
+function device_properties(dev::cl.Device)
+    cache = get!(task_local_storage(), :CLDeviceProperties) do
+        Dict{cl.Device, DeviceProperties}()
+    end::Dict{cl.Device, DeviceProperties}
+    return get!(cache, dev) do
+        sizes = dev.max_work_item_size
+        # the sub-group width is only fixed for kernels that request it, which `clfunction`
+        # does for devices with `cl_intel_required_subgroup_size`
+        fixed_sub_groups = cl.sub_groups_supported(dev) &&
+                           "cl_intel_required_subgroup_size" in dev.extensions
+        (; max_work_group_size = Int(dev.max_work_group_size),
+           max_work_group_dims = ntuple(d -> d <= length(sizes) ? Int(sizes[d]) : 1, 3),
+           compute_units = Int(dev.max_compute_units),
+           float64 = "cl_khr_fp64" in dev.extensions,
+           unified = cl.default_memory_backend(dev; unified=true) !== nothing,
+           sub_group_size = fixed_sub_groups ? cl.sub_group_size(dev) : 0,
+           shuffle_types = fixed_sub_groups ? cl.sub_group_shuffle_supported_types(dev) : DataType[])
     end
 end
 
-function (obj::KA.Kernel{OpenCLBackend})(args...; ndrange=nothing, workgroupsize=nothing)
-    obj.backend.platform === cl.platform() || platform_mismatch_warning(obj.backend.platform, cl.platform())
+device_properties(b::OpenCLBackend) = device_properties(backend_device(b))
 
-    ndrange, workgroupsize, iterspace, dynamic =
-        KA.launch_config(obj, ndrange, workgroupsize)
-
-    # this might not be the final context, since we may tune the workgroupsize
-    ctx = KA.mkcontext(obj, ndrange, iterspace)
-    kernel = @opencl launch=false obj.f(ctx, args...)
-
-    # figure out the optimal workgroupsize automatically
-    if KA.workgroupsize(obj) <: KA.DynamicSize && workgroupsize === nothing
-        wg_info = cl.work_group_info(kernel.fun, cl.device())
-        wg_size_nd = threads_to_workgroupsize(wg_info.size, ndrange)
-        iterspace, dynamic = KA.partition(obj, ndrange, wg_size_nd)
-        ctx = KA.mkcontext(obj, ndrange, iterspace)
-    end
-
-    groups = length(KA.blocks(iterspace))
-    items = length(KA.workitems(iterspace))
-
-    if groups == 0
-        return nothing
-    end
-
-    # Launch kernel
-    global_size = groups * items
-    local_size = items
-    kernel(ctx, args...; global_size, local_size)
-
-    return nothing
+KI.max_work_group_size(b::OpenCLBackend)::Int = device_properties(b).max_work_group_size
+KI.max_work_group_dims(b::OpenCLBackend)::NTuple{3, Int} = device_properties(b).max_work_group_dims
+# OpenCL doesn't limit the number of work-groups, only the global size (to `size_t`)
+function KI.max_num_groups(b::OpenCLBackend)::NTuple{3, Int}
+    return typemax(Int) .÷ KI.max_work_group_dims(b)
 end
+KI.multiprocessor_count(b::OpenCLBackend)::Int = device_properties(b).compute_units
+
+KI.supports_float64(b::OpenCLBackend) = device_properties(b).float64
+KI.supports_unified(b::OpenCLBackend) = device_properties(b).unified
+# 32-bit integer atomics are core OpenCL; float atomics fall back to compare-and-swap
+KI.supports_atomics(::OpenCLBackend) = true
+
+KI.supports_subgroups(b::OpenCLBackend) = device_properties(b).sub_group_size > 0
+KI.sub_group_size(b::OpenCLBackend)::Int = device_properties(b).sub_group_size
+KI.supports_shuffle(b::OpenCLBackend, ::Type{T}) where {T} = T in device_properties(b).shuffle_types
 
 
 ## Indexing Functions
 
-@device_override @inline function KA.__index_Local_Linear(ctx)
-    return get_local_id(1)
+# computed with `% T`, which unlike `T(x)` has no error path. KernelInterface derives the
+# global queries from these.
+
+@device_override @inline function KI.get_local_id(::Type{T}) where {T}
+    return (; x = get_local_id(1) % T, y = get_local_id(2) % T, z = get_local_id(3) % T)
 end
 
-@device_override @inline function KA.__index_Group_Linear(ctx)
-    return get_group_id(1)
+@device_override @inline function KI.get_group_id(::Type{T}) where {T}
+    return (; x = get_group_id(1) % T, y = get_group_id(2) % T, z = get_group_id(3) % T)
 end
 
-@device_override @inline function KA.__index_Global_Linear(ctx)
-    #return get_global_id(1)    # JuliaGPU/OpenCL.jl#346
-    I = KA.__index_Global_Cartesian(ctx)
-    @inbounds LinearIndices(KA.__ndrange(ctx))[I]
+@device_override @inline function KI.get_local_size(::Type{T}) where {T}
+    return (; x = get_local_size(1) % T, y = get_local_size(2) % T, z = get_local_size(3) % T)
 end
 
-@device_override @inline function KA.__index_Local_Cartesian(ctx)
-    @inbounds KA.workitems(KA.__iterspace(ctx))[get_local_id(1)]
+@device_override @inline function KI.get_num_groups(::Type{T}) where {T}
+    return (; x = get_num_groups(1) % T, y = get_num_groups(2) % T, z = get_num_groups(3) % T)
 end
 
-@device_override @inline function KA.__index_Group_Cartesian(ctx)
-    @inbounds KA.blocks(KA.__iterspace(ctx))[get_group_id(1)]
-end
+# OpenCL's sub-group queries already have KernelInterface's semantics: the last sub-group
+# of a work-group can be partial, and `get_sub_group_size` counts the work-items present
 
-@device_override @inline function KA.__index_Global_Cartesian(ctx)
-    return @inbounds KA.expand(KA.__iterspace(ctx), get_group_id(1), get_local_id(1))
-end
+@device_override KI.get_sub_group_size(::Type{T}) where {T} = get_sub_group_size() % T
 
-@device_override @inline function KA.__validindex(ctx)
-    if KA.__dynamic_checkbounds(ctx)
-        I = KA.__index_Global_Cartesian(ctx)
-        return I in KA.__ndrange(ctx)
-    else
-        return true
-    end
-end
+@device_override KI.get_max_sub_group_size(::Type{T}) where {T} = get_max_sub_group_size() % T
+
+@device_override KI.get_num_sub_groups(::Type{T}) where {T} = get_num_sub_groups() % T
+
+@device_override KI.get_sub_group_id(::Type{T}) where {T} = get_sub_group_id() % T
+
+@device_override KI.get_sub_group_local_id(::Type{T}) where {T} = get_sub_group_local_id() % T
 
 
-## Shared and Scratch Memory
+## Shared Memory
 
-@device_override @inline function KA.SharedMemory(::Type{T}, ::Val{Dims}, ::Val{Id}) where {T, Dims, Id}
+@device_override @inline function KI.localmemory(::Type{T}, ::Val{Dims}) where {T, Dims}
     ptr = OpenCL.emit_localmemory(T, Val(prod(Dims)))
     CLDeviceArray(Dims, ptr)
-end
-
-@device_override @inline function KA.Scratchpad(ctx, ::Type{T}, ::Val{Dims}) where {T, Dims}
-    StaticArrays.MArray{KA.__size(Dims), T}(undef)
 end
 
 
 ## Synchronization and Printing
 
-@device_override @inline function KA.__synchronize()
+@device_override @inline function KI.barrier()
     work_group_barrier(OpenCL.LOCAL_MEM_FENCE | OpenCL.GLOBAL_MEM_FENCE)
 end
 
-@device_override @inline function KA.__print(args...)
-    OpenCL._print(args...)
+@device_override @inline function KI.sub_group_barrier()
+    sub_group_barrier(OpenCL.LOCAL_MEM_FENCE | OpenCL.GLOBAL_MEM_FENCE)
 end
 
+# out-of-range source lanes give an unspecified value, as KernelInterface allows
+@device_override function KI.shfl_down(val::T, offset::Integer) where T
+    sub_group_shuffle(val, get_sub_group_local_id() % UInt32 + offset % UInt32)
+end
 
-## Other
-
-KA.argconvert(::KA.Kernel{OpenCLBackend}, arg) = OpenCL.kernel_convert(arg)
+@device_override @inline function KI._print(args...)
+    OpenCL._print(args...)
+end
 
 end
