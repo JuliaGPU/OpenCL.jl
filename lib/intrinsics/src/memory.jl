@@ -10,16 +10,25 @@
         # create a function
         llvm_f, _ = create_function(T_ptr)
 
+        # determine the array size: an array of a bits union stores a selector byte per
+        # element after the values
+        sz = len * sizeof(T)
+        Base.isbitsunion(T) && (sz += len)
+
         # create the global variable
         mod = LLVM.parent(llvm_f)
-        gv_typ = LLVM.ArrayType(eltyp, len * sizeof(T))
+        gv_typ = LLVM.ArrayType(eltyp, sz)
         gv = GlobalVariable(mod, gv_typ, "local_memory", AS.Workgroup)
         if len > 0
             linkage!(gv, LLVM.API.LLVMInternalLinkage)
             initializer!(gv, null(gv_typ))
         end
         # TODO: Make the alignment configurable
-        alignment!(gv, Base.datatype_alignment(T))
+        align = 1
+        for typ in Base.uniontypes(T)
+            typ.layout != C_NULL && (align = max(align, Base.datatype_alignment(typ)))
+        end
+        alignment!(gv, align)
 
         # generate IR
         IRBuilder() do builder

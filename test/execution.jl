@@ -406,6 +406,22 @@ end
     @test only(Array(prefixes)) == sum(input)
 end
 
+function union_localmem(out)
+    i = get_local_id(1)
+    tmp = CLLocalArray(Union{Missing, Int32}, (64,))
+    @inbounds tmp[i] = isodd(i) ? missing : Int32(i)
+    work_group_barrier(OpenCL.LOCAL_MEM_FENCE)
+    @inbounds x = tmp[65 - i]
+    @inbounds out[i] = x === missing ? Int32(-1) : x
+    return
+end
+
+@testset "bits-union local memory" begin
+    out = CLArray{Int32}(undef, 64)
+    @opencl local_size=64 global_size=64 union_localmem(out)
+    @test Array(out) == [isodd(j) ? Int32(-1) : Int32(j) for j in 64:-1:1]
+end
+
 @testset "broadcasting" begin
     a = rand(Float32, 2, 3)
     b = rand(Float32, 2)
