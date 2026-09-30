@@ -89,9 +89,9 @@ function enqueue_read(dst::Ptr, src::Buffer, src_off::Int, nbytes::Int;
     evt_ids = isempty(wait_for) ? C_NULL : [pointer(evt) for evt in wait_for]
     GC.@preserve wait_for begin
         ret_evt = Ref{cl_event}()
-        clEnqueueReadBuffer(queue(), src, blocking, src_off, nbytes, dst,
+        clEnqueueReadBuffer(queue(), src, false, src_off, nbytes, dst,
                             n_evts, evt_ids, ret_evt)
-        @return_nanny_event(ret_evt[], dst)
+        @return_nanny_event(ret_evt[], dst, blocking)
     end
 end
 enqueue_read(dst::Ptr, src::Buffer, nbytes; kwargs...) =
@@ -104,9 +104,9 @@ function enqueue_write(dst::Buffer, dst_off::Int, src::Ptr, nbytes::Int;
     evt_ids = isempty(wait_for) ? C_NULL : [pointer(evt) for evt in wait_for]
     GC.@preserve wait_for begin
         ret_evt = Ref{cl_event}()
-        clEnqueueWriteBuffer(queue(), dst, blocking, dst_off, nbytes, src,
+        clEnqueueWriteBuffer(queue(), dst, false, dst_off, nbytes, src,
                              n_evts, evt_ids, ret_evt)
-        @return_nanny_event(ret_evt[], dst)
+        @return_nanny_event(ret_evt[], dst, blocking)
     end
 end
 enqueue_write(dst::Buffer, src::Ptr, nbytes; kwargs...) =
@@ -122,7 +122,7 @@ function enqueue_copy(dst::Buffer, dst_off::Int, src::Buffer, src_off::Int,
         ret_evt = Ref{cl_event}()
         clEnqueueCopyBuffer(queue(), src, dst, src_off, dst_off, nbytes,
                             n_evts, evt_ids, ret_evt)
-        @return_event ret_evt[]
+        @return_event ret_evt[] blocking
     end
 end
 enqueue_copy(dst::Buffer, src::Buffer, N; kwargs...) =

@@ -208,8 +208,8 @@ function enqueue_usm_copy(
     return GC.@preserve wait_for begin
         com = (CL_NULL, C_NULL)
         ret_evt = (dst in com || src in com) ? C_NULL : Ref{cl_event}()
-        clEnqueueMemcpyINTEL(queue, blocking, dst, src, nbytes, n_evts, evt_ids, ret_evt)
-        @return_event ret_evt[]
+        clEnqueueMemcpyINTEL(queue, false, dst, src, nbytes, n_evts, evt_ids, ret_evt)
+        @return_event ret_evt[] blocking
     end
 end
 

@@ -77,8 +77,10 @@ end
 #
 # these markers go on a queue of their own: freeing memory waits for the queue it was used
 # on, blocking the thread when done by a finalizer, which would deadlock if that queue were
-# waiting for a gate that only another task on this thread can complete.
+# waiting for a gate that only another task on this thread can complete. for the same
+# reason, the only memory used on that queue is kept alive.
 const gated_queue = cl.CmdQueue()
+const gated_array = cl.queue!(() -> OpenCL.ones(Float32, 4), gated_queue)
 function gated_marker()
     gate = cl.UserEvent()
     return gate, cl.enqueue_marker_with_wait_list(cl.AbstractEvent[gate]; queue=gated_queue)
@@ -104,6 +106,12 @@ open_later(gate) = @async (sleep(0.1); cl.complete(gate))
     OpenCL.synchronize(gated_queue)
     @test istaskdone(opener)
     @test evt.status == :complete
+
+    # blocking copies
+    gate, evt = gated_marker()
+    opener = open_later(gate)
+    @test cl.queue!(() -> Array(gated_array), gated_queue) == ones(Float32, 4)
+    @test istaskdone(opener)
 end
 
 @testset "failed commands" begin
@@ -137,5 +145,24 @@ if isdefined(Base, :CANCEL_TOKEN)
     opener = open_later(gate)
     @test wait(evt) === evt
     @test istaskdone(opener)
+
+    # blocking transfers only return once they have completed, even when cancelled, as
+    # the caller may release the memory they access
+    gate, evt = gated_marker()
+    dev = cl.device()
+    task, cancel = cancellable_task() do
+        cl.device!(dev)
+        cl.queue!(() -> Array(gated_array), gated_queue)
+    end
+    sleep(0.1)
+    cancel()
+    sleep(0.1)
+    @test !istaskdone(task)
+    cl.complete(gate)
+    try
+        wait(task)
+    catch
+    end
+    @test istaskdone(task)
 end
 end
