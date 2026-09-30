@@ -100,3 +100,25 @@ end
     @test_throws ArgumentError kernel(a, Int32(1); ndrange = 4, global_size = 8)
     @test_throws ArgumentError kernel(a, Int32(1); ndrange = 4, local_size = 2)
 end
+
+@testset "sub-groups" begin
+    backend = OpenCLBackend()
+    dev = cl.device()
+    # kernels only execute with a fixed sub-group width if they can request one
+    if cl.sub_groups_supported(dev) && "cl_intel_required_subgroup_size" in dev.extensions
+        @test KI.supports_subgroups(backend)
+        @test KI.sub_group_size(backend) == cl.sub_group_size(dev)
+        @test KI.supports_shuffle(backend, Int32) ==
+              ("cl_khr_subgroup_shuffle" in dev.extensions)
+
+        # which kernels can't opt out of
+        a = KI.zeros(backend, Int32, 4)
+        width = KI.sub_group_size(backend)
+        KI.@launch backend launch=false sub_group_size=width ki_fill_kernel(a, Int32(1))
+        @test_throws ArgumentError KI.@launch backend launch=false sub_group_size=nothing ki_fill_kernel(a, Int32(1))
+        @test_throws ArgumentError KI.@launch backend launch=false sub_group_size=2width ki_fill_kernel(a, Int32(1))
+    else
+        @test !KI.supports_subgroups(backend)
+    end
+    @test !KI.supports_shuffle(backend, Complex{Float32})
+end
