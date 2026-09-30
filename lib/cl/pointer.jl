@@ -138,6 +138,10 @@ function Base.unsafe_convert(::Type{PtrOrCLPtr{T}}, val) where {T}
     return Base.bitcast(PtrOrCLPtr{T}, ptr)
 end
 
+# `@gcsafe_ccall` converts arguments itself before passing them to `ccall`, which converts
+# them again, so make that second (identity) conversion unambiguous
+Base.unsafe_convert(::Type{PtrOrCLPtr{T}}, x::PtrOrCLPtr{T}) where {T} = x
+
 
 #
 # Device reference objects
@@ -207,6 +211,8 @@ Base.unsafe_convert(::Type{RefOrCLRef{T}}, x::Ref{T}) where {T} =
     Base.bitcast(RefOrCLRef{T}, Base.unsafe_convert(Ptr{T}, x))
 Base.unsafe_convert(::Type{RefOrCLRef{T}}, x) where {T} =
     Base.bitcast(RefOrCLRef{T}, Base.unsafe_convert(Ptr{T}, x))
+# see `PtrOrCLPtr`
+Base.unsafe_convert(::Type{RefOrCLRef{T}}, x::RefOrCLRef{T}) where {T} = x
 
 # support conversion from GPU ref
 Base.unsafe_convert(::Type{RefOrCLRef{T}}, x::CLRefs{T}) where {T} =
