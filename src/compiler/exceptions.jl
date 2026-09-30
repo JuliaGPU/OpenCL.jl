@@ -164,11 +164,14 @@ function with_exception_mailbox(f, mailbox::ExceptionMailbox, queue::cl.CmdQueue
     end
 end
 
+# `(x, t...)`, without splatting
+@inline @generated prepend(x, t::Tuple) = :((x, $((:(t[$i]) for i in 1:fieldcount(t))...)))
+
 # Launch while holding the mailbox lock, so a concurrent synchronization cannot finish the
 # queue between enqueue and recording it as pending (or map the mailbox during submission).
 # Keep this in an ordinary function: the generated `AbstractKernel` call cannot contain a
 # closure or `do` block on Julia 1.13.
-function launch_with_exception_mailbox(kernel::cl.Kernel, args...;
+function launch_with_exception_mailbox(kernel::cl.Kernel, args::Tuple;
                                        indirect_memory::Vector{cl.AbstractMemory},
                                        rng_state::Bool, kwargs...)
     ctx, dev, queue = cl.context(), cl.device(), cl.queue()
@@ -182,7 +185,7 @@ function launch_with_exception_mailbox(kernel::cl.Kernel, args...;
         mailbox.launch_id += UInt64(1)
         state = KernelState(rng_state ? Base.rand(UInt32) : UInt32(0), mailbox.address,
                             mailbox.launch_id)
-        result = cl.call(kernel, state, args...; indirect_memory, rng_state, kwargs...)
+        result = cl.call(kernel, prepend(state, args); indirect_memory, rng_state, kwargs...)
         if mailbox.mem !== nothing
             push!(mailbox.pending, queue)
         end
