@@ -2,8 +2,14 @@
 #
 # Waiting for the device should not block the calling thread in the OpenCL driver, but
 # yield to the Julia scheduler so that other tasks can run in the meantime. GPUToolbox's
-# `cooperative_wait` implements this by polling the status of commands for a while, and
-# then handing the blocking wait to a worker thread.
+# `cooperative_wait` implements this, in one of two ways:
+# - for GPUs, by polling the status of commands for a while, and then handing a blocking
+#   wait to a worker thread;
+# - for devices that execute on the host's CPU cores, by polling only briefly, and then
+#   having the driver notify us when commands complete. waking a worker, or polling for
+#   longer, would compete with the commands for those cores, slowing them down
+#   considerably. (drivers for GPUs may deliver these notifications late, NVIDIA's by
+#   about 20 ms.)
 
 # whether to wait for the device cooperatively. disable to block in the OpenCL driver
 # instead, e.g., for bisecting issues or comparing against the blocking behavior.
@@ -21,14 +27,44 @@ function iscomplete(evt::AbstractEvent)
 end
 
 # commands only need to start executing once the queue they were submitted to has been
-# flushed. waiting in the driver flushes implicitly, but polling does not.
+# flushed. waiting in the driver flushes implicitly, but polling does not. returns the
+# queue, or `C_NULL` for user events, which do not belong to one.
 function flush_queue(evt::AbstractEvent)
     queue = Ref{cl_command_queue}()
     clGetEventInfo(evt, CL_EVENT_COMMAND_QUEUE, sizeof(cl_command_queue), queue, C_NULL)
-    # user events do not belong to a queue
     queue[] == C_NULL || clFlush(queue[])
+    return queue[]
+end
+
+# whether commands on `queue` execute on the host's CPU cores
+const cpu_devices = Dict{cl_device_id, Bool}()
+const cpu_devices_lock = ReentrantLock()
+function executes_on_cpu(queue::cl_command_queue)
+    queue == C_NULL && return false
+    device = Ref{cl_device_id}()
+    clGetCommandQueueInfo(queue, CL_QUEUE_DEVICE, sizeof(cl_device_id), device, C_NULL)
+    return @lock cpu_devices_lock get!(cpu_devices, device[]) do
+        type = Ref{cl_device_type}()
+        clGetDeviceInfo(device[], CL_DEVICE_TYPE, sizeof(cl_device_type), type, C_NULL)
+        type[] & CL_DEVICE_TYPE_CPU != 0
+    end
+end
+
+# driver notification that a command has completed
+function notify_completion(::cl_event, ::Cint, payload::Ptr{Cvoid})
+    GPUToolbox.signal_completion(payload)
     return
 end
+subscribe_completion(evt, payload) =
+    clSetEventCallback(evt, CL_COMPLETE,
+                       @cfunction(notify_completion, Cvoid, (cl_event, Cint, Ptr{Cvoid})),
+                       payload)
+
+# block until the events have completed, without checking for errors
+blocking_wait(evts::Vector{<:AbstractEvent}) =
+    GC.@preserve evts unchecked_clWaitForEvents(length(evts), event_ids(evts))
+blocking_wait(evt::AbstractEvent) =
+    GC.@preserve evt unchecked_clWaitForEvents(1, Ref(pointer(evt)))
 
 # wait for events to complete, throwing a `CLError` if a command was terminated abnormally.
 #
@@ -39,17 +75,24 @@ end
 function wait_events(evts::Vector{<:AbstractEvent}; cancellable::Bool=true)
     if nonblocking_synchronization
         try
-            foreach(flush_queue, evts)
-            cooperative_wait(evts; isdone=evts -> all(iscomplete, evts), cancellable) do evts
-                GC.@preserve evts unchecked_clWaitForEvents(length(evts), event_ids(evts))
+            on_cpu = true
+            for evt in evts
+                on_cpu &= executes_on_cpu(flush_queue(evt))
+            end
+            if on_cpu
+                for evt in evts
+                    cooperative_wait(blocking_wait, evt; subscribe=subscribe_completion,
+                                     isdone=iscomplete, spin=10e-6, cancellable)
+                end
+            else
+                cooperative_wait(blocking_wait, evts; isdone=evts -> all(iscomplete, evts),
+                                 cancellable)
             end
         catch
             # waits that cannot be interrupted only throw once the commands have completed
             # (or waiting failed, in which case this blocks), but host memory still needs to
             # be synchronized before the caller unwinds
-            cancellable || GC.@preserve evts begin
-                unchecked_clWaitForEvents(length(evts), event_ids(evts))
-            end
+            cancellable || blocking_wait(evts)
             rethrow()
         end
     end
