@@ -34,6 +34,7 @@ KernelAbstractions = "63c18a36-062a-441e-b654-da1e3ab1ce7c"
 KernelAbstractionsExt = "KernelAbstractions"
 
 [sources]
+KernelInterface = {url = "https://github.com/JuliaGPU/KernelAbstractions.jl", rev = "main", subdir = "lib/KernelInterface"}
 SPIRVIntrinsics = {path = "lib/intrinsics"}
 
 [compat]
@@ -59,3 +60,7 @@ StaticArrays = "1"
 UnsafeAtomics = "0.4"
 julia = "1.10"
 spirv2clc_jll = "0.2.2"
+
+# XXX: lets Pkg < 1.12 develop the weak dependency (see CI)
+[extras]
+KernelAbstractions = "63c18a36-062a-441e-b654-da1e3ab1ce7c"
