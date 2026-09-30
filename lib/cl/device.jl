@@ -99,6 +99,8 @@ end
         return get_bool(CL_DEVICE_AVAILABLE)
     elseif s === :compiler_available
         return get_bool(CL_DEVICE_COMPILER_AVAILABLE)
+    elseif s === :non_uniform_work_group_support
+        return get_bool(CL_DEVICE_NON_UNIFORM_WORK_GROUP_SUPPORT)
     end
 
     if s == :extensions
@@ -185,7 +187,7 @@ function Base.propertynames(::Device, private::Bool=false)
         :max_work_group_size, :max_parameter_size, :profiling_timer_resolution,
         # boolean properties
         :has_image_support, :has_local_mem, :host_unified_memory, :available,
-        :compiler_available,
+        :compiler_available, :non_uniform_work_group_support
         # other
         :extensions, :platform, :device_type, :max_work_item_size, :sub_group_sizes,
         :max_image2d_shape, :max_image3d_shape,
