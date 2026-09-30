@@ -72,6 +72,38 @@ function KI.synchronize(b::OpenCLBackend)
     return
 end
 
+# queues are task-local, so work is ordered across tasks with a marker event on the
+# recording task's queue
+function KI.record_event(b::OpenCLBackend)
+    activate(b)
+    event = cl.enqueue_marker_with_wait_list(cl.AbstractEvent[])
+    # the waiting queue only makes progress if this one is submitted
+    cl.flush(cl.queue())
+    return event
+end
+
+function event_context(event::cl.Event)
+    ctx = Ref{cl.cl_context}()
+    cl.clGetEventInfo(event, cl.CL_EVENT_CONTEXT, sizeof(cl.cl_context), ctx, C_NULL)
+    return ctx[]
+end
+
+function KI.wait_event(b::OpenCLBackend, event::cl.Event)
+    activate(b)
+    # the event has to stay alive until the driver has retained it
+    GC.@preserve event begin
+        if event_context(event) == cl.context().id
+            cl.enqueue_barrier_with_wait_list(cl.AbstractEvent[event])
+        else
+            # XXX: queues can only wait for events of their own context, and OpenCL.jl
+            #      creates a context per device, so wait for other devices on the host.
+            #      this blocks the thread instead of waiting cooperatively.
+            wait(event)
+        end
+    end
+    return
+end
+
 function Adapt.adapt_storage(b::OpenCLBackend, a::Array)
     activate(b)
     return Adapt.adapt(CLArray, a)
