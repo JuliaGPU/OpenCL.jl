@@ -10,7 +10,7 @@ using GPUArrays
 using Random
 using Preferences
 
-import KernelAbstractions: KernelAbstractions
+import KernelInterface
 
 using Core: LLVMPtr
 
