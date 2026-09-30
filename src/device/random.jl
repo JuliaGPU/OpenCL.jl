@@ -150,23 +150,34 @@ end
 
 # a hacky method of exposing constant tables as constant GPU memory
 function emit_constant_array(name::Symbol, data::AbstractArray{T}) where {T}
-    generate_llvmcall(LLVMPtr{T,AS.UniformConstant}, Tuple{}) do builder
-        T_val = convert(LLVMType, T)
-        T_ptr = convert(LLVMType, LLVMPtr{T,AS.UniformConstant})
+    generate_llvmcall(ConstantArrayIR(name, data), LLVMPtr{T,AS.UniformConstant}, Tuple{})
+end
 
-        # create a global memory global variable
-        # TODO: global_var alignment?
-        T_global = LLVM.ArrayType(T_val, length(data))
-        # XXX: why can't we use a single name like emit_shmem
-        gv = GlobalVariable(current_module(builder), T_global, "gpu_$(name)_data",
-                            AS.UniformConstant)
-        gv.linkage = LLVM.Linkage.Internal
-        gv.initializer = ConstantArray(data)
-        gv.alignment = 16
+# the IR generator of `emit_constant_array`: a callable object with abstractly-typed fields
+# instead of a closure, so that it is compiled once instead of for every element type
+struct ConstantArrayIR
+    name::Symbol
+    data::AbstractArray
+end
 
-        ptr = gep!(builder, T_global, gv, [ConstantInt(0), ConstantInt(0)])
-        bitcast!(builder, ptr, T_ptr)
-    end
+function (gen::ConstantArrayIR)(builder)
+    (; name, data) = gen
+    T = eltype(data)
+    T_val = convert(LLVMType, T)
+    T_ptr = convert(LLVMType, LLVMPtr{T,AS.UniformConstant})
+
+    # create a global memory global variable
+    # TODO: global_var alignment?
+    T_global = LLVM.ArrayType(T_val, length(data))
+    # XXX: why can't we use a single name like emit_shmem
+    gv = GlobalVariable(current_module(builder), T_global, "gpu_$(name)_data",
+                        AS.UniformConstant)
+    gv.linkage = LLVM.Linkage.Internal
+    gv.initializer = ConstantArray(data)
+    gv.alignment = 16
+
+    ptr = gep!(builder, T_global, gv, [ConstantInt(0), ConstantInt(0)])
+    bitcast!(builder, ptr, T_ptr)
 end
 
 for var in [:ki, :wi, :fi, :ke, :we, :fe]

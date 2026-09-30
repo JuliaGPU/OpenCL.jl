@@ -250,19 +250,17 @@ end
 function additional_arg_intr(mod::LLVM.Module, T_state, name)
     get!(mod.functions, "julia.opencl.$name") do
         state_intr = LLVM.Function(mod, "julia.opencl.$name", LLVM.FunctionType(T_state))
-        push!(state_intr.function_attributes, EnumAttribute(:readnone))
+        state_intr.memory_effects = MemoryEffects(:none)
         state_intr
     end
 end
 
 # run-time equivalent
-additional_arg_value(state, name) = generate_llvmcall(state, Tuple{}) do builder
-    T_state = convert(LLVMType, state)
-    state_intr = additional_arg_intr(current_module(builder), T_state, name)
-    call!(builder, state_intr.function_type, state_intr, Value[], name)
+@llvmgenerated builder function additional_arg_value(::Type{T}, ::Val{name})::T where {T,name}
+    state_intr = additional_arg_intr(current_module(builder), convert(LLVMType, T), name)
+    call!(builder, state_intr.function_type, state_intr, Value[], String(name))
 end
 
 for name in [:random_keys, :random_counters]
-    @eval @inline @generated $name() =
-        additional_arg_value(LLVMPtr{UInt32, AS.Workgroup}, $(String(name)))
+    @eval @inline $name() = additional_arg_value(LLVMPtr{UInt32, AS.Workgroup}, Val($(QuoteNode(name))))
 end

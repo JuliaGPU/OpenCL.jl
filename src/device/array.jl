@@ -173,15 +173,13 @@ end
 @llvmgenerated builder function _unsafe_invariant_load(ptr::LLVMPtr{T,AS}, i::Integer,
                                                        ::Val{align})::T where {T,AS,align}
     eltyp = convert(LLVMType, T)
-    if supports_typed_pointers(LLVM.context())
-        ptr = bitcast!(builder, ptr, LLVM.PointerType(eltyp, AS))
-    end
-    ld = load!(builder, eltyp, inbounds_gep!(builder, eltyp, ptr, [i]))
+    # `LLVMPtr` is an `i8*` with typed pointers (with opaque pointers, this cast folds away)
+    ptr = bitcast!(builder, ptr, LLVM.PointerType(eltyp, AS))
+    ld = load!(builder, eltyp, inbounds_gep!(builder, eltyp, ptr, [i]); align)
     if AS != 0
-        ld.metadata[LLVM.MD_tbaa] = tbaa_addrspace(AS)
+        ld.metadata[MD_tbaa] = tbaa_addrspace(AS)
     end
-    ld.metadata[LLVM.MD_invariant_load] = MDNode(LLVM.Metadata[])
-    ld.alignment = align
+    ld.metadata[MD_invariant_load] = MDNode(LLVM.Metadata[])
     ld
 end
 

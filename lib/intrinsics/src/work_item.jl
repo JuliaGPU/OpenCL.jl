@@ -5,6 +5,25 @@
 # NOTE: these functions now unsafely truncate to Int to avoid top bit checks.
 #       we should probably use range metadata instead.
 
+# load a built-in variable, which the SPIR-V back-end expects as an external global in the
+# Input storage class
+@llvmgenerated builder function builtin_variable(::Val{name}, ::Type{T})::T where {name,T}
+    T_val = convert(LLVMType, T)
+    gv = GlobalVariable(current_module(builder), T_val, String(name), AS.Input)
+    load!(builder, T_val, gv)
+end
+
+# load a component of a built-in vector variable, by calling the function that the SPIR-V
+# back-end lowers to a load and an extract of the component
+@llvmgenerated builder function builtin_vector_variable(::Val{name}, idx::Int32)::UInt where {name}
+    ft = LLVM.FunctionType(convert(LLVMType, UInt), [idx.value_type])
+    f = LLVM.Function(current_module(builder), String(name), ft)
+    push!(f.function_attributes, EnumAttribute(:nounwind))
+    push!(f.function_attributes, EnumAttribute(:willreturn))
+    f.memory_effects = MemoryEffects(:none)
+    call!(builder, ft, f, [idx])
+end
+
 # 1D values
 for (julia_name, (spirv_name, julia_type, offset)) in [
         # indices
@@ -18,19 +37,11 @@ for (julia_name, (spirv_name, julia_type, offset)) in [
         :get_max_sub_group_size         => (:BuiltInSubgroupMaxSize, UInt32, 0),
         :get_num_sub_groups             => (:BuiltInNumSubgroups, UInt32, 0),
         :get_enqueued_num_sub_groups    => (:BuiltInNumEnqueuedSubgroups, UInt32, 0)]
-    gvar_name = Symbol("@__spirv_$(spirv_name)")
-    width = sizeof(julia_type) * 8
+    gvar_name = Symbol("__spirv_$(spirv_name)")
     @eval begin
         export $julia_name
         @device_function $julia_name() =
-            Base.llvmcall(
-                $("""$gvar_name = external addrspace($(AS.Input)) global i$(width)
-                     define i$(width) @entry() #0 {
-                         %val = load i$(width), i$(width) addrspace($(AS.Input))* $gvar_name
-                         ret i$(width) %val
-                     }
-                     attributes #0 = { alwaysinline }
-                """, "entry"), $julia_type, Tuple{}) % Int + $offset
+            builtin_variable(Val($(QuoteNode(gvar_name))), $julia_type) % Int + $offset
     end
 end
 
@@ -52,20 +63,11 @@ for (julia_name, (spirv_name, offset)) in [
         :get_enqueued_local_size    => (:BuiltInEnqueuedWorkgroupSize, 0),
         :get_num_groups             => (:BuiltInNumWorkgroups, 0)]
     fname = "__spirv_$(spirv_name)"
-    mangled = "_Z$(length(fname))$(fname)i"
-    push!(known_intrinsics, mangled)
-    width = Int === Int64 ? 64 : 32
+    mangled = Symbol("_Z$(length(fname))$(fname)i")
+    push!(known_intrinsics, String(mangled))
     @eval begin
         export $julia_name
         @device_function $julia_name(dimindx::Integer=1u32) =
-            Base.llvmcall(
-                $("""declare i$(width) @$(mangled)(i32) #0
-                     define i$(width) @entry(i32 %idx) #1 {
-                         %val = call i$(width) @$(mangled)(i32 %idx)
-                         ret i$(width) %val
-                     }
-                     attributes #0 = { nounwind readnone willreturn }
-                     attributes #1 = { alwaysinline }
-                """, "entry"), UInt, Tuple{Int32}, (dimindx - 1u32) % Int32) % Int + $offset
+            builtin_vector_variable(Val($(QuoteNode(mangled))), (dimindx - 1u32) % Int32) % Int + $offset
     end
 end
