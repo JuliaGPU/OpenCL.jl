@@ -391,6 +391,11 @@ end
                          (inv, ComplexF32, (ComplexF32,)))
         tt = Tuple{CLDeviceArray{T,0,AS.CrossWorkgroup}, typeof(f), args...}
         job = GPUCompiler.CompilerJob(GPUCompiler.methodinstance(typeof(kernel), tt), config)
-        @test GPUCompiler.JuliaContext(_ -> GPUCompiler.compile(:llvm, job)) !== nothing
+        # the IR belongs to the caller of `compile`
+        @test GPUCompiler.JuliaContext() do _
+            ir, meta = GPUCompiler.compile(:llvm, job)
+            GPUCompiler.LLVM.dispose(ir)
+            meta !== nothing
+        end
     end
 end
