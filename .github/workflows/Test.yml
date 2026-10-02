@@ -143,8 +143,8 @@ jobs:
             # Julia 1.10 does not support [sources], so dev the in-tree
             # SPIRVIntrinsics; Pkg.test then carries it into the test sandbox.
             if VERSION < v"1.12"
-              # XXX: KernelAbstractions 0.10 and KernelInterface 0.4 aren't registered yet,
-              #      and Julia 1.11 doesn't pick them up from the test project's [sources]
+              # XXX: KernelAbstractions 0.10 and KernelInterface 0.4 are not registered yet,
+              #      and Julia 1.11 does not pick them up from the [sources] of the test project
               #      without workspaces, so develop them from their branch, in the same
               #      Pkg operation
               run(`git clone --depth 1 --branch main https://github.com/JuliaGPU/KernelAbstractions.jl ka`)
