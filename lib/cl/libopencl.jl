@@ -232,485 +232,526 @@ end
 const cl_name_version = _cl_name_version
 
 @checked function clGetPlatformIDs(num_entries, platforms, num_platforms)
-    @ccall libopencl.clGetPlatformIDs(num_entries::cl_uint, platforms::Ptr{cl_platform_id},
-                                      num_platforms::Ptr{cl_uint})::cl_int
+    @gcsafe_ccall libopencl.clGetPlatformIDs(num_entries::cl_uint,
+                                             platforms::Ptr{cl_platform_id},
+                                             num_platforms::Ptr{cl_uint})::cl_int
 end
 
 @checked function clGetPlatformInfo(platform, param_name, param_value_size, param_value,
                                     param_value_size_ret)
-    @ccall libopencl.clGetPlatformInfo(platform::cl_platform_id,
-                                       param_name::cl_platform_info,
-                                       param_value_size::Csize_t, param_value::Ptr{Cvoid},
-                                       param_value_size_ret::Ptr{Csize_t})::cl_int
-end
-
-@checked function clGetDeviceIDs(platform, device_type, num_entries, devices, num_devices)
-    @ccall libopencl.clGetDeviceIDs(platform::cl_platform_id, device_type::cl_device_type,
-                                    num_entries::cl_uint, devices::Ptr{cl_device_id},
-                                    num_devices::Ptr{cl_uint})::cl_int
-end
-
-@checked function clGetDeviceInfo(device, param_name, param_value_size, param_value,
-                                  param_value_size_ret)
-    @ccall libopencl.clGetDeviceInfo(device::cl_device_id, param_name::cl_device_info,
-                                     param_value_size::Csize_t, param_value::Ptr{Cvoid},
-                                     param_value_size_ret::Ptr{Csize_t})::cl_int
-end
-
-@checked function clCreateSubDevices(in_device, properties, num_devices, out_devices,
-                                     num_devices_ret)
-    @ccall libopencl.clCreateSubDevices(in_device::cl_device_id,
-                                        properties::Ptr{cl_device_partition_property},
-                                        num_devices::cl_uint,
-                                        out_devices::Ptr{cl_device_id},
-                                        num_devices_ret::Ptr{cl_uint})::cl_int
-end
-
-@checked function clRetainDevice(device)
-    @ccall libopencl.clRetainDevice(device::cl_device_id)::cl_int
-end
-
-@checked function clReleaseDevice(device)
-    @ccall libopencl.clReleaseDevice(device::cl_device_id)::cl_int
-end
-
-@checked function clSetDefaultDeviceCommandQueue(context, device, command_queue)
-    @ccall libopencl.clSetDefaultDeviceCommandQueue(context::cl_context,
-                                                    device::cl_device_id,
-                                                    command_queue::cl_command_queue)::cl_int
-end
-
-@checked function clGetDeviceAndHostTimer(device, device_timestamp, host_timestamp)
-    @ccall libopencl.clGetDeviceAndHostTimer(device::cl_device_id,
-                                             device_timestamp::Ptr{cl_ulong},
-                                             host_timestamp::Ptr{cl_ulong})::cl_int
-end
-
-@checked function clGetHostTimer(device, host_timestamp)
-    @ccall libopencl.clGetHostTimer(device::cl_device_id,
-                                    host_timestamp::Ptr{cl_ulong})::cl_int
-end
-
-function clCreateContext(properties, num_devices, devices, pfn_notify, user_data,
-                         errcode_ret)
-    @ccall libopencl.clCreateContext(properties::Ptr{cl_context_properties},
-                                     num_devices::cl_uint, devices::Ptr{cl_device_id},
-                                     pfn_notify::Ptr{Cvoid}, user_data::Ptr{Cvoid},
-                                     errcode_ret::Ptr{cl_int})::cl_context
-end
-
-function clCreateContextFromType(properties, device_type, pfn_notify, user_data,
-                                 errcode_ret)
-    @ccall libopencl.clCreateContextFromType(properties::Ptr{cl_context_properties},
-                                             device_type::cl_device_type,
-                                             pfn_notify::Ptr{Cvoid}, user_data::Ptr{Cvoid},
-                                             errcode_ret::Ptr{cl_int})::cl_context
-end
-
-@checked function clRetainContext(context)
-    @ccall libopencl.clRetainContext(context::cl_context)::cl_int
-end
-
-@checked function clReleaseContext(context)
-    @ccall libopencl.clReleaseContext(context::cl_context)::cl_int
-end
-
-@checked function clGetContextInfo(context, param_name, param_value_size, param_value,
-                                   param_value_size_ret)
-    @ccall libopencl.clGetContextInfo(context::cl_context, param_name::cl_context_info,
-                                      param_value_size::Csize_t, param_value::Ptr{Cvoid},
-                                      param_value_size_ret::Ptr{Csize_t})::cl_int
-end
-
-@checked function clSetContextDestructorCallback(context, pfn_notify, user_data)
-    @ccall libopencl.clSetContextDestructorCallback(context::cl_context,
-                                                    pfn_notify::Ptr{Cvoid},
-                                                    user_data::Ptr{Cvoid})::cl_int
-end
-
-function clCreateCommandQueueWithProperties(context, device, properties, errcode_ret)
-    @ccall libopencl.clCreateCommandQueueWithProperties(context::cl_context,
-                                                        device::cl_device_id,
-                                                        properties::Ptr{cl_queue_properties},
-                                                        errcode_ret::Ptr{cl_int})::cl_command_queue
-end
-
-@checked function clRetainCommandQueue(command_queue)
-    @ccall libopencl.clRetainCommandQueue(command_queue::cl_command_queue)::cl_int
-end
-
-@checked function clReleaseCommandQueue(command_queue)
-    @ccall libopencl.clReleaseCommandQueue(command_queue::cl_command_queue)::cl_int
-end
-
-@checked function clGetCommandQueueInfo(command_queue, param_name, param_value_size,
-                                        param_value, param_value_size_ret)
-    @ccall libopencl.clGetCommandQueueInfo(command_queue::cl_command_queue,
-                                           param_name::cl_command_queue_info,
-                                           param_value_size::Csize_t,
-                                           param_value::Ptr{Cvoid},
-                                           param_value_size_ret::Ptr{Csize_t})::cl_int
-end
-
-function clCreateBuffer(context, flags, size, host_ptr, errcode_ret)
-    @ccall libopencl.clCreateBuffer(context::cl_context, flags::cl_mem_flags, size::Csize_t,
-                                    host_ptr::Ptr{Cvoid}, errcode_ret::Ptr{cl_int})::cl_mem
-end
-
-function clCreateSubBuffer(buffer, flags, buffer_create_type, buffer_create_info,
-                           errcode_ret)
-    @ccall libopencl.clCreateSubBuffer(buffer::cl_mem, flags::cl_mem_flags,
-                                       buffer_create_type::cl_buffer_create_type,
-                                       buffer_create_info::Ptr{Cvoid},
-                                       errcode_ret::Ptr{cl_int})::cl_mem
-end
-
-function clCreateImage(context, flags, image_format, image_desc, host_ptr, errcode_ret)
-    @ccall libopencl.clCreateImage(context::cl_context, flags::cl_mem_flags,
-                                   image_format::Ptr{cl_image_format},
-                                   image_desc::Ptr{cl_image_desc}, host_ptr::Ptr{Cvoid},
-                                   errcode_ret::Ptr{cl_int})::cl_mem
-end
-
-function clCreatePipe(context, flags, pipe_packet_size, pipe_max_packets, properties,
-                      errcode_ret)
-    @ccall libopencl.clCreatePipe(context::cl_context, flags::cl_mem_flags,
-                                  pipe_packet_size::cl_uint, pipe_max_packets::cl_uint,
-                                  properties::Ptr{cl_pipe_properties},
-                                  errcode_ret::Ptr{cl_int})::cl_mem
-end
-
-function clCreateBufferWithProperties(context, properties, flags, size, host_ptr,
-                                      errcode_ret)
-    @ccall libopencl.clCreateBufferWithProperties(context::cl_context,
-                                                  properties::Ptr{cl_mem_properties},
-                                                  flags::cl_mem_flags, size::Csize_t,
-                                                  host_ptr::Ptr{Cvoid},
-                                                  errcode_ret::Ptr{cl_int})::cl_mem
-end
-
-function clCreateImageWithProperties(context, properties, flags, image_format, image_desc,
-                                     host_ptr, errcode_ret)
-    @ccall libopencl.clCreateImageWithProperties(context::cl_context,
-                                                 properties::Ptr{cl_mem_properties},
-                                                 flags::cl_mem_flags,
-                                                 image_format::Ptr{cl_image_format},
-                                                 image_desc::Ptr{cl_image_desc},
-                                                 host_ptr::Ptr{Cvoid},
-                                                 errcode_ret::Ptr{cl_int})::cl_mem
-end
-
-@checked function clRetainMemObject(memobj)
-    @ccall libopencl.clRetainMemObject(memobj::cl_mem)::cl_int
-end
-
-@checked function clReleaseMemObject(memobj)
-    @ccall libopencl.clReleaseMemObject(memobj::cl_mem)::cl_int
-end
-
-@checked function clGetSupportedImageFormats(context, flags, image_type, num_entries,
-                                             image_formats, num_image_formats)
-    @ccall libopencl.clGetSupportedImageFormats(context::cl_context, flags::cl_mem_flags,
-                                                image_type::cl_mem_object_type,
-                                                num_entries::cl_uint,
-                                                image_formats::Ptr{cl_image_format},
-                                                num_image_formats::Ptr{cl_uint})::cl_int
-end
-
-@checked function clGetMemObjectInfo(memobj, param_name, param_value_size, param_value,
-                                     param_value_size_ret)
-    @ccall libopencl.clGetMemObjectInfo(memobj::cl_mem, param_name::cl_mem_info,
-                                        param_value_size::Csize_t, param_value::Ptr{Cvoid},
-                                        param_value_size_ret::Ptr{Csize_t})::cl_int
-end
-
-@checked function clGetImageInfo(image, param_name, param_value_size, param_value,
-                                 param_value_size_ret)
-    @ccall libopencl.clGetImageInfo(image::cl_mem, param_name::cl_image_info,
-                                    param_value_size::Csize_t, param_value::Ptr{Cvoid},
-                                    param_value_size_ret::Ptr{Csize_t})::cl_int
-end
-
-@checked function clGetPipeInfo(pipe, param_name, param_value_size, param_value,
-                                param_value_size_ret)
-    @ccall libopencl.clGetPipeInfo(pipe::cl_mem, param_name::cl_pipe_info,
-                                   param_value_size::Csize_t, param_value::Ptr{Cvoid},
-                                   param_value_size_ret::Ptr{Csize_t})::cl_int
-end
-
-@checked function clSetMemObjectDestructorCallback(memobj, pfn_notify, user_data)
-    @ccall libopencl.clSetMemObjectDestructorCallback(memobj::cl_mem,
-                                                      pfn_notify::Ptr{Cvoid},
-                                                      user_data::Ptr{Cvoid})::cl_int
-end
-
-function clSVMAlloc(context, flags, size, alignment)
-    @ccall libopencl.clSVMAlloc(context::cl_context, flags::cl_svm_mem_flags, size::Csize_t,
-                                alignment::cl_uint)::CLPtr{Cvoid}
-end
-
-function clSVMFree(context, svm_pointer)
-    @ccall libopencl.clSVMFree(context::cl_context, svm_pointer::PtrOrCLPtr{Cvoid})::Cvoid
-end
-
-function clCreateSamplerWithProperties(context, sampler_properties, errcode_ret)
-    @ccall libopencl.clCreateSamplerWithProperties(context::cl_context,
-                                                   sampler_properties::Ptr{cl_sampler_properties},
-                                                   errcode_ret::Ptr{cl_int})::cl_sampler
-end
-
-@checked function clRetainSampler(sampler)
-    @ccall libopencl.clRetainSampler(sampler::cl_sampler)::cl_int
-end
-
-@checked function clReleaseSampler(sampler)
-    @ccall libopencl.clReleaseSampler(sampler::cl_sampler)::cl_int
-end
-
-@checked function clGetSamplerInfo(sampler, param_name, param_value_size, param_value,
-                                   param_value_size_ret)
-    @ccall libopencl.clGetSamplerInfo(sampler::cl_sampler, param_name::cl_sampler_info,
-                                      param_value_size::Csize_t, param_value::Ptr{Cvoid},
-                                      param_value_size_ret::Ptr{Csize_t})::cl_int
-end
-
-function clCreateProgramWithSource(context, count, strings, lengths, errcode_ret)
-    @ccall libopencl.clCreateProgramWithSource(context::cl_context, count::cl_uint,
-                                               strings::Ptr{Ptr{Cchar}},
-                                               lengths::Ptr{Csize_t},
-                                               errcode_ret::Ptr{cl_int})::cl_program
-end
-
-function clCreateProgramWithBinary(context, num_devices, device_list, lengths, binaries,
-                                   binary_status, errcode_ret)
-    @ccall libopencl.clCreateProgramWithBinary(context::cl_context, num_devices::cl_uint,
-                                               device_list::Ptr{cl_device_id},
-                                               lengths::Ptr{Csize_t},
-                                               binaries::Ptr{Ptr{Cuchar}},
-                                               binary_status::Ptr{cl_int},
-                                               errcode_ret::Ptr{cl_int})::cl_program
-end
-
-function clCreateProgramWithBuiltInKernels(context, num_devices, device_list, kernel_names,
-                                           errcode_ret)
-    @ccall libopencl.clCreateProgramWithBuiltInKernels(context::cl_context,
-                                                       num_devices::cl_uint,
-                                                       device_list::Ptr{cl_device_id},
-                                                       kernel_names::Ptr{Cchar},
-                                                       errcode_ret::Ptr{cl_int})::cl_program
-end
-
-function clCreateProgramWithIL(context, il, length, errcode_ret)
-    @ccall libopencl.clCreateProgramWithIL(context::cl_context, il::Ptr{Cvoid},
-                                           length::Csize_t,
-                                           errcode_ret::Ptr{cl_int})::cl_program
-end
-
-@checked function clRetainProgram(program)
-    @ccall libopencl.clRetainProgram(program::cl_program)::cl_int
-end
-
-@checked function clReleaseProgram(program)
-    @ccall libopencl.clReleaseProgram(program::cl_program)::cl_int
-end
-
-@checked function clBuildProgram(program, num_devices, device_list, options, pfn_notify,
-                                 user_data)
-    @ccall libopencl.clBuildProgram(program::cl_program, num_devices::cl_uint,
-                                    device_list::Ptr{cl_device_id}, options::Ptr{Cchar},
-                                    pfn_notify::Ptr{Cvoid}, user_data::Ptr{Cvoid})::cl_int
-end
-
-@checked function clCompileProgram(program, num_devices, device_list, options,
-                                   num_input_headers, input_headers, header_include_names,
-                                   pfn_notify, user_data)
-    @ccall libopencl.clCompileProgram(program::cl_program, num_devices::cl_uint,
-                                      device_list::Ptr{cl_device_id}, options::Ptr{Cchar},
-                                      num_input_headers::cl_uint,
-                                      input_headers::Ptr{cl_program},
-                                      header_include_names::Ptr{Ptr{Cchar}},
-                                      pfn_notify::Ptr{Cvoid}, user_data::Ptr{Cvoid})::cl_int
-end
-
-function clLinkProgram(context, num_devices, device_list, options, num_input_programs,
-                       input_programs, pfn_notify, user_data, errcode_ret)
-    @ccall libopencl.clLinkProgram(context::cl_context, num_devices::cl_uint,
-                                   device_list::Ptr{cl_device_id}, options::Ptr{Cchar},
-                                   num_input_programs::cl_uint,
-                                   input_programs::Ptr{cl_program}, pfn_notify::Ptr{Cvoid},
-                                   user_data::Ptr{Cvoid},
-                                   errcode_ret::Ptr{cl_int})::cl_program
-end
-
-@checked function clSetProgramReleaseCallback(program, pfn_notify, user_data)
-    @ccall libopencl.clSetProgramReleaseCallback(program::cl_program,
-                                                 pfn_notify::Ptr{Cvoid},
-                                                 user_data::Ptr{Cvoid})::cl_int
-end
-
-@checked function clSetProgramSpecializationConstant(program, spec_id, spec_size,
-                                                     spec_value)
-    @ccall libopencl.clSetProgramSpecializationConstant(program::cl_program,
-                                                        spec_id::cl_uint,
-                                                        spec_size::Csize_t,
-                                                        spec_value::Ptr{Cvoid})::cl_int
-end
-
-@checked function clUnloadPlatformCompiler(platform)
-    @ccall libopencl.clUnloadPlatformCompiler(platform::cl_platform_id)::cl_int
-end
-
-@checked function clGetProgramInfo(program, param_name, param_value_size, param_value,
-                                   param_value_size_ret)
-    @ccall libopencl.clGetProgramInfo(program::cl_program, param_name::cl_program_info,
-                                      param_value_size::Csize_t, param_value::Ptr{Cvoid},
-                                      param_value_size_ret::Ptr{Csize_t})::cl_int
-end
-
-@checked function clGetProgramBuildInfo(program, device, param_name, param_value_size,
-                                        param_value, param_value_size_ret)
-    @ccall libopencl.clGetProgramBuildInfo(program::cl_program, device::cl_device_id,
-                                           param_name::cl_program_build_info,
-                                           param_value_size::Csize_t,
-                                           param_value::Ptr{Cvoid},
-                                           param_value_size_ret::Ptr{Csize_t})::cl_int
-end
-
-function clCreateKernel(program, kernel_name, errcode_ret)
-    @ccall libopencl.clCreateKernel(program::cl_program, kernel_name::Ptr{Cchar},
-                                    errcode_ret::Ptr{cl_int})::cl_kernel
-end
-
-@checked function clCreateKernelsInProgram(program, num_kernels, kernels, num_kernels_ret)
-    @ccall libopencl.clCreateKernelsInProgram(program::cl_program, num_kernels::cl_uint,
-                                              kernels::Ptr{cl_kernel},
-                                              num_kernels_ret::Ptr{cl_uint})::cl_int
-end
-
-function clCloneKernel(source_kernel, errcode_ret)
-    @ccall libopencl.clCloneKernel(source_kernel::cl_kernel,
-                                   errcode_ret::Ptr{cl_int})::cl_kernel
-end
-
-@checked function clRetainKernel(kernel)
-    @ccall libopencl.clRetainKernel(kernel::cl_kernel)::cl_int
-end
-
-@checked function clReleaseKernel(kernel)
-    @ccall libopencl.clReleaseKernel(kernel::cl_kernel)::cl_int
-end
-
-@checked function clSetKernelArg(kernel, arg_index, arg_size, arg_value)
-    @ccall libopencl.clSetKernelArg(kernel::cl_kernel, arg_index::cl_uint,
-                                    arg_size::Csize_t, arg_value::Ptr{Cvoid})::cl_int
-end
-
-@checked function clSetKernelArgSVMPointer(kernel, arg_index, arg_value)
-    @ccall libopencl.clSetKernelArgSVMPointer(kernel::cl_kernel, arg_index::cl_uint,
-                                              arg_value::PtrOrCLPtr{Cvoid})::cl_int
-end
-
-@checked function clSetKernelExecInfo(kernel, param_name, param_value_size, param_value)
-    @ccall libopencl.clSetKernelExecInfo(kernel::cl_kernel, param_name::cl_kernel_exec_info,
-                                         param_value_size::Csize_t,
-                                         param_value::Ptr{Cvoid})::cl_int
-end
-
-@checked function clGetKernelInfo(kernel, param_name, param_value_size, param_value,
-                                  param_value_size_ret)
-    @ccall libopencl.clGetKernelInfo(kernel::cl_kernel, param_name::cl_kernel_info,
-                                     param_value_size::Csize_t, param_value::Ptr{Cvoid},
-                                     param_value_size_ret::Ptr{Csize_t})::cl_int
-end
-
-@checked function clGetKernelArgInfo(kernel, arg_indx, param_name, param_value_size,
-                                     param_value, param_value_size_ret)
-    @ccall libopencl.clGetKernelArgInfo(kernel::cl_kernel, arg_indx::cl_uint,
-                                        param_name::cl_kernel_arg_info,
-                                        param_value_size::Csize_t, param_value::Ptr{Cvoid},
-                                        param_value_size_ret::Ptr{Csize_t})::cl_int
-end
-
-@checked function clGetKernelWorkGroupInfo(kernel, device, param_name, param_value_size,
-                                           param_value, param_value_size_ret)
-    @ccall libopencl.clGetKernelWorkGroupInfo(kernel::cl_kernel, device::cl_device_id,
-                                              param_name::cl_kernel_work_group_info,
+    @gcsafe_ccall libopencl.clGetPlatformInfo(platform::cl_platform_id,
+                                              param_name::cl_platform_info,
                                               param_value_size::Csize_t,
                                               param_value::Ptr{Cvoid},
                                               param_value_size_ret::Ptr{Csize_t})::cl_int
 end
 
-@checked function clGetKernelSubGroupInfo(kernel, device, param_name, input_value_size,
-                                          input_value, param_value_size, param_value,
-                                          param_value_size_ret)
-    @ccall libopencl.clGetKernelSubGroupInfo(kernel::cl_kernel, device::cl_device_id,
-                                             param_name::cl_kernel_sub_group_info,
-                                             input_value_size::Csize_t,
-                                             input_value::Ptr{Cvoid},
+@checked function clGetDeviceIDs(platform, device_type, num_entries, devices, num_devices)
+    @gcsafe_ccall libopencl.clGetDeviceIDs(platform::cl_platform_id,
+                                           device_type::cl_device_type,
+                                           num_entries::cl_uint, devices::Ptr{cl_device_id},
+                                           num_devices::Ptr{cl_uint})::cl_int
+end
+
+@checked function clGetDeviceInfo(device, param_name, param_value_size, param_value,
+                                  param_value_size_ret)
+    @gcsafe_ccall libopencl.clGetDeviceInfo(device::cl_device_id,
+                                            param_name::cl_device_info,
+                                            param_value_size::Csize_t,
+                                            param_value::Ptr{Cvoid},
+                                            param_value_size_ret::Ptr{Csize_t})::cl_int
+end
+
+@checked function clCreateSubDevices(in_device, properties, num_devices, out_devices,
+                                     num_devices_ret)
+    @gcsafe_ccall libopencl.clCreateSubDevices(in_device::cl_device_id,
+                                               properties::Ptr{cl_device_partition_property},
+                                               num_devices::cl_uint,
+                                               out_devices::Ptr{cl_device_id},
+                                               num_devices_ret::Ptr{cl_uint})::cl_int
+end
+
+@checked function clRetainDevice(device)
+    @gcsafe_ccall libopencl.clRetainDevice(device::cl_device_id)::cl_int
+end
+
+@checked function clReleaseDevice(device)
+    @gcsafe_ccall libopencl.clReleaseDevice(device::cl_device_id)::cl_int
+end
+
+@checked function clSetDefaultDeviceCommandQueue(context, device, command_queue)
+    @gcsafe_ccall libopencl.clSetDefaultDeviceCommandQueue(context::cl_context,
+                                                           device::cl_device_id,
+                                                           command_queue::cl_command_queue)::cl_int
+end
+
+@checked function clGetDeviceAndHostTimer(device, device_timestamp, host_timestamp)
+    @gcsafe_ccall libopencl.clGetDeviceAndHostTimer(device::cl_device_id,
+                                                    device_timestamp::Ptr{cl_ulong},
+                                                    host_timestamp::Ptr{cl_ulong})::cl_int
+end
+
+@checked function clGetHostTimer(device, host_timestamp)
+    @gcsafe_ccall libopencl.clGetHostTimer(device::cl_device_id,
+                                           host_timestamp::Ptr{cl_ulong})::cl_int
+end
+
+function clCreateContext(properties, num_devices, devices, pfn_notify, user_data,
+                         errcode_ret)
+    @gcsafe_ccall libopencl.clCreateContext(properties::Ptr{cl_context_properties},
+                                            num_devices::cl_uint,
+                                            devices::Ptr{cl_device_id},
+                                            pfn_notify::Ptr{Cvoid}, user_data::Ptr{Cvoid},
+                                            errcode_ret::Ptr{cl_int})::cl_context
+end
+
+function clCreateContextFromType(properties, device_type, pfn_notify, user_data,
+                                 errcode_ret)
+    @gcsafe_ccall libopencl.clCreateContextFromType(properties::Ptr{cl_context_properties},
+                                                    device_type::cl_device_type,
+                                                    pfn_notify::Ptr{Cvoid},
+                                                    user_data::Ptr{Cvoid},
+                                                    errcode_ret::Ptr{cl_int})::cl_context
+end
+
+@checked function clRetainContext(context)
+    @gcsafe_ccall libopencl.clRetainContext(context::cl_context)::cl_int
+end
+
+@checked function clReleaseContext(context)
+    @gcsafe_ccall libopencl.clReleaseContext(context::cl_context)::cl_int
+end
+
+@checked function clGetContextInfo(context, param_name, param_value_size, param_value,
+                                   param_value_size_ret)
+    @gcsafe_ccall libopencl.clGetContextInfo(context::cl_context,
+                                             param_name::cl_context_info,
                                              param_value_size::Csize_t,
                                              param_value::Ptr{Cvoid},
                                              param_value_size_ret::Ptr{Csize_t})::cl_int
 end
 
+@checked function clSetContextDestructorCallback(context, pfn_notify, user_data)
+    @gcsafe_ccall libopencl.clSetContextDestructorCallback(context::cl_context,
+                                                           pfn_notify::Ptr{Cvoid},
+                                                           user_data::Ptr{Cvoid})::cl_int
+end
+
+function clCreateCommandQueueWithProperties(context, device, properties, errcode_ret)
+    @gcsafe_ccall libopencl.clCreateCommandQueueWithProperties(context::cl_context,
+                                                               device::cl_device_id,
+                                                               properties::Ptr{cl_queue_properties},
+                                                               errcode_ret::Ptr{cl_int})::cl_command_queue
+end
+
+@checked function clRetainCommandQueue(command_queue)
+    @gcsafe_ccall libopencl.clRetainCommandQueue(command_queue::cl_command_queue)::cl_int
+end
+
+@checked function clReleaseCommandQueue(command_queue)
+    @gcsafe_ccall libopencl.clReleaseCommandQueue(command_queue::cl_command_queue)::cl_int
+end
+
+@checked function clGetCommandQueueInfo(command_queue, param_name, param_value_size,
+                                        param_value, param_value_size_ret)
+    @gcsafe_ccall libopencl.clGetCommandQueueInfo(command_queue::cl_command_queue,
+                                                  param_name::cl_command_queue_info,
+                                                  param_value_size::Csize_t,
+                                                  param_value::Ptr{Cvoid},
+                                                  param_value_size_ret::Ptr{Csize_t})::cl_int
+end
+
+function clCreateBuffer(context, flags, size, host_ptr, errcode_ret)
+    @gcsafe_ccall libopencl.clCreateBuffer(context::cl_context, flags::cl_mem_flags,
+                                           size::Csize_t,
+                                           host_ptr::Ptr{Cvoid},
+                                           errcode_ret::Ptr{cl_int})::cl_mem
+end
+
+function clCreateSubBuffer(buffer, flags, buffer_create_type, buffer_create_info,
+                           errcode_ret)
+    @gcsafe_ccall libopencl.clCreateSubBuffer(buffer::cl_mem, flags::cl_mem_flags,
+                                              buffer_create_type::cl_buffer_create_type,
+                                              buffer_create_info::Ptr{Cvoid},
+                                              errcode_ret::Ptr{cl_int})::cl_mem
+end
+
+function clCreateImage(context, flags, image_format, image_desc, host_ptr, errcode_ret)
+    @gcsafe_ccall libopencl.clCreateImage(context::cl_context, flags::cl_mem_flags,
+                                          image_format::Ptr{cl_image_format},
+                                          image_desc::Ptr{cl_image_desc},
+                                          host_ptr::Ptr{Cvoid},
+                                          errcode_ret::Ptr{cl_int})::cl_mem
+end
+
+function clCreatePipe(context, flags, pipe_packet_size, pipe_max_packets, properties,
+                      errcode_ret)
+    @gcsafe_ccall libopencl.clCreatePipe(context::cl_context, flags::cl_mem_flags,
+                                         pipe_packet_size::cl_uint,
+                                         pipe_max_packets::cl_uint,
+                                         properties::Ptr{cl_pipe_properties},
+                                         errcode_ret::Ptr{cl_int})::cl_mem
+end
+
+function clCreateBufferWithProperties(context, properties, flags, size, host_ptr,
+                                      errcode_ret)
+    @gcsafe_ccall libopencl.clCreateBufferWithProperties(context::cl_context,
+                                                         properties::Ptr{cl_mem_properties},
+                                                         flags::cl_mem_flags, size::Csize_t,
+                                                         host_ptr::Ptr{Cvoid},
+                                                         errcode_ret::Ptr{cl_int})::cl_mem
+end
+
+function clCreateImageWithProperties(context, properties, flags, image_format, image_desc,
+                                     host_ptr, errcode_ret)
+    @gcsafe_ccall libopencl.clCreateImageWithProperties(context::cl_context,
+                                                        properties::Ptr{cl_mem_properties},
+                                                        flags::cl_mem_flags,
+                                                        image_format::Ptr{cl_image_format},
+                                                        image_desc::Ptr{cl_image_desc},
+                                                        host_ptr::Ptr{Cvoid},
+                                                        errcode_ret::Ptr{cl_int})::cl_mem
+end
+
+@checked function clRetainMemObject(memobj)
+    @gcsafe_ccall libopencl.clRetainMemObject(memobj::cl_mem)::cl_int
+end
+
+@checked function clReleaseMemObject(memobj)
+    @gcsafe_ccall libopencl.clReleaseMemObject(memobj::cl_mem)::cl_int
+end
+
+@checked function clGetSupportedImageFormats(context, flags, image_type, num_entries,
+                                             image_formats, num_image_formats)
+    @gcsafe_ccall libopencl.clGetSupportedImageFormats(context::cl_context,
+                                                       flags::cl_mem_flags,
+                                                       image_type::cl_mem_object_type,
+                                                       num_entries::cl_uint,
+                                                       image_formats::Ptr{cl_image_format},
+                                                       num_image_formats::Ptr{cl_uint})::cl_int
+end
+
+@checked function clGetMemObjectInfo(memobj, param_name, param_value_size, param_value,
+                                     param_value_size_ret)
+    @gcsafe_ccall libopencl.clGetMemObjectInfo(memobj::cl_mem, param_name::cl_mem_info,
+                                               param_value_size::Csize_t,
+                                               param_value::Ptr{Cvoid},
+                                               param_value_size_ret::Ptr{Csize_t})::cl_int
+end
+
+@checked function clGetImageInfo(image, param_name, param_value_size, param_value,
+                                 param_value_size_ret)
+    @gcsafe_ccall libopencl.clGetImageInfo(image::cl_mem, param_name::cl_image_info,
+                                           param_value_size::Csize_t,
+                                           param_value::Ptr{Cvoid},
+                                           param_value_size_ret::Ptr{Csize_t})::cl_int
+end
+
+@checked function clGetPipeInfo(pipe, param_name, param_value_size, param_value,
+                                param_value_size_ret)
+    @gcsafe_ccall libopencl.clGetPipeInfo(pipe::cl_mem, param_name::cl_pipe_info,
+                                          param_value_size::Csize_t,
+                                          param_value::Ptr{Cvoid},
+                                          param_value_size_ret::Ptr{Csize_t})::cl_int
+end
+
+@checked function clSetMemObjectDestructorCallback(memobj, pfn_notify, user_data)
+    @gcsafe_ccall libopencl.clSetMemObjectDestructorCallback(memobj::cl_mem,
+                                                             pfn_notify::Ptr{Cvoid},
+                                                             user_data::Ptr{Cvoid})::cl_int
+end
+
+function clSVMAlloc(context, flags, size, alignment)
+    @gcsafe_ccall libopencl.clSVMAlloc(context::cl_context, flags::cl_svm_mem_flags,
+                                       size::Csize_t,
+                                       alignment::cl_uint)::CLPtr{Cvoid}
+end
+
+function clSVMFree(context, svm_pointer)
+    @gcsafe_ccall libopencl.clSVMFree(context::cl_context,
+                                      svm_pointer::PtrOrCLPtr{Cvoid})::Cvoid
+end
+
+function clCreateSamplerWithProperties(context, sampler_properties, errcode_ret)
+    @gcsafe_ccall libopencl.clCreateSamplerWithProperties(context::cl_context,
+                                                          sampler_properties::Ptr{cl_sampler_properties},
+                                                          errcode_ret::Ptr{cl_int})::cl_sampler
+end
+
+@checked function clRetainSampler(sampler)
+    @gcsafe_ccall libopencl.clRetainSampler(sampler::cl_sampler)::cl_int
+end
+
+@checked function clReleaseSampler(sampler)
+    @gcsafe_ccall libopencl.clReleaseSampler(sampler::cl_sampler)::cl_int
+end
+
+@checked function clGetSamplerInfo(sampler, param_name, param_value_size, param_value,
+                                   param_value_size_ret)
+    @gcsafe_ccall libopencl.clGetSamplerInfo(sampler::cl_sampler,
+                                             param_name::cl_sampler_info,
+                                             param_value_size::Csize_t,
+                                             param_value::Ptr{Cvoid},
+                                             param_value_size_ret::Ptr{Csize_t})::cl_int
+end
+
+function clCreateProgramWithSource(context, count, strings, lengths, errcode_ret)
+    @gcsafe_ccall libopencl.clCreateProgramWithSource(context::cl_context, count::cl_uint,
+                                                      strings::Ptr{Ptr{Cchar}},
+                                                      lengths::Ptr{Csize_t},
+                                                      errcode_ret::Ptr{cl_int})::cl_program
+end
+
+function clCreateProgramWithBinary(context, num_devices, device_list, lengths, binaries,
+                                   binary_status, errcode_ret)
+    @gcsafe_ccall libopencl.clCreateProgramWithBinary(context::cl_context,
+                                                      num_devices::cl_uint,
+                                                      device_list::Ptr{cl_device_id},
+                                                      lengths::Ptr{Csize_t},
+                                                      binaries::Ptr{Ptr{Cuchar}},
+                                                      binary_status::Ptr{cl_int},
+                                                      errcode_ret::Ptr{cl_int})::cl_program
+end
+
+function clCreateProgramWithBuiltInKernels(context, num_devices, device_list, kernel_names,
+                                           errcode_ret)
+    @gcsafe_ccall libopencl.clCreateProgramWithBuiltInKernels(context::cl_context,
+                                                              num_devices::cl_uint,
+                                                              device_list::Ptr{cl_device_id},
+                                                              kernel_names::Ptr{Cchar},
+                                                              errcode_ret::Ptr{cl_int})::cl_program
+end
+
+function clCreateProgramWithIL(context, il, length, errcode_ret)
+    @gcsafe_ccall libopencl.clCreateProgramWithIL(context::cl_context, il::Ptr{Cvoid},
+                                                  length::Csize_t,
+                                                  errcode_ret::Ptr{cl_int})::cl_program
+end
+
+@checked function clRetainProgram(program)
+    @gcsafe_ccall libopencl.clRetainProgram(program::cl_program)::cl_int
+end
+
+@checked function clReleaseProgram(program)
+    @gcsafe_ccall libopencl.clReleaseProgram(program::cl_program)::cl_int
+end
+
+@checked function clBuildProgram(program, num_devices, device_list, options, pfn_notify,
+                                 user_data)
+    @gcsafe_ccall libopencl.clBuildProgram(program::cl_program, num_devices::cl_uint,
+                                           device_list::Ptr{cl_device_id},
+                                           options::Ptr{Cchar},
+                                           pfn_notify::Ptr{Cvoid},
+                                           user_data::Ptr{Cvoid})::cl_int
+end
+
+@checked function clCompileProgram(program, num_devices, device_list, options,
+                                   num_input_headers, input_headers, header_include_names,
+                                   pfn_notify, user_data)
+    @gcsafe_ccall libopencl.clCompileProgram(program::cl_program, num_devices::cl_uint,
+                                             device_list::Ptr{cl_device_id},
+                                             options::Ptr{Cchar},
+                                             num_input_headers::cl_uint,
+                                             input_headers::Ptr{cl_program},
+                                             header_include_names::Ptr{Ptr{Cchar}},
+                                             pfn_notify::Ptr{Cvoid},
+                                             user_data::Ptr{Cvoid})::cl_int
+end
+
+function clLinkProgram(context, num_devices, device_list, options, num_input_programs,
+                       input_programs, pfn_notify, user_data, errcode_ret)
+    @gcsafe_ccall libopencl.clLinkProgram(context::cl_context, num_devices::cl_uint,
+                                          device_list::Ptr{cl_device_id},
+                                          options::Ptr{Cchar},
+                                          num_input_programs::cl_uint,
+                                          input_programs::Ptr{cl_program},
+                                          pfn_notify::Ptr{Cvoid},
+                                          user_data::Ptr{Cvoid},
+                                          errcode_ret::Ptr{cl_int})::cl_program
+end
+
+@checked function clSetProgramReleaseCallback(program, pfn_notify, user_data)
+    @gcsafe_ccall libopencl.clSetProgramReleaseCallback(program::cl_program,
+                                                        pfn_notify::Ptr{Cvoid},
+                                                        user_data::Ptr{Cvoid})::cl_int
+end
+
+@checked function clSetProgramSpecializationConstant(program, spec_id, spec_size,
+                                                     spec_value)
+    @gcsafe_ccall libopencl.clSetProgramSpecializationConstant(program::cl_program,
+                                                               spec_id::cl_uint,
+                                                               spec_size::Csize_t,
+                                                               spec_value::Ptr{Cvoid})::cl_int
+end
+
+@checked function clUnloadPlatformCompiler(platform)
+    @gcsafe_ccall libopencl.clUnloadPlatformCompiler(platform::cl_platform_id)::cl_int
+end
+
+@checked function clGetProgramInfo(program, param_name, param_value_size, param_value,
+                                   param_value_size_ret)
+    @gcsafe_ccall libopencl.clGetProgramInfo(program::cl_program,
+                                             param_name::cl_program_info,
+                                             param_value_size::Csize_t,
+                                             param_value::Ptr{Cvoid},
+                                             param_value_size_ret::Ptr{Csize_t})::cl_int
+end
+
+@checked function clGetProgramBuildInfo(program, device, param_name, param_value_size,
+                                        param_value, param_value_size_ret)
+    @gcsafe_ccall libopencl.clGetProgramBuildInfo(program::cl_program, device::cl_device_id,
+                                                  param_name::cl_program_build_info,
+                                                  param_value_size::Csize_t,
+                                                  param_value::Ptr{Cvoid},
+                                                  param_value_size_ret::Ptr{Csize_t})::cl_int
+end
+
+function clCreateKernel(program, kernel_name, errcode_ret)
+    @gcsafe_ccall libopencl.clCreateKernel(program::cl_program, kernel_name::Ptr{Cchar},
+                                           errcode_ret::Ptr{cl_int})::cl_kernel
+end
+
+@checked function clCreateKernelsInProgram(program, num_kernels, kernels, num_kernels_ret)
+    @gcsafe_ccall libopencl.clCreateKernelsInProgram(program::cl_program,
+                                                     num_kernels::cl_uint,
+                                                     kernels::Ptr{cl_kernel},
+                                                     num_kernels_ret::Ptr{cl_uint})::cl_int
+end
+
+function clCloneKernel(source_kernel, errcode_ret)
+    @gcsafe_ccall libopencl.clCloneKernel(source_kernel::cl_kernel,
+                                          errcode_ret::Ptr{cl_int})::cl_kernel
+end
+
+@checked function clRetainKernel(kernel)
+    @gcsafe_ccall libopencl.clRetainKernel(kernel::cl_kernel)::cl_int
+end
+
+@checked function clReleaseKernel(kernel)
+    @gcsafe_ccall libopencl.clReleaseKernel(kernel::cl_kernel)::cl_int
+end
+
+@checked function clSetKernelArg(kernel, arg_index, arg_size, arg_value)
+    @gcsafe_ccall libopencl.clSetKernelArg(kernel::cl_kernel, arg_index::cl_uint,
+                                           arg_size::Csize_t, arg_value::Ptr{Cvoid})::cl_int
+end
+
+@checked function clSetKernelArgSVMPointer(kernel, arg_index, arg_value)
+    @gcsafe_ccall libopencl.clSetKernelArgSVMPointer(kernel::cl_kernel, arg_index::cl_uint,
+                                                     arg_value::PtrOrCLPtr{Cvoid})::cl_int
+end
+
+@checked function clSetKernelExecInfo(kernel, param_name, param_value_size, param_value)
+    @gcsafe_ccall libopencl.clSetKernelExecInfo(kernel::cl_kernel,
+                                                param_name::cl_kernel_exec_info,
+                                                param_value_size::Csize_t,
+                                                param_value::Ptr{Cvoid})::cl_int
+end
+
+@checked function clGetKernelInfo(kernel, param_name, param_value_size, param_value,
+                                  param_value_size_ret)
+    @gcsafe_ccall libopencl.clGetKernelInfo(kernel::cl_kernel, param_name::cl_kernel_info,
+                                            param_value_size::Csize_t,
+                                            param_value::Ptr{Cvoid},
+                                            param_value_size_ret::Ptr{Csize_t})::cl_int
+end
+
+@checked function clGetKernelArgInfo(kernel, arg_indx, param_name, param_value_size,
+                                     param_value, param_value_size_ret)
+    @gcsafe_ccall libopencl.clGetKernelArgInfo(kernel::cl_kernel, arg_indx::cl_uint,
+                                               param_name::cl_kernel_arg_info,
+                                               param_value_size::Csize_t,
+                                               param_value::Ptr{Cvoid},
+                                               param_value_size_ret::Ptr{Csize_t})::cl_int
+end
+
+@checked function clGetKernelWorkGroupInfo(kernel, device, param_name, param_value_size,
+                                           param_value, param_value_size_ret)
+    @gcsafe_ccall libopencl.clGetKernelWorkGroupInfo(kernel::cl_kernel,
+                                                     device::cl_device_id,
+                                                     param_name::cl_kernel_work_group_info,
+                                                     param_value_size::Csize_t,
+                                                     param_value::Ptr{Cvoid},
+                                                     param_value_size_ret::Ptr{Csize_t})::cl_int
+end
+
+@checked function clGetKernelSubGroupInfo(kernel, device, param_name, input_value_size,
+                                          input_value, param_value_size, param_value,
+                                          param_value_size_ret)
+    @gcsafe_ccall libopencl.clGetKernelSubGroupInfo(kernel::cl_kernel, device::cl_device_id,
+                                                    param_name::cl_kernel_sub_group_info,
+                                                    input_value_size::Csize_t,
+                                                    input_value::Ptr{Cvoid},
+                                                    param_value_size::Csize_t,
+                                                    param_value::Ptr{Cvoid},
+                                                    param_value_size_ret::Ptr{Csize_t})::cl_int
+end
+
 @checked function clWaitForEvents(num_events, event_list)
-    @ccall libopencl.clWaitForEvents(num_events::cl_uint, event_list::Ptr{cl_event})::cl_int
+    @gcsafe_ccall libopencl.clWaitForEvents(num_events::cl_uint,
+                                            event_list::Ptr{cl_event})::cl_int
 end
 
 @checked function clGetEventInfo(event, param_name, param_value_size, param_value,
                                  param_value_size_ret)
-    @ccall libopencl.clGetEventInfo(event::cl_event, param_name::cl_event_info,
-                                    param_value_size::Csize_t, param_value::Ptr{Cvoid},
-                                    param_value_size_ret::Ptr{Csize_t})::cl_int
+    @gcsafe_ccall libopencl.clGetEventInfo(event::cl_event, param_name::cl_event_info,
+                                           param_value_size::Csize_t,
+                                           param_value::Ptr{Cvoid},
+                                           param_value_size_ret::Ptr{Csize_t})::cl_int
 end
 
 function clCreateUserEvent(context, errcode_ret)
-    @ccall libopencl.clCreateUserEvent(context::cl_context,
-                                       errcode_ret::Ptr{cl_int})::cl_event
+    @gcsafe_ccall libopencl.clCreateUserEvent(context::cl_context,
+                                              errcode_ret::Ptr{cl_int})::cl_event
 end
 
 @checked function clRetainEvent(event)
-    @ccall libopencl.clRetainEvent(event::cl_event)::cl_int
+    @gcsafe_ccall libopencl.clRetainEvent(event::cl_event)::cl_int
 end
 
 @checked function clReleaseEvent(event)
-    @ccall libopencl.clReleaseEvent(event::cl_event)::cl_int
+    @gcsafe_ccall libopencl.clReleaseEvent(event::cl_event)::cl_int
 end
 
 @checked function clSetUserEventStatus(event, execution_status)
-    @ccall libopencl.clSetUserEventStatus(event::cl_event, execution_status::cl_int)::cl_int
+    @gcsafe_ccall libopencl.clSetUserEventStatus(event::cl_event,
+                                                 execution_status::cl_int)::cl_int
 end
 
 @checked function clSetEventCallback(event, command_exec_callback_type, pfn_notify,
                                      user_data)
-    @ccall libopencl.clSetEventCallback(event::cl_event, command_exec_callback_type::cl_int,
-                                        pfn_notify::Ptr{Cvoid},
-                                        user_data::Ptr{Cvoid})::cl_int
+    @gcsafe_ccall libopencl.clSetEventCallback(event::cl_event,
+                                               command_exec_callback_type::cl_int,
+                                               pfn_notify::Ptr{Cvoid},
+                                               user_data::Ptr{Cvoid})::cl_int
 end
 
 @checked function clGetEventProfilingInfo(event, param_name, param_value_size, param_value,
                                           param_value_size_ret)
-    @ccall libopencl.clGetEventProfilingInfo(event::cl_event, param_name::cl_profiling_info,
-                                             param_value_size::Csize_t,
-                                             param_value::Ptr{Cvoid},
-                                             param_value_size_ret::Ptr{Csize_t})::cl_int
+    @gcsafe_ccall libopencl.clGetEventProfilingInfo(event::cl_event,
+                                                    param_name::cl_profiling_info,
+                                                    param_value_size::Csize_t,
+                                                    param_value::Ptr{Cvoid},
+                                                    param_value_size_ret::Ptr{Csize_t})::cl_int
 end
 
 @checked function clFlush(command_queue)
-    @ccall libopencl.clFlush(command_queue::cl_command_queue)::cl_int
+    @gcsafe_ccall libopencl.clFlush(command_queue::cl_command_queue)::cl_int
 end
 
 @checked function clFinish(command_queue)
-    @ccall libopencl.clFinish(command_queue::cl_command_queue)::cl_int
+    @gcsafe_ccall libopencl.clFinish(command_queue::cl_command_queue)::cl_int
 end
 
 @checked function clEnqueueReadBuffer(command_queue, buffer, blocking_read, offset, size,
                                       ptr, num_events_in_wait_list, event_wait_list, event)
-    @ccall libopencl.clEnqueueReadBuffer(command_queue::cl_command_queue, buffer::cl_mem,
-                                         blocking_read::cl_bool, offset::Csize_t,
-                                         size::Csize_t, ptr::Ptr{Cvoid},
-                                         num_events_in_wait_list::cl_uint,
-                                         event_wait_list::Ptr{cl_event},
-                                         event::Ptr{cl_event})::cl_int
+    @gcsafe_ccall libopencl.clEnqueueReadBuffer(command_queue::cl_command_queue,
+                                                buffer::cl_mem,
+                                                blocking_read::cl_bool, offset::Csize_t,
+                                                size::Csize_t, ptr::Ptr{Cvoid},
+                                                num_events_in_wait_list::cl_uint,
+                                                event_wait_list::Ptr{cl_event},
+                                                event::Ptr{cl_event})::cl_int
 end
 
 @checked function clEnqueueReadBufferRect(command_queue, buffer, blocking_read,
@@ -718,28 +759,30 @@ end
                                           buffer_row_pitch, buffer_slice_pitch,
                                           host_row_pitch, host_slice_pitch, ptr,
                                           num_events_in_wait_list, event_wait_list, event)
-    @ccall libopencl.clEnqueueReadBufferRect(command_queue::cl_command_queue,
-                                             buffer::cl_mem, blocking_read::cl_bool,
-                                             buffer_origin::Ptr{Csize_t},
-                                             host_origin::Ptr{Csize_t},
-                                             region::Ptr{Csize_t},
-                                             buffer_row_pitch::Csize_t,
-                                             buffer_slice_pitch::Csize_t,
-                                             host_row_pitch::Csize_t,
-                                             host_slice_pitch::Csize_t, ptr::Ptr{Cvoid},
-                                             num_events_in_wait_list::cl_uint,
-                                             event_wait_list::Ptr{cl_event},
-                                             event::Ptr{cl_event})::cl_int
+    @gcsafe_ccall libopencl.clEnqueueReadBufferRect(command_queue::cl_command_queue,
+                                                    buffer::cl_mem, blocking_read::cl_bool,
+                                                    buffer_origin::Ptr{Csize_t},
+                                                    host_origin::Ptr{Csize_t},
+                                                    region::Ptr{Csize_t},
+                                                    buffer_row_pitch::Csize_t,
+                                                    buffer_slice_pitch::Csize_t,
+                                                    host_row_pitch::Csize_t,
+                                                    host_slice_pitch::Csize_t,
+                                                    ptr::Ptr{Cvoid},
+                                                    num_events_in_wait_list::cl_uint,
+                                                    event_wait_list::Ptr{cl_event},
+                                                    event::Ptr{cl_event})::cl_int
 end
 
 @checked function clEnqueueWriteBuffer(command_queue, buffer, blocking_write, offset, size,
                                        ptr, num_events_in_wait_list, event_wait_list, event)
-    @ccall libopencl.clEnqueueWriteBuffer(command_queue::cl_command_queue, buffer::cl_mem,
-                                          blocking_write::cl_bool, offset::Csize_t,
-                                          size::Csize_t, ptr::Ptr{Cvoid},
-                                          num_events_in_wait_list::cl_uint,
-                                          event_wait_list::Ptr{cl_event},
-                                          event::Ptr{cl_event})::cl_int
+    @gcsafe_ccall libopencl.clEnqueueWriteBuffer(command_queue::cl_command_queue,
+                                                 buffer::cl_mem,
+                                                 blocking_write::cl_bool, offset::Csize_t,
+                                                 size::Csize_t, ptr::Ptr{Cvoid},
+                                                 num_events_in_wait_list::cl_uint,
+                                                 event_wait_list::Ptr{cl_event},
+                                                 event::Ptr{cl_event})::cl_int
 end
 
 @checked function clEnqueueWriteBufferRect(command_queue, buffer, blocking_write,
@@ -747,349 +790,375 @@ end
                                            buffer_row_pitch, buffer_slice_pitch,
                                            host_row_pitch, host_slice_pitch, ptr,
                                            num_events_in_wait_list, event_wait_list, event)
-    @ccall libopencl.clEnqueueWriteBufferRect(command_queue::cl_command_queue,
-                                              buffer::cl_mem, blocking_write::cl_bool,
-                                              buffer_origin::Ptr{Csize_t},
-                                              host_origin::Ptr{Csize_t},
-                                              region::Ptr{Csize_t},
-                                              buffer_row_pitch::Csize_t,
-                                              buffer_slice_pitch::Csize_t,
-                                              host_row_pitch::Csize_t,
-                                              host_slice_pitch::Csize_t, ptr::Ptr{Cvoid},
-                                              num_events_in_wait_list::cl_uint,
-                                              event_wait_list::Ptr{cl_event},
-                                              event::Ptr{cl_event})::cl_int
+    @gcsafe_ccall libopencl.clEnqueueWriteBufferRect(command_queue::cl_command_queue,
+                                                     buffer::cl_mem,
+                                                     blocking_write::cl_bool,
+                                                     buffer_origin::Ptr{Csize_t},
+                                                     host_origin::Ptr{Csize_t},
+                                                     region::Ptr{Csize_t},
+                                                     buffer_row_pitch::Csize_t,
+                                                     buffer_slice_pitch::Csize_t,
+                                                     host_row_pitch::Csize_t,
+                                                     host_slice_pitch::Csize_t,
+                                                     ptr::Ptr{Cvoid},
+                                                     num_events_in_wait_list::cl_uint,
+                                                     event_wait_list::Ptr{cl_event},
+                                                     event::Ptr{cl_event})::cl_int
 end
 
 @checked function clEnqueueFillBuffer(command_queue, buffer, pattern, pattern_size, offset,
                                       size, num_events_in_wait_list, event_wait_list, event)
-    @ccall libopencl.clEnqueueFillBuffer(command_queue::cl_command_queue, buffer::cl_mem,
-                                         pattern::Ptr{Cvoid}, pattern_size::Csize_t,
-                                         offset::Csize_t, size::Csize_t,
-                                         num_events_in_wait_list::cl_uint,
-                                         event_wait_list::Ptr{cl_event},
-                                         event::Ptr{cl_event})::cl_int
+    @gcsafe_ccall libopencl.clEnqueueFillBuffer(command_queue::cl_command_queue,
+                                                buffer::cl_mem,
+                                                pattern::Ptr{Cvoid}, pattern_size::Csize_t,
+                                                offset::Csize_t, size::Csize_t,
+                                                num_events_in_wait_list::cl_uint,
+                                                event_wait_list::Ptr{cl_event},
+                                                event::Ptr{cl_event})::cl_int
 end
 
 @checked function clEnqueueCopyBuffer(command_queue, src_buffer, dst_buffer, src_offset,
                                       dst_offset, size, num_events_in_wait_list,
                                       event_wait_list, event)
-    @ccall libopencl.clEnqueueCopyBuffer(command_queue::cl_command_queue,
-                                         src_buffer::cl_mem, dst_buffer::cl_mem,
-                                         src_offset::Csize_t, dst_offset::Csize_t,
-                                         size::Csize_t, num_events_in_wait_list::cl_uint,
-                                         event_wait_list::Ptr{cl_event},
-                                         event::Ptr{cl_event})::cl_int
+    @gcsafe_ccall libopencl.clEnqueueCopyBuffer(command_queue::cl_command_queue,
+                                                src_buffer::cl_mem, dst_buffer::cl_mem,
+                                                src_offset::Csize_t, dst_offset::Csize_t,
+                                                size::Csize_t,
+                                                num_events_in_wait_list::cl_uint,
+                                                event_wait_list::Ptr{cl_event},
+                                                event::Ptr{cl_event})::cl_int
 end
 
 @checked function clEnqueueCopyBufferRect(command_queue, src_buffer, dst_buffer, src_origin,
                                           dst_origin, region, src_row_pitch,
                                           src_slice_pitch, dst_row_pitch, dst_slice_pitch,
                                           num_events_in_wait_list, event_wait_list, event)
-    @ccall libopencl.clEnqueueCopyBufferRect(command_queue::cl_command_queue,
-                                             src_buffer::cl_mem, dst_buffer::cl_mem,
-                                             src_origin::Ptr{Csize_t},
-                                             dst_origin::Ptr{Csize_t}, region::Ptr{Csize_t},
-                                             src_row_pitch::Csize_t,
-                                             src_slice_pitch::Csize_t,
-                                             dst_row_pitch::Csize_t,
-                                             dst_slice_pitch::Csize_t,
-                                             num_events_in_wait_list::cl_uint,
-                                             event_wait_list::Ptr{cl_event},
-                                             event::Ptr{cl_event})::cl_int
+    @gcsafe_ccall libopencl.clEnqueueCopyBufferRect(command_queue::cl_command_queue,
+                                                    src_buffer::cl_mem, dst_buffer::cl_mem,
+                                                    src_origin::Ptr{Csize_t},
+                                                    dst_origin::Ptr{Csize_t},
+                                                    region::Ptr{Csize_t},
+                                                    src_row_pitch::Csize_t,
+                                                    src_slice_pitch::Csize_t,
+                                                    dst_row_pitch::Csize_t,
+                                                    dst_slice_pitch::Csize_t,
+                                                    num_events_in_wait_list::cl_uint,
+                                                    event_wait_list::Ptr{cl_event},
+                                                    event::Ptr{cl_event})::cl_int
 end
 
 @checked function clEnqueueReadImage(command_queue, image, blocking_read, origin, region,
                                      row_pitch, slice_pitch, ptr, num_events_in_wait_list,
                                      event_wait_list, event)
-    @ccall libopencl.clEnqueueReadImage(command_queue::cl_command_queue, image::cl_mem,
-                                        blocking_read::cl_bool, origin::Ptr{Csize_t},
-                                        region::Ptr{Csize_t}, row_pitch::Csize_t,
-                                        slice_pitch::Csize_t, ptr::Ptr{Cvoid},
-                                        num_events_in_wait_list::cl_uint,
-                                        event_wait_list::Ptr{cl_event},
-                                        event::Ptr{cl_event})::cl_int
+    @gcsafe_ccall libopencl.clEnqueueReadImage(command_queue::cl_command_queue,
+                                               image::cl_mem,
+                                               blocking_read::cl_bool, origin::Ptr{Csize_t},
+                                               region::Ptr{Csize_t}, row_pitch::Csize_t,
+                                               slice_pitch::Csize_t, ptr::Ptr{Cvoid},
+                                               num_events_in_wait_list::cl_uint,
+                                               event_wait_list::Ptr{cl_event},
+                                               event::Ptr{cl_event})::cl_int
 end
 
 @checked function clEnqueueWriteImage(command_queue, image, blocking_write, origin, region,
                                       input_row_pitch, input_slice_pitch, ptr,
                                       num_events_in_wait_list, event_wait_list, event)
-    @ccall libopencl.clEnqueueWriteImage(command_queue::cl_command_queue, image::cl_mem,
-                                         blocking_write::cl_bool, origin::Ptr{Csize_t},
-                                         region::Ptr{Csize_t}, input_row_pitch::Csize_t,
-                                         input_slice_pitch::Csize_t, ptr::Ptr{Cvoid},
-                                         num_events_in_wait_list::cl_uint,
-                                         event_wait_list::Ptr{cl_event},
-                                         event::Ptr{cl_event})::cl_int
+    @gcsafe_ccall libopencl.clEnqueueWriteImage(command_queue::cl_command_queue,
+                                                image::cl_mem,
+                                                blocking_write::cl_bool,
+                                                origin::Ptr{Csize_t},
+                                                region::Ptr{Csize_t},
+                                                input_row_pitch::Csize_t,
+                                                input_slice_pitch::Csize_t, ptr::Ptr{Cvoid},
+                                                num_events_in_wait_list::cl_uint,
+                                                event_wait_list::Ptr{cl_event},
+                                                event::Ptr{cl_event})::cl_int
 end
 
 @checked function clEnqueueFillImage(command_queue, image, fill_color, origin, region,
                                      num_events_in_wait_list, event_wait_list, event)
-    @ccall libopencl.clEnqueueFillImage(command_queue::cl_command_queue, image::cl_mem,
-                                        fill_color::Ptr{Cvoid}, origin::Ptr{Csize_t},
-                                        region::Ptr{Csize_t},
-                                        num_events_in_wait_list::cl_uint,
-                                        event_wait_list::Ptr{cl_event},
-                                        event::Ptr{cl_event})::cl_int
+    @gcsafe_ccall libopencl.clEnqueueFillImage(command_queue::cl_command_queue,
+                                               image::cl_mem,
+                                               fill_color::Ptr{Cvoid}, origin::Ptr{Csize_t},
+                                               region::Ptr{Csize_t},
+                                               num_events_in_wait_list::cl_uint,
+                                               event_wait_list::Ptr{cl_event},
+                                               event::Ptr{cl_event})::cl_int
 end
 
 @checked function clEnqueueCopyImage(command_queue, src_image, dst_image, src_origin,
                                      dst_origin, region, num_events_in_wait_list,
                                      event_wait_list, event)
-    @ccall libopencl.clEnqueueCopyImage(command_queue::cl_command_queue, src_image::cl_mem,
-                                        dst_image::cl_mem, src_origin::Ptr{Csize_t},
-                                        dst_origin::Ptr{Csize_t}, region::Ptr{Csize_t},
-                                        num_events_in_wait_list::cl_uint,
-                                        event_wait_list::Ptr{cl_event},
-                                        event::Ptr{cl_event})::cl_int
+    @gcsafe_ccall libopencl.clEnqueueCopyImage(command_queue::cl_command_queue,
+                                               src_image::cl_mem,
+                                               dst_image::cl_mem, src_origin::Ptr{Csize_t},
+                                               dst_origin::Ptr{Csize_t},
+                                               region::Ptr{Csize_t},
+                                               num_events_in_wait_list::cl_uint,
+                                               event_wait_list::Ptr{cl_event},
+                                               event::Ptr{cl_event})::cl_int
 end
 
 @checked function clEnqueueCopyImageToBuffer(command_queue, src_image, dst_buffer,
                                              src_origin, region, dst_offset,
                                              num_events_in_wait_list, event_wait_list,
                                              event)
-    @ccall libopencl.clEnqueueCopyImageToBuffer(command_queue::cl_command_queue,
-                                                src_image::cl_mem, dst_buffer::cl_mem,
-                                                src_origin::Ptr{Csize_t},
-                                                region::Ptr{Csize_t}, dst_offset::Csize_t,
-                                                num_events_in_wait_list::cl_uint,
-                                                event_wait_list::Ptr{cl_event},
-                                                event::Ptr{cl_event})::cl_int
+    @gcsafe_ccall libopencl.clEnqueueCopyImageToBuffer(command_queue::cl_command_queue,
+                                                       src_image::cl_mem,
+                                                       dst_buffer::cl_mem,
+                                                       src_origin::Ptr{Csize_t},
+                                                       region::Ptr{Csize_t},
+                                                       dst_offset::Csize_t,
+                                                       num_events_in_wait_list::cl_uint,
+                                                       event_wait_list::Ptr{cl_event},
+                                                       event::Ptr{cl_event})::cl_int
 end
 
 @checked function clEnqueueCopyBufferToImage(command_queue, src_buffer, dst_image,
                                              src_offset, dst_origin, region,
                                              num_events_in_wait_list, event_wait_list,
                                              event)
-    @ccall libopencl.clEnqueueCopyBufferToImage(command_queue::cl_command_queue,
-                                                src_buffer::cl_mem, dst_image::cl_mem,
-                                                src_offset::Csize_t,
-                                                dst_origin::Ptr{Csize_t},
-                                                region::Ptr{Csize_t},
-                                                num_events_in_wait_list::cl_uint,
-                                                event_wait_list::Ptr{cl_event},
-                                                event::Ptr{cl_event})::cl_int
+    @gcsafe_ccall libopencl.clEnqueueCopyBufferToImage(command_queue::cl_command_queue,
+                                                       src_buffer::cl_mem,
+                                                       dst_image::cl_mem,
+                                                       src_offset::Csize_t,
+                                                       dst_origin::Ptr{Csize_t},
+                                                       region::Ptr{Csize_t},
+                                                       num_events_in_wait_list::cl_uint,
+                                                       event_wait_list::Ptr{cl_event},
+                                                       event::Ptr{cl_event})::cl_int
 end
 
 function clEnqueueMapBuffer(command_queue, buffer, blocking_map, map_flags, offset, size,
                             num_events_in_wait_list, event_wait_list, event, errcode_ret)
-    @ccall libopencl.clEnqueueMapBuffer(command_queue::cl_command_queue, buffer::cl_mem,
-                                        blocking_map::cl_bool, map_flags::cl_map_flags,
-                                        offset::Csize_t, size::Csize_t,
-                                        num_events_in_wait_list::cl_uint,
-                                        event_wait_list::Ptr{cl_event},
-                                        event::Ptr{cl_event},
-                                        errcode_ret::Ptr{cl_int})::Ptr{Cvoid}
+    @gcsafe_ccall libopencl.clEnqueueMapBuffer(command_queue::cl_command_queue,
+                                               buffer::cl_mem,
+                                               blocking_map::cl_bool,
+                                               map_flags::cl_map_flags,
+                                               offset::Csize_t, size::Csize_t,
+                                               num_events_in_wait_list::cl_uint,
+                                               event_wait_list::Ptr{cl_event},
+                                               event::Ptr{cl_event},
+                                               errcode_ret::Ptr{cl_int})::Ptr{Cvoid}
 end
 
 function clEnqueueMapImage(command_queue, image, blocking_map, map_flags, origin, region,
                            image_row_pitch, image_slice_pitch, num_events_in_wait_list,
                            event_wait_list, event, errcode_ret)
-    @ccall libopencl.clEnqueueMapImage(command_queue::cl_command_queue, image::cl_mem,
-                                       blocking_map::cl_bool, map_flags::cl_map_flags,
-                                       origin::Ptr{Csize_t}, region::Ptr{Csize_t},
-                                       image_row_pitch::Ptr{Csize_t},
-                                       image_slice_pitch::Ptr{Csize_t},
-                                       num_events_in_wait_list::cl_uint,
-                                       event_wait_list::Ptr{cl_event}, event::Ptr{cl_event},
-                                       errcode_ret::Ptr{cl_int})::Ptr{Cvoid}
+    @gcsafe_ccall libopencl.clEnqueueMapImage(command_queue::cl_command_queue,
+                                              image::cl_mem,
+                                              blocking_map::cl_bool,
+                                              map_flags::cl_map_flags,
+                                              origin::Ptr{Csize_t}, region::Ptr{Csize_t},
+                                              image_row_pitch::Ptr{Csize_t},
+                                              image_slice_pitch::Ptr{Csize_t},
+                                              num_events_in_wait_list::cl_uint,
+                                              event_wait_list::Ptr{cl_event},
+                                              event::Ptr{cl_event},
+                                              errcode_ret::Ptr{cl_int})::Ptr{Cvoid}
 end
 
 @checked function clEnqueueUnmapMemObject(command_queue, memobj, mapped_ptr,
                                           num_events_in_wait_list, event_wait_list, event)
-    @ccall libopencl.clEnqueueUnmapMemObject(command_queue::cl_command_queue,
-                                             memobj::cl_mem, mapped_ptr::Ptr{Cvoid},
-                                             num_events_in_wait_list::cl_uint,
-                                             event_wait_list::Ptr{cl_event},
-                                             event::Ptr{cl_event})::cl_int
+    @gcsafe_ccall libopencl.clEnqueueUnmapMemObject(command_queue::cl_command_queue,
+                                                    memobj::cl_mem, mapped_ptr::Ptr{Cvoid},
+                                                    num_events_in_wait_list::cl_uint,
+                                                    event_wait_list::Ptr{cl_event},
+                                                    event::Ptr{cl_event})::cl_int
 end
 
 @checked function clEnqueueMigrateMemObjects(command_queue, num_mem_objects, mem_objects,
                                              flags, num_events_in_wait_list,
                                              event_wait_list, event)
-    @ccall libopencl.clEnqueueMigrateMemObjects(command_queue::cl_command_queue,
-                                                num_mem_objects::cl_uint,
-                                                mem_objects::Ptr{cl_mem},
-                                                flags::cl_mem_migration_flags,
-                                                num_events_in_wait_list::cl_uint,
-                                                event_wait_list::Ptr{cl_event},
-                                                event::Ptr{cl_event})::cl_int
+    @gcsafe_ccall libopencl.clEnqueueMigrateMemObjects(command_queue::cl_command_queue,
+                                                       num_mem_objects::cl_uint,
+                                                       mem_objects::Ptr{cl_mem},
+                                                       flags::cl_mem_migration_flags,
+                                                       num_events_in_wait_list::cl_uint,
+                                                       event_wait_list::Ptr{cl_event},
+                                                       event::Ptr{cl_event})::cl_int
 end
 
 @checked function clEnqueueNDRangeKernel(command_queue, kernel, work_dim,
                                          global_work_offset, global_work_size,
                                          local_work_size, num_events_in_wait_list,
                                          event_wait_list, event)
-    @ccall libopencl.clEnqueueNDRangeKernel(command_queue::cl_command_queue,
-                                            kernel::cl_kernel, work_dim::cl_uint,
-                                            global_work_offset::Ptr{Csize_t},
-                                            global_work_size::Ptr{Csize_t},
-                                            local_work_size::Ptr{Csize_t},
-                                            num_events_in_wait_list::cl_uint,
-                                            event_wait_list::Ptr{cl_event},
-                                            event::Ptr{cl_event})::cl_int
+    @gcsafe_ccall libopencl.clEnqueueNDRangeKernel(command_queue::cl_command_queue,
+                                                   kernel::cl_kernel, work_dim::cl_uint,
+                                                   global_work_offset::Ptr{Csize_t},
+                                                   global_work_size::Ptr{Csize_t},
+                                                   local_work_size::Ptr{Csize_t},
+                                                   num_events_in_wait_list::cl_uint,
+                                                   event_wait_list::Ptr{cl_event},
+                                                   event::Ptr{cl_event})::cl_int
 end
 
 @checked function clEnqueueNativeKernel(command_queue, user_func, args, cb_args,
                                         num_mem_objects, mem_list, args_mem_loc,
                                         num_events_in_wait_list, event_wait_list, event)
-    @ccall libopencl.clEnqueueNativeKernel(command_queue::cl_command_queue,
-                                           user_func::Ptr{Cvoid}, args::Ptr{Cvoid},
-                                           cb_args::Csize_t, num_mem_objects::cl_uint,
-                                           mem_list::Ptr{cl_mem},
-                                           args_mem_loc::Ptr{Ptr{Cvoid}},
-                                           num_events_in_wait_list::cl_uint,
-                                           event_wait_list::Ptr{cl_event},
-                                           event::Ptr{cl_event})::cl_int
-end
-
-@checked function clEnqueueMarkerWithWaitList(command_queue, num_events_in_wait_list,
-                                              event_wait_list, event)
-    @ccall libopencl.clEnqueueMarkerWithWaitList(command_queue::cl_command_queue,
-                                                 num_events_in_wait_list::cl_uint,
-                                                 event_wait_list::Ptr{cl_event},
-                                                 event::Ptr{cl_event})::cl_int
-end
-
-@checked function clEnqueueBarrierWithWaitList(command_queue, num_events_in_wait_list,
-                                               event_wait_list, event)
-    @ccall libopencl.clEnqueueBarrierWithWaitList(command_queue::cl_command_queue,
+    @gcsafe_ccall libopencl.clEnqueueNativeKernel(command_queue::cl_command_queue,
+                                                  user_func::Ptr{Cvoid}, args::Ptr{Cvoid},
+                                                  cb_args::Csize_t,
+                                                  num_mem_objects::cl_uint,
+                                                  mem_list::Ptr{cl_mem},
+                                                  args_mem_loc::Ptr{Ptr{Cvoid}},
                                                   num_events_in_wait_list::cl_uint,
                                                   event_wait_list::Ptr{cl_event},
                                                   event::Ptr{cl_event})::cl_int
 end
 
+@checked function clEnqueueMarkerWithWaitList(command_queue, num_events_in_wait_list,
+                                              event_wait_list, event)
+    @gcsafe_ccall libopencl.clEnqueueMarkerWithWaitList(command_queue::cl_command_queue,
+                                                        num_events_in_wait_list::cl_uint,
+                                                        event_wait_list::Ptr{cl_event},
+                                                        event::Ptr{cl_event})::cl_int
+end
+
+@checked function clEnqueueBarrierWithWaitList(command_queue, num_events_in_wait_list,
+                                               event_wait_list, event)
+    @gcsafe_ccall libopencl.clEnqueueBarrierWithWaitList(command_queue::cl_command_queue,
+                                                         num_events_in_wait_list::cl_uint,
+                                                         event_wait_list::Ptr{cl_event},
+                                                         event::Ptr{cl_event})::cl_int
+end
+
 @checked function clEnqueueSVMFree(command_queue, num_svm_pointers, svm_pointers,
                                    pfn_free_func, user_data, num_events_in_wait_list,
                                    event_wait_list, event)
-    @ccall libopencl.clEnqueueSVMFree(command_queue::cl_command_queue,
-                                      num_svm_pointers::cl_uint,
-                                      svm_pointers::Ptr{Ptr{Cvoid}},
-                                      pfn_free_func::Ptr{Cvoid}, user_data::Ptr{Cvoid},
-                                      num_events_in_wait_list::cl_uint,
-                                      event_wait_list::Ptr{cl_event},
-                                      event::Ptr{cl_event})::cl_int
+    @gcsafe_ccall libopencl.clEnqueueSVMFree(command_queue::cl_command_queue,
+                                             num_svm_pointers::cl_uint,
+                                             svm_pointers::Ptr{Ptr{Cvoid}},
+                                             pfn_free_func::Ptr{Cvoid},
+                                             user_data::Ptr{Cvoid},
+                                             num_events_in_wait_list::cl_uint,
+                                             event_wait_list::Ptr{cl_event},
+                                             event::Ptr{cl_event})::cl_int
 end
 
 @checked function clEnqueueSVMMemcpy(command_queue, blocking_copy, dst_ptr, src_ptr, size,
                                      num_events_in_wait_list, event_wait_list, event)
-    @ccall libopencl.clEnqueueSVMMemcpy(command_queue::cl_command_queue,
-                                        blocking_copy::cl_bool, dst_ptr::PtrOrCLPtr{Cvoid},
-                                        src_ptr::PtrOrCLPtr{Cvoid}, size::Csize_t,
-                                        num_events_in_wait_list::cl_uint,
-                                        event_wait_list::Ptr{cl_event},
-                                        event::Ptr{cl_event})::cl_int
+    @gcsafe_ccall libopencl.clEnqueueSVMMemcpy(command_queue::cl_command_queue,
+                                               blocking_copy::cl_bool,
+                                               dst_ptr::PtrOrCLPtr{Cvoid},
+                                               src_ptr::PtrOrCLPtr{Cvoid}, size::Csize_t,
+                                               num_events_in_wait_list::cl_uint,
+                                               event_wait_list::Ptr{cl_event},
+                                               event::Ptr{cl_event})::cl_int
 end
 
 @checked function clEnqueueSVMMemFill(command_queue, svm_ptr, pattern, pattern_size, size,
                                       num_events_in_wait_list, event_wait_list, event)
-    @ccall libopencl.clEnqueueSVMMemFill(command_queue::cl_command_queue,
-                                         svm_ptr::CLPtr{Cvoid}, pattern::Ptr{Cvoid},
-                                         pattern_size::Csize_t, size::Csize_t,
-                                         num_events_in_wait_list::cl_uint,
-                                         event_wait_list::Ptr{cl_event},
-                                         event::Ptr{cl_event})::cl_int
+    @gcsafe_ccall libopencl.clEnqueueSVMMemFill(command_queue::cl_command_queue,
+                                                svm_ptr::CLPtr{Cvoid}, pattern::Ptr{Cvoid},
+                                                pattern_size::Csize_t, size::Csize_t,
+                                                num_events_in_wait_list::cl_uint,
+                                                event_wait_list::Ptr{cl_event},
+                                                event::Ptr{cl_event})::cl_int
 end
 
 @checked function clEnqueueSVMMap(command_queue, blocking_map, flags, svm_ptr, size,
                                   num_events_in_wait_list, event_wait_list, event)
-    @ccall libopencl.clEnqueueSVMMap(command_queue::cl_command_queue, blocking_map::cl_bool,
-                                     flags::cl_map_flags, svm_ptr::CLPtr{Cvoid},
-                                     size::Csize_t, num_events_in_wait_list::cl_uint,
-                                     event_wait_list::Ptr{cl_event},
-                                     event::Ptr{cl_event})::cl_int
+    @gcsafe_ccall libopencl.clEnqueueSVMMap(command_queue::cl_command_queue,
+                                            blocking_map::cl_bool,
+                                            flags::cl_map_flags, svm_ptr::CLPtr{Cvoid},
+                                            size::Csize_t, num_events_in_wait_list::cl_uint,
+                                            event_wait_list::Ptr{cl_event},
+                                            event::Ptr{cl_event})::cl_int
 end
 
 @checked function clEnqueueSVMUnmap(command_queue, svm_ptr, num_events_in_wait_list,
                                     event_wait_list, event)
-    @ccall libopencl.clEnqueueSVMUnmap(command_queue::cl_command_queue,
-                                       svm_ptr::CLPtr{Cvoid},
-                                       num_events_in_wait_list::cl_uint,
-                                       event_wait_list::Ptr{cl_event},
-                                       event::Ptr{cl_event})::cl_int
+    @gcsafe_ccall libopencl.clEnqueueSVMUnmap(command_queue::cl_command_queue,
+                                              svm_ptr::CLPtr{Cvoid},
+                                              num_events_in_wait_list::cl_uint,
+                                              event_wait_list::Ptr{cl_event},
+                                              event::Ptr{cl_event})::cl_int
 end
 
 @checked function clEnqueueSVMMigrateMem(command_queue, num_svm_pointers, svm_pointers,
                                          sizes, flags, num_events_in_wait_list,
                                          event_wait_list, event)
-    @ccall libopencl.clEnqueueSVMMigrateMem(command_queue::cl_command_queue,
-                                            num_svm_pointers::cl_uint,
-                                            svm_pointers::Ptr{CLPtr{Cvoid}},
-                                            sizes::Ptr{Csize_t},
-                                            flags::cl_mem_migration_flags,
-                                            num_events_in_wait_list::cl_uint,
-                                            event_wait_list::Ptr{cl_event},
-                                            event::Ptr{cl_event})::cl_int
+    @gcsafe_ccall libopencl.clEnqueueSVMMigrateMem(command_queue::cl_command_queue,
+                                                   num_svm_pointers::cl_uint,
+                                                   svm_pointers::Ptr{CLPtr{Cvoid}},
+                                                   sizes::Ptr{Csize_t},
+                                                   flags::cl_mem_migration_flags,
+                                                   num_events_in_wait_list::cl_uint,
+                                                   event_wait_list::Ptr{cl_event},
+                                                   event::Ptr{cl_event})::cl_int
 end
 
 function clGetExtensionFunctionAddressForPlatform(platform, func_name)
-    @ccall libopencl.clGetExtensionFunctionAddressForPlatform(platform::cl_platform_id,
-                                                              func_name::Ptr{Cchar})::Ptr{Cvoid}
+    @gcsafe_ccall libopencl.clGetExtensionFunctionAddressForPlatform(platform::cl_platform_id,
+                                                                     func_name::Ptr{Cchar})::Ptr{Cvoid}
 end
 
 function clCreateImage2D(context, flags, image_format, image_width, image_height,
                          image_row_pitch, host_ptr, errcode_ret)
-    @ccall libopencl.clCreateImage2D(context::cl_context, flags::cl_mem_flags,
-                                     image_format::Ptr{cl_image_format},
-                                     image_width::Csize_t, image_height::Csize_t,
-                                     image_row_pitch::Csize_t, host_ptr::Ptr{Cvoid},
-                                     errcode_ret::Ptr{cl_int})::cl_mem
+    @gcsafe_ccall libopencl.clCreateImage2D(context::cl_context, flags::cl_mem_flags,
+                                            image_format::Ptr{cl_image_format},
+                                            image_width::Csize_t, image_height::Csize_t,
+                                            image_row_pitch::Csize_t, host_ptr::Ptr{Cvoid},
+                                            errcode_ret::Ptr{cl_int})::cl_mem
 end
 
 function clCreateImage3D(context, flags, image_format, image_width, image_height,
                          image_depth, image_row_pitch, image_slice_pitch, host_ptr,
                          errcode_ret)
-    @ccall libopencl.clCreateImage3D(context::cl_context, flags::cl_mem_flags,
-                                     image_format::Ptr{cl_image_format},
-                                     image_width::Csize_t, image_height::Csize_t,
-                                     image_depth::Csize_t, image_row_pitch::Csize_t,
-                                     image_slice_pitch::Csize_t, host_ptr::Ptr{Cvoid},
-                                     errcode_ret::Ptr{cl_int})::cl_mem
+    @gcsafe_ccall libopencl.clCreateImage3D(context::cl_context, flags::cl_mem_flags,
+                                            image_format::Ptr{cl_image_format},
+                                            image_width::Csize_t, image_height::Csize_t,
+                                            image_depth::Csize_t, image_row_pitch::Csize_t,
+                                            image_slice_pitch::Csize_t,
+                                            host_ptr::Ptr{Cvoid},
+                                            errcode_ret::Ptr{cl_int})::cl_mem
 end
 
 @checked function clEnqueueMarker(command_queue, event)
-    @ccall libopencl.clEnqueueMarker(command_queue::cl_command_queue,
-                                     event::Ptr{cl_event})::cl_int
+    @gcsafe_ccall libopencl.clEnqueueMarker(command_queue::cl_command_queue,
+                                            event::Ptr{cl_event})::cl_int
 end
 
 @checked function clEnqueueWaitForEvents(command_queue, num_events, event_list)
-    @ccall libopencl.clEnqueueWaitForEvents(command_queue::cl_command_queue,
-                                            num_events::cl_uint,
-                                            event_list::Ptr{cl_event})::cl_int
+    @gcsafe_ccall libopencl.clEnqueueWaitForEvents(command_queue::cl_command_queue,
+                                                   num_events::cl_uint,
+                                                   event_list::Ptr{cl_event})::cl_int
 end
 
 @checked function clEnqueueBarrier(command_queue)
-    @ccall libopencl.clEnqueueBarrier(command_queue::cl_command_queue)::cl_int
+    @gcsafe_ccall libopencl.clEnqueueBarrier(command_queue::cl_command_queue)::cl_int
 end
 
 @checked function clUnloadCompiler()
-    @ccall libopencl.clUnloadCompiler()::cl_int
+    @gcsafe_ccall libopencl.clUnloadCompiler()::cl_int
 end
 
 function clGetExtensionFunctionAddress(func_name)
-    @ccall libopencl.clGetExtensionFunctionAddress(func_name::Ptr{Cchar})::Ptr{Cvoid}
+    @gcsafe_ccall libopencl.clGetExtensionFunctionAddress(func_name::Ptr{Cchar})::Ptr{Cvoid}
 end
 
 function clCreateCommandQueue(context, device, properties, errcode_ret)
-    @ccall libopencl.clCreateCommandQueue(context::cl_context, device::cl_device_id,
-                                          properties::cl_command_queue_properties,
-                                          errcode_ret::Ptr{cl_int})::cl_command_queue
+    @gcsafe_ccall libopencl.clCreateCommandQueue(context::cl_context, device::cl_device_id,
+                                                 properties::cl_command_queue_properties,
+                                                 errcode_ret::Ptr{cl_int})::cl_command_queue
 end
 
 function clCreateSampler(context, normalized_coords, addressing_mode, filter_mode,
                          errcode_ret)
-    @ccall libopencl.clCreateSampler(context::cl_context, normalized_coords::cl_bool,
-                                     addressing_mode::cl_addressing_mode,
-                                     filter_mode::cl_filter_mode,
-                                     errcode_ret::Ptr{cl_int})::cl_sampler
+    @gcsafe_ccall libopencl.clCreateSampler(context::cl_context, normalized_coords::cl_bool,
+                                            addressing_mode::cl_addressing_mode,
+                                            filter_mode::cl_filter_mode,
+                                            errcode_ret::Ptr{cl_int})::cl_sampler
 end
 
 @checked function clEnqueueTask(command_queue, kernel, num_events_in_wait_list,
                                 event_wait_list, event)
-    @ccall libopencl.clEnqueueTask(command_queue::cl_command_queue, kernel::cl_kernel,
-                                   num_events_in_wait_list::cl_uint,
-                                   event_wait_list::Ptr{cl_event},
-                                   event::Ptr{cl_event})::cl_int
+    @gcsafe_ccall libopencl.clEnqueueTask(command_queue::cl_command_queue,
+                                          kernel::cl_kernel,
+                                          num_events_in_wait_list::cl_uint,
+                                          event_wait_list::Ptr{cl_event},
+                                          event::Ptr{cl_event})::cl_int
 end
 
 const cl_GLint = Cint
@@ -1118,17 +1187,17 @@ const clCreateFromGLBuffer_fn = Ptr{clCreateFromGLBuffer_t}
 
 @checked function clGetGLContextInfoKHR(properties, param_name, param_value_size,
                                         param_value, param_value_size_ret)
-    @ccall libopencl.clGetGLContextInfoKHR(properties::Ptr{cl_context_properties},
-                                           param_name::cl_gl_context_info,
-                                           param_value_size::Csize_t,
-                                           param_value::Ptr{Cvoid},
-                                           param_value_size_ret::Ptr{Csize_t})::cl_int
+    @gcsafe_ccall libopencl.clGetGLContextInfoKHR(properties::Ptr{cl_context_properties},
+                                                  param_name::cl_gl_context_info,
+                                                  param_value_size::Csize_t,
+                                                  param_value::Ptr{Cvoid},
+                                                  param_value_size_ret::Ptr{Csize_t})::cl_int
 end
 
 function clCreateFromGLBuffer(context, flags, bufobj, errcode_ret)
-    @ccall libopencl.clCreateFromGLBuffer(context::cl_context, flags::cl_mem_flags,
-                                          bufobj::cl_GLuint,
-                                          errcode_ret::Ptr{cl_int})::cl_mem
+    @gcsafe_ccall libopencl.clCreateFromGLBuffer(context::cl_context, flags::cl_mem_flags,
+                                                 bufobj::cl_GLuint,
+                                                 errcode_ret::Ptr{cl_int})::cl_mem
 end
 
 # typedef cl_mem CL_API_CALL clCreateFromGLTexture_t ( cl_context context , cl_mem_flags flags , cl_GLenum target , cl_GLint miplevel , cl_GLuint texture , cl_int * errcode_ret )
@@ -1137,10 +1206,10 @@ const clCreateFromGLTexture_t = Cvoid
 const clCreateFromGLTexture_fn = Ptr{clCreateFromGLTexture_t}
 
 function clCreateFromGLTexture(context, flags, target, miplevel, texture, errcode_ret)
-    @ccall libopencl.clCreateFromGLTexture(context::cl_context, flags::cl_mem_flags,
-                                           target::cl_GLenum, miplevel::cl_GLint,
-                                           texture::cl_GLuint,
-                                           errcode_ret::Ptr{cl_int})::cl_mem
+    @gcsafe_ccall libopencl.clCreateFromGLTexture(context::cl_context, flags::cl_mem_flags,
+                                                  target::cl_GLenum, miplevel::cl_GLint,
+                                                  texture::cl_GLuint,
+                                                  errcode_ret::Ptr{cl_int})::cl_mem
 end
 
 # typedef cl_mem CL_API_CALL clCreateFromGLRenderbuffer_t ( cl_context context , cl_mem_flags flags , cl_GLuint renderbuffer , cl_int * errcode_ret )
@@ -1169,42 +1238,45 @@ const clEnqueueReleaseGLObjects_t = Cvoid
 const clEnqueueReleaseGLObjects_fn = Ptr{clEnqueueReleaseGLObjects_t}
 
 function clCreateFromGLRenderbuffer(context, flags, renderbuffer, errcode_ret)
-    @ccall libopencl.clCreateFromGLRenderbuffer(context::cl_context, flags::cl_mem_flags,
-                                                renderbuffer::cl_GLuint,
-                                                errcode_ret::Ptr{cl_int})::cl_mem
+    @gcsafe_ccall libopencl.clCreateFromGLRenderbuffer(context::cl_context,
+                                                       flags::cl_mem_flags,
+                                                       renderbuffer::cl_GLuint,
+                                                       errcode_ret::Ptr{cl_int})::cl_mem
 end
 
 @checked function clGetGLObjectInfo(memobj, gl_object_type, gl_object_name)
-    @ccall libopencl.clGetGLObjectInfo(memobj::cl_mem,
-                                       gl_object_type::Ptr{cl_gl_object_type},
-                                       gl_object_name::Ptr{cl_GLuint})::cl_int
+    @gcsafe_ccall libopencl.clGetGLObjectInfo(memobj::cl_mem,
+                                              gl_object_type::Ptr{cl_gl_object_type},
+                                              gl_object_name::Ptr{cl_GLuint})::cl_int
 end
 
 @checked function clGetGLTextureInfo(memobj, param_name, param_value_size, param_value,
                                      param_value_size_ret)
-    @ccall libopencl.clGetGLTextureInfo(memobj::cl_mem, param_name::cl_gl_texture_info,
-                                        param_value_size::Csize_t, param_value::Ptr{Cvoid},
-                                        param_value_size_ret::Ptr{Csize_t})::cl_int
+    @gcsafe_ccall libopencl.clGetGLTextureInfo(memobj::cl_mem,
+                                               param_name::cl_gl_texture_info,
+                                               param_value_size::Csize_t,
+                                               param_value::Ptr{Cvoid},
+                                               param_value_size_ret::Ptr{Csize_t})::cl_int
 end
 
 @checked function clEnqueueAcquireGLObjects(command_queue, num_objects, mem_objects,
                                             num_events_in_wait_list, event_wait_list, event)
-    @ccall libopencl.clEnqueueAcquireGLObjects(command_queue::cl_command_queue,
-                                               num_objects::cl_uint,
-                                               mem_objects::Ptr{cl_mem},
-                                               num_events_in_wait_list::cl_uint,
-                                               event_wait_list::Ptr{cl_event},
-                                               event::Ptr{cl_event})::cl_int
+    @gcsafe_ccall libopencl.clEnqueueAcquireGLObjects(command_queue::cl_command_queue,
+                                                      num_objects::cl_uint,
+                                                      mem_objects::Ptr{cl_mem},
+                                                      num_events_in_wait_list::cl_uint,
+                                                      event_wait_list::Ptr{cl_event},
+                                                      event::Ptr{cl_event})::cl_int
 end
 
 @checked function clEnqueueReleaseGLObjects(command_queue, num_objects, mem_objects,
                                             num_events_in_wait_list, event_wait_list, event)
-    @ccall libopencl.clEnqueueReleaseGLObjects(command_queue::cl_command_queue,
-                                               num_objects::cl_uint,
-                                               mem_objects::Ptr{cl_mem},
-                                               num_events_in_wait_list::cl_uint,
-                                               event_wait_list::Ptr{cl_event},
-                                               event::Ptr{cl_event})::cl_int
+    @gcsafe_ccall libopencl.clEnqueueReleaseGLObjects(command_queue::cl_command_queue,
+                                                      num_objects::cl_uint,
+                                                      mem_objects::Ptr{cl_mem},
+                                                      num_events_in_wait_list::cl_uint,
+                                                      event_wait_list::Ptr{cl_event},
+                                                      event::Ptr{cl_event})::cl_int
 end
 
 # typedef cl_mem CL_API_CALL clCreateFromGLTexture2D_t ( cl_context context , cl_mem_flags flags , cl_GLenum target , cl_GLint miplevel , cl_GLuint texture , cl_int * errcode_ret )
@@ -1218,17 +1290,19 @@ const clCreateFromGLTexture3D_t = Cvoid
 const clCreateFromGLTexture3D_fn = Ptr{clCreateFromGLTexture3D_t}
 
 function clCreateFromGLTexture2D(context, flags, target, miplevel, texture, errcode_ret)
-    @ccall libopencl.clCreateFromGLTexture2D(context::cl_context, flags::cl_mem_flags,
-                                             target::cl_GLenum, miplevel::cl_GLint,
-                                             texture::cl_GLuint,
-                                             errcode_ret::Ptr{cl_int})::cl_mem
+    @gcsafe_ccall libopencl.clCreateFromGLTexture2D(context::cl_context,
+                                                    flags::cl_mem_flags,
+                                                    target::cl_GLenum, miplevel::cl_GLint,
+                                                    texture::cl_GLuint,
+                                                    errcode_ret::Ptr{cl_int})::cl_mem
 end
 
 function clCreateFromGLTexture3D(context, flags, target, miplevel, texture, errcode_ret)
-    @ccall libopencl.clCreateFromGLTexture3D(context::cl_context, flags::cl_mem_flags,
-                                             target::cl_GLenum, miplevel::cl_GLint,
-                                             texture::cl_GLuint,
-                                             errcode_ret::Ptr{cl_int})::cl_mem
+    @gcsafe_ccall libopencl.clCreateFromGLTexture3D(context::cl_context,
+                                                    flags::cl_mem_flags,
+                                                    target::cl_GLenum, miplevel::cl_GLint,
+                                                    texture::cl_GLuint,
+                                                    errcode_ret::Ptr{cl_int})::cl_mem
 end
 
 mutable struct __GLsync end
@@ -1241,8 +1315,8 @@ const clCreateEventFromGLsyncKHR_t = Cvoid
 const clCreateEventFromGLsyncKHR_fn = Ptr{clCreateEventFromGLsyncKHR_t}
 
 function clCreateEventFromGLsyncKHR(context, sync, errcode_ret)
-    @ccall libopencl.clCreateEventFromGLsyncKHR(context::cl_context, sync::cl_GLsync,
-                                                errcode_ret::Ptr{cl_int})::cl_event
+    @gcsafe_ccall libopencl.clCreateEventFromGLsyncKHR(context::cl_context, sync::cl_GLsync,
+                                                       errcode_ret::Ptr{cl_int})::cl_event
 end
 
 # typedef cl_int CL_API_CALL clGetSupportedGLTextureFormatsINTEL_t ( cl_context context , cl_mem_flags flags , cl_mem_object_type image_type , cl_uint num_entries , cl_GLenum * gl_formats , cl_uint * num_texture_formats )
@@ -1253,12 +1327,12 @@ const clGetSupportedGLTextureFormatsINTEL_fn = Ptr{clGetSupportedGLTextureFormat
 @checked function clGetSupportedGLTextureFormatsINTEL(context, flags, image_type,
                                                       num_entries, gl_formats,
                                                       num_texture_formats)
-    @ccall libopencl.clGetSupportedGLTextureFormatsINTEL(context::cl_context,
-                                                         flags::cl_mem_flags,
-                                                         image_type::cl_mem_object_type,
-                                                         num_entries::cl_uint,
-                                                         gl_formats::Ptr{cl_GLenum},
-                                                         num_texture_formats::Ptr{cl_uint})::cl_int
+    @gcsafe_ccall libopencl.clGetSupportedGLTextureFormatsINTEL(context::cl_context,
+                                                                flags::cl_mem_flags,
+                                                                image_type::cl_mem_object_type,
+                                                                num_entries::cl_uint,
+                                                                gl_formats::Ptr{cl_GLenum},
+                                                                num_texture_formats::Ptr{cl_uint})::cl_int
 end
 
 const cl_device_partition_property_ext = cl_ulong

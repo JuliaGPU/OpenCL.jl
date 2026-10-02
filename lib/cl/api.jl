@@ -1,4 +1,5 @@
 import OpenCL_jll
+using GPUToolbox: GPUToolbox, @gcsafe_ccall, cooperative_wait
 
 const libopencl = OpenCL_jll.libopencl
 
@@ -89,7 +90,7 @@ function ext_ccall(platform, ex)
     @gensym fptr
     esc(quote
         $fptr = $clGetExtensionFunctionAddressForPlatform($platform, $fn)
-        @ccall $(Expr(:($), fptr))($(argexprs...))::$ret
+        @gcsafe_ccall $(Expr(:($), fptr))($(argexprs...))::$ret
     end)
 end
 
@@ -183,7 +184,7 @@ const initialized = Ref{Bool}(false)
 
     withenv("OCL_ICD_FILENAMES"=>ocd_filenames) do
         num_platforms = Ref{Cuint}()
-        @ccall libopencl.clGetPlatformIDs(
+        @gcsafe_ccall libopencl.clGetPlatformIDs(
             0::cl_uint, C_NULL::Ptr{cl_platform_id},
             num_platforms::Ptr{cl_uint})::cl_int
 

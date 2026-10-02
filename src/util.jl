@@ -94,6 +94,7 @@ function versioninfo(io::IO=stdout)
     prefs = [
         "default_memory_backend" => load_preference(OpenCL, "default_memory_backend"),
         "llvm_to_spirv_backend" => load_preference(OpenCL, "llvm_to_spirv_backend"),
+        "nonblocking_synchronization" => load_preference(OpenCL, "nonblocking_synchronization"),
     ]
     if any(x->!isnothing(x[2]), prefs)
         println(io, "Preferences:")
@@ -187,6 +188,9 @@ Wait for all operations submitted to `queue` to finish. By default, this is the 
 queue of the current task, `cl.queue()`; operations submitted by other tasks, which use
 their own queues, are not waited for.
 
+While waiting, the current task yields, so other tasks can run on its thread. Waiting can be
+interrupted, in which case the device keeps executing the operations.
+
 If a kernel threw an exception, it is reported here as a [`KernelException`](@ref). Because
 queues targeting the same device share their exception state, this may also wait for, and
 report a failure from, another queue on that device.
@@ -204,7 +208,7 @@ end
 Run expression `ex`, then wait for the operations it submitted to the current task's queue
 to finish, using [`OpenCL.synchronize`](@ref). Returns the value of `ex`.
 
-This blocks the calling thread while waiting. Only the current task's queue is waited for:
+Only the current task's queue is waited for:
 work that `ex` submits to other queues, e.g., inside a `cl.queue!(q) do ... end` block, or
 from Julia tasks it spawns (unlike `Base.@sync`), needs to be synchronized separately.
 """

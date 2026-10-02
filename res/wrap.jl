@@ -77,9 +77,14 @@ function rewriter!(ctx, options)
             target_expr = call_expr.args[1].args[1]
             fn = String(target_expr.args[2].value)
 
-            # replace `@ccall` with `@ext_ccall` when dealing with an extension function
+            # replace `@ccall` with `@ext_ccall` when dealing with an extension function,
+            # and with `@gcsafe_ccall` otherwise: API calls may block (waiting for the
+            # device, compiling, ...), which should not prevent other threads from
+            # collecting garbage.
             if basename(get_filename(node.cursor)) == "cl_ext.h"
                 expr.args[2].args[1].args[1] = Symbol("@ext_ccall")
+            else
+                expr.args[2].args[1].args[1] = Symbol("@gcsafe_ccall")
             end
 
             # rewrite pointer return types

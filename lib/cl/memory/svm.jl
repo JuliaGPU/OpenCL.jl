@@ -86,8 +86,8 @@ function enqueue_svm_copy(
     evt_ids = isempty(wait_for) ? C_NULL : [pointer(evt) for evt in wait_for]
     return GC.@preserve wait_for begin
         ret_evt = Ref{cl_event}()
-        clEnqueueSVMMemcpy(queue, blocking, dst, src, nbytes, n_evts, evt_ids, ret_evt)
-        @return_event ret_evt[]
+        clEnqueueSVMMemcpy(queue, false, dst, src, nbytes, n_evts, evt_ids, ret_evt)
+        @return_event ret_evt[] blocking
     end
 end
 

@@ -69,14 +69,18 @@ mutable struct ExceptionMailbox
     # devices don't support any (in which case kernels get a zero address)
     const mem::Union{Nothing, cl.AbstractMemory}
     const address::UInt64
-    # whether host access requires mapping the memory (coarse-grained SVM, buffers)
+    # whether host access requires mapping the memory (coarse-grained SVM, buffers), which
+    # happens on a queue of its own: mapping on a queue that is being synchronized would
+    # also wait for work that other tasks submitted to it since.
     const mapped::Bool
+    const queue::Union{Nothing, cl.CmdQueue}
     # serialize launches and checks for this mailbox
     const lock::ReentrantLock
     # queues that have launched kernels since the mailbox was last checked on them
     const pending::Set{cl.CmdQueue}
-    # assigned under the lock; distinguishes work-items from different launches
-    launch_id::UInt64
+    # the last launch, assigned under the lock after submission; distinguishes work-items
+    # from different launches
+    Base.@atomic launch_id::UInt64
 end
 
 # Device-scoped atomics cannot protect a mailbox shared by different devices. These strong
@@ -90,8 +94,7 @@ const exception_mailbox_backends = (:usm, :svm_fine, :svm_coarse, :buffer)
 
 # allocate a mailbox in memory all devices in the context can reach by pointer, trying the
 # given backends in order.
-function allocate_exception_mailbox(ctx::cl.Context, queue::cl.CmdQueue=cl.queue();
-                                    backends=exception_mailbox_backends)
+function allocate_exception_mailbox(ctx::cl.Context; backends=exception_mailbox_backends)
     devs = ctx.devices
     sz = sizeof(ExceptionInfo_st)
     mem, mapped = cl.context!(ctx) do
@@ -123,22 +126,24 @@ function allocate_exception_mailbox(ctx::cl.Context, queue::cl.CmdQueue=cl.queue
         @warn """Device-side exceptions cannot be reported on $(join(map(dev -> dev.name, devs), ", ")): \
                  the device does not support any host-accessible memory to put the exception mailbox in.
                  Kernels that throw will complete silently."""
-        return ExceptionMailbox(nothing, UInt64(0), false, ReentrantLock(),
+        return ExceptionMailbox(nothing, UInt64(0), false, nothing, ReentrantLock(),
                                 Set{cl.CmdQueue}(), UInt64(0))
     end
 
-    mailbox = ExceptionMailbox(mem, UInt64(UInt(pointer(mem))), mapped, ReentrantLock(),
-                               Set{cl.CmdQueue}(), UInt64(0))
-    with_exception_mailbox(mailbox, queue) do ptr
+    queue = mapped ? cl.context!(cl.CmdQueue, ctx) : nothing
+    mailbox = ExceptionMailbox(mem, UInt64(UInt(pointer(mem))), mapped, queue,
+                               ReentrantLock(), Set{cl.CmdQueue}(), UInt64(0))
+    with_exception_mailbox(mailbox) do ptr
         unsafe_store!(ptr, ExceptionInfo_st())
     end
     return mailbox
 end
 
-# run `f` with a host pointer to the mailbox, mapping its memory through `queue` as needed
-function with_exception_mailbox(f, mailbox::ExceptionMailbox, queue::cl.CmdQueue)
+# run `f` with a host pointer to the mailbox, mapping its memory as needed
+function with_exception_mailbox(f, mailbox::ExceptionMailbox)
     sz = sizeof(ExceptionInfo_st)
     mem = mailbox.mem
+    queue = mailbox.queue
     if mem isa cl.Buffer
         ptr, _ = cl.enqueue_map(mem, sz, :rw; queue, blocking=true)
         try
@@ -174,15 +179,18 @@ function launch_with_exception_mailbox(kernel::cl.Kernel, args...;
     ctx, dev, queue = cl.context(), cl.device(), cl.queue()
     mailbox = Base.@lock exception_mailboxes_lock begin
         get!(exception_mailboxes, (ctx, dev)) do
-            allocate_exception_mailbox(ctx, queue)
+            allocate_exception_mailbox(ctx)
         end
     end
     Base.@lock mailbox.lock begin
         mailbox.mem === nothing || push!(indirect_memory, mailbox.mem)
-        mailbox.launch_id += UInt64(1)
+        launch_id = (Base.@atomic mailbox.launch_id) + UInt64(1)
         state = KernelState(rng_state ? Base.rand(UInt32) : UInt32(0), mailbox.address,
-                            mailbox.launch_id)
+                            launch_id)
         result = cl.call(kernel, state, args...; indirect_memory, rng_state, kwargs...)
+        # only publish the launch once it has been submitted, so that `check_exceptions`
+        # can tell whether kernels have been submitted while it waited without the lock
+        Base.@atomic mailbox.launch_id = launch_id
         if mailbox.mem !== nothing
             push!(mailbox.pending, queue)
         end
@@ -201,34 +209,36 @@ The exception mailbox is shared by queues targeting the same device in a context
 may wait for and surface an exception from another queue on that device.
 """
 function check_exceptions(queue::cl.CmdQueue; rethrow::Bool=true)
-    # Finalizers cannot yield while waiting for a contended Julia lock. Finish the queue
-    # without touching mailbox bookkeeping; an ordinary check will finish it again and
-    # consume the report. This also keeps finalizers independent of task-local state.
+    # Finalizers cannot yield while waiting for a contended Julia lock. Wait for the queue
+    # without touching mailbox bookkeeping; an ordinary check will wait again and consume
+    # the report. This also keeps finalizers independent of task-local state.
     if !rethrow
-        cl.clFinish(queue)
+        cl.wait_idle(queue; cancellable=false)
         return
     end
+
     mailbox = Base.@lock exception_mailboxes_lock begin
         get(exception_mailboxes, (queue.context, queue.device), nothing)
     end
-    if mailbox === nothing
-        cl.clFinish(queue)
-        return
-    end
+
+    # Wait before taking the mailbox lock, so that other tasks can keep launching kernels.
+    launch_id = mailbox === nothing ? nothing : Base.@atomic mailbox.launch_id
+    cl.wait_idle(queue)
+    mailbox === nothing && return
+
     Base.@lock mailbox.lock begin
-        # Keep this raw: `cl.finish` delegates here in order to hold the mailbox lock across
-        # both synchronization and inspection.
-        cl.clFinish(queue)
         isempty(mailbox.pending) && return
 
         # The mailbox cannot be mapped or read while another queue may still access it.
-        # Finish all queues that launched with its address; the launch-side lock prevents a
-        # new enqueue from appearing between this loop and the reset below.
+        # Wait for all queues that launched with its address, which only excludes this
+        # queue if nothing was launched since waiting for it above; the launch-side lock
+        # prevents a new enqueue from appearing between this loop and the reset below.
         for pending in mailbox.pending
-            pending == queue || cl.clFinish(pending)
+            pending == queue && (Base.@atomic mailbox.launch_id) == launch_id && continue
+            cl.wait_idle(pending)
         end
 
-        exc = with_exception_mailbox(mailbox, queue) do ptr
+        exc = with_exception_mailbox(mailbox) do ptr
             status_ptr = convert(Ptr{Int32}, ptr)
             unsafe_load(status_ptr) == 0 && return nothing
             info = unsafe_load(ptr)
