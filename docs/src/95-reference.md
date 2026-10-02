@@ -13,5 +13,5 @@ Pages = ["95-reference.md"]
 ```
 
 ```@autodocs
-Modules = [OpenCL, OpenCL.cl]
+Modules = [OpenCL, OpenCL.cl, OpenCL.OpenCLKernels]
 ```
