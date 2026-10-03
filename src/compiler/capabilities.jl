@@ -156,15 +156,12 @@ feature_supported(dev::cl.Device, name::Symbol) = feature_supported(device_featu
 # Load the feature bitset that `finish_module!` materializes as a module-scope constant. Once the
 # constant is in place the load folds away, so `has_feature` branches resolve at compile time. The
 # global uses the UniformConstant (2) storage class to stay valid SPIR-V if it ever survives.
-@device_function @inline function feature_bitset()
-    Base.llvmcall(
-        ("""@__opencl_feature_bitset = external addrspace(2) global i64
-            define i64 @entry() #0 {
-                %v = load i64, i64 addrspace(2)* @__opencl_feature_bitset
-                ret i64 %v
-            }
-            attributes #0 = { alwaysinline }
-        """, "entry"), UInt64, Tuple{})
+@device_function @inline feature_bitset() = _feature_bitset()
+@llvmgenerated builder function _feature_bitset()::UInt64
+    T = LLVM.Int64Type()
+    gv = GlobalVariable(current_module(builder), T, "__opencl_feature_bitset",
+                        AS.UniformConstant)
+    load!(builder, T, gv)
 end
 
 export has_feature

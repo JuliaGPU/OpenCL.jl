@@ -2,7 +2,7 @@ module OpenCL
 
 using GPUCompiler
 import GPUToolbox
-using LLVM, LLVM.Interop
+using LLVM, LLVM.IR, LLVM.Build, LLVM.Interop
 using SPIRV_LLVM_Backend_jll, SPIRV_Tools_jll, spirv2clc_jll
 using Adapt
 using Reexport

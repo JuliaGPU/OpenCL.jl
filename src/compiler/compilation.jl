@@ -73,22 +73,22 @@ function GPUCompiler.finish_module!(@nospecialize(job::OpenCLCompilerJob),
 
     sg_size = job.config.params.sub_group_size
     if sg_size !== nothing
-        metadata(entry)["intel_reqd_sub_group_size"] = MDNode([ConstantInt(Int32(sg_size))])
+        entry.metadata["intel_reqd_sub_group_size"] = MDNode([ConstantInt(Int32(sg_size))])
     end
 
     # materialize the feature bitset for `has_feature`, if the kernel referenced it. A constant
     # initializer plus private linkage lets the optimizer fold the loads and drop the global, so it
     # never reaches SPIR-V.
-    if haskey(globals(mod), "__opencl_feature_bitset")
-        gv = globals(mod)["__opencl_feature_bitset"]
-        initializer!(gv, ConstantInt(LLVM.Int64Type(), job.config.params.features))
-        linkage!(gv, LLVM.API.LLVMPrivateLinkage)
-        constant!(gv, true)
+    gv = get(mod.globals, "__opencl_feature_bitset", nothing)
+    if gv !== nothing
+        gv.initializer = ConstantInt(LLVM.Int64Type(), job.config.params.features)
+        gv.linkage = LLVM.Linkage.Private
+        gv.constant = true
     end
 
     # if this kernel uses our RNG, we should prime the shared state.
     # XXX: these transformations should really happen at the Julia IR level...
-    if haskey(functions(mod), "julia.opencl.random_keys") && job.config.kernel
+    if haskey(mod.functions, "julia.opencl.random_keys") && job.config.kernel
         # insert call to `initialize_rng_state`
         f = initialize_rng_state
         ft = typeof(f)
@@ -102,30 +102,22 @@ function GPUCompiler.finish_module!(@nospecialize(job::OpenCLCompilerJob),
         GPUCompiler.deferred_codegen_jobs[id] = job
 
         # generate IR for calls to `deferred_codegen` and the resulting function pointer
-        top_bb = first(blocks(entry))
-        bb = BasicBlock(top_bb, "initialize_rng")
+        top_bb = entry.entry
+        bb = BasicBlock(LLVM.before(top_bb), "initialize_rng")
         @dispose builder=IRBuilder() begin
-            position!(builder, bb)
-            subprogram = LLVM.subprogram(entry)
+            position!(builder, LLVM.at_end(bb))
+            subprogram = entry.subprogram
             if subprogram !== nothing
                 loc = DILocation(0, 0, subprogram)
-                debuglocation!(builder, loc)
+                builder.debug_location = loc
             end
-            debuglocation!(builder, first(instructions(top_bb)))
 
             # call the `deferred_codegen` marker function
-            T_ptr = if LLVM.version() >= v"17"
-                LLVM.PointerType()
-            elseif VERSION >= v"1.12.0-DEV.225"
-                LLVM.PointerType(LLVM.Int8Type())
-            else
-                LLVM.Int64Type()
-            end
+            # (declared like GPUCompiler's `ccall("extern deferred_codegen", llvmcall, Ptr{Cvoid}, ...)`)
+            T_ptr = convert(LLVMType, Ptr{Cvoid})
             T_id = convert(LLVMType, Int)
             deferred_codegen_ft = LLVM.FunctionType(T_ptr, [T_id])
-            deferred_codegen = if haskey(functions(mod), "deferred_codegen")
-                functions(mod)["deferred_codegen"]
-            else
+            deferred_codegen = get!(mod.functions, "deferred_codegen") do
                 LLVM.Function(mod, "deferred_codegen", deferred_codegen_ft)
             end
             fptr = call!(builder, deferred_codegen_ft, deferred_codegen, [ConstantInt(id)])
@@ -139,7 +131,7 @@ function GPUCompiler.finish_module!(@nospecialize(job::OpenCLCompilerJob),
             br!(builder, top_bb)
 
             # note the use of the device-side RNG in this kernel
-            push!(function_attributes(entry), StringAttribute("julia.opencl.rng", ""))
+            push!(entry.function_attributes, StringAttribute("julia.opencl.rng", ""))
         end
 
         # XXX: put some of the above behind GPUCompiler abstractions
@@ -247,9 +239,13 @@ function compile_to_obj(@nospecialize(job::CompilerJob))
 
     JuliaContext() do ctx
         obj, meta = GPUCompiler.compile(:obj, job)
-        entry = LLVM.name(meta.entry)
-        device_rng = StringAttribute("julia.opencl.rng", "") in collect(function_attributes(meta.entry))
-        (; obj, entry, device_rng)
+
+        # we own the IR: inspect it, then dispose of it
+        @dispose ir=meta.ir begin
+            entry = meta.entry.name
+            device_rng = haskey(meta.entry.function_attributes, "julia.opencl.rng")
+            (; obj, entry, device_rng)
+        end
     end
 end
 

@@ -34,38 +34,34 @@ end
 # XXX: is this even needed? Doesn't LLVM reconstruct these?
 #      using the `@builtin_ccall` version causes validation issues.
 
+# call a builtin that is `convergent`, i.e., that must not be made control-dependent on
+# additional values
+function convergent_call!(builder::IRBuilder, name::String, args::Vector{<:Value})
+    ft = LLVM.FunctionType(LLVM.VoidType(), [arg.value_type for arg in args])
+    f = LLVM.Function(current_module(builder), name, ft)
+    push!(f.function_attributes, EnumAttribute(:convergent))
+    call!(builder, ft, f, args)
+    return
+end
+
 #@device_function @inline memory_barrier(scope, semantics) =
 #    @builtin_ccall("__spirv_MemoryBarrier", Cvoid, (UInt32, UInt32), scope, semantics)
 @device_function memory_barrier(scope, semantics) =
-    Base.llvmcall(("""
-        declare void @_Z21__spirv_MemoryBarrierjj(i32, i32) #0
-        define void @entry(i32 %scope, i32 %semantics) #1 {
-            call void @_Z21__spirv_MemoryBarrierjj(i32 %scope, i32 %semantics)
-            ret void
-        }
-        attributes #0 = { convergent }
-        attributes #1 = { alwaysinline }
-        """, "entry"),
-    Cvoid, Tuple{UInt32, UInt32}, convert(UInt32, scope), convert(UInt32, semantics))
+    _memory_barrier(convert(UInt32, scope), convert(UInt32, semantics))
+@llvmgenerated builder function _memory_barrier(scope::UInt32, semantics::UInt32)::Nothing
+    convergent_call!(builder, "_Z21__spirv_MemoryBarrierjj", [scope, semantics])
+end
 
 #@device_function @inline control_barrier(execution_scope, memory_scope, memory_semantics) =
 #    @builtin_ccall("__spirv_ControlBarrier", Cvoid, (UInt32, UInt32, UInt32),
 #                   execution_scope, memory_scope, memory_semantics)
 @device_function @inline control_barrier(execution_scope, memory_scope, memory_semantics) =
-    Base.llvmcall(("""
-        declare void @_Z22__spirv_ControlBarrierjjj(i32, i32, i32) #0
-        define void @entry(i32 %execution, i32 %memory, i32 %semantics) #1 {
-            call void @_Z22__spirv_ControlBarrierjjj(i32 %execution, i32 %memory, i32 %semantics)
-            ret void
-        }
-        attributes #0 = { convergent }
-        attributes #1 = { alwaysinline }
-        """, "entry"),
-    Cvoid,
-    Tuple{UInt32, UInt32, UInt32},
-    convert(UInt32, execution_scope),
-    convert(UInt32, memory_scope),
-    convert(UInt32, memory_semantics))
+    _control_barrier(convert(UInt32, execution_scope), convert(UInt32, memory_scope),
+                     convert(UInt32, memory_semantics))
+@llvmgenerated builder function _control_barrier(execution::UInt32, memory::UInt32,
+                                                 semantics::UInt32)::Nothing
+    convergent_call!(builder, "_Z22__spirv_ControlBarrierjjj", [execution, memory, semantics])
+end
 
 ## OpenCL-compatible fence API
 
