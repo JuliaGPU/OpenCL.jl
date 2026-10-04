@@ -352,11 +352,11 @@ cl.sub_groups_supported(cl.device()) && @testset "Sub-groups" begin
         @test Array(d_out)[1:m] == fill(a[1], m)
     end
     # spirv2clc, which translates SPIR-V to OpenCL C for the OpenCL C program backend, doesn't
-    # implement the instructions of the votes and ballots (OpGroupAll, OpGroupAny, and the
-    # GroupNonUniformBallot capability)
+    # implement the instructions of the votes, ballots and collectives (OpGroupAll, OpGroupAny,
+    # OpGroupBroadcast, OpGroupIAdd etc., and the GroupNonUniformBallot capability)
     uses_spirv2clc = OpenCL.resolve_program_backend(cl.device(), OpenCL.program_backend()) !== :spirv
     if uses_spirv2clc
-        @test_skip "sub-group votes through spirv2clc"
+        @test_skip "sub-group votes and collectives through spirv2clc"
     else
         @testset "any/all" begin
             function vote_kernel(out, pred)
@@ -428,6 +428,73 @@ cl.sub_groups_supported(cl.device()) && @testset "Sub-groups" begin
             end
             out = Array(d_out)
             @test all(i -> out[i, :] == expected, 1:sg_size)
+        end
+        @testset "collectives" begin
+            function collective_kernel(out, in, lane)
+                i = get_sub_group_local_id()
+                x = in[i]
+                out[i, 1] = sub_group_reduce_add(x)
+                out[i, 2] = sub_group_reduce_min(x)
+                out[i, 3] = sub_group_reduce_max(x)
+                out[i, 4] = sub_group_scan_inclusive_add(x)
+                out[i, 5] = sub_group_scan_exclusive_add(x)
+                out[i, 6] = sub_group_scan_inclusive_max(x)
+                out[i, 7] = sub_group_scan_exclusive_min(x)
+                out[i, 8] = sub_group_broadcast(x, lane)
+                return
+            end
+
+            lane = min(3, sg_size)
+            types = [Int32, UInt32, Int64, UInt64, Float32]
+            "cl_khr_fp16" in cl.device().extensions && push!(types, Float16)
+            "cl_khr_fp64" in cl.device().extensions && push!(types, Float64)
+            @testset for T in types
+                # small integers, so that the sums are exact
+                a = T.(rand(1:20, sg_size))
+                d_out = CLArray(zeros(T, sg_size, 8))
+                @opencl local_size = sg_size global_size = sg_size collective_kernel(d_out, CLArray(a), lane)
+                out = Array(d_out)
+                @test all(==(sum(a)), out[:, 1])
+                @test all(==(minimum(a)), out[:, 2])
+                @test all(==(maximum(a)), out[:, 3])
+                @test out[:, 4] == cumsum(a)
+                @test out[:, 5] == [zero(T); cumsum(a)[1:(end - 1)]]
+                @test out[:, 6] == accumulate(max, a)
+                # the exclusive scan of the first work-item is the identity, `typemax` for `min`
+                @test out[2:end, 7] == accumulate(min, a)[1:(end - 1)]
+                @test out[1, 7] == (T <: AbstractFloat ? T(Inf) : typemax(T))
+                @test all(==(a[lane]), out[:, 8])
+            end
+
+            # the values come from a divergent branch: without `convergent`, the optimizer
+            # duplicates the collective into both arms of the branch, which call it separately
+            function divergent_reduce_kernel(out, in, m)
+                i = get_sub_group_local_id()
+                x = i <= m ? (@inbounds in[i]) : Int32(0)
+                r = sub_group_reduce_add(x)
+                if i <= m
+                    @inbounds out[i] = r
+                end
+                return
+            end
+            m = sg_size ÷ 2
+            a = Int32.(rand(1:20, sg_size))
+            d_out = CLArray(zeros(Int32, sg_size))
+            @opencl local_size = sg_size global_size = sg_size divergent_reduce_kernel(d_out, CLArray(a), m)
+            @test all(==(sum(a[1:m])), Array(d_out)[1:m])
+
+            # the same with a bounds check, whose (never taken) early exit made PoCL 7.2 peel
+            # the first work-item of the region, which then read a separate copy of the
+            # collective's scratch memory (pocl/pocl#2239, in pocl_jll 7.2.1+1)
+            function divergent_checked_reduce_kernel(out, in, m)
+                i = get_sub_group_local_id()
+                x = i <= m ? in[i] : Int32(0)
+                out[i] = sub_group_reduce_add(x)
+                return
+            end
+            d_out = CLArray(zeros(Int32, sg_size))
+            @opencl local_size = sg_size global_size = sg_size divergent_checked_reduce_kernel(d_out, CLArray(a), m)
+            @test all(==(sum(a[1:m])), Array(d_out))
         end
     end
 end
