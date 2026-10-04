@@ -315,6 +315,42 @@ cl.sub_groups_supported(cl.device()) && @testset "Sub-groups" begin
             @test Array(d_in) == in[idxs]
         end
     end
+    @testset "shuffle out of range" begin
+        # an out-of-range lane gives an undefined value rather than an error
+        function shfl_up_kernel(d)
+            i = get_sub_group_local_id()
+            val = sub_group_shuffle(d[i], i - 1)
+            if i > 1
+                d[i] = val
+            end
+            return
+        end
+
+        @testset for T in cl.sub_group_shuffle_supported_types(cl.device())
+            a = rand(T, sg_size)
+            d_a = CLArray(a)
+            @opencl local_size = sg_size global_size = sg_size shfl_up_kernel(d_a)
+            @test Array(d_a) == [a[1]; a[1:(end - 1)]]
+        end
+    end
+    @testset "shuffle of a divergent value" begin
+        # without `convergent`, the optimizer duplicates the shuffle into both arms of the
+        # branch that computes its argument, so the work-items call it separately
+        function divergent_shfl_kernel(out, in, m)
+            i = get_sub_group_local_id()
+            x = i <= m ? (@inbounds in[i]) : Int32(0)
+            r = sub_group_shuffle(x, 1)
+            if i <= m
+                @inbounds out[i] = r
+            end
+            return
+        end
+        m = sg_size ÷ 2
+        a = Int32.(rand(1:20, sg_size))
+        d_out = CLArray(zeros(Int32, sg_size))
+        @opencl local_size = sg_size global_size = sg_size divergent_shfl_kernel(d_out, CLArray(a), m)
+        @test Array(d_out)[1:m] == fill(a[1], m)
+    end
 end
 end # if cl.sub_groups_supported(cl.device())
 
