@@ -25,6 +25,7 @@ include("math.jl")
 include("integer.jl")
 include("atomic.jl")
 include("shuffle.jl")
+include("vote.jl")
 
 # helper macro to import all names from this package, even non-exported ones.
 macro import_all()

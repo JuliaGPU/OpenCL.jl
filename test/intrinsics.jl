@@ -351,6 +351,85 @@ cl.sub_groups_supported(cl.device()) && @testset "Sub-groups" begin
         @opencl local_size = sg_size global_size = sg_size divergent_shfl_kernel(d_out, CLArray(a), m)
         @test Array(d_out)[1:m] == fill(a[1], m)
     end
+    # spirv2clc, which translates SPIR-V to OpenCL C for the OpenCL C program backend, doesn't
+    # implement the instructions of the votes and ballots (OpGroupAll, OpGroupAny, and the
+    # GroupNonUniformBallot capability)
+    uses_spirv2clc = OpenCL.resolve_program_backend(cl.device(), OpenCL.program_backend()) !== :spirv
+    if uses_spirv2clc
+        @test_skip "sub-group votes through spirv2clc"
+    else
+        @testset "any/all" begin
+            function vote_kernel(out, pred)
+                i = get_sub_group_local_id()
+                out[i, 1] = sub_group_any(pred[i])
+                out[i, 2] = sub_group_all(pred[i])
+                return
+            end
+
+            @testset "$name" for (name, pred) in (
+                    "none" => falses(sg_size), "all" => trues(sg_size),
+                    "some" => [i % 3 == 1 for i in 1:sg_size],
+                )
+                d_out = CLArray(zeros(Bool, sg_size, 2))
+                @opencl local_size = sg_size global_size = sg_size vote_kernel(d_out, CLArray(collect(pred)))
+                out = Array(d_out)
+                @test all(==(any(pred)), out[:, 1])
+                @test all(==(all(pred)), out[:, 2])
+            end
+
+            # the predicate comes from a short-circuiting `&&` and is used again after the vote:
+            # without `convergent`, jump threading duplicates the vote into both arms of the
+            # `&&` (one of them with a constant `false` predicate), so the work-items of the
+            # sub-group call it separately (PoCL then returns `false` to all of them)
+            function divergent_vote_kernel(out, a, b, n)
+                i = get_sub_group_local_id() % Int32
+                n_any = Int32(0)
+                n_all = Int32(0)
+                m = Int32(0)
+                @inbounds while m < n
+                    j = ((i - Int32(1) + m) % n) + Int32(1)
+                    pred = a[i] > 0.0f0 && b[j] > 0.0f0
+                    if sub_group_any(pred)
+                        n_any += pred ? Int32(2) : Int32(1)
+                    end
+                    if sub_group_all(pred)
+                        n_all += pred ? Int32(2) : Int32(1)
+                    end
+                    m += Int32(1)
+                end
+                @inbounds out[i, 1] = n_any
+                @inbounds out[i, 2] = n_all
+                return
+            end
+            a = Float32[isodd(i) for i in 1:sg_size]
+            b = ones(Float32, sg_size)
+            d_out = CLArray(zeros(Int32, sg_size, 2))
+            @opencl local_size = sg_size global_size = sg_size divergent_vote_kernel(d_out, CLArray(a), CLArray(b), Int32(sg_size))
+            out = Array(d_out)
+            @test out[:, 1] == [isodd(i) ? 2sg_size : sg_size for i in 1:sg_size]
+            @test all(==(0), out[:, 2])
+        end
+        "cl_khr_subgroup_ballot" in cl.device().extensions && @testset "ballot" begin
+            function ballot_kernel(out, pred)
+                i = get_sub_group_local_id()
+                mask = sub_group_ballot(pred[i])
+                for j in 1:4
+                    out[i, j] = mask[j].value
+                end
+                return
+            end
+
+            pred = [i % 3 == 1 || i == sg_size for i in 1:sg_size]
+            d_out = CLArray(zeros(UInt32, sg_size, 4))
+            @opencl local_size = sg_size global_size = sg_size ballot_kernel(d_out, CLArray(pred))
+            expected = zeros(UInt32, 4)
+            for i in 1:sg_size
+                pred[i] && (expected[(i - 1) ÷ 32 + 1] |= UInt32(1) << ((i - 1) % 32))
+            end
+            out = Array(d_out)
+            @test all(i -> out[i, :] == expected, 1:sg_size)
+        end
+    end
 end
 end # if cl.sub_groups_supported(cl.device())
 
