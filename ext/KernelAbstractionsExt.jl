@@ -5,8 +5,6 @@ using OpenCL: @device_override, method_table
 
 import KernelAbstractions as KA
 
-import StaticArrays
-
 import Adapt
 
 Adapt.adapt_storage(::KA.CPU, a::CLArray) = convert(Array, a)
@@ -19,7 +17,7 @@ Adapt.adapt_storage(::KA.ConstAdaptor, a::CLDeviceArray) = Base.Experimental.Con
 ## scratch memory
 
 @device_override @inline function KA.Scratchpad(ctx, ::Type{T}, ::Val{Dims}) where {T, Dims}
-    StaticArrays.MArray{Tuple{Dims...}, T}(undef)
+    KA.PrivateArray{T}(undef, Val(Dims), Val(OpenCL.AS.Function))
 end
 
 end
