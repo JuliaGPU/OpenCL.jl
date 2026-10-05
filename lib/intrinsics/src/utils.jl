@@ -5,7 +5,16 @@ const known_intrinsics = String["printf"]
 #
 # This macro also keeps track of called builtins, generating `ccall("extern...", llvmcall)`
 # expressions for them (so that we can exclude them during IR verification).
+#
+# Builtins that all work-items of a (sub-)group have to execute together (barriers, sub-group
+# shuffles, votes, reductions, ...) have to be called with `convergent = true`, see
+# `convergent_builtin`.
 macro builtin_ccall(name, ret, argtypes, args...)
+    convergent = false
+    if !isempty(args) && Meta.isexpr(args[end], :(=), 2) && args[end].args[1] == :convergent
+        convergent = args[end].args[2]::Bool
+        args = args[1:end-1]
+    end
     @assert Meta.isexpr(argtypes, :tuple)
     argtypes = argtypes.args
 
@@ -47,13 +56,43 @@ macro builtin_ccall(name, ret, argtypes, args...)
     for t in argtypes
         # with `@eval @builtin_ccall`, we get actual types in the ast, otherwise symbols
         t = (isa(t, Symbol) || isa(t, Expr)) ? __module__.eval(t) : t
+        # `convergent_builtin` passes arguments as `llvmcall` lowers them, without the
+        # `Bool` and pointer conversions of `@typed_ccall`
+        convergent && (t <: Union{Bool, Ptr, LLVMPtr}) &&
+            error("@builtin_ccall with `convergent = true` does not support arguments of type $t")
         mangled *= mangle(t)
     end
 
     push!(__module__.known_intrinsics, mangled)
-    esc(quote
-        @typed_ccall($mangled, llvmcall, $ret, ($(argtypes...),), $(args...))
-    end)
+    if convergent
+        rettyp = (isa(ret, Symbol) || isa(ret, Expr)) ? __module__.eval(ret) : ret
+        rettyp <: Union{Bool, Ptr, LLVMPtr} &&
+            error("@builtin_ccall with `convergent = true` does not support return type $rettyp")
+        @assert length(argtypes) == length(args)
+        converted = [:(convert($T, $arg)) for (T, arg) in zip(argtypes, args)]
+        esc(quote
+            $convergent_builtin($(Val(Symbol(mangled))), $ret, $(converted...))
+        end)
+    else
+        esc(quote
+            @typed_ccall($mangled, llvmcall, $ret, ($(argtypes...),), $(args...))
+        end)
+    end
+end
+
+# call a builtin that all work-items of the (sub-)group have to execute together. its
+# declaration is marked `convergent`, so that the optimizer doesn't make the call
+# control-dependent on additional values, e.g., by duplicating it into the arms of a branch
+# that computes its argument, which makes the work-items execute different calls.
+@llvmgenerated builder function convergent_builtin(::Val{name}, ::Type{T},
+                                                   args...)::T where {name, T}
+    rt = T === Nothing ? LLVM.VoidType() : convert(LLVMType, T)
+    ft = LLVM.FunctionType(rt, LLVMType[arg.value_type for arg in args])
+    f = LLVM.Function(current_module(builder), String(name), ft)
+    push!(f.function_attributes, EnumAttribute(:convergent))
+    push!(f.function_attributes, EnumAttribute(:nounwind))
+    rv = call!(builder, ft, f, collect(Value, args))
+    T === Nothing ? nothing : rv
 end
 
 
