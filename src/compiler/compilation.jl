@@ -40,15 +40,13 @@ end
 
 GPUCompiler.runtime_module(::CompilerJob{<:Any,OpenCLCompilerParams}) = OpenCL
 
-function GPUCompiler.method_table_view(job::OpenCLCompilerJob)
+function GPUCompiler.method_tables(job::OpenCLCompilerJob)
     if job.config.target.supports_fp64
-        parent = SPIRVIntrinsics.method_table
+        (method_table, SPIRVIntrinsics.method_table)
     else
         # keep single-precision math that Base computes in Float64 out of double precision
-        parent = GPUCompiler.StackedMethodTable(job.world, SPIRVIntrinsics.method_table,
-                                                GPUToolbox.Overlays.float64_overrides)
+        (method_table, SPIRVIntrinsics.method_table, GPUToolbox.Overlays.float64_overrides)
     end
-    GPUCompiler.StackedMethodTable(job.world, method_table, parent)
 end
 
 # filter out OpenCL built-ins
