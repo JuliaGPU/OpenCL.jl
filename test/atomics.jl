@@ -1,4 +1,5 @@
 using SPIRVIntrinsics: @builtin_ccall, @typed_ccall, LLVMPtr, known_intrinsics
+import SPIRVIntrinsics, SPIRV_LLVM_Translator_jll
 
 # Define the types to test
 integer_types = [Int32, UInt32, Int64, UInt64]
@@ -140,6 +141,50 @@ end
     else
         @test occursin("__spirv_AtomicCompareExchange", ir)
         @test !occursin("__spirv_AtomicFAddEXT", ir)
+    end
+end
+
+
+# An atomic on global memory needs device scope to be atomic with respect to other
+# work-groups; one on local memory only needs work-group scope.
+function atomic_scope_kernel(op, a::AbstractArray{T}, val::T) where T
+    op(pointer(a), val)
+    return
+end
+function atomic_scope_kernel_local(op, a::AbstractArray{T}, val::T) where T
+    s = CLLocalArray(T, (1,))
+    op(pointer(s), val)
+    @inbounds a[1] = s[1]
+    return
+end
+
+# the Scope operand of every atomic instruction in a SPIR-V disassembly
+function atomic_scopes(asm)
+    constants = Dict(m[1] => parse(Int, m[2]) for m in
+                     eachmatch(r"(%\S+) = OpConstant %\S+ (\d+)", asm))
+    [constants[m[2]] for m in eachmatch(r"= (OpAtomic\w+) %\S+ %\S+ (%\S+)", asm)]
+end
+
+@testset "atomic scopes ($backend)" for backend in (:llvm, :khronos)
+    ops = [
+        (OpenCL.atomic_add!,                        UInt32,  "OpAtomicIAdd"),
+        (OpenCL.atomic_xchg!,                       UInt32,  "OpAtomicExchange"),
+        ((p, v) -> OpenCL.atomic_cmpxchg!(p, v, v), UInt32,  "OpAtomicCompareExchange"),
+        (SPIRVIntrinsics.atomic_add_native!,        Float32, "OpAtomicFAddEXT"),
+        (SPIRVIntrinsics.atomic_add_fallback!,      Float32, "OpAtomicCompareExchange"),
+    ]
+    @testset "$inst ($T)" for (op, T, inst) in ops
+        for (kernel, scope) in ((atomic_scope_kernel, 1),          # Scope.Device
+                                (atomic_scope_kernel_local, 2))    # Scope.Workgroup
+            asm = sprint() do io
+                OpenCL.code_native(io, kernel,
+                                   Tuple{typeof(op), CLDeviceArray{T, 1, AS.CrossWorkgroup}, T};
+                                   kernel=true, backend,
+                                   extensions=["SPV_EXT_shader_atomic_float_add"])
+            end
+            @test occursin(inst, asm)
+            @test atomic_scopes(asm) == [scope]
+        end
     end
 end
 
