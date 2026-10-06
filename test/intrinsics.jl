@@ -13,9 +13,6 @@ function call_on_device(f, args...)
 end
 
 const float_types = filter(x -> x <: Base.IEEEFloat, GPUArraysTestSuite.supported_eltypes(CLArray))
-const ispocl = cl.platform().name == "Portable Computing Language"
-# XXX: Why does pocl on windows not support vectors of size 2, 8, 16?
-const simd_ns = (Sys.iswindows() && ispocl) ? [3, 4] : [2, 3, 4, 8, 16]
 
 @testset "barrier" begin
 
@@ -500,10 +497,19 @@ cl.sub_groups_supported(cl.device()) && @testset "Sub-groups" begin
 end
 end # if cl.sub_groups_supported(cl.device())
 
-@testset "SIMD - $N x $T" for N in simd_ns, T in float_types
+@testset "SIMD - $N x $T" for N in [2, 3, 4, 8, 16], T in float_types
     # codegen emits i48 here, which SPIR-V doesn't support
     # XXX: fix upstream?
     T == Float16 && N == 3 && continue
+
+    # XXX: PoCL's SPIR-V wrappers assume the System V calling convention for vectors wider
+    #      than the CPU's vector registers, so on Windows these calls fail to link. that
+    #      width depends on the CPU, so skip anything wider than 128 bits. OpenCL C is fine.
+    #      (JuliaGPU/OpenCL.jl#534)
+    Sys.iswindows() && nextpow(2, N) * sizeof(T) > 16 &&
+        cl.platform().name == "Portable Computing Language" &&
+        OpenCL.resolve_program_backend(cl.device(), OpenCL.program_backend()) === :spirv &&
+        continue
 
     v = Vec{N, T}(ntuple(_ -> rand(T), N))
 
