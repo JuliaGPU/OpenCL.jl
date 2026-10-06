@@ -50,19 +50,15 @@ end
    @test prg.source == test_source
 end
 
-if contains(cl.platform().vendor, "pocl")
-    @warn "Skipping binary program tests on $(cl.platform().name)"
-else
-    @testset "binaries" begin
-        prg = cl.Program(source=test_source) |> cl.build!
+@testset "binaries" begin
+    prg = cl.Program(source=test_source) |> cl.build!
 
-        @test cl.device() in collect(keys(prg.binaries))
-        binaries = prg.binaries
-        @test cl.device() in collect(keys(binaries))
-        @test binaries[cl.device()] != nothing
-        @test length(binaries[cl.device()]) > 0
-        prg2 = cl.Program(binaries=binaries)
-        @test prg2.binaries == binaries
-        @test prg2.source === nothing
-    end
+    @test cl.device() in collect(keys(prg.binaries))
+    binaries = prg.binaries
+    @test cl.device() in collect(keys(binaries))
+    @test binaries[cl.device()] != nothing
+    @test length(binaries[cl.device()]) > 0
+    prg2 = cl.Program(binaries=binaries) |> cl.build!
+    @test prg2.binaries == binaries
+    @test prg2.source === nothing
 end
