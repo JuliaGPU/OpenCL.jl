@@ -186,6 +186,21 @@ end
 end
 
 
+# atomic loads, for the compare-and-swap loop of `@atomic`
+
+for gentype in atomic_integer_types, as in atomic_memory_types
+@eval @device_function atomic_load(p::LLVMPtr{$gentype,$as}) =
+    @builtin_ccall("__spirv_AtomicLoad", $gentype,
+                   (LLVMPtr{$gentype,$as}, UInt32, UInt32),
+                   p, UInt32(atomic_scope(Val($as))),
+                   UInt32(atomic_memory_semantics(Val($as))))
+end
+
+for (T, I) in ((Float32, UInt32), (Float64, UInt64)), as in atomic_memory_types
+@eval @device_function atomic_load(p::LLVMPtr{$T,$as}) =
+    reinterpret($T, atomic_load(reinterpret(LLVMPtr{$I,$as}, p)))
+end
+
 
 # documentation
 
@@ -368,11 +383,12 @@ end
 # TODO: for 64-bit types, this depends on backend support for 64-bit cmpxchg.
 function atomic_arrayset(A::AbstractArray{T}, I::Integer, op::Function, val) where {T}
     ptr = pointer(A, I)
-    old = Base.unsafe_load(ptr, 1)
+    old = atomic_load(ptr)
     while true
         cmp = old
         new = convert(T, op(old, val))
         old = atomic_cmpxchg!(ptr, cmp, new)
-        (old == cmp) && return new
+        # the exchange succeeded if it found the bit pattern it compared with
+        old === cmp && return new
     end
 end

@@ -189,3 +189,23 @@ end
 end
 
 end
+
+
+# `@atomic` returns the old value when it uses an atomic operation, and the new one when it
+# falls back to a compare-and-swap loop.
+function atomic_arrayset_kernel(a, out, val)
+    @inbounds out[1] = OpenCL.@atomic a[1] += val
+    @inbounds out[2] = OpenCL.@atomic a[2] *= val
+    return
+end
+@testset "@atomic ($T)" for T in [Int32, Float32]
+    cases = T <: Integer ? [(T(3), T(2)), (T(-3), T(2))] :
+                           [(T(3), T(2)), (-zero(T), T(2)), (T(NaN), T(2)), (T(Inf), zero(T))]
+    for (old, val) in cases
+        a = CLArray([old, old])
+        out = CLArray(zeros(T, 2))
+        @opencl global_size=1 atomic_arrayset_kernel(a, out, val)
+        @test isequal(Array(a), [old + val, old * val])
+        @test isequal(Array(out), [old, old * val])
+    end
+end
