@@ -127,21 +127,6 @@ end
     b = OpenCL.fill(T(1000))
     @opencl global_size=1000 float_sub_kernel(b, one(T))
     @test OpenCL.@allowscalar(b[]) == T(0)
-
-    # the native/fallback selection must fold at compile time, leaving only the path
-    # matching the device's capabilities
-    feature = T == Float32 ? :fp32_atomic_add : :fp64_atomic_add
-    ir = sprint() do io
-        OpenCL.code_llvm(io, float_add_kernel, Tuple{CLDeviceArray{T, 0, AS.CrossWorkgroup}, T};
-                         kernel=true, dump_module=true)
-    end
-    if OpenCL.feature_supported(dev, feature)
-        @test occursin("__spirv_AtomicFAddEXT", ir)
-        @test !occursin("__spirv_AtomicCompareExchange", ir)
-    else
-        @test occursin("__spirv_AtomicCompareExchange", ir)
-        @test !occursin("__spirv_AtomicFAddEXT", ir)
-    end
 end
 
 
@@ -170,8 +155,7 @@ end
         (OpenCL.atomic_add!,                        UInt32,  "OpAtomicIAdd"),
         (OpenCL.atomic_xchg!,                       UInt32,  "OpAtomicExchange"),
         ((p, v) -> OpenCL.atomic_cmpxchg!(p, v, v), UInt32,  "OpAtomicCompareExchange"),
-        (SPIRVIntrinsics.atomic_add_native!,        Float32, "OpAtomicFAddEXT"),
-        (SPIRVIntrinsics.atomic_add_fallback!,      Float32, "OpAtomicCompareExchange"),
+        (OpenCL.atomic_add!,                        Float32, "OpAtomicCompareExchange"),
     ]
     @testset "$inst ($T)" for (op, T, inst) in ops
         for (kernel, scope) in ((atomic_scope_kernel, 1),          # Scope.Device
@@ -179,11 +163,11 @@ end
             asm = sprint() do io
                 OpenCL.code_native(io, kernel,
                                    Tuple{typeof(op), CLDeviceArray{T, 1, AS.CrossWorkgroup}, T};
-                                   kernel=true, backend,
-                                   extensions=["SPV_EXT_shader_atomic_float_add"])
+                                   kernel=true, backend)
             end
             @test occursin(inst, asm)
-            @test atomic_scopes(asm) == [scope]
+            scopes = atomic_scopes(asm)
+            @test !isempty(scopes) && all(==(scope), scopes)
         end
     end
 end

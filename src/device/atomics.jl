@@ -1,10 +1,8 @@
 ## feature-gated floating-point atomics
 
-# SPIRVIntrinsics defaults the floating-point atomics to a compare-and-swap loop; on devices
-# that advertise native floating-point atomics (cl_ext_float_atomics), select the EXT
-# instructions instead. `has_feature` folds at compile time, so only the chosen implementation
-# is emitted, and `_compiler_config` only allows the corresponding SPIR-V extensions on
-# devices that support them.
+# Since SPIRVIntrinsics 1.4, the native and fallback helpers are the same UnsafeAtomics
+# operation, which GPUCompiler selects to an EXT instruction or expands to a compare-and-swap
+# loop, so both branches compile to the same code. They remain for older SPIRVIntrinsics.
 for (T, add_feature, min_max_feature) in
         ((Float32, :fp32_atomic_add, :fp32_atomic_min_max),
          (Float64, :fp64_atomic_add, :fp64_atomic_min_max)),
