@@ -5,19 +5,3 @@ function GPUArrays.derive(::Type{T}, a::CLArray, dims::Dims{N}, offset::Int) whe
     offset = a.offset + offset * sizeof(T)
     CLArray{T,N}(ref, dims; offset)
 end
-
-const GLOBAL_RNGs = Dict{cl.Device,GPUArrays.RNG}()
-const global_rngs_lock = ReentrantLock()
-
-function GPUArrays.default_rng(::Type{<:CLArray})
-    dev = cl.device()
-    return Base.@lock global_rngs_lock begin
-        get!(GLOBAL_RNGs, dev) do
-            N = dev.max_work_group_size
-            state = CLArray{NTuple{4, UInt32}}(undef, N)
-            rng = GPUArrays.RNG(state)
-            Random.seed!(rng)
-            rng
-        end
-    end
-end

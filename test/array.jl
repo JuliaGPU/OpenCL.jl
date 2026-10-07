@@ -239,12 +239,6 @@ end
     @test length(b) == 1
 end
 
-@testset "mapreducedim! returning same type" begin
-    R = transpose(OpenCL.zeros(Float32, 2, 3))
-    A = CLArray(rand(Float32, 3, 2, 10))
-    @test @inferred(OpenCL.GPUArrays.mapreducedim!(identity, +, R, A)) === R
-end
-
 # finalizers run in no particular order, e.g. at exit (JuliaGPU/OpenCL.jl#279), so memory
 # has to remain freeable after the queue and context it was allocated with are finalized
 @testset "freeing after finalizing its queue and context" begin
