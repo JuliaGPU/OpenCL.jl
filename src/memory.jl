@@ -187,11 +187,24 @@ end
 
 
 ## public interface
-function managed_alloc(t::Type{T}, bytes::Int; kwargs...) where T
+
+"""
+    managed_alloc(M, bytes; alignment=0)
+
+Allocate `bytes` of memory of type `M`, wrapped in a `Managed`.
+
+GPUCompiler implements 8- and 16-bit atomics with 32-bit atomics on the containing aligned
+word, so the allocation is rounded up to a multiple of 4 bytes and aligned to at least 4
+bytes. Its size can thus exceed `bytes`; callers keep track of the logical size themselves.
+"""
+function managed_alloc(t::Type{T}, bytes::Int; alignment::Int = 0) where T
     if bytes == 0
         return Managed(T())
     else
-        alloc(t, bytes; kwargs...)
+        bytes = Base.checked_add(bytes, 3) & ~3
+        # zero selects the implementation's default alignment, which is at least that large
+        alignment = alignment == 0 ? 0 : max(alignment, 4)
+        alloc(t, bytes; alignment)
     end
 end
 
