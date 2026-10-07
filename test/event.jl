@@ -1,6 +1,4 @@
-if contains(cl.platform().vendor, "Intel") || contains(cl.platform().vendor, "pocl") || contains(cl.platform().name, "rusticl")
-    # unsupported by POCL
-    # hangs on Intel
+if contains(cl.platform().name, "rusticl")
     @warn "Skipping event tests on $(cl.platform().name)"
 else
 

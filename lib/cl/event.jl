@@ -180,10 +180,12 @@ function enqueue_marker()
 end
 @deprecate enqueue_marker enqueue_marker_with_wait_list
 
+# clEnqueueWaitForEvents is deprecated since OpenCL 1.2 (and not implemented by PoCL);
+# a barrier with a wait list is its replacement.
 function enqueue_wait_for_events(wait_for::Vector{T}) where {T<:AbstractEvent}
     wait_evt_ids = isempty(wait_for) ? C_NULL : [pointer(evt) for evt in wait_for]
     GC.@preserve wait_for begin
-        clEnqueueWaitForEvents(queue(), length(wait_for), wait_evt_ids)
+        clEnqueueBarrierWithWaitList(queue(), length(wait_for), wait_evt_ids, C_NULL)
    end
 end
 
