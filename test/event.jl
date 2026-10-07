@@ -1,7 +1,3 @@
-if contains(cl.platform().name, "rusticl")
-    @warn "Skipping event tests on $(cl.platform().name)"
-else
-
 @testset "status" begin
     evt = cl.UserEvent()
     evt.status
@@ -63,6 +59,4 @@ end
 
     @test mkr_evt.status == :complete
     @test callback_called[]
-end
-
 end
