@@ -40,19 +40,22 @@ end
 
 has_opencl_c_feature(dev, feat) = feat in opencl_c_features(dev)
 
-# cl_ext_float_atomics: native floating-point atomic capabilities, reported per precision as a
-# bitfield with separate global- and local-memory bits. The device intrinsics operate on either
-# address space, so require both bits.
-function has_fp_atomics(dev::cl.Device, query, caps)
-    "cl_ext_float_atomics" in dev.extensions || return false
+# cl_ext_float_atomics: the floating-point atomic capabilities of one precision, a bitfield
+# (cl_device_fp_atomic_capabilities_ext) with separate global- and local-memory bits. Zero if
+# the device doesn't support the extension.
+function fp_atomic_capabilities(dev::cl.Device, query)::UInt64
+    "cl_ext_float_atomics" in dev.extensions || return 0
     try
-        supported = Ref{UInt64}(0)  # cl_device_fp_atomic_capabilities_ext
+        supported = Ref{UInt64}(0)
         cl.clGetDeviceInfo(dev, query, sizeof(UInt64), supported, C_NULL)
-        return supported[] & caps == caps
+        return supported[]
     catch
-        return false
+        return 0
     end
 end
+
+# the `has_feature` bits apply to both address spaces, so require both bits
+has_fp_atomics(dev::cl.Device, query, caps) = fp_atomic_capabilities(dev, query) & caps == caps
 
 # OpenCL 3.0: CL_DEVICE_OPENCL_C_ALL_VERSIONS lists every OpenCL C version the device accepts as
 # an array of cl_name_version {cl_version (4 bytes); char name[64]}. This is the query to trust:
@@ -104,6 +107,10 @@ const FEATURES = Feature[
     Feature(:subgroups, cl.sub_groups_supported),
     Feature(:generic_address_space,
             dev -> has_opencl_c_feature(dev, "__opencl_c_generic_address_space")),
+    # What the device reports for floating-point atomics in both global and local memory.
+    # These don't decide whether kernels use native instructions: that follows from the
+    # compiler target's `SPIRVAtomics` (see `device_atomics`), which can differ per address
+    # space and is restricted further on the OpenCL C source path.
     Feature(:fp32_atomic_add,
             dev -> has_fp_atomics(dev, cl.CL_DEVICE_SINGLE_FP_ATOMIC_CAPABILITIES_EXT,
                                   cl.CL_DEVICE_GLOBAL_FP_ATOMIC_ADD_EXT |
@@ -149,6 +156,47 @@ function device_features(dev::cl.Device)::FeatureSet
 end
 
 feature_supported(dev::cl.Device, name::Symbol) = feature_supported(device_features(dev), name)
+
+
+## atomic operations
+
+"""
+    device_atomics(dev::cl.Device; source::Bool=false) -> SPIRVAtomics
+
+The atomic operations that kernels for `dev` can use natively, for GPUCompiler to select
+SPIR-V instructions for (the others become compare-and-swap loops). `source` restricts them to
+what the OpenCL C source path (spirv2clc) can translate.
+
+This is the default for the `atomics` compiler keyword, e.g., `@opencl atomics=...`, which
+takes an `OpenCL.SPIRVAtomics` (from GPUCompiler).
+"""
+function device_atomics(dev::cl.Device; source::Bool=false)
+    fp16 = "cl_khr_fp16" in dev.extensions
+    fp64 = "cl_khr_fp64" in dev.extensions
+    int64 = "cl_khr_int64_base_atomics" in dev.extensions &&
+            "cl_khr_int64_extended_atomics" in dev.extensions
+
+    half = fp16 ? fp_atomic_capabilities(dev, cl.CL_DEVICE_HALF_FP_ATOMIC_CAPABILITIES_EXT) : 0
+    single = fp_atomic_capabilities(dev, cl.CL_DEVICE_SINGLE_FP_ATOMIC_CAPABILITIES_EXT)
+    double = fp64 ? fp_atomic_capabilities(dev, cl.CL_DEVICE_DOUBLE_FP_ATOMIC_CAPABILITIES_EXT) : 0
+
+    if source
+        # spirv2clc doesn't translate half-precision atomic addition, and spells the others
+        # as C11 `atomic_fetch_add` on an `atomic_float`/`atomic_double`, which needs OpenCL C
+        # 2.0 (`link_kernel` targets the device's highest version)
+        half = 0
+        if max_opencl_c_version(dev) < v"2.0"
+            single = double = 0
+        end
+    end
+
+    global_add(caps) = caps & cl.CL_DEVICE_GLOBAL_FP_ATOMIC_ADD_EXT != 0
+    local_add(caps) = caps & cl.CL_DEVICE_LOCAL_FP_ATOMIC_ADD_EXT != 0
+    return SPIRVAtomics(; int64,
+                        fadd_f16_global = global_add(half), fadd_f16_local = local_add(half),
+                        fadd_f32_global = global_add(single), fadd_f32_local = local_add(single),
+                        fadd_f64_global = global_add(double), fadd_f64_local = local_add(double))
+end
 
 
 ## compile-time feature queries (device side, folded to a constant by the optimizer)
