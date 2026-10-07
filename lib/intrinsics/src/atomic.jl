@@ -7,7 +7,10 @@ const atomic_float_types = [Float32, Float64]
 const atomic_integer_types = [UInt32, Int32, UInt64, Int64]
 const atomic_memory_types = [AS.Workgroup, AS.CrossWorkgroup]
 
-const atomic_scope = Scope.Workgroup
+# an atomic on global memory has to be atomic with respect to work-items of other
+# work-groups, so it needs device scope; local memory is only visible within a work-group
+atomic_scope(::Val{AS.Workgroup}) = Scope.Workgroup
+atomic_scope(::Val{AS.CrossWorkgroup}) = Scope.Device
 
 atomic_memory_semantics(::Val{AS.Workgroup}) = MemorySemantics.WorkgroupMemory
 atomic_memory_semantics(::Val{AS.CrossWorkgroup}) = MemorySemantics.CrossWorkgroupMemory
@@ -23,13 +26,13 @@ for gentype in atomic_integer_types, as in atomic_memory_types
 @device_function atomic_add!(p::LLVMPtr{$gentype,$as}, val::$gentype) =
     @builtin_ccall("__spirv_AtomicIAdd", $gentype,
                    (LLVMPtr{$gentype,$as}, UInt32, UInt32, $gentype),
-                   p, UInt32(atomic_scope),
+                   p, UInt32(atomic_scope(Val($as))),
                    UInt32(atomic_memory_semantics(Val($as))), val)
 
 @device_function atomic_sub!(p::LLVMPtr{$gentype,$as}, val::$gentype) =
     @builtin_ccall("__spirv_AtomicISub", $gentype,
                    (LLVMPtr{$gentype,$as}, UInt32, UInt32, $gentype),
-                   p, UInt32(atomic_scope),
+                   p, UInt32(atomic_scope(Val($as))),
                    UInt32(atomic_memory_semantics(Val($as))), val)
 
 @device_function atomic_inc!(p::LLVMPtr{$gentype,$as}) =
@@ -41,43 +44,43 @@ for gentype in atomic_integer_types, as in atomic_memory_types
 @device_function atomic_min!(p::LLVMPtr{$gentype,$as}, val::$gentype) =
     @builtin_ccall($atomic_min_intrinsic, $gentype,
                    (LLVMPtr{$gentype,$as}, UInt32, UInt32, $gentype),
-                   p, UInt32(atomic_scope),
+                   p, UInt32(atomic_scope(Val($as))),
                    UInt32(atomic_memory_semantics(Val($as))), val)
 
 @device_function atomic_max!(p::LLVMPtr{$gentype,$as}, val::$gentype) =
     @builtin_ccall($atomic_max_intrinsic, $gentype,
                    (LLVMPtr{$gentype,$as}, UInt32, UInt32, $gentype),
-                   p, UInt32(atomic_scope),
+                   p, UInt32(atomic_scope(Val($as))),
                    UInt32(atomic_memory_semantics(Val($as))), val)
 
 @device_function atomic_and!(p::LLVMPtr{$gentype,$as}, val::$gentype) =
     @builtin_ccall("__spirv_AtomicAnd", $gentype,
                    (LLVMPtr{$gentype,$as}, UInt32, UInt32, $gentype),
-                   p, UInt32(atomic_scope),
+                   p, UInt32(atomic_scope(Val($as))),
                    UInt32(atomic_memory_semantics(Val($as))), val)
 
 @device_function atomic_or!(p::LLVMPtr{$gentype,$as}, val::$gentype) =
     @builtin_ccall("__spirv_AtomicOr", $gentype,
                    (LLVMPtr{$gentype,$as}, UInt32, UInt32, $gentype),
-                   p, UInt32(atomic_scope),
+                   p, UInt32(atomic_scope(Val($as))),
                    UInt32(atomic_memory_semantics(Val($as))), val)
 
 @device_function atomic_xor!(p::LLVMPtr{$gentype,$as}, val::$gentype) =
     @builtin_ccall("__spirv_AtomicXor", $gentype,
                    (LLVMPtr{$gentype,$as}, UInt32, UInt32, $gentype),
-                   p, UInt32(atomic_scope),
+                   p, UInt32(atomic_scope(Val($as))),
                    UInt32(atomic_memory_semantics(Val($as))), val)
 
 @device_function atomic_xchg!(p::LLVMPtr{$gentype,$as}, val::$gentype) =
     @builtin_ccall("__spirv_AtomicExchange", $gentype,
                    (LLVMPtr{$gentype,$as}, UInt32, UInt32, $gentype),
-                   p, UInt32(atomic_scope),
+                   p, UInt32(atomic_scope(Val($as))),
                    UInt32(atomic_memory_semantics(Val($as))), val)
 
 @device_function atomic_cmpxchg!(p::LLVMPtr{$gentype,$as}, cmp::$gentype, val::$gentype) =
     @builtin_ccall("__spirv_AtomicCompareExchange", $gentype,
                    (LLVMPtr{$gentype,$as}, UInt32, UInt32, UInt32, $gentype, $gentype),
-                   p, UInt32(atomic_scope),
+                   p, UInt32(atomic_scope(Val($as))),
                    UInt32(atomic_memory_semantics(Val($as))),
                    UInt32(atomic_memory_semantics(Val($as))), val, cmp)
 end
@@ -100,7 +103,7 @@ for gentype in atomic_float_types, as in atomic_memory_types
 @device_function atomic_add_native!(p::LLVMPtr{$gentype,$as}, val::$gentype) =
     @builtin_ccall("__spirv_AtomicFAddEXT", $gentype,
                    (LLVMPtr{$gentype,$as}, UInt32, UInt32, $gentype),
-                   p, UInt32(atomic_scope),
+                   p, UInt32(atomic_scope(Val($as))),
                    UInt32(atomic_memory_semantics(Val($as))), val)
 
 # SPIR-V has no atomic float subtraction; add the negated value
@@ -110,13 +113,13 @@ for gentype in atomic_float_types, as in atomic_memory_types
 @device_function atomic_min_native!(p::LLVMPtr{$gentype,$as}, val::$gentype) =
     @builtin_ccall("__spirv_AtomicFMinEXT", $gentype,
                    (LLVMPtr{$gentype,$as}, UInt32, UInt32, $gentype),
-                   p, UInt32(atomic_scope),
+                   p, UInt32(atomic_scope(Val($as))),
                    UInt32(atomic_memory_semantics(Val($as))), val)
 
 @device_function atomic_max_native!(p::LLVMPtr{$gentype,$as}, val::$gentype) =
     @builtin_ccall("__spirv_AtomicFMaxEXT", $gentype,
                    (LLVMPtr{$gentype,$as}, UInt32, UInt32, $gentype),
-                   p, UInt32(atomic_scope),
+                   p, UInt32(atomic_scope(Val($as))),
                    UInt32(atomic_memory_semantics(Val($as))), val)
 
 end
