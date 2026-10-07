@@ -233,48 +233,30 @@ function atomic_op_kernel_local(op, a, out, args...)
     return
 end
 
-# OpenCL.jl overrides the floating-point atomics to select between SPIRVIntrinsics'
-# `atomic_*_native!` and `atomic_*_fallback!` with `has_feature`. Launch kernels as if the
-# device had, or lacked, those features, to exercise both.
-const fp_atomic_features = (:fp32_atomic_add, :fp32_atomic_min_max,
-                            :fp64_atomic_add, :fp64_atomic_min_max)
-function feature_config(enabled::Bool)
-    base = OpenCL.compiler_config(dev)
-    mask = mapreduce(OpenCL.feature_bit, |, fp_atomic_features)
-    features = enabled ? base.params.features | mask : base.params.features & ~mask
-    params = OpenCL.OpenCLCompilerParams(; base.params.sub_group_size, features,
-                                         base.params.program_backend)
-    GPUCompiler.CompilerConfig(base; params)
-end
-function launch_with_features(f, enabled::Bool, args...)
-    kernel_args = map(OpenCL.kernel_convert, args)
-    tt = Tuple{map(Core.Typeof, kernel_args)...}
-    job = GPUCompiler.CompilerJob(OpenCL.methodinstance(typeof(f), tt), feature_config(enabled))
-    res = OpenCL.compile_or_lookup(job)
-    kernel = OpenCL.link_kernel(job, res.obj, res.entry)
-    OpenCL.HostKernel{typeof(f),typeof(f),tt}(f, f, kernel, res.device_rng)(args...;
-                                                                           global_size=1)
-end
+# The atomics the compiler selects SPIR-V instructions for; without native floating-point
+# addition, it uses compare-and-swap loops.
+const default_atomics = OpenCL.compiler_config(dev).target.atomics
+const no_fp_atomics = GPUCompiler.SPIRVAtomics(; default_atomics.int64)
 
-function run_atomic_op(kernel, op, old::T, args...; features=nothing) where T
+function run_atomic_op(kernel, op, old::T, args...; atomics=nothing) where T
     a = OpenCL.fill(old)
     out = OpenCL.fill(T(42))
-    if features === nothing
+    if atomics === nothing
         @opencl global_size=1 kernel(op, a, out, args...)
     else
-        launch_with_features(kernel, features, op, a, out, args...)
+        @opencl global_size=1 atomics=atomics kernel(op, a, out, args...)
     end
     OpenCL.@allowscalar (a[], out[])
 end
 
-function test_atomic_op(op, model, cases; features=nothing)
+function test_atomic_op(op, model, cases; atomics=nothing)
     for kernel in (atomic_op_kernel, atomic_op_kernel_local), (old, args...) in cases
-        stored, returned = run_atomic_op(kernel, op, old, args...; features)
+        stored, returned = run_atomic_op(kernel, op, old, args...; atomics)
         expected = model(old, args...)
         @test isequal(stored, expected)
         @test isequal(returned, old)
         isequal(stored, expected) && isequal(returned, old) ||
-            @error "atomic operation returned or stored the wrong value" op kernel old args stored returned expected
+            @error "atomic operation returned or stored the wrong value" op kernel old args stored returned expected atomics
     end
 end
 
@@ -332,12 +314,25 @@ supports_atomic_bitops(T) = sizeof(T) == 4 || "cl_khr_int64_extended_atomics" in
     end
 end
 
-@testset "atomic operations ($T, features $(features ? "on" : "off"))" for T in float_types,
-                                                                         features in (false, true)
+# native addition on global memory only, and on local memory only
+function fadd_atomics(T; global_add::Bool, local_add::Bool)
+    prec = Dict(Float16 => "f16", Float32 => "f32", Float64 => "f64")[T]
+    GPUCompiler.SPIRVAtomics(; default_atomics.int64,
+                             Symbol("fadd_$(prec)_global") => global_add,
+                             Symbol("fadd_$(prec)_local") => local_add)
+end
+
+@testset "atomic operations ($T, $name)" for T in float_types,
+        (name, atomics) in (("default", nothing),
+                            ("no native addition", no_fp_atomics),
+                            ("native global addition", fadd_atomics(T; global_add=true, local_add=false)),
+                            ("native local addition", fadd_atomics(T; global_add=false, local_add=true)))
     T == Float64 && !("cl_khr_fp64" in dev.extensions) && continue
     supports_atomics(T) || continue
     @testset "$op" for (op, model, arity) in float_atomic_ops
-        test_atomic_op(op, model, float_cases(T, arity); features)
+        # only addition depends on the descriptor
+        atomics === nothing || op in (OpenCL.atomic_add!, OpenCL.atomic_sub!) || continue
+        test_atomic_op(op, model, float_cases(T, arity); atomics)
     end
 
     # the IEEE minNum/maxNum instructions differ from `min`/`max`, so they're never used
@@ -345,12 +340,71 @@ end
         for op in (OpenCL.atomic_min!, OpenCL.atomic_max!)
             tt = Tuple{typeof(op), CLDeviceArray{T,0,AS.CrossWorkgroup},
                        CLDeviceArray{T,0,AS.CrossWorkgroup}, T}
-            job = GPUCompiler.CompilerJob(OpenCL.methodinstance(typeof(atomic_op_kernel), tt),
-                                          feature_config(features))
-            asm = sprint(io -> GPUCompiler.code_native(io, job; dump_module=true))
+            asm = sprint() do io
+                OpenCL.code_native(io, atomic_op_kernel, tt; kernel=true, dump_module=true,
+                                   atomics=something(atomics, default_atomics))
+            end
             @test !occursin(r"OpAtomicF(Min|Max)EXT", asm)
         end
     end
+end
+
+# The compiler selects OpAtomicFAddEXT for floating-point addition on the address spaces the
+# descriptor enables, and uses a compare-and-swap loop on the others.
+fadd!(p, val) = SPIRVIntrinsics.atomic_modify!(p, +, val)
+@testset "native addition per address space ($T)" for T in [Float16, Float32, Float64]
+    T == Float16 && !("cl_khr_fp16" in dev.extensions) && continue
+    T == Float64 && !("cl_khr_fp64" in dev.extensions) && continue
+    T == Float64 && !default_atomics.int64 && continue
+    for global_add in (false, true), local_add in (false, true)
+        atomics = fadd_atomics(T; global_add, local_add)
+        for (kernel, native) in ((atomic_scope_kernel, global_add),
+                                 (atomic_scope_kernel_local, local_add))
+            asm = sprint() do io
+                OpenCL.code_native(io, kernel,
+                                   Tuple{typeof(fadd!), CLDeviceArray{T, 1, AS.CrossWorkgroup}, T};
+                                   kernel=true, dump_module=true, atomics)
+            end
+            @test occursin("OpAtomicFAddEXT", asm) == native
+            @test occursin("OpAtomicCompareExchange", asm) == !native
+            if T == Float16
+                @test occursin("SPV_EXT_shader_atomic_float16_add", asm) == native
+            end
+        end
+    end
+end
+
+@testset "atomics descriptor" begin
+    source = OpenCL.program_backend() === :opencl || !("cl_khr_il_program" in dev.extensions)
+    @test default_atomics === OpenCL.device_atomics(dev; source)
+    if source
+        # spirv2clc can't translate half-precision atomic addition
+        @test !default_atomics.fadd_f16_global && !default_atomics.fadd_f16_local
+        if !OpenCL.source_fadd_supported(OpenCL.source_opencl_c_version(dev),
+                                         OpenCL.opencl_c_features(dev))
+            @test default_atomics === no_fp_atomics
+        end
+    end
+
+    # spirv2clc's atomic addition needs seq_cst ordering and device scope
+    seq_cst = "__opencl_c_atomic_order_seq_cst"
+    device_scope = "__opencl_c_atomic_scope_device"
+    @test !OpenCL.source_fadd_supported(v"1.2", [seq_cst, device_scope])
+    @test OpenCL.source_fadd_supported(v"2.0", String[])
+    @test OpenCL.source_fadd_supported(v"2.1", String[])
+    @test OpenCL.source_fadd_supported(v"3.0", [seq_cst, device_scope])
+    @test !OpenCL.source_fadd_supported(v"3.0", [seq_cst])
+    @test !OpenCL.source_fadd_supported(v"3.0", [device_scope])
+    @test !OpenCL.source_fadd_supported(v"3.0", String[])
+
+    # nothing enables native floating-point min/max
+    @test !occursin("min_max", GPUCompiler.spirv_extensions(OpenCL.compiler_config(dev).target))
+
+    # the user's extensions are kept, and the atomics add the ones they need
+    config = OpenCL.compiler_config(dev; extensions=["SPV_KHR_expect_assume"],
+                                    atomics=GPUCompiler.SPIRVAtomics(; fadd_f32_local=true))
+    @test GPUCompiler.spirv_extensions(config.target) ==
+          "+SPV_KHR_expect_assume,+SPV_EXT_shader_atomic_float_add"
 end
 
 # `@atomic` returns the old value when it uses an atomic operation, and the new one when it
@@ -379,4 +433,67 @@ end
     end
     scopes = atomic_scopes(asm)
     @test !isempty(scopes) && all(==(1), scopes)
+end
+
+
+# 8- and 16-bit atomics operate on the containing aligned 32-bit word, which has to be
+# accessible: allocations are rounded up to a multiple of 4 bytes, and neighbouring elements
+# in a word are updated concurrently without affecting each other.
+const partword_types = filter([Int8, Int16, Float16]) do T
+    T != Float16 || "cl_khr_fp16" in dev.extensions
+end
+
+@testset "partword allocations ($M)" for M in
+        [Dict(cl.USMBackend() => cl.UnifiedDeviceMemory,
+              cl.SVMBackend() => cl.SharedVirtualMemory,
+              cl.BufferBackend() => cl.Buffer)[b] for b in cl.supported_memory_backends(dev)]
+    for T in partword_types, n in 1:5
+        a = CLVector{T, M}(undef, n)
+        @test length(a) == n
+        @test sizeof(a) == n * sizeof(T)
+        @test sizeof(a.data[]) % 4 == 0
+        @test sizeof(a.data[]) >= n * sizeof(T)
+        @test UInt(pointer(a)) % 4 == 0
+
+        # resizing allocates anew
+        resize!(a, n + 1)
+        @test sizeof(a) == (n + 1) * sizeof(T)
+        @test sizeof(a.data[]) % 4 == 0
+    end
+    @test sizeof(CLVector{Int8, M}(undef, 0).data[]) == 0
+end
+
+function partword_contention_kernel(a, iters)
+    p = pointer(a, (get_global_id() - 1) % length(a) + 1)
+    for _ in 1:iters
+        SPIRVIntrinsics.atomic_modify!(p, +, one(eltype(a)))
+    end
+    return
+end
+function partword_contention_kernel_local(a, iters, ::Val{n}) where {n}
+    s = CLLocalArray(eltype(a), (n,))
+    i = get_local_id()
+    i <= n && @inbounds(s[i] = zero(eltype(a)))
+    barrier(OpenCL.LOCAL_MEM_FENCE)
+    p = pointer(s, (i - 1) % n + 1)
+    for _ in 1:iters
+        SPIRVIntrinsics.atomic_modify!(p, +, one(eltype(a)))
+    end
+    barrier(OpenCL.LOCAL_MEM_FENCE)
+    i <= n && @inbounds(a[i] = s[i])
+    return
+end
+
+@testset "partword contention ($T)" for T in partword_types
+    # every element is incremented by 8 work-items, `iters` times; 64 is exact for all types
+    iters = 8
+    for n in 1:5
+        a = OpenCL.zeros(T, n)
+        @opencl global_size=8n partword_contention_kernel(a, iters)
+        @test Array(a) == fill(T(64), n)
+
+        b = OpenCL.zeros(T, n)
+        @opencl global_size=8n local_size=8n partword_contention_kernel_local(b, iters, Val(n))
+        @test Array(b) == fill(T(64), n)
+    end
 end

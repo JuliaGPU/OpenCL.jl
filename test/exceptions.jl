@@ -179,6 +179,35 @@ end
     @test exce.name == "DomainError"
 end
 
+# The mailbox is shared by all work-groups and queues on the device: claims and stores
+# synchronize at device scope, publishing the details recorded before them.
+@testset "exception mailbox atomics" begin
+    function failure()
+        OpenCL.@gputhrow "Error" "failure"
+        return
+    end
+    asm = sprint(io -> OpenCL.code_native(io, failure, Tuple{}; kernel=true, debug_level=2,
+                                          dump_module=true))
+    constants = Dict(m[1] => parse(UInt64, m[2]) for m in
+                     eachmatch(r"(%\S+) = OpConstant %\S+ (\d+)", asm))
+    cas = [map(i -> constants[m[i]], 1:3) for m in
+           eachmatch(r"= OpAtomicCompareExchange %\S+ %\S+ (%\S+) (%\S+) (%\S+)", asm)]
+    stores = [map(i -> constants[m[i]], 1:2) for m in
+              eachmatch(r"OpAtomicStore %\S+ (%\S+) (%\S+)", asm)]
+    @test !isempty(cas) && !isempty(stores)
+    for (scope, equal, unequal) in cas
+        @test scope == 1                    # Device
+        @test equal & 0x8 != 0              # AcquireRelease
+        @test unequal & 0x2 != 0            # Acquire
+        @test equal & unequal & 0x200 != 0  # CrossWorkgroupMemory
+    end
+    for (scope, semantics) in stores
+        @test scope == 1
+        @test semantics & 0x4 != 0          # Release
+        @test semantics & 0x200 != 0
+    end
+end
+
 @testset "exception report ownership" begin
     function first_failure()
         OpenCL.@gputhrow "FirstError" "first kernel"

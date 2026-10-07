@@ -70,22 +70,15 @@ const EXCEPTION_FRAME_SIZE = sizeof(ExceptionFrame_st)
 @inline has_exception_info(info::ExceptionInfo) = info != reinterpret(ExceptionInfo, 0)
 
 # Claims must cover all work-groups and queues on the device. SPIRVIntrinsics' public
-# atomic helpers currently use work-group scope.
-@inline function atomic_claim_device!(p::LLVMPtr{Int32, AS.CrossWorkgroup})
-    @typed_ccall("_Z29__spirv_AtomicCompareExchangePU3AS1Vijjjii", llvmcall, Int32,
-                 (LLVMPtr{Int32, AS.CrossWorkgroup}, UInt32, UInt32, UInt32, Int32, Int32),
-                 p, UInt32(Scope.Device),
-                 UInt32(MemorySemantics.CrossWorkgroupMemory | MemorySemantics.AcquireRelease),
-                 UInt32(MemorySemantics.CrossWorkgroupMemory | MemorySemantics.Acquire),
-                 Int32(1), Int32(0))
-end
+# atomic helpers are relaxed, so use UnsafeAtomics' primitives with the orderings needed here.
+@inline atomic_claim_device!(p::LLVMPtr{Int32, AS.CrossWorkgroup}) =
+    UnsafeAtomics.Internal.llvm_cmpxchg!(p, Int32(0), Int32(1), Val(:acq_rel), Val(:acquire),
+                                         Val(:device), Val(false), Val(false), Val(4),
+                                         Val(())).old
 
-@inline function atomic_store_device!(p::LLVMPtr{Int32, AS.CrossWorkgroup}, val::Int32)
-    @typed_ccall("_Z19__spirv_AtomicStorePU3AS1Vijji", llvmcall, Cvoid,
-                 (LLVMPtr{Int32, AS.CrossWorkgroup}, UInt32, UInt32, Int32),
-                 p, UInt32(Scope.Device),
-                 UInt32(MemorySemantics.CrossWorkgroupMemory | MemorySemantics.Release), val)
-end
+@inline atomic_store_device!(p::LLVMPtr{Int32, AS.CrossWorkgroup}, val::Int32) =
+    UnsafeAtomics.Internal.llvm_store!(p, val, Val(:release), Val(:device), Val(false),
+                                       Val(4), Val(()))
 
 # Store literal text as words to avoid a device-side copy loop. Name and reason buffers
 # are 8-byte aligned and sized; zero-padding supplies the terminator. Keep this out of line

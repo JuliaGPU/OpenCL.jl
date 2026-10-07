@@ -589,6 +589,11 @@ the caller has to make sure the memory stays valid for as long as the `CLArray` 
 In both cases, the memory must not be freed or reallocated while it is wrapped (e.g., by
 calling `resize!` on the original array), and resizing the wrapper is not supported.
 
+8- and 16-bit atomic operations access the entire aligned 4-byte word that contains the
+element, so when using them, every such word that overlaps the wrapped memory must be
+accessible, even if it extends past the end of that memory. `CLArray`s allocated by OpenCL.jl
+are padded to guarantee this.
+
 Device operations execute asynchronously, so wait for them to finish (e.g., using
 `cl.finish(cl.queue())`) before accessing the original memory on the host. Wrapping the
 same memory multiple times results in independent arrays whose operations are not
