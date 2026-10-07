@@ -297,14 +297,11 @@ float_atomic_ops = [
     (OpenCL.atomic_cmpxchg!, (old, cmp, val) -> old === cmp ? val : old, 2),
 ]
 
-function int_cases(T, op, arity)
+function int_cases(T, arity)
     arity == 0 && return [(T(5),), (typemax(T),), (typemin(T),)]
     arity == 2 && return [(T(5), T(5), T(7)), (T(5), T(4), T(7))]
     cases = [(T(5), T(3)), (T(3), T(5)), (typemax(T), one(T)), (T(0b1100), T(0b1010))]
-    # spirv2clc translates OpAtomicSMin/SMax to OpenCL C's atomic_min/max on unsigned
-    # integers, as SPIR-V's integer types don't carry a sign
-    if T <: Signed && !(op in (OpenCL.atomic_min!, OpenCL.atomic_max!) &&
-                        OpenCL.resolve_program_backend(dev) === :opencl)
+    if T <: Signed
         push!(cases, (T(-2), T(7)), (T(7), T(-2)))
     end
     cases
@@ -327,7 +324,7 @@ supports_atomic_bitops(T) = sizeof(T) == 4 || "cl_khr_int64_extended_atomics" in
     @testset "$op" for (op, model, arity) in int_atomic_ops
         op in (OpenCL.atomic_min!, OpenCL.atomic_max!, OpenCL.atomic_and!,
                OpenCL.atomic_or!, OpenCL.atomic_xor!) && !supports_atomic_bitops(T) && continue
-        test_atomic_op(op, model, int_cases(T, op, arity))
+        test_atomic_op(op, model, int_cases(T, arity))
     end
 end
 
