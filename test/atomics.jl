@@ -134,16 +134,18 @@ end
 
 # An atomic on global memory needs device scope to be atomic with respect to other
 # work-groups; one on local memory only needs work-group scope.
+#
+# These kernels are only compiled. They store the result of the operation, as LLVM 15 turns
+# an exchange whose result is unused into a store, and access memory through pointers, as
+# `@inbounds` is ignored with --check-bounds=yes and the error path of a bounds check
+# contains device-scope atomics.
 function atomic_scope_kernel(op, a::AbstractArray{T}, val::T) where T
-    op(pointer(a), val)
+    unsafe_store!(pointer(a), op(pointer(a), val), 2)
     return
 end
 function atomic_scope_kernel_local(op, a::AbstractArray{T}, val::T) where T
     s = CLLocalArray(T, (1,))
-    op(pointer(s), val)
-    # (through pointers, as `@inbounds` is ignored with --check-bounds=yes, and the error
-    # path of a bounds check contains device-scope atomics)
-    unsafe_store!(pointer(a), unsafe_load(pointer(s)))
+    unsafe_store!(pointer(a), op(pointer(s), val))
     return
 end
 
