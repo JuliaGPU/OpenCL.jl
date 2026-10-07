@@ -380,10 +380,22 @@ end
     if source
         # spirv2clc can't translate half-precision atomic addition
         @test !default_atomics.fadd_f16_global && !default_atomics.fadd_f16_local
-        if OpenCL.max_opencl_c_version(dev) < v"2.0"
+        if !OpenCL.source_fadd_supported(OpenCL.source_opencl_c_version(dev),
+                                         OpenCL.opencl_c_features(dev))
             @test default_atomics === no_fp_atomics
         end
     end
+
+    # spirv2clc's atomic addition needs seq_cst ordering and device scope
+    seq_cst = "__opencl_c_atomic_order_seq_cst"
+    device_scope = "__opencl_c_atomic_scope_device"
+    @test !OpenCL.source_fadd_supported(v"1.2", [seq_cst, device_scope])
+    @test OpenCL.source_fadd_supported(v"2.0", String[])
+    @test OpenCL.source_fadd_supported(v"2.1", String[])
+    @test OpenCL.source_fadd_supported(v"3.0", [seq_cst, device_scope])
+    @test !OpenCL.source_fadd_supported(v"3.0", [seq_cst])
+    @test !OpenCL.source_fadd_supported(v"3.0", [device_scope])
+    @test !OpenCL.source_fadd_supported(v"3.0", String[])
 
     # nothing enables native floating-point min/max
     @test !occursin("min_max", GPUCompiler.spirv_extensions(OpenCL.compiler_config(dev).target))

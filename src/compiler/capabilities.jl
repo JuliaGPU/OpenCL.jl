@@ -160,15 +160,32 @@ feature_supported(dev::cl.Device, name::Symbol) = feature_supported(device_featu
 
 ## atomic operations
 
+# The OpenCL C version that programs on the source path are compiled for: the device's highest.
+source_opencl_c_version(dev::cl.Device) = max_opencl_c_version(dev)
+
+# Whether spirv2clc's translation of single- and double-precision atomic addition compiles as
+# OpenCL C `version`, given the device's OpenCL C `features`. It uses the C11 `atomic_fetch_add`
+# without explicit ordering and scope, i.e., seq_cst at device scope, which OpenCL C 2.0
+# introduced and 3.0 made optional.
+function source_fadd_supported(version::VersionNumber, features)
+    version < v"2.0" && return false
+    version < v"3.0" && return true
+    return "__opencl_c_atomic_order_seq_cst" in features &&
+           "__opencl_c_atomic_scope_device" in features
+end
+
 """
     device_atomics(dev::cl.Device; source::Bool=false) -> SPIRVAtomics
 
-The atomic operations that kernels for `dev` can use natively, for GPUCompiler to select
-SPIR-V instructions for (the others become compare-and-swap loops). `source` restricts them to
-what the OpenCL C source path (spirv2clc) can translate.
+The atomic capabilities of `dev` and its toolchain, i.e., the atomic operations GPUCompiler
+may select SPIR-V instructions for; it implements the others with compare-and-swap loops.
+`source` restricts them to what the OpenCL C source path (spirv2clc) can translate.
 
-This is the default for the `atomics` compiler keyword, e.g., `@opencl atomics=...`, which
-takes an `OpenCL.SPIRVAtomics` (from GPUCompiler).
+This is the default for the `atomics` compiler keyword (e.g., `@opencl atomics=...`), which
+overrides the atomic capabilities GPUCompiler may select directly: it replaces the whole
+device-derived `OpenCL.SPIRVAtomics` (from GPUCompiler). Enabling capabilities the device or
+toolchain doesn't support can make compilation fail, or terminate the driver's compiler.
+Disabling them relies on integer compare-and-swap for the fallback.
 """
 function device_atomics(dev::cl.Device; source::Bool=false)
     fp16 = "cl_khr_fp16" in dev.extensions
@@ -181,11 +198,9 @@ function device_atomics(dev::cl.Device; source::Bool=false)
     double = fp64 ? fp_atomic_capabilities(dev, cl.CL_DEVICE_DOUBLE_FP_ATOMIC_CAPABILITIES_EXT) : 0
 
     if source
-        # spirv2clc doesn't translate half-precision atomic addition, and spells the others
-        # as C11 `atomic_fetch_add` on an `atomic_float`/`atomic_double`, which needs OpenCL C
-        # 2.0 (`link_kernel` targets the device's highest version)
+        # spirv2clc doesn't translate half-precision atomic addition
         half = 0
-        if max_opencl_c_version(dev) < v"2.0"
+        if !source_fadd_supported(source_opencl_c_version(dev), opencl_c_features(dev))
             single = double = 0
         end
     end

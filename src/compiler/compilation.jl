@@ -372,8 +372,7 @@ function link_kernel(@nospecialize(job::CompilerJob), obj::Vector{UInt8}, entry:
     prog = if backend === :spirv
         cl.Program(; il=spirv_bitcode)
     else
-        # Target the device's highest OpenCL C version
-        clc_version = max_opencl_c_version(dev)
+        clc_version = source_opencl_c_version(dev)
         cl_std = "CL$(clc_version.major).$(clc_version.minor)"
 
         # Be consistent with the SPIR-V version we generated code for

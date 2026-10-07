@@ -26,6 +26,9 @@ There are a few keyword arguments that influence the behavior of `@opencl`:
 - `debug_level`: how much a device-side exception reports, from `0` (only that one was
   thrown) to `2` (its type, reason, position and backtrace). Defaults to the session's
   `-g` level; see [`KernelException`](@ref).
+- `atomics`: override the atomic capabilities that GPUCompiler may select instructions for,
+  as an `OpenCL.SPIRVAtomics`. This replaces the whole descriptor derived from the device
+  and toolchain, see [`OpenCL.device_atomics`](@ref), which is the default.
 - `global_size`, `local_size`: the launch configuration, as in OpenCL.
 """
 macro opencl(ex...)
