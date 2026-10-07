@@ -141,7 +141,9 @@ end
 function atomic_scope_kernel_local(op, a::AbstractArray{T}, val::T) where T
     s = CLLocalArray(T, (1,))
     op(pointer(s), val)
-    @inbounds a[1] = s[1]
+    # (through pointers, as `@inbounds` is ignored with --check-bounds=yes, and the error
+    # path of a bounds check contains device-scope atomics)
+    unsafe_store!(pointer(a), unsafe_load(pointer(s)))
     return
 end
 
