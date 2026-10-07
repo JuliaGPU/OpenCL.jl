@@ -50,6 +50,12 @@ It is also possible to wrap a raw pointer, `unsafe_wrap(CLArray, ptr, dims)`, in
 the caller is responsible for keeping the memory alive for as long as the `CLArray` is used.
 When wrapping an `Array`, the `CLArray` keeps it alive.
 
+Atomic operations on 8- or 16-bit elements (e.g., `Int8` or `Float16`) are implemented with
+32-bit atomics on the aligned 4-byte word that contains the element. When using them on
+wrapped memory, the caller has to make sure that these words are accessible in their
+entirety, also where they extend past the end of the wrapped memory. Memory allocated by
+OpenCL.jl is padded to a multiple of 4 bytes to guarantee this.
+
 ## Using device memory on the host
 
 The opposite direction, `unsafe_wrap(Array, b)`, wraps an `Array` around the memory of a

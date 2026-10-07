@@ -422,3 +422,66 @@ end
     scopes = atomic_scopes(asm)
     @test !isempty(scopes) && all(==(1), scopes)
 end
+
+
+# 8- and 16-bit atomics operate on the containing aligned 32-bit word, which has to be
+# accessible: allocations are rounded up to a multiple of 4 bytes, and neighbouring elements
+# in a word are updated concurrently without affecting each other.
+const partword_types = filter([Int8, Int16, Float16]) do T
+    T != Float16 || "cl_khr_fp16" in dev.extensions
+end
+
+@testset "partword allocations ($M)" for M in
+        [Dict(cl.USMBackend() => cl.UnifiedDeviceMemory,
+              cl.SVMBackend() => cl.SharedVirtualMemory,
+              cl.BufferBackend() => cl.Buffer)[b] for b in cl.supported_memory_backends(dev)]
+    for T in partword_types, n in 1:5
+        a = CLVector{T, M}(undef, n)
+        @test length(a) == n
+        @test sizeof(a) == n * sizeof(T)
+        @test sizeof(a.data[]) % 4 == 0
+        @test sizeof(a.data[]) >= n * sizeof(T)
+        @test UInt(pointer(a)) % 4 == 0
+
+        # resizing allocates anew
+        resize!(a, n + 1)
+        @test sizeof(a) == (n + 1) * sizeof(T)
+        @test sizeof(a.data[]) % 4 == 0
+    end
+    @test sizeof(CLVector{Int8, M}(undef, 0).data[]) == 0
+end
+
+function partword_contention_kernel(a, iters)
+    p = pointer(a, (get_global_id() - 1) % length(a) + 1)
+    for _ in 1:iters
+        SPIRVIntrinsics.atomic_modify!(p, +, one(eltype(a)))
+    end
+    return
+end
+function partword_contention_kernel_local(a, iters, ::Val{n}) where {n}
+    s = CLLocalArray(eltype(a), (n,))
+    i = get_local_id()
+    i <= n && @inbounds(s[i] = zero(eltype(a)))
+    barrier(OpenCL.LOCAL_MEM_FENCE)
+    p = pointer(s, (i - 1) % n + 1)
+    for _ in 1:iters
+        SPIRVIntrinsics.atomic_modify!(p, +, one(eltype(a)))
+    end
+    barrier(OpenCL.LOCAL_MEM_FENCE)
+    i <= n && @inbounds(a[i] = s[i])
+    return
+end
+
+@testset "partword contention ($T)" for T in partword_types
+    # every element is incremented by 8 work-items, `iters` times; 64 is exact for all types
+    iters = 8
+    for n in 1:5
+        a = OpenCL.zeros(T, n)
+        @opencl global_size=8n partword_contention_kernel(a, iters)
+        @test Array(a) == fill(T(64), n)
+
+        b = OpenCL.zeros(T, n)
+        @opencl global_size=8n local_size=8n partword_contention_kernel_local(b, iters, Val(n))
+        @test Array(b) == fill(T(64), n)
+    end
+end
