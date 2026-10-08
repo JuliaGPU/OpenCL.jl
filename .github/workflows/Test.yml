@@ -13,7 +13,7 @@ concurrency:
 
 jobs:
   test:
-    name: Julia ${{ matrix.version }} - ${{ matrix.os }} - ${{ matrix.arch }} - ${{ matrix.memory_backend }} - PoCL ${{ matrix.pocl }} - ${{ matrix.llvm_to_spirv_backend }}
+    name: Julia ${{ matrix.version }} - ${{ matrix.os }} - ${{ matrix.arch }} - ${{ matrix.memory_backend }} - PoCL ${{ matrix.pocl }}${{ matrix.kernellib && format(' ({0})', matrix.kernellib) || '' }} - ${{ matrix.llvm_to_spirv_backend }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 100
     permissions: # needed to allow julia-actions/cache to proactively delete old caches that it has created
@@ -27,7 +27,8 @@ jobs:
       # (Linux x64) and rotate them across the other platforms. The `pocl` axis selects
       # the released JLL (`jll`), the upcoming release (`next`, via pocl_next_jll, run
       # on every platform), or upstream PoCL HEAD built from source (`local`, one job,
-      # Linux-only).
+      # Linux-only). `kernellib` forces one of PoCL's x86 kernel library variants instead of
+      # the one matching the runner's CPU.
       matrix:
         include:
           # full memory-backend coverage on the primary platform
@@ -43,6 +44,9 @@ jobs:
           # other platforms, one job each (backends rotated for extra cross-coverage)
           - { os: ubuntu-24.04-arm, arch: arm64, version: '1.13', pocl: jll, memory_backend: svm, llvm_to_spirv_backend: llvm }
           - { os: windows-2022, arch: x64, version: '1.13', pocl: jll, memory_backend: usm, llvm_to_spirv_backend: llvm }  # requires 1.13.1 (JuliaLang/julia#63123)
+          # oldest x86 kernel library: no SSE4.1, so some builtins become C library calls,
+          # which PoCL's JIT has to resolve without a C library providing them on Windows
+          - { os: windows-2022, arch: x64, version: '1.13', pocl: jll, kernellib: sse2, memory_backend: svm, llvm_to_spirv_backend: llvm }  # requires 1.13.1 (JuliaLang/julia#63123)
           # upcoming PoCL release (pocl_next_jll) on every platform
           - { os: ubuntu-24.04, arch: x64, version: '1.13', pocl: next, memory_backend: usm, llvm_to_spirv_backend: llvm }
           - { os: ubuntu-24.04-arm, arch: arm64, version: '1.13', pocl: next, memory_backend: svm, llvm_to_spirv_backend: llvm }
@@ -133,6 +137,11 @@ jobs:
             echo '[pocl_jll]' >> test/LocalPreferences.toml
             echo 'libpocl_path="${{ github.workspace }}/target/lib/libpocl.so"' >> test/LocalPreferences.toml
 
+      - name: Select the PoCL kernel library
+        if: ${{ matrix.kernellib }}
+        shell: bash
+        run: echo 'POCL_KERNELLIB_NAME=${{ matrix.kernellib }}' >> "$GITHUB_ENV"
+
       - name: Setup OpenCL.jl
         run: |
           echo '[OpenCL]' >> test/LocalPreferences.toml
@@ -166,7 +175,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: compilation-dumps-${{ matrix.version }}-${{ matrix.os }}-${{ matrix.arch }}-${{ matrix.memory_backend }}-pocl-${{ matrix.pocl }}-${{ matrix.llvm_to_spirv_backend }}
+          name: compilation-dumps-${{ matrix.version }}-${{ matrix.os }}-${{ matrix.arch }}-${{ matrix.memory_backend }}-pocl-${{ matrix.pocl }}${{ matrix.kernellib && format('-{0}', matrix.kernellib) || '' }}-${{ matrix.llvm_to_spirv_backend }}
           path: ${{ runner.temp }}/opencl-compilation-dumps/
           if-no-files-found: ignore
 

@@ -1,5 +1,6 @@
 using SIMD
 import GPUCompiler
+import SpecialFunctions
 
 function call_on_device(f, args...)
     function kernel(res, f, args...)
@@ -110,6 +111,16 @@ end
         x = rand(T)
         y = rand(T)
         @test call_on_device(f, x, y) ≈ f(x, y)
+    end
+end
+
+@testset "special functions - $T" for T in float_types
+    @testset "$f" for f in [
+            SpecialFunctions.gamma,
+            SpecialFunctions.loggamma,
+        ]
+        x = rand(T) + 1
+        @test call_on_device(f, x) ≈ f(x)
     end
 end
 
