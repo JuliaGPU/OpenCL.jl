@@ -1,7 +1,7 @@
 module OpenCLKernels
 
 using ..OpenCL
-using ..OpenCL: @device_override, method_table, kernel_convert, clfunction
+using ..OpenCL: @device_override, method_table, kernel_convert, clfunction, has_feature
 
 import KernelInterface as KI
 
@@ -21,6 +21,21 @@ A backend works with the task's active device if that is on its platform. Otherw
 for the backend (allocations, copies, compilation and launches) first activates the default
 device of its platform, as `KernelInterface.device!` would, so that the arrays it creates
 can be used afterwards.
+
+# Sub-groups
+
+KernelInterface's sub-groups need a width that is the same for every kernel. For now, they
+are only supported on devices with `cl_intel_required_subgroup_size`, through which kernels
+request the width that `KernelInterface.sub_group_size` reports (at most 64). The shuffles
+also need `cl_khr_subgroup_shuffle`.
+
+OpenCL doesn't specify which work-items form a sub-group, so
+`KernelInterface.supports_linear_subgroups` is only `true` on runtimes known to form them
+from consecutive work-items: PoCL and Intel's CPU and GPU runtimes. On PoCL, sub-group operations are
+work-group barriers, so `KernelInterface.supports_independent_subgroups` is `false`: all
+sub-groups of a work-group have to execute the same sub-group operations, in the same order.
+It is also `false` on Intel's CPU runtime, which loses the writes after a
+`sub_group_barrier` that other sub-groups returned before (intel/llvm#23449).
 """
 Base.@kwdef struct OpenCLBackend <: KI.Backend
     platform::cl.Platform = cl.platform()
@@ -224,7 +239,8 @@ const DeviceProperties = @NamedTuple{
     max_work_group_size::Int, max_work_group_dims::NTuple{3, Int}, compute_units::Int,
     float64::Bool, unified::Bool,
     # 0 if the device doesn't support sub-groups of a fixed width
-    sub_group_size::Int, shuffle_types::Vector{DataType},
+    sub_group_size::Int, shuffle::Bool, float16::Bool,
+    linear_sub_groups::Bool, independent_sub_groups::Bool,
 }
 function device_properties(dev::cl.Device)
     cache = get!(task_local_storage(), :CLDeviceProperties) do
@@ -232,19 +248,40 @@ function device_properties(dev::cl.Device)
     end::Dict{cl.Device, DeviceProperties}
     return get!(cache, dev) do
         sizes = dev.max_work_item_size
-        # the sub-group width is only fixed for kernels that request it, which `clfunction`
-        # does for devices with `cl_intel_required_subgroup_size`
-        fixed_sub_groups = cl.sub_groups_supported(dev) &&
-                           "cl_intel_required_subgroup_size" in dev.extensions
+        # KernelInterface needs a fixed sub-group width, which for now means one that kernels
+        # request with `cl_intel_required_subgroup_size` (as `clfunction` does). Wider
+        # sub-groups than 64 aren't reported, since `KI.sub_group_ballot` has a bit per lane.
+        sub_group_size = 0
+        if cl.sub_groups_supported(dev) && "cl_intel_required_subgroup_size" in dev.extensions
+            width = cl.sub_group_size(dev)
+            width <= 64 && (sub_group_size = width)
+        end
+        pocl = occursin("pocl", dev.platform.vendor)
         (; max_work_group_size = Int(dev.max_work_group_size),
            max_work_group_dims = ntuple(d -> d <= length(sizes) ? Int(sizes[d]) : 1, 3),
            compute_units = Int(dev.max_compute_units),
            float64 = "cl_khr_fp64" in dev.extensions,
            unified = cl.default_memory_backend(dev; unified=true) !== nothing,
-           sub_group_size = fixed_sub_groups ? cl.sub_group_size(dev) : 0,
-           shuffle_types = fixed_sub_groups ? cl.sub_group_shuffle_supported_types(dev) : DataType[])
+           sub_group_size,
+           shuffle = sub_group_size > 0 && "cl_khr_subgroup_shuffle" in dev.extensions,
+           float16 = "cl_khr_fp16" in dev.extensions,
+           # OpenCL leaves the layout to the implementation: only report it for the
+           # runtimes known to form sub-groups from consecutive work-items
+           linear_sub_groups = sub_group_size > 0 && (pocl || linear_sub_group_runtime(dev)),
+           # PoCL executes sub-group operations as work-group barriers, and Intel's CPU
+           # runtime loses the writes after a `sub_group_barrier` that other sub-groups
+           # returned before (intel/llvm#23449)
+           independent_sub_groups = sub_group_size > 0 && !pocl && !intel_cpu_runtime(dev))
     end
 end
+
+# Intel's CPU and GPU runtimes form sub-groups from consecutive work-items in the x
+# dimension, as KernelInterface's layout tests check
+function linear_sub_group_runtime(dev::cl.Device)
+    return occursin("Intel", dev.platform.vendor) && dev.device_type in (:cpu, :gpu)
+end
+
+intel_cpu_runtime(dev::cl.Device) = occursin("Intel", dev.platform.vendor) && dev.device_type === :cpu
 
 device_properties(b::OpenCLBackend) = device_properties(backend_device(b))
 
@@ -263,7 +300,22 @@ KI.supports_atomics(::OpenCLBackend) = true
 
 KI.supports_subgroups(b::OpenCLBackend) = device_properties(b).sub_group_size > 0
 KI.sub_group_size(b::OpenCLBackend)::Int = device_properties(b).sub_group_size
-KI.supports_shuffle(b::OpenCLBackend, ::Type{T}) where {T} = T in device_properties(b).shuffle_types
+KI.supports_linear_subgroups(b::OpenCLBackend) = device_properties(b).linear_sub_groups
+KI.supports_independent_subgroups(b::OpenCLBackend) = device_properties(b).independent_sub_groups
+
+# The types `sub_group_shuffle` supports; other types are shuffled as words or field by
+# field. `Float16` and `Float64` are reported as unsupported on devices without `cl_khr_fp16`
+# or `cl_khr_fp64`: a kernel can't hold such values there, even just to move them, since
+# LLVM turns a load of an integer that is reinterpreted as a float into a load of the float.
+const ShuffleTypes = Union{OpenCL.SPIRVIntrinsics.gentypes...}
+
+function KI.supports_shuffle(b::OpenCLBackend, ::Type{T}) where {T <: ShuffleTypes}
+    props = device_properties(b)
+    props.shuffle || return false
+    T === Float64 && return props.float64
+    T === Float16 && return props.float16
+    return true
+end
 
 
 ## Indexing Functions
@@ -319,9 +371,70 @@ end
     sub_group_barrier(OpenCL.LOCAL_MEM_FENCE | OpenCL.GLOBAL_MEM_FENCE)
 end
 
-# out-of-range source lanes give an unspecified value, as KernelInterface allows
-@device_override function KI.shfl_down(val::T, offset::Integer) where T
-    sub_group_shuffle(val, get_sub_group_local_id() % UInt32 + offset % UInt32)
+# `cl_khr_subgroup_shuffle`
+@device_override KI.shfl(val::T, lane::Integer) where {T <: ShuffleTypes} =
+    sub_group_shuffle(val, lane)
+
+# past the sub-group width, `shfl_down` and `shfl_up` return the work-item's own value, which
+# `sub_group_shuffle` (like SPIR-V's `OpGroupNonUniformShuffleDown`) leaves undefined
+@device_override function KI.shfl_down(val::T, offset::Integer) where {T <: ShuffleTypes}
+    lane = get_sub_group_local_id()
+    # compared before adding, so that large offsets don't overflow
+    inside = offset <= get_max_sub_group_size() - lane
+    return sub_group_shuffle(val, ifelse(inside, lane + offset, lane))
+end
+
+@device_override function KI.shfl_up(val::T, offset::Integer) where {T <: ShuffleTypes}
+    lane = get_sub_group_local_id()
+    return sub_group_shuffle(val, ifelse(lane > offset, lane - offset, lane))
+end
+
+@device_override KI.shfl_xor(val::T, mask::Integer) where {T <: ShuffleTypes} =
+    sub_group_shuffle_xor(val, mask)
+
+# `cl_khr_subgroups`
+@device_override KI.sub_group_any(pred::Bool) = sub_group_any(pred)
+
+@device_override KI.sub_group_all(pred::Bool) = sub_group_all(pred)
+
+@device_override function KI.sub_group_ballot(pred::Bool)
+    if has_feature(:subgroup_ballot)
+        mask = sub_group_ballot(pred)
+        return UInt64(mask[1].value) | (UInt64(mask[2].value) << 32)
+    else
+        return reduction_ballot(pred)
+    end
+end
+
+# The ballot without `cl_khr_subgroup_ballot`: add up a bit per lane, with 32-bit reductions,
+# which every device with sub-groups supports. The width is at most 64 (see
+# `device_properties`).
+@inline function reduction_ballot(pred::Bool)
+    lane = (get_sub_group_local_id() - 1) % UInt32
+    lo = sub_group_reduce_add(ifelse(pred & (lane < 32), UInt32(1) << lane, UInt32(0)))
+    get_max_sub_group_size() <= 32 && return UInt64(lo)
+    hi = sub_group_reduce_add(ifelse(pred & (lane >= 32), UInt32(1) << (lane - 32), UInt32(0)))
+    return UInt64(lo) | (UInt64(hi) << 32)
+end
+
+# Native reductions and scans, for `+` on 32- and 64-bit integers and floats, and `min`/`max`
+# on integers (OpenCL's `min` and `max` treat NaN and the sign of zero differently from
+# Julia's).
+const CollectiveIntTypes = Union{Int32, UInt32, Int64, UInt64}
+const CollectiveTypes = Union{CollectiveIntTypes, Float16, Float32, Float64}
+
+@device_override KI.sub_group_reduce(::typeof(+), val::CollectiveTypes) = sub_group_reduce_add(val)
+@device_override KI.sub_group_reduce(::typeof(min), val::CollectiveIntTypes) = sub_group_reduce_min(val)
+@device_override KI.sub_group_reduce(::typeof(max), val::CollectiveIntTypes) = sub_group_reduce_max(val)
+
+@device_override KI.sub_group_scan(::typeof(+), val::CollectiveTypes) = sub_group_scan_inclusive_add(val)
+@device_override KI.sub_group_scan(::typeof(min), val::CollectiveIntTypes) = sub_group_scan_inclusive_min(val)
+@device_override KI.sub_group_scan(::typeof(max), val::CollectiveIntTypes) = sub_group_scan_inclusive_max(val)
+
+# the exclusive scans of `cl_khr_subgroups` start from the identity, not from `init`
+@device_override function KI.sub_group_exclusive_scan(::typeof(+), val::T, init::T) where {T <: CollectiveTypes}
+    prefix = sub_group_scan_exclusive_add(val)
+    return ifelse(get_sub_group_local_id() == 1, init, init + prefix)
 end
 
 @device_override @inline function KI._print(args...)
