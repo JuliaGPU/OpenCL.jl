@@ -33,7 +33,7 @@ KernelAbstractions = "63c18a36-062a-441e-b654-da1e3ab1ce7c"
 KernelAbstractionsExt = "KernelAbstractions"
 
 [sources]
-KernelInterface = {url = "https://github.com/JuliaGPU/KernelAbstractions.jl", rev = "main", subdir = "lib/KernelInterface"}
+KernelInterface = {url = "https://github.com/JuliaGPU/KernelAbstractions.jl", rev = "vc/ki-subgroup-ops", subdir = "lib/KernelInterface"}
 SPIRVIntrinsics = {path = "lib/intrinsics"}
 
 [compat]

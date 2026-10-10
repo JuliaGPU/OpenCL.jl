@@ -147,7 +147,7 @@ jobs:
               #      and Julia 1.11 does not pick them up from the [sources] of the test project
               #      without workspaces, so develop them from their branch, in the same
               #      Pkg operation
-              run(`git clone --depth 1 --branch main https://github.com/JuliaGPU/KernelAbstractions.jl ka`)
+              run(`git clone --depth 1 --branch vc/ki-subgroup-ops https://github.com/JuliaGPU/KernelAbstractions.jl ka`)
               Pkg.develop([PackageSpec(; path) for path in ("lib/intrinsics", "ka", "ka/lib/KernelInterface")])
               # Pkg < 1.12 turns the developed weak dependency into a strong one; restore
               # the project, keeping the developed package in the manifest
