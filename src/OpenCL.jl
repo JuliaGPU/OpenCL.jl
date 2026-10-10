@@ -45,7 +45,6 @@ include("compiler/precompile.jl")
 # integrations and specialized functionality
 include("util.jl")
 include("broadcast.jl")
-include("mapreduce.jl")
 include("gpuarrays.jl")
 include("random.jl")
 
