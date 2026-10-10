@@ -371,7 +371,7 @@ end
 
 sub_groups_supported(d::Device) = "cl_khr_subgroups" in d.extensions || "cl_intel_subgroups" in d.extensions
 function sub_group_size(d::Device)
-    sub_groups_supported(d) || 0
+    sub_groups_supported(d) || return 0
     if "cl_amd_device_attribute_query" in d.extensions
         scalar = Ref{cl_uint}()
         clGetDeviceInfo(d, CL_DEVICE_WAVEFRONT_WIDTH_AMD, sizeof(cl_uint), scalar, C_NULL)

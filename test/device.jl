@@ -95,6 +95,12 @@ end
     @test cl.exec_capabilities(cl.device()).native_kernel isa Bool
 
     @test cl.svm_capabilities(cl.device()).fine_grain_buffer isa Bool
+
+    if cl.sub_groups_supported(cl.device())
+        @test cl.sub_group_size(cl.device()) > 0
+    else
+        @test cl.sub_group_size(cl.device()) == 0
+    end
 end
 
 @testset "UUID" begin
