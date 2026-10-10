@@ -105,7 +105,9 @@ end
     backend = OpenCLBackend()
     dev = cl.device()
     # kernels only execute with a fixed sub-group width if they can request one
-    if cl.sub_groups_supported(dev) && "cl_intel_required_subgroup_size" in dev.extensions
+    # (of at most 64 lanes, for the ballot)
+    if cl.sub_groups_supported(dev) && "cl_intel_required_subgroup_size" in dev.extensions &&
+       cl.sub_group_size(dev) <= 64
         @test KI.supports_subgroups(backend)
         @test KI.sub_group_size(backend) == cl.sub_group_size(dev)
         @test KI.supports_shuffle(backend, Int32) ==
@@ -117,10 +119,38 @@ end
         KI.@launch backend launch=false sub_group_size=width ki_fill_kernel(a, Int32(1))
         @test_throws ArgumentError KI.@launch backend launch=false sub_group_size=nothing ki_fill_kernel(a, Int32(1))
         @test_throws ArgumentError KI.@launch backend launch=false sub_group_size=2width ki_fill_kernel(a, Int32(1))
+        # PoCL executes sub-group operations as work-group barriers
+        occursin("pocl", dev.platform.vendor) && @test !KI.supports_independent_subgroups(backend)
     else
         @test !KI.supports_subgroups(backend)
+        @test !KI.supports_linear_subgroups(backend)
+        @test !KI.supports_independent_subgroups(backend)
     end
-    @test !KI.supports_shuffle(backend, Complex{Float32})
+    # structs are shuffled field by field
+    @test KI.supports_shuffle(backend, Complex{Float32}) == KI.supports_shuffle(backend, Float32)
+end
+
+# the ballot of devices without `cl_khr_subgroup_ballot`
+function reduction_ballot_kernel(out, pred)
+    i = KI.get_local_id().x
+    @inbounds out[i, 1] = OpenCL.OpenCLKernels.reduction_ballot(pred[i])
+    @inbounds out[i, 2] = KI.sub_group_ballot(pred[i])
+    return
+end
+
+@testset "reduction ballot" begin
+    backend = OpenCLBackend()
+    if KI.supports_subgroups(backend)
+        n = 2 * KI.sub_group_size(backend) + 5
+        pred = CLArray(rand(Bool, n))
+        out = CLArray(zeros(UInt64, n, 2))
+        kernel = KI.@launch backend launch=false reduction_ballot_kernel(out, pred)
+        if n <= KI.max_work_group_size(kernel)
+            kernel(out, pred; workgroupsize = n)
+            out = Array(out)
+            @test out[:, 1] == out[:, 2]
+        end
+    end
 end
 
 @testset "events" begin
