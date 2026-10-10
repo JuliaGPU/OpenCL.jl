@@ -142,7 +142,19 @@ jobs:
             using Pkg
             # Julia 1.10 does not support [sources], so dev the in-tree
             # SPIRVIntrinsics; Pkg.test then carries it into the test sandbox.
-            Pkg.develop(path="lib/intrinsics")'
+            if VERSION < v"1.12"
+              # XXX: KernelAbstractions 0.10 and KernelInterface 0.4 are not registered yet,
+              #      and Julia 1.11 does not pick them up from the [sources] of the test project
+              #      without workspaces, so develop them from their branch, in the same
+              #      Pkg operation
+              run(`git clone --depth 1 --branch main https://github.com/JuliaGPU/KernelAbstractions.jl ka`)
+              Pkg.develop([PackageSpec(; path) for path in ("lib/intrinsics", "ka", "ka/lib/KernelInterface")])
+              # Pkg < 1.12 turns the developed weak dependency into a strong one; restore
+              # the project, keeping the developed package in the manifest
+              run(`git checkout Project.toml`)
+            else
+              Pkg.develop(path="lib/intrinsics")
+            end'
 
       - name: Test OpenCL.jl
         uses: julia-actions/julia-runtest@v1
