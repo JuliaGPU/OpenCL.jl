@@ -105,6 +105,7 @@ const FEATURES = Feature[
     Feature(:fp64, dev -> "cl_khr_fp64" in dev.extensions),
     Feature(:int64_atomics, dev -> "cl_khr_int64_base_atomics" in dev.extensions),
     Feature(:subgroups, cl.sub_groups_supported),
+    Feature(:subgroup_ballot, dev -> "cl_khr_subgroup_ballot" in dev.extensions),
     Feature(:generic_address_space,
             dev -> has_opencl_c_feature(dev, "__opencl_c_generic_address_space")),
     # What the device reports for floating-point atomics in both global and local memory.
