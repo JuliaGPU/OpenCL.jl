@@ -164,9 +164,9 @@ function versioninfo(io::IO=stdout)
                 if in("cl_khr_subgroup_shuffle", device.extensions)
                     push!(sg_tags, "shfl")
                 end
-                # if in("cl_khr_subgroup_ballot", device.extensions)
-                #     push!(sg_tags, "blt")
-                # end
+                if in("cl_khr_subgroup_ballot", device.extensions)
+                    push!(sg_tags, "blt")
+                end
                 push!(tags, "sg:"*join(sg_tags, "+"))
             end
             ## render
