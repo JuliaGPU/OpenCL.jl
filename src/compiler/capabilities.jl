@@ -197,6 +197,12 @@ function device_atomics(dev::cl.Device; source::Bool=false)
     single = fp_atomic_capabilities(dev, cl.CL_DEVICE_SINGLE_FP_ATOMIC_CAPABILITIES_EXT)
     double = fp64 ? fp_atomic_capabilities(dev, cl.CL_DEVICE_DOUBLE_FP_ATOMIC_CAPABILITIES_EXT) : 0
 
+    # Intel's CPU runtime reports half-precision atomic addition, but its compiler lacks the
+    # builtin it lowers that to (`atomic_add` on `half`), so such kernels fail to link.
+    if occursin("Intel", dev.platform.vendor) && dev.device_type === :cpu
+        half = 0
+    end
+
     if source
         # spirv2clc doesn't translate half-precision atomic addition
         half = 0
