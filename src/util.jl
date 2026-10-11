@@ -74,7 +74,8 @@ function versioninfo(io::IO=stdout)
 
     for pkg in [:GPUArrays, :GPUCompiler, ("63c18a36-062a-441e-b654-da1e3ab1ce7c", "KernelAbstractions"),
                  :LLVM, :SPIRVIntrinsics, ("627d6b7a-bbe6-5189-83e7-98cc0a5aeadd", "pocl_jll"),
-                 ("59abdad9-3cfc-5436-8271-411e8cad6b82", "pocl_next_jll")]
+                 ("59abdad9-3cfc-5436-8271-411e8cad6b82", "pocl_next_jll"),
+                 ("6e3bd4d7-b6fc-52f9-a000-aa432bc9a0d7", "intel_opencl_rt_jll")]
         name, mod = get_module(pkg)
         isnothing(mod) && continue
         overrides = endswith(string(name), "_jll") ? jll_overrides(mod) : ""
