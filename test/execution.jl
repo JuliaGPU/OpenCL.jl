@@ -456,6 +456,27 @@ end
     end
 end
 
+@testset "fast-math contraction" begin
+    # `muladd` is `fmul contract` + `fadd contract`, which only SPV_KHR_float_controls2 can
+    # carry into SPIR-V (JuliaGPU/KernelAbstractions.jl#865)
+    function contract_kernel(c, a, b)
+        i = get_global_id()
+        @inbounds c[i] = muladd(a[i], b[i], c[i])
+        return
+    end
+    T = CLDeviceArray{Float32, 1, AS.CrossWorkgroup}
+    # (enabled when the device accepts it, except on the OpenCL C source backend)
+    enabled = occursin("SPV_KHR_float_controls2",
+                       OpenCL.compiler_config(cl.device()).target.extensions)
+    spirv = sprint(io -> OpenCL.code_native(io, contract_kernel, Tuple{T, T, T}; kernel = true))
+    @test occursin("FPFastMathMode AllowContract", spirv) == enabled
+
+    # explicitly passing the extensions disables the default ones
+    spirv = sprint(io -> OpenCL.code_native(io, contract_kernel, Tuple{T, T, T};
+                                            kernel = true, extensions = String[]))
+    @test !occursin("AllowContract", spirv)
+end
+
 @testset "has_feature folding" begin
     # has_feature must fold at compile time: the feature-bitset global gets baked in and DCE'd,
     # leaving only the branch matching the device.
