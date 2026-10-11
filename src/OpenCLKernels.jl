@@ -1,7 +1,8 @@
 module OpenCLKernels
 
 using ..OpenCL
-using ..OpenCL: @device_override, method_table, kernel_convert, clfunction, has_feature
+using ..OpenCL: @device_override, method_table, kernel_convert, clfunction, has_feature,
+                SPIRVIntrinsics
 
 import KernelInterface as KI
 
@@ -36,6 +37,12 @@ work-group barriers, so `KernelInterface.supports_independent_subgroups` is `fal
 sub-groups of a work-group have to execute the same sub-group operations, in the same order.
 It is also `false` on Intel's CPU runtime, which loses the writes after a
 `sub_group_barrier` that other sub-groups returned before (intel/llvm#23449).
+
+OpenCL has no barrier for part of a sub-group, so
+`KernelInterface.supports_partitionable_subgroups` is only `true` on Intel's GPU runtime, where
+a sub-group is the SIMD lanes of one hardware thread (and with `cl_khr_subgroup_ballot`).
+Elsewhere, the segments of a sub-group have to execute the sub-group functions with a `width`
+together, like the ones without.
 """
 Base.@kwdef struct OpenCLBackend <: KI.Backend
     platform::cl.Platform = cl.platform()
@@ -240,7 +247,7 @@ const DeviceProperties = @NamedTuple{
     float64::Bool, unified::Bool,
     # 0 if the device doesn't support sub-groups of a fixed width
     sub_group_size::Int, shuffle::Bool, float16::Bool,
-    linear_sub_groups::Bool, independent_sub_groups::Bool,
+    linear_sub_groups::Bool, independent_sub_groups::Bool, partitionable_sub_groups::Bool,
 }
 function device_properties(dev::cl.Device)
     cache = get!(task_local_storage(), :CLDeviceProperties) do
@@ -271,7 +278,13 @@ function device_properties(dev::cl.Device)
            # PoCL executes sub-group operations as work-group barriers, and Intel's CPU
            # runtime loses the writes after a `sub_group_barrier` that other sub-groups
            # returned before (intel/llvm#23449)
-           independent_sub_groups = sub_group_size > 0 && !pocl && !intel_cpu_runtime(dev))
+           independent_sub_groups = sub_group_size > 0 && !pocl && !intel_cpu_runtime(dev),
+           # PoCL limitation: as its sub-group functions are work-group barriers, the segments of
+           # a sub-group can't diverge either. Nor can they on other runtimes, since OpenCL has no
+           # barrier for part of a sub-group (see `:partitionable_sub_groups`). It implies
+           # independent sub-groups.
+           partitionable_sub_groups = sub_group_size > 0 && !pocl && !intel_cpu_runtime(dev) &&
+                                      OpenCL.feature_supported(dev, :partitionable_sub_groups))
     end
 end
 
@@ -302,11 +315,12 @@ KI.supports_subgroups(b::OpenCLBackend) = device_properties(b).sub_group_size > 
 KI.sub_group_size(b::OpenCLBackend)::Int = device_properties(b).sub_group_size
 KI.supports_linear_subgroups(b::OpenCLBackend) = device_properties(b).linear_sub_groups
 KI.supports_independent_subgroups(b::OpenCLBackend) = device_properties(b).independent_sub_groups
+KI.supports_partitionable_subgroups(b::OpenCLBackend) = device_properties(b).partitionable_sub_groups
 
-# The types `sub_group_shuffle` supports; other types are shuffled as words or field by
-# field. `Float16` and `Float64` are reported as unsupported on devices without `cl_khr_fp16`
-# or `cl_khr_fp64`: a kernel can't hold such values there, even just to move them, since
-# LLVM turns a load of an integer that is reinterpreted as a float into a load of the float.
+# The types `sub_group_shuffle` supports; other types are shuffled as words. `Float16` and
+# `Float64` are reported as unsupported on devices without `cl_khr_fp16` or `cl_khr_fp64`: a
+# kernel can't hold such values there, even just to move them, since LLVM turns a load of an
+# integer that is reinterpreted as a float into a load of the float.
 const ShuffleTypes = Union{OpenCL.SPIRVIntrinsics.gentypes...}
 
 function KI.supports_shuffle(b::OpenCLBackend, ::Type{T}) where {T <: ShuffleTypes}
@@ -371,7 +385,26 @@ end
     sub_group_barrier(OpenCL.LOCAL_MEM_FENCE | OpenCL.GLOBAL_MEM_FENCE)
 end
 
+# OpenCL limitation: a sub-group barrier has to be executed by the whole sub-group, and there
+# is no barrier for part of one. Where a segment's lanes execute together anyway, a narrower
+# segment only fences its memory accesses; elsewhere, the whole sub-group executes this.
+@device_override @inline function KI.sub_group_barrier(width::Integer)
+    if has_feature(:partitionable_sub_groups) && width != get_max_sub_group_size()
+        atomic_work_item_fence(OpenCL.LOCAL_MEM_FENCE | OpenCL.GLOBAL_MEM_FENCE,
+                               SPIRVIntrinsics.memory_order_acq_rel,
+                               SPIRVIntrinsics.memory_scope_sub_group)
+    else
+        KI.sub_group_barrier()
+    end
+end
+
 # `cl_khr_subgroup_shuffle`
+#
+# `KI.shfl_word_tuple` could exchange the words of a struct with the vector shuffles of
+# `SPV_INTEL_subgroups`, as KernelAbstractions' POCL backend does: Intel's GPU runtime supports
+# them (`cl_intel_spirv_subgroups`), and so does PoCL's CPU device with `cl_intel_subgroups`
+# since pocl/pocl#2394, which matters most there. PoCL limitation: it doesn't advertise
+# `cl_intel_spirv_subgroups`, so the words are shuffled one by one until that can be detected.
 @device_override KI.shfl(val::T, lane::Integer) where {T <: ShuffleTypes} =
     sub_group_shuffle(val, lane)
 
@@ -408,7 +441,8 @@ end
 
 # The ballot without `cl_khr_subgroup_ballot`: add up a bit per lane, with 32-bit reductions,
 # which every device with sub-groups supports. The width is at most 64 (see
-# `device_properties`).
+# `device_properties`). The whole sub-group has to execute these reductions, so the segments
+# of a sub-group are only independent with the native ballot.
 @inline function reduction_ballot(pred::Bool)
     lane = (get_sub_group_local_id() - 1) % UInt32
     lo = sub_group_reduce_add(ifelse(pred & (lane < 32), UInt32(1) << lane, UInt32(0)))
