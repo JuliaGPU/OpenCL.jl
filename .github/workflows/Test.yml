@@ -13,7 +13,7 @@ concurrency:
 
 jobs:
   test:
-    name: Julia ${{ matrix.version }} - ${{ matrix.os }} - ${{ matrix.arch }} - ${{ matrix.memory_backend }} - PoCL ${{ matrix.pocl }} - ${{ matrix.llvm_to_spirv_backend }}
+    name: Julia ${{ matrix.version }} - ${{ matrix.os }} - ${{ matrix.arch }} - ${{ matrix.memory_backend }} - ${{ matrix.driver }} - ${{ matrix.llvm_to_spirv_backend }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 100
     permissions: # needed to allow julia-actions/cache to proactively delete old caches that it has created
@@ -24,33 +24,37 @@ jobs:
       # Hand-picked configurations instead of a full cross-product: the memory backend
       # is a host-side, load-time preference that's essentially orthogonal to OS, arch,
       # Julia version and PoCL build, so we cover all backends on the primary platform
-      # (Linux x64) and rotate them across the other platforms. The `pocl` axis selects
-      # the released JLL (`jll`), the upcoming release (`next`, via pocl_next_jll, run
-      # on every platform), or upstream PoCL HEAD built from source (`local`, one job,
-      # Linux-only).
+      # (Linux x64) and rotate them across the other platforms. The `driver` axis selects
+      # the OpenCL CPU driver: the released PoCL JLL (`pocl`), the upcoming release
+      # (`pocl_next`, via pocl_next_jll, run on every platform), upstream PoCL HEAD built
+      # from source (`pocl_local`, one job, Linux-only), or Intel's CPU runtime
+      # (`intel_cpu`, via intel_opencl_rt_jll, on the x64 platforms it supports).
       matrix:
         include:
           # full memory-backend coverage on the primary platform
-          - { os: ubuntu-24.04, arch: x64, version: '1.13', pocl: jll, memory_backend: usm, llvm_to_spirv_backend: llvm }
-          - { os: ubuntu-24.04, arch: x64, version: '1.13', pocl: jll, memory_backend: svm, llvm_to_spirv_backend: llvm }
-          - { os: ubuntu-24.04, arch: x64, version: '1.13', pocl: jll, memory_backend: buffer, llvm_to_spirv_backend: llvm }
+          - { os: ubuntu-24.04, arch: x64, version: '1.13', driver: pocl, memory_backend: usm, llvm_to_spirv_backend: llvm }
+          - { os: ubuntu-24.04, arch: x64, version: '1.13', driver: pocl, memory_backend: svm, llvm_to_spirv_backend: llvm }
+          - { os: ubuntu-24.04, arch: x64, version: '1.13', driver: pocl, memory_backend: buffer, llvm_to_spirv_backend: llvm }
           # oldest supported Julia
-          - { os: ubuntu-24.04, arch: x64, version: '1.10', pocl: jll, memory_backend: usm, llvm_to_spirv_backend: llvm }
+          - { os: ubuntu-24.04, arch: x64, version: '1.10', driver: pocl, memory_backend: usm, llvm_to_spirv_backend: llvm }
           # Julia version coverage on the primary platform
-          - { os: ubuntu-24.04, arch: x64, version: '1.11', pocl: jll, memory_backend: usm, llvm_to_spirv_backend: llvm }
-          - { os: ubuntu-24.04, arch: x64, version: '1.12', pocl: jll, memory_backend: usm, llvm_to_spirv_backend: llvm }
-          - { os: ubuntu-24.04, arch: x64, version: 'nightly', pocl: jll, memory_backend: usm, llvm_to_spirv_backend: llvm }
+          - { os: ubuntu-24.04, arch: x64, version: '1.11', driver: pocl, memory_backend: usm, llvm_to_spirv_backend: llvm }
+          - { os: ubuntu-24.04, arch: x64, version: '1.12', driver: pocl, memory_backend: usm, llvm_to_spirv_backend: llvm }
+          - { os: ubuntu-24.04, arch: x64, version: 'nightly', driver: pocl, memory_backend: usm, llvm_to_spirv_backend: llvm }
           # other platforms, one job each (backends rotated for extra cross-coverage)
-          - { os: ubuntu-24.04-arm, arch: arm64, version: '1.13', pocl: jll, memory_backend: svm, llvm_to_spirv_backend: llvm }
-          - { os: windows-2022, arch: x64, version: '1.13', pocl: jll, memory_backend: usm, llvm_to_spirv_backend: llvm }  # requires 1.13.1 (JuliaLang/julia#63123)
+          - { os: ubuntu-24.04-arm, arch: arm64, version: '1.13', driver: pocl, memory_backend: svm, llvm_to_spirv_backend: llvm }
+          - { os: windows-2022, arch: x64, version: '1.13', driver: pocl, memory_backend: usm, llvm_to_spirv_backend: llvm }  # requires 1.13.1 (JuliaLang/julia#63123)
           # upcoming PoCL release (pocl_next_jll) on every platform
-          - { os: ubuntu-24.04, arch: x64, version: '1.13', pocl: next, memory_backend: usm, llvm_to_spirv_backend: llvm }
-          - { os: ubuntu-24.04-arm, arch: arm64, version: '1.13', pocl: next, memory_backend: svm, llvm_to_spirv_backend: llvm }
-          - { os: windows-2022, arch: x64, version: '1.13', pocl: next, memory_backend: buffer, llvm_to_spirv_backend: llvm }  # requires 1.13.1 (JuliaLang/julia#63123)
+          - { os: ubuntu-24.04, arch: x64, version: '1.13', driver: pocl_next, memory_backend: usm, llvm_to_spirv_backend: llvm }
+          - { os: ubuntu-24.04-arm, arch: arm64, version: '1.13', driver: pocl_next, memory_backend: svm, llvm_to_spirv_backend: llvm }
+          - { os: windows-2022, arch: x64, version: '1.13', driver: pocl_next, memory_backend: buffer, llvm_to_spirv_backend: llvm }  # requires 1.13.1 (JuliaLang/julia#63123)
+          # Intel's CPU runtime, only available for x64 Linux and Windows
+          - { os: ubuntu-24.04, arch: x64, version: '1.13', driver: intel_cpu, memory_backend: usm, llvm_to_spirv_backend: llvm }
+          - { os: windows-2022, arch: x64, version: '1.13', driver: intel_cpu, memory_backend: usm, llvm_to_spirv_backend: llvm }  # requires 1.13.1 (JuliaLang/julia#63123)
           # upstream PoCL HEAD, built from source
-          - { os: ubuntu-24.04, arch: x64, version: '1.13', pocl: local, memory_backend: usm, llvm_to_spirv_backend: llvm }
+          - { os: ubuntu-24.04, arch: x64, version: '1.13', driver: pocl_local, memory_backend: usm, llvm_to_spirv_backend: llvm }
           # khronos backend for LLVM -> SPIRV translation
-          - { os: ubuntu-24.04, arch: x64, version: '1.13', pocl: jll, memory_backend: usm, llvm_to_spirv_backend: khronos }
+          - { os: ubuntu-24.04, arch: x64, version: '1.13', driver: pocl, memory_backend: usm, llvm_to_spirv_backend: khronos }
     steps:
       - name: Checkout OpenCL.jl
         uses: actions/checkout@v7
@@ -65,20 +69,20 @@ jobs:
         uses: julia-actions/cache@v3
 
       - name: Checkout PoCL
-        if: ${{ matrix.pocl == 'local' }}
+        if: ${{ matrix.driver == 'pocl_local' }}
         uses: actions/checkout@v7
         with:
           repository: pocl/pocl
           path: pocl
 
       - name: Install system dependencies
-        if: ${{ matrix.pocl == 'local' }}
+        if: ${{ matrix.driver == 'pocl_local' }}
         run: |
           sudo apt-get update
           sudo apt-get install -y build-essential cmake ninja-build pkg-config libsleef-dev
 
       - name: Install Julia dependencies
-        if: ${{ matrix.pocl == 'local' }}
+        if: ${{ matrix.driver == 'pocl_local' }}
         run: |
             touch pocl/Project.toml
             julia --project=pocl --color=yes -e '
@@ -98,7 +102,7 @@ jobs:
               Pkg.add(name="SPIRV_LLVM_Translator_jll", version="20")'
 
       - name: Build PoCL
-        if: ${{ matrix.pocl == 'local' }}
+        if: ${{ matrix.driver == 'pocl_local' }}
         run: |
             julia --project=pocl --color=yes -e '
               using LLVM_full_jll,
@@ -148,7 +152,7 @@ jobs:
         uses: julia-actions/julia-runtest@v1
         if: runner.os != 'Windows'
         with:
-          test_args: "--quickfail --verbose --platform=${{ case(matrix.pocl == 'next', 'pocl_next', 'pocl') }}"
+          test_args: "--quickfail --verbose --platform=${{ case(matrix.driver == 'pocl_local', 'pocl', matrix.driver) }}"
 
       - name: Setup BusyBox
         if: runner.os == 'Windows'
@@ -160,13 +164,13 @@ jobs:
         run: |
           using Pkg
           Pkg.activate(".")
-          Pkg.test(; test_args=`--quickfail --verbose --platform=${{ matrix.pocl == 'next' && 'pocl_next' || 'pocl' }}`)
+          Pkg.test(; test_args=`--quickfail --verbose --platform=${{ matrix.driver == 'pocl_local' && 'pocl' || matrix.driver }}`)
 
       - name: Upload compilation dumps
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: compilation-dumps-${{ matrix.version }}-${{ matrix.os }}-${{ matrix.arch }}-${{ matrix.memory_backend }}-pocl-${{ matrix.pocl }}-${{ matrix.llvm_to_spirv_backend }}
+          name: compilation-dumps-${{ matrix.version }}-${{ matrix.os }}-${{ matrix.arch }}-${{ matrix.memory_backend }}-${{ matrix.driver }}-${{ matrix.llvm_to_spirv_backend }}
           path: ${{ runner.temp }}/opencl-compilation-dumps/
           if-no-files-found: ignore
 

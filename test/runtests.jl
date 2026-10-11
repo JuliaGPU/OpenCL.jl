@@ -6,23 +6,28 @@ import Test
 args = parse_args(ARGS; custom=["platform"])
 
 # `--platform` selects which OpenCL platform to run on, substring-matched against the
-# platform name/vendor (e.g. `pocl`, `cuda`, `intel`). The special value `pocl_next`
-# loads `pocl_next_jll` — a build of the upcoming PoCL release — instead of the released
-# `pocl_jll`, then filters identically to `--platform=pocl` (both register a platform
-# with the same name/vendor, differing only in version). We import exactly one PoCL JLL,
-# so only a single PoCL platform shows up.
+# platform name/vendor (e.g. `pocl`, `cuda`, `intel`). We import exactly one CPU driver JLL,
+# `pocl_jll` by default, so that only a single CPU platform shows up. Special values select
+# a different one:
+# - `pocl_next` loads `pocl_next_jll`, a build of the upcoming PoCL release, then filters
+#   identically to `--platform=pocl` (both register a platform with the same name/vendor,
+#   differing only in version);
+# - `intel_cpu` loads `intel_opencl_rt_jll`, Intel's OpenCL runtime for x86_64 CPUs, and
+#   selects its platform only (`--platform=intel` would also match Intel's GPU driver).
 const platform_request = args.custom["platform"] === nothing ? nothing :
                          args.custom["platform"].value
-const pocl_pkg = platform_request == "pocl_next" ? :pocl_next_jll : :pocl_jll
+const driver_pkg = platform_request == "pocl_next" ? :pocl_next_jll :
+                   platform_request == "intel_cpu" ? :intel_opencl_rt_jll : :pocl_jll
 const platform_arg = platform_request == "pocl_next" ? Some("pocl") :
                      args.custom["platform"]
-@eval import $pocl_pkg
+@eval import $driver_pkg
 
 @info "System information:\n" * sprint(io->OpenCL.versioninfo(io))
 
 platform_filter = platform_arg
 platform_selected(p) = platform_filter === nothing ||
-    any(contains(platform_filter.value), lowercase.([p.name, p.vendor]))
+    (platform_request == "intel_cpu" ? p.name == "Intel(R) OpenCL" :
+     any(contains(platform_filter.value), lowercase.([p.name, p.vendor])))
 
 ispocl(p) = occursin("portable", lowercase(p.name))
 
@@ -125,8 +130,19 @@ if args.list === nothing
     end
 end
 
+# Intel's CPU runtime crashes the process while compiling some of the GPUArrays kernels
+# (a segfault in the LLVM optimizer of its kernel compiler; #558, #559), so skip the tests
+# that use them.
+for t in targets
+    t.platform == "Intel(R) OpenCL" || continue
+    for name in ("gpuarrays/accumulate", "gpuarrays/linalg/core", "gpuarrays/reductions/base",
+                 "gpuarrays/reductions/contract", "gpuarrays/reductions/== isequal")
+        delete!(testsuite, "$(t.label)/$name")
+    end
+end
+
 const init_worker_code = quote
-    using OpenCL, $pocl_pkg
+    using OpenCL, $driver_pkg
 
     OpenCL.allowscalar(false)
 
@@ -186,7 +202,7 @@ const init_worker_code = quote
 end
 
 const init_code = quote
-    using OpenCL, $pocl_pkg
+    using OpenCL, $driver_pkg
     $(OpenCL.llvm_to_spirv_backend === :khronos && :(using SPIRV_LLVM_Translator_jll))
 
     # bring used symbols into the temporary module
