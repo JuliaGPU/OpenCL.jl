@@ -76,15 +76,16 @@ GPUArrays.storage(a::CLArray) = a.data
 
 ## alias detection
 
-Base.dataids(A::CLArray) = (UInt(pointer(A)),)
+# GPUArrays implements `Base.dataids` and `Base.mightalias` from where an array lives: the
+# address of its memory, or for a buffer without one, its handle (which only identifies that
+# buffer). Not using `pointer(A)`, which takes ownership of the memory for the current queue.
+function GPUArrays.memory_location(A::CLArray)
+    mem = A.data[].mem
+    base = mem isa cl.Buffer && mem.ptr === nothing ? UInt(mem.id) : UInt(pointer(mem))
+    return (base, A.offset)
+end
 
 Base.unaliascopy(A::CLArray) = copy(A)
-
-function Base.mightalias(A::CLArray, B::CLArray)
-    rA = pointer(A):(pointer(A) + sizeof(A))
-    rB = pointer(B):(pointer(B) + sizeof(B))
-    return first(rA) <= first(rB) < last(rA) || first(rB) <= first(rA) < last(rB)
-end
 
 
 ## convenience constructors

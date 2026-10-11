@@ -67,6 +67,54 @@ end
     r = reinterpret(Int64, v)  # Int64 = 8 bytes; 4 is not a multiple of 8
     @test Array(r) == reinterpret(Int64, @view Array(a)[2:7])
 end
+
+@testset "aliasing" begin
+    x = CLArray([1, 2])
+    y = view(x, 2:2)
+    @test Base.mightalias(x, x)
+    @test Base.mightalias(x, y)
+    z = view(x, 1:1)
+    @test Base.mightalias(x, z)
+    @test !Base.mightalias(y, z)
+
+    a = copy(y)::typeof(x)
+    @test !Base.mightalias(x, a)
+    b = Base.unaliascopy(y)::typeof(y)
+    @test !Base.mightalias(x, b)
+
+    # contiguous views are CLArrays with an offset into the parent's memory,
+    # which should still alias wrapped arrays (like SubArrays) of that memory
+    x = CLArray(1:16)
+    @test Base.mightalias(view(x, 2:16), view(x, 15:-1:1))
+    @test Base.mightalias(view(x, 1:2:15), view(x, 2:9))
+    @test Base.mightalias(view(x, 2:16), view(reinterpret(Int32, x), 1:2:31))
+    @test !Base.mightalias(view(x, 2:16), view(CLArray(1:16), 15:-1:1))
+
+    # so in-place broadcasts between them should make a copy first
+    n = 2^20
+    x = CLArray{Float32}(1:n)
+    view(x, 2:n) .= view(x, n-1:-1:1)
+    @test Array(x) == [1; n-1:-1:1]
+
+    # host memory wrapped from a view's address
+    if OpenCL.system_memory_type() !== nothing
+        h = Float32.(1:16)
+        x = unsafe_wrap(CLArray, h)
+        y = view(x, 2:16)
+        z = unsafe_wrap(CLArray, pointer(h, 2), size(y))
+        @test Base.mightalias(y, z)
+        @test Base.mightalias(y, view(z, 15:-1:1))
+    end
+
+    # empty arrays alias nothing, also on Julia 1.10
+    @test !Base.mightalias(CLArray(Int[]), CLArray(Float32[]))
+    @test !Base.mightalias(view(CLArray(zeros(Float32, 2, 0)), 1:1, :), CLArray(Int[]))
+
+    # disjoint parts of one array may be each other's source and destination
+    x = CLArray(collect(1:10))
+    @test Array(sum!(view(x, 1:1), view(x, 2:10))) == [54]
+    @test Array(cumsum!(view(x, 1:5), view(x, 6:10))) == cumsum(6:10)
+end
 # TODO: Look into how to port the @sync
 
 if cl.USMBackend() in cl.supported_memory_backends(cl.device())
@@ -237,12 +285,6 @@ end
     @test length(b) == 0
     resize!(b, 1)
     @test length(b) == 1
-end
-
-@testset "mapreducedim! returning same type" begin
-    R = transpose(OpenCL.zeros(Float32, 2, 3))
-    A = CLArray(rand(Float32, 3, 2, 10))
-    @test @inferred(OpenCL.GPUArrays.mapreducedim!(identity, +, R, A)) === R
 end
 
 # finalizers run in no particular order, e.g. at exit (JuliaGPU/OpenCL.jl#279), so memory

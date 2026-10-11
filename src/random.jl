@@ -1,6 +1,15 @@
 using Random
 
-gpuarrays_rng() = GPUArrays.default_rng(CLArray)
+const GLOBAL_RNGs = Dict{cl.Device,GPUArrays.RNG{CLArray}}()
+const global_rngs_lock = ReentrantLock()
+
+# one RNG per device, used by the RNG-less `rand!`/`randn!` methods and `seed!`
+function gpuarrays_rng()
+    dev = cl.device()
+    return Base.@lock global_rngs_lock begin
+        get!(() -> GPUArrays.RNG{CLArray}(), GLOBAL_RNGs, dev)
+    end
+end
 
 # GPUArrays in-place
 Random.rand!(A::WrappedCLArray) = Random.rand!(gpuarrays_rng(), A)

@@ -167,7 +167,7 @@ if Float16 in GPUArraysTestSuite.supported_eltypes(CLArray)
     end
 
     @testset "randn!(Complex{Float16}) is finite" begin
-        rng = OpenCL.GPUArrays.default_rng(CLArray)
+        rng = OpenCL.GPUArrays.RNG{CLArray}()
         Random.seed!(rng, 1)
         A = CLArray{Complex{Float16}}(undef, 4096)
         randn!(rng, A)

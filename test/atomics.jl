@@ -329,6 +329,12 @@ end
                             ("native local addition", fadd_atomics(T; global_add=false, local_add=true)))
     T == Float64 && !("cl_khr_fp64" in dev.extensions) && continue
     supports_atomics(T) || continue
+    # Explicit descriptors must still respect the device and source compiler's capabilities.
+    prec = T == Float32 ? "f32" : "f64"
+    name == "native global addition" &&
+        !getproperty(default_atomics, Symbol("fadd_", prec, "_global")) && continue
+    name == "native local addition" &&
+        !getproperty(default_atomics, Symbol("fadd_", prec, "_local")) && continue
     @testset "$op" for (op, model, arity) in float_atomic_ops
         # only addition depends on the descriptor
         atomics === nothing || op in (OpenCL.atomic_add!, OpenCL.atomic_sub!) || continue
