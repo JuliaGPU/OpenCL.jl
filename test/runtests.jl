@@ -141,6 +141,19 @@ for t in targets
     end
 end
 
+# On hosts without AVX-512, Intel's CPU runtime lacks the masked 32- and 64-wide variants of
+# `pown` and `rootn` (e.g. `_Z4pownDv32_fDv32_iS_`), so kernels calling them under divergent
+# control flow fail to link at the sub-group width we request (intel/llvm#23456). The random
+# number tests do.
+if !Base.BinaryPlatforms.CPUID.test_cpu_feature(Base.BinaryPlatforms.CPUID.JL_X86_avx512f)
+    for t in targets
+        t.platform == "Intel(R) OpenCL" || continue
+        for name in ("device/random", "gpuarrays/random")
+            delete!(testsuite, "$(t.label)/$name")
+        end
+    end
+end
+
 const init_worker_code = quote
     using OpenCL, $driver_pkg
 

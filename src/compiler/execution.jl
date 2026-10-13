@@ -179,11 +179,24 @@ abstract type AbstractKernel{F, TT} end
 
 pass_arg(@nospecialize dt) = !(isghosttype(dt) || Core.Compiler.isconstType(dt))
 
-@inline @generated function (kernel::AbstractKernel{F,TT})(args...;
-                                                           call_kwargs...) where {F,TT}
+# The arguments are passed on as a tuple: Julia doesn't turn a splat of more than 32
+# elements into a direct call, and a method with both varargs and keyword arguments splats
+# them into its body. So the keyword method is defined explicitly.
+(kernel::AbstractKernel)(args::Vararg{Any,N}) where {N} = launch_tuple(kernel, args)
+Core.kwcall(kwargs::NamedTuple, kernel::AbstractKernel, args::Vararg{Any,N}) where {N} =
+    launch_tuple(kernel, args; kwargs...)
+
+"""
+    OpenCL.launch_tuple(kernel, args::Tuple; kwargs...)
+
+Launch `kernel`, as calling it with the arguments `args...` and the launch keywords
+`kwargs` does, without splatting the arguments.
+"""
+@inline @generated function launch_tuple(kernel::AbstractKernel{F,TT}, args::Tuple;
+                                         call_kwargs...) where {F,TT}
     sig = Tuple{F, TT.parameters...}    # Base.signature_type with a function type
     args = (:(kernel_convert(source, indirect_memory, managed)),
-            (:(kernel_convert(args[$i], indirect_memory, managed)) for i in 1:length(args))...)
+            (:(kernel_convert(args[$i], indirect_memory, managed)) for i in 1:fieldcount(args))...)
 
     # filter out ghost arguments that shouldn't be passed
     to_pass = map(pass_arg, sig.parameters)
@@ -215,7 +228,7 @@ pass_arg(@nospecialize dt) = !(isghosttype(dt) || Core.Compiler.isconstType(dt))
             locked = lock_managed(managed)
             try
                 foreach(take_ownership!, locked)
-                launch_with_exception_mailbox(kernel.fun, $(converted...);
+                launch_with_exception_mailbox(kernel.fun, ($(converted...),);
                                               indirect_memory, rng_state=kernel.rng_state,
                                               call_kwargs...)
             finally

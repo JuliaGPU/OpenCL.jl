@@ -369,7 +369,15 @@ function cl_device_type(dtype::Symbol)
     return cl_dtype
 end
 
-sub_groups_supported(d::Device) = "cl_khr_subgroups" in d.extensions || "cl_intel_subgroups" in d.extensions
+# sub-groups are an extension before OpenCL 3.0, and an optional core feature since, which
+# devices without it report with a maximum of 0 sub-groups
+function sub_groups_supported(d::Device)
+    ("cl_khr_subgroups" in d.extensions || "cl_intel_subgroups" in d.extensions) && return true
+    d.opencl_version >= v"3.0" || return false
+    num = Ref{cl_uint}(0)
+    err = unchecked_clGetDeviceInfo(d, CL_DEVICE_MAX_NUM_SUB_GROUPS, sizeof(cl_uint), num, C_NULL)
+    return err == CL_SUCCESS && num[] > 0
+end
 function sub_group_size(d::Device)
     sub_groups_supported(d) || return 0
     if "cl_amd_device_attribute_query" in d.extensions

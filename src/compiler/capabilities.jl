@@ -105,6 +105,15 @@ const FEATURES = Feature[
     Feature(:fp64, dev -> "cl_khr_fp64" in dev.extensions),
     Feature(:int64_atomics, dev -> "cl_khr_int64_base_atomics" in dev.extensions),
     Feature(:subgroups, cl.sub_groups_supported),
+    Feature(:subgroup_ballot, dev -> "cl_khr_subgroup_ballot" in dev.extensions),
+    # Whether a segment of consecutive lanes of a sub-group can communicate (shuffle, ballot and
+    # fence) without the rest of the sub-group. OpenCL limitation: OpenCL has no barrier for
+    # part of a sub-group, so this relies on the execution model of Intel's GPU runtime, where a
+    # sub-group is the SIMD lanes of one EU thread, and on the native ballot, which only reports
+    # the active lanes.
+    Feature(:partitionable_sub_groups,
+            dev -> occursin("Intel", dev.platform.vendor) && dev.device_type === :gpu &&
+                   "cl_khr_subgroup_ballot" in dev.extensions),
     Feature(:generic_address_space,
             dev -> has_opencl_c_feature(dev, "__opencl_c_generic_address_space")),
     # What the device reports for floating-point atomics in both global and local memory.
