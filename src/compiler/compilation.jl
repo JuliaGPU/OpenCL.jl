@@ -158,7 +158,8 @@ const compiler_config_lock = ReentrantLock()
 function compiler_config(dev::cl.Device; kwargs...)
     # key on the policy, not the resolved backend: resolving queries the device, so defer it to link
     backend = program_backend()
-    h = hash(dev, hash(backend, hash(kwargs)))
+    # (as a `NamedTuple`: hashing the `Pairs` boxes each value, on every launch)
+    h = hash(dev, hash(backend, hash(values(kwargs))))
     return Base.@lock compiler_config_lock begin
         get!(_compiler_configs, h) do
             _compiler_config(dev, backend; kwargs...)
