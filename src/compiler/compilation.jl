@@ -40,12 +40,15 @@ end
 
 GPUCompiler.runtime_module(::CompilerJob{<:Any,OpenCLCompilerParams}) = OpenCL
 
+# SPIR-V doesn't support 128-bit integers, so keep 64-bit integer math (e.g. `Rational`
+# comparisons) that Base computes with them out of Int128
 function GPUCompiler.method_tables(job::OpenCLCompilerJob)
     if job.config.target.supports_fp64
-        (method_table, SPIRVIntrinsics.method_table)
+        (method_table, SPIRVIntrinsics.method_table, GPUToolbox.Overlays.int128_overrides)
     else
         # keep single-precision math that Base computes in Float64 out of double precision
-        (method_table, SPIRVIntrinsics.method_table, GPUToolbox.Overlays.float64_overrides)
+        (method_table, SPIRVIntrinsics.method_table, GPUToolbox.Overlays.float64_overrides,
+         GPUToolbox.Overlays.int128_overrides)
     end
 end
 
