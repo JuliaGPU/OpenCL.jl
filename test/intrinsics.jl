@@ -193,6 +193,30 @@ end
     @test call_on_device(OpenCL.mad, x, y, z) ≈ x * y + z
 end
 
+# Base compares rationals using the 128-bit products of their numerators and denominators,
+# which GPUToolbox computes in 64-bit words instead
+@testset "rational comparisons" begin
+    # comparisons with floats use a funnel shift, which the SPIR-V back-end implements in a
+    # function whose name (`spirv.llvm_fshl_i64`) spirv2clc doesn't make a valid identifier
+    uses_spirv2clc = OpenCL.resolve_program_backend(cl.device(), OpenCL.program_backend()) !== :spirv
+
+    xs = Float32[0, -1, 1.4, 1.5, 1.6, Inf, NaN]
+    @test Array(map(x -> x < 3 // 2, CLArray(xs))) == (xs .< 3 // 2) broken=uses_spirv2clc
+
+    qs = [1//3, -5//7, 3//2, typemax(Int)//2, 2^40//3, -typemax(Int)//(2^40 + 1)]
+    ns = [0, -1, 2, 2^35, typemax(Int), typemin(Int)]
+    fs = Float32[0.3, -0.7, 1.5, 2f0^62, 3.6f11, -Inf]
+    for op in (<, <=, cmp)
+        @test Array(op.(CLArray(qs), CLArray(fs))) == op.(qs, fs)
+        @test Array(op.(CLArray(fs), CLArray(qs))) == op.(fs, qs) broken=uses_spirv2clc
+    end
+    for op in (<, <=)
+        @test Array(op.(CLArray(qs), CLArray(reverse(qs)))) == op.(qs, reverse(qs))
+        @test Array(op.(CLArray(qs), CLArray(ns))) == op.(qs, ns)
+        @test Array(op.(CLArray(ns), CLArray(qs))) == op.(ns, qs)
+    end
+end
+
 # truncating the 3-D builtins used to produce loads of vector types SPIR-V doesn't have
 function truncated_builtins_kernel(a, b, c)
     # only the last work-item writes
