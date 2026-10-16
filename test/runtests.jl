@@ -131,12 +131,15 @@ if args.list === nothing
 end
 
 # Intel's CPU runtime crashes the process while compiling some of the GPUArrays kernels
-# (a segfault in the LLVM optimizer of its kernel compiler; #558, #559), so skip the tests
-# that use them.
+# (a segfault in the LLVM optimizer of its kernel compiler; #558 = intel/llvm#23517,
+# #559 = intel/llvm#23518), so skip the tests that use them. "sum prod" hits the #559 crash
+# through `mapreduce(*, +, A, B)` on multi-dimensional arrays; which element types trigger
+# it differs between hosts.
 for t in targets
     t.platform == "Intel(R) OpenCL" || continue
     for name in ("gpuarrays/accumulate", "gpuarrays/linalg/core", "gpuarrays/reductions/base",
-                 "gpuarrays/reductions/contract", "gpuarrays/reductions/== isequal")
+                 "gpuarrays/reductions/contract", "gpuarrays/reductions/== isequal",
+                 "gpuarrays/reductions/sum prod")
         delete!(testsuite, "$(t.label)/$name")
     end
 end
