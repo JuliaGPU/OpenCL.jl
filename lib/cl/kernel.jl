@@ -269,63 +269,68 @@ function call(
     )
     return Base.@lock k begin
     _set_args!(k, args)
-    if !isempty(indirect_memory)
-        svm_pointers = CLPtr{Cvoid}[]
-        usm_pointers = CLPtr{Cvoid}[]
-        bda_pointers = CLPtr{Cvoid}[]
-        device_access = host_access = shared_access = false
-        for memory in indirect_memory
-            ptr = pointer(memory)
-            if ptr == C_NULL || ptr == CL_NULL
-                continue
-            end
-
-            if memory isa SharedVirtualMemory
-                # system memory is not an SVM allocation and needs no registration:
-                # indirect access to it is governed by `SVM_FINE_GRAIN_SYSTEM`, which
-                # defaults to true on devices that support it.
-                is_system(memory) || push!(svm_pointers, ptr)
-            elseif memory isa Buffer
-                push!(bda_pointers, ptr)
-            elseif memory isa UnifiedDeviceMemory
-                device_access = true
-                push!(usm_pointers, ptr)
-            elseif memory isa UnifiedHostMemory
-                host_access = true
-                push!(usm_pointers, reinterpret(CLPtr{Cvoid}, ptr))
-            elseif memory isa UnifiedSharedMemory
-                shared_access = true
-                push!(usm_pointers, ptr)
-            else
-                throw(ArgumentError("Unknown memory type"))
-            end
-        end
-
-        # configure USM access
-        if device_access
-            clSetKernelExecInfo(k, CL_KERNEL_EXEC_INFO_INDIRECT_DEVICE_ACCESS_INTEL, sizeof(cl_bool), Ref{cl_bool}(true))
-        end
-        if host_access
-            clSetKernelExecInfo(k, CL_KERNEL_EXEC_INFO_INDIRECT_HOST_ACCESS_INTEL, sizeof(cl_bool), Ref{cl_bool}(true))
-        end
-        if shared_access
-            clSetKernelExecInfo(k, CL_KERNEL_EXEC_INFO_INDIRECT_SHARED_ACCESS_INTEL, sizeof(cl_bool), Ref{cl_bool}(true))
-        end
-
-        # set the pointers
-        if !isempty(svm_pointers)
-            clSetKernelExecInfo(k, CL_KERNEL_EXEC_INFO_SVM_PTRS, sizeof(svm_pointers), svm_pointers)
-        end
-        if !isempty(bda_pointers)
-            clSetKernelExecInfo(k, CL_KERNEL_EXEC_INFO_DEVICE_PTRS_EXT, sizeof(bda_pointers), bda_pointers)
-        end
-        if !isempty(usm_pointers)
-            clSetKernelExecInfo(k, CL_KERNEL_EXEC_INFO_USM_PTRS_INTEL, sizeof(usm_pointers), usm_pointers)
-        end
-    end
+    isempty(indirect_memory) || set_indirect_memory!(k, indirect_memory)
     enqueue_kernel(k, global_size, local_size; global_work_offset, wait_on, rng_state,
                    nargs=length(args))
     end
+end
+
+# register the memory that the kernel accesses through pointers that aren't arguments.
+# kept out of `call`, which is compiled for every kernel signature.
+@noinline function set_indirect_memory!(k::Kernel, indirect_memory::Vector{AbstractMemory})
+    svm_pointers = CLPtr{Cvoid}[]
+    usm_pointers = CLPtr{Cvoid}[]
+    bda_pointers = CLPtr{Cvoid}[]
+    device_access = host_access = shared_access = false
+    for memory in indirect_memory
+        ptr = pointer(memory)
+        if ptr == C_NULL || ptr == CL_NULL
+            continue
+        end
+
+        if memory isa SharedVirtualMemory
+            # system memory is not an SVM allocation and needs no registration:
+            # indirect access to it is governed by `SVM_FINE_GRAIN_SYSTEM`, which
+            # defaults to true on devices that support it.
+            is_system(memory) || push!(svm_pointers, ptr)
+        elseif memory isa Buffer
+            push!(bda_pointers, ptr)
+        elseif memory isa UnifiedDeviceMemory
+            device_access = true
+            push!(usm_pointers, ptr)
+        elseif memory isa UnifiedHostMemory
+            host_access = true
+            push!(usm_pointers, reinterpret(CLPtr{Cvoid}, ptr))
+        elseif memory isa UnifiedSharedMemory
+            shared_access = true
+            push!(usm_pointers, ptr)
+        else
+            throw(ArgumentError("Unknown memory type"))
+        end
+    end
+
+    # configure USM access
+    if device_access
+        clSetKernelExecInfo(k, CL_KERNEL_EXEC_INFO_INDIRECT_DEVICE_ACCESS_INTEL, sizeof(cl_bool), Ref{cl_bool}(true))
+    end
+    if host_access
+        clSetKernelExecInfo(k, CL_KERNEL_EXEC_INFO_INDIRECT_HOST_ACCESS_INTEL, sizeof(cl_bool), Ref{cl_bool}(true))
+    end
+    if shared_access
+        clSetKernelExecInfo(k, CL_KERNEL_EXEC_INFO_INDIRECT_SHARED_ACCESS_INTEL, sizeof(cl_bool), Ref{cl_bool}(true))
+    end
+
+    # set the pointers
+    if !isempty(svm_pointers)
+        clSetKernelExecInfo(k, CL_KERNEL_EXEC_INFO_SVM_PTRS, sizeof(svm_pointers), svm_pointers)
+    end
+    if !isempty(bda_pointers)
+        clSetKernelExecInfo(k, CL_KERNEL_EXEC_INFO_DEVICE_PTRS_EXT, sizeof(bda_pointers), bda_pointers)
+    end
+    if !isempty(usm_pointers)
+        clSetKernelExecInfo(k, CL_KERNEL_EXEC_INFO_USM_PTRS_INTEL, sizeof(usm_pointers), usm_pointers)
+    end
+    return
 end
 
 # From `julia/base/reflection.jl`, adjusted to add specialization on `t`.
