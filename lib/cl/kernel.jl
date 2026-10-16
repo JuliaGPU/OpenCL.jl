@@ -431,8 +431,15 @@ end
 
 function set_arg!(k::Kernel, idx::Integer, arg::T) where {T}
     ref = Ref(arg)
-    tsize = sizeof(ref)
-    err = unchecked_clSetKernelArg(k, idx - 1, tsize, ref)
+    GC.@preserve ref begin
+        set_arg_value!(k, Int(idx), sizeof(ref), Base.unsafe_convert(Ptr{Cvoid}, ref))
+    end
+    return k
+end
+
+# kept out of `set_arg!`, which is compiled for every argument type
+@noinline function set_arg_value!(k::Kernel, idx::Int, size::Int, ptr::Ptr{Cvoid})
+    err = unchecked_clSetKernelArg(k, idx - 1, size, ptr)
     if err == CL_INVALID_ARG_SIZE
         error("""Mismatch between Julia and OpenCL type for kernel argument $idx.
 
@@ -446,7 +453,7 @@ function set_arg!(k::Kernel, idx::Integer, arg::T) where {T}
     elseif err != CL_SUCCESS
         throw(CLError(err))
     end
-    return k
+    return
 end
 
 function set_arg!(k::Kernel, idx::Integer, arg::Nothing)
