@@ -242,8 +242,9 @@ function KI.launch(kernel::KI.Kernel{OpenCLBackend}, groups::Dims{3}, items::Dim
     return
 end
 
-function KI.max_work_group_size(kernel::KI.Kernel{OpenCLBackend})::Int
-    fun = kernel.kern.fun
+# KernelAbstractions calls this from its launch code, which is compiled for every kernel
+KI.max_work_group_size(kernel::KI.Kernel{OpenCLBackend}) = max_work_group_size(kernel.kern.fun)
+@noinline function max_work_group_size(fun::cl.Kernel)
     wginfo = cl.work_group_info(fun, kernel_device(fun))
     Int(wginfo.size)
 end
@@ -252,7 +253,8 @@ end
 ## Device Properties
 
 # querying the device allocates, so cache what launches and kernels need. the cache is
-# keyed on the device, because the task-local device can be switched.
+# keyed on the device, because the task-local device can be switched. not inlined, as the
+# device queries are used in launch code that is compiled for every kernel.
 const DeviceProperties = @NamedTuple{
     max_work_group_size::Int, max_work_group_dims::NTuple{3, Int}, compute_units::Int,
     float64::Bool, unified::Bool,
@@ -260,7 +262,7 @@ const DeviceProperties = @NamedTuple{
     sub_group_size::Int, shuffle::Bool, float16::Bool,
     linear_sub_groups::Bool, independent_sub_groups::Bool, partitionable_sub_groups::Bool,
 }
-function device_properties(dev::cl.Device)
+@noinline function device_properties(dev::cl.Device)
     cache = get!(task_local_storage(), :CLDeviceProperties) do
         Dict{cl.Device, DeviceProperties}()
     end::Dict{cl.Device, DeviceProperties}
