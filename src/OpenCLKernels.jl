@@ -182,7 +182,7 @@ KI.argconvert(::OpenCLBackend, arg) = kernel_convert(arg)
 # again at every launch, because the converted callable only holds pointers to the arrays
 # it captures
 function KI.kernel_function(backend::OpenCLBackend, f::F, tt::TT=Tuple{}; name = nothing, kwargs...) where {F,TT}
-    activate(backend)
+    @noinline activate(backend)     # this method is compiled for every kernel
     check_sub_group_size(backend, kwargs)
     kern = GC.@preserve f clfunction(kernel_convert(f), tt; source=f, name, kwargs...)
     KI.Kernel{OpenCLBackend, typeof(kern)}(backend, kern)
@@ -197,25 +197,36 @@ function check_sub_group_size(backend::OpenCLBackend, kwargs)
     return
 end
 
+# these helpers take the `cl.Kernel` instead of the `KI.Kernel`, whose type depends on the
+# kernel's function and argument types, so that they are compiled once instead of per kernel
+
 # the context that a kernel was compiled for
-function kernel_context(kernel::KI.Kernel{OpenCLBackend})
+function kernel_context(kernel::cl.Kernel)
     ctx = Ref{cl.cl_context}()
-    cl.clGetKernelInfo(kernel.kern.fun, cl.CL_KERNEL_CONTEXT, sizeof(cl.cl_context), ctx, C_NULL)
+    cl.clGetKernelInfo(kernel, cl.CL_KERNEL_CONTEXT, sizeof(cl.cl_context), ctx, C_NULL)
     return ctx[]
 end
 
-function kernel_device(kernel::KI.Kernel{OpenCLBackend})
+function kernel_device(kernel::cl.Kernel)
     ctx = kernel_context(kernel)
     ctx == cl.context().id && return cl.device()
     return context_device(cl.Context(ctx; retain=true))
 end
 
-@noinline function throw_device_mismatch(kernel)
+@noinline function throw_device_mismatch(kernel::cl.Kernel)
     throw(ArgumentError("Cannot launch a kernel compiled for $(kernel_device(kernel).name) on $(cl.device().name)"))
 end
 
 @noinline function throw_geometry_keyword()
     throw(ArgumentError("KernelInterface kernels take `numgroups`, `workgroupsize` or `ndrange`, not `global_size` or `local_size`"))
+end
+
+# activate the backend, and check that the kernel was compiled for its device. kept out of
+# `KI.launch`, which is compiled for every kernel.
+@noinline function prepare_launch(backend::OpenCLBackend, fun::cl.Kernel)
+    activate(backend)
+    kernel_context(fun) == cl.context().id || throw_device_mismatch(fun)
+    return
 end
 
 # passes the arguments on as a tuple, like calling the `HostKernel` does
@@ -225,15 +236,16 @@ function KI.launch(kernel::KI.Kernel{OpenCLBackend}, groups::Dims{3}, items::Dim
     if haskey(kwargs, :global_size) || haskey(kwargs, :local_size)
         throw_geometry_keyword()
     end
-    activate(kernel.backend)
-    kernel_context(kernel) == cl.context().id || throw_device_mismatch(kernel)
+    prepare_launch(kernel.backend, kernel.kern.fun)
     OpenCL.launch_tuple(kernel.kern, args; local_size = items, global_size = items .* groups,
                         kwargs...)
     return
 end
 
-function KI.max_work_group_size(kernel::KI.Kernel{OpenCLBackend})::Int
-    wginfo = cl.work_group_info(kernel.kern.fun, kernel_device(kernel))
+# KernelAbstractions calls this from its launch code, which is compiled for every kernel
+KI.max_work_group_size(kernel::KI.Kernel{OpenCLBackend}) = max_work_group_size(kernel.kern.fun)
+@noinline function max_work_group_size(fun::cl.Kernel)
+    wginfo = cl.work_group_info(fun, kernel_device(fun))
     Int(wginfo.size)
 end
 
@@ -241,7 +253,8 @@ end
 ## Device Properties
 
 # querying the device allocates, so cache what launches and kernels need. the cache is
-# keyed on the device, because the task-local device can be switched.
+# keyed on the device, because the task-local device can be switched. not inlined, as the
+# device queries are used in launch code that is compiled for every kernel.
 const DeviceProperties = @NamedTuple{
     max_work_group_size::Int, max_work_group_dims::NTuple{3, Int}, compute_units::Int,
     float64::Bool, unified::Bool,
@@ -249,7 +262,7 @@ const DeviceProperties = @NamedTuple{
     sub_group_size::Int, shuffle::Bool, float16::Bool,
     linear_sub_groups::Bool, independent_sub_groups::Bool, partitionable_sub_groups::Bool,
 }
-function device_properties(dev::cl.Device)
+@noinline function device_properties(dev::cl.Device)
     cache = get!(task_local_storage(), :CLDeviceProperties) do
         Dict{cl.Device, DeviceProperties}()
     end::Dict{cl.Device, DeviceProperties}

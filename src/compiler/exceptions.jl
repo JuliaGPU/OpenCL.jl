@@ -179,26 +179,45 @@ end
 function launch_with_exception_mailbox(kernel::cl.Kernel, args::Tuple;
                                        indirect_memory::Vector{cl.AbstractMemory},
                                        rng_state::Bool, kwargs...)
+    mailbox, queue = current_exception_mailbox()
+    Base.@lock mailbox.lock begin
+        state = next_kernel_state(mailbox, indirect_memory, rng_state)
+        result = cl.call(kernel, prepend(state, args); indirect_memory, rng_state, kwargs...)
+        # only publish the launch once it has been submitted, so that `check_exceptions`
+        # can tell whether kernels have been submitted while it waited without the lock
+        publish_launch(mailbox, queue, state.launch_id)
+        return result
+    end
+end
+
+# the parts of the launch that don't depend on the arguments, kept out of the function above,
+# which is compiled for every kernel signature
+
+@noinline function current_exception_mailbox()
     ctx, dev, queue = cl.context(), cl.device(), cl.queue()
     mailbox = Base.@lock exception_mailboxes_lock begin
         get!(exception_mailboxes, (ctx, dev)) do
             allocate_exception_mailbox(ctx)
         end
     end
-    Base.@lock mailbox.lock begin
-        mailbox.mem === nothing || push!(indirect_memory, mailbox.mem)
-        launch_id = (Base.@atomic mailbox.launch_id) + UInt64(1)
-        state = KernelState(rng_state ? Base.rand(UInt32) : UInt32(0), mailbox.address,
-                            launch_id)
-        result = cl.call(kernel, prepend(state, args); indirect_memory, rng_state, kwargs...)
-        # only publish the launch once it has been submitted, so that `check_exceptions`
-        # can tell whether kernels have been submitted while it waited without the lock
-        Base.@atomic mailbox.launch_id = launch_id
-        if mailbox.mem !== nothing
-            push!(mailbox.pending, queue)
-        end
-        return result
+    return mailbox, queue
+end
+
+@noinline function next_kernel_state(mailbox::ExceptionMailbox,
+                                     indirect_memory::Vector{cl.AbstractMemory},
+                                     rng_state::Bool)
+    mailbox.mem === nothing || push!(indirect_memory, mailbox.mem)
+    launch_id = (Base.@atomic mailbox.launch_id) + UInt64(1)
+    return KernelState(rng_state ? Base.rand(UInt32) : UInt32(0), mailbox.address, launch_id)
+end
+
+@noinline function publish_launch(mailbox::ExceptionMailbox, queue::cl.CmdQueue,
+                                  launch_id::UInt64)
+    Base.@atomic mailbox.launch_id = launch_id
+    if mailbox.mem !== nothing
+        push!(mailbox.pending, queue)
     end
+    return
 end
 
 """

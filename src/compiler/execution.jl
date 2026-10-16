@@ -255,9 +255,15 @@ end
 const clfunction_lock = ReentrantLock()
 
 function clfunction(f::F, tt::TT=Tuple{}; source=f, kwargs...) where {F,TT}
+    kernel, device_rng = clfunction_link(methodinstance(F, tt); kwargs...)
+    HostKernel{F,typeof(source),tt}(f, source, kernel, device_rng)
+end
+
+# the part of `clfunction` that doesn't depend on the kernel's function and argument types,
+# kept separate so that it's compiled once rather than for every kernel
+function clfunction_link(mi::Core.MethodInstance; kwargs...)
     Base.@lock clfunction_lock begin
         config = compiler_config(cl.device(); kwargs...)::OpenCLCompilerConfig
-        mi = methodinstance(F, tt)
         job = CompilerJob(mi, config)
 
         res = compile_or_lookup(job)::OpenCLResults
@@ -282,7 +288,7 @@ function clfunction(f::F, tt::TT=Tuple{}; source=f, kwargs...) where {F,TT}
             end
         end
 
-        HostKernel{F,typeof(source),tt}(f, source, kernel, res.device_rng)
+        return kernel, res.device_rng
     end
 end
 
