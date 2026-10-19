@@ -67,7 +67,7 @@ for (julia_name, (spirv_name, offset)) in [
     push!(known_intrinsics, String(mangled))
     @eval begin
         export $julia_name
-        @device_function $julia_name(dimindx::Integer=1u32) =
-            builtin_vector_variable(Val($(QuoteNode(mangled))), (dimindx - 1u32) % Int32) % Int + $offset
+        @device_function $julia_name(dimindx::Integer=$(1u32)) =
+            builtin_vector_variable(Val($(QuoteNode(mangled))), (dimindx - $(1u32)) % Int32) % Int + $offset
     end
 end
