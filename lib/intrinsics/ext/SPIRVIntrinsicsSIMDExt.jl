@@ -3,7 +3,6 @@ module SPIRVIntrinsicsSIMDExt
 using SPIRVIntrinsics
 using SPIRVIntrinsics: @device_override, @device_function, @builtin_ccall, @typed_ccall, method_table
 using SIMD
-import SpecialFunctions
 
 const known_intrinsics = String[]
 
@@ -33,9 +32,6 @@ for N in [2, 3, 4, 8, 16], T in [Float16, Float32, Float64]
         @device_override @inline Base.cosh(x::$VT) = $VT(@builtin_ccall("cosh", $LVT, ($LVT,), x.data))
         @device_override @inline Base.cospi(x::$VT) = $VT(@builtin_ccall("cospi", $LVT, ($LVT,), x.data))
 
-        @device_override @inline SpecialFunctions.erfc(x::$VT) = $VT(@builtin_ccall("erfc", $LVT, ($LVT,), x.data))
-        @device_override @inline SpecialFunctions.erf(x::$VT) = $VT(@builtin_ccall("erf", $LVT, ($LVT,), x.data))
-
         @device_override @inline Base.exp(x::$VT) = $VT(@builtin_ccall("exp", $LVT, ($LVT,), x.data))
         @device_override @inline Base.exp2(x::$VT) = $VT(@builtin_ccall("exp2", $LVT, ($LVT,), x.data))
         @device_override @inline Base.exp10(x::$VT) = $VT(@builtin_ccall("exp10", $LVT, ($LVT,), x.data))
@@ -43,8 +39,6 @@ for N in [2, 3, 4, 8, 16], T in [Float16, Float32, Float64]
 
         @device_override @inline Base.abs(x::$VT) = $VT(@builtin_ccall("fabs", $LVT, ($LVT,), x.data))
         @device_override @inline Base.floor(x::$VT) = $VT(@builtin_ccall("floor", $LVT, ($LVT,), x.data))
-
-        @device_override @inline SpecialFunctions.loggamma(x::$VT) = $VT(@builtin_ccall("lgamma", $LVT, ($LVT,), x.data))
 
         @device_override @inline Base.log(x::$VT) = $VT(@builtin_ccall("log", $LVT, ($LVT,), x.data))
         @device_override @inline Base.log2(x::$VT) = $VT(@builtin_ccall("log2", $LVT, ($LVT,), x.data))
@@ -65,8 +59,6 @@ for N in [2, 3, 4, 8, 16], T in [Float16, Float32, Float64]
         @device_override @inline Base.tan(x::$VT) = $VT(@builtin_ccall("tan", $LVT, ($LVT,), x.data))
         @device_override @inline Base.tanh(x::$VT) = $VT(@builtin_ccall("tanh", $LVT, ($LVT,), x.data))
         @device_override @inline Base.tanpi(x::$VT) = $VT(@builtin_ccall("tanpi", $LVT, ($LVT,), x.data))
-
-        @device_override @inline SpecialFunctions.gamma(x::$VT) = $VT(@builtin_ccall("tgamma", $LVT, ($LVT,), x.data))
 
         @device_override @inline Base.trunc(x::$VT) = $VT(@builtin_ccall("trunc", $LVT, ($LVT,), x.data))
 

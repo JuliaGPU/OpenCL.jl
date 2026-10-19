@@ -5,8 +5,6 @@ using Core: LLVMPtr
 
 import ExprTools
 
-import SpecialFunctions
-
 import UnsafeAtomics
 
 using GPUToolbox: u32
