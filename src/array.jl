@@ -462,16 +462,22 @@ end
 # We don't convert isbits types in `adapt`, since they are already
 # considered GPU-compatible.
 
-Adapt.adapt_storage(::Type{CLArray}, xs::AT) where {AT <: AbstractArray} =
-    isbitstype(AT) ? xs : convert(CLArray, xs)
+# Type parameters that are specified are preserved, the others are taken from the source
+# array (or the default memory type). Any subset can be given, e.g. `CLArray{<:Any, <:Any, M}`.
+adapt_eltype(::Type{<:CLArray{T}}, xs) where {T} = T
+adapt_eltype(::Type{<:CLArray}, xs) = eltype(xs)
+adapt_ndims(::Type{<:CLArray{<:Any, N}}, xs) where {N} = N
+adapt_ndims(::Type{<:CLArray}, xs) = ndims(xs)
+adapt_memtype(::Type{<:CLArray{<:Any, <:Any, M}}, xs) where {M} = M
+adapt_memtype(::Type{<:CLArray}, xs) = xs isa CLArray ? memtype(xs) : memory_type()
 
-# if specific type parameters are specified, preserve those
-Adapt.adapt_storage(::Type{<:CLArray{T}}, xs::AT) where {T, AT <: AbstractArray} =
-    isbitstype(AT) ? xs : convert(CLArray{T}, xs)
-Adapt.adapt_storage(::Type{<:CLArray{T, N}}, xs::AT) where {T, N, AT <: AbstractArray} =
-    isbitstype(AT) ? xs : convert(CLArray{T, N}, xs)
-Adapt.adapt_storage(::Type{<:CLArray{T, N, M}}, xs::AT) where {T, N, M, AT <: AbstractArray} =
-    isbitstype(AT) ? xs : convert(CLArray{T, N, M}, xs)
+function Adapt.adapt_storage(::Type{A}, xs::AT) where {A <: CLArray, AT <: AbstractArray}
+    isbitstype(AT) && return xs
+    B = CLArray{adapt_eltype(A, xs), adapt_ndims(A, xs), adapt_memtype(A, xs)}
+    # parameters taken from the source may violate bounds in `A`, e.g. `CLArray{<:Real}`
+    B <: A || throw(ArgumentError("cannot adapt a $AT to $A"))
+    return convert(B, xs)
+end
 
 
 ## utilities
