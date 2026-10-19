@@ -154,6 +154,17 @@ a = CLArray{Int}(undef, 10)
 @opencl global_size=length(a) memset(a, 42)
 @test all(Array(a) .== 42)
 
+@testset "CPU array argument" begin
+    kernel(a) = return
+    a_dev = CLArray([1f0])
+    b = [1f0]
+    for f in (() -> @opencl(kernel(b)), () -> a_dev .+ b)
+        err = try f(); nothing catch err; err end
+        @test err isa ArgumentError
+        @test occursin("CLArray", sprint(showerror, err))
+    end
+end
+
 end
 
 # a scalar field inserted before a nested one used to be lost on Intel's GPU driver (#502)
