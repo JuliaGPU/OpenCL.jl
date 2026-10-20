@@ -26,6 +26,26 @@ end
     @test Adapt.adapt(Array, dA) == A
     @test Adapt.adapt(CLArray, A) isa CLArray
     @test Array(Adapt.adapt(CLArray, A)) == A
+
+    # unspecified type parameters are taken from the source array (JuliaGPU/Metal.jl#363)
+    M = OpenCL.memory_type()
+    @test Adapt.adapt(CLMatrix, [1 2; 3 4]) isa CLArray{Int, 2, M}
+    @test Adapt.adapt(CLArray{<:Any, <:Any, cl.Buffer}, [1 2; 3 4]) isa CLArray{Int, 2, cl.Buffer}
+    @test Adapt.adapt(CLVector{<:Any, cl.Buffer}, [1, 2]) isa CLArray{Int, 1, cl.Buffer}
+    @test Adapt.adapt(CLArray{Float32, <:Any, cl.Buffer}, [1 2; 3 4]) isa CLArray{Float32, 2, cl.Buffer}
+    let xs = Adapt.adapt(CLArray{<:Any, <:Any, cl.Buffer}, (Float32[1], Int32[1 2]))
+        @test xs[1] isa CLArray{Float32, 1, cl.Buffer}
+        @test xs[2] isa CLArray{Int32, 2, cl.Buffer}
+    end
+    @test_throws MethodError Adapt.adapt(CLVector{Float32}, [1 2; 3 4])
+    @test_throws ArgumentError Adapt.adapt(CLArray{<:Real}, ComplexF32[1])
+    let xs = CLArray{Float32, 1, cl.Buffer}([1])
+        @test Adapt.adapt(CLArray, xs) === xs
+        @test Adapt.adapt(CLArray{Float32}, xs) === xs
+        @test Adapt.adapt(CLArray{Int32}, xs) isa CLArray{Int32, 1, cl.Buffer}
+        @test Adapt.adapt(typeof(xs), xs) === xs
+        @test Adapt.adapt(CLArray{<:Any, <:Any, M}, xs) isa CLArray{Float32, 1, M}
+    end
 end
 
 @testset "reshape" begin
