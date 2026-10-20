@@ -58,7 +58,7 @@ end
     @test cl.device() in collect(keys(binaries))
     @test binaries[cl.device()] != nothing
     @test length(binaries[cl.device()]) > 0
-    prg2 = cl.Program(binaries=binaries) |> cl.build!
+    prg2 = cl.Program(binaries=binaries)
     @test prg2.binaries == binaries
     @test prg2.source === nothing
 end
