@@ -1,5 +1,6 @@
 using SIMD
 import GPUCompiler
+import SpecialFunctions
 
 function call_on_device(f, args...)
     function kernel(res, f, args...)
@@ -136,6 +137,17 @@ end
         y = rand(T)
         z = rand(T)
         @test call_on_device(f, x, y, z) ≈ f(x, y, z)
+    end
+end
+
+@testset "SpecialFunctions - $T" for T in float_types
+    @testset "$f" for f in [
+            SpecialFunctions.erf, SpecialFunctions.erfc,
+            SpecialFunctions.gamma, SpecialFunctions.loggamma,
+        ]
+        # keep the gamma functions away from their zeros and poles
+        x = f in (SpecialFunctions.gamma, SpecialFunctions.loggamma) ? rand(T) + T(2.5) : rand(T)
+        @test call_on_device(f, x) ≈ f(x)
     end
 end
 
@@ -556,6 +568,16 @@ end # if cl.sub_groups_supported(cl.device())
     rootn_base = Vec{N, T}(ntuple(_ -> rand(T) * T(10) + T(1), N))
     rootn_n = Vec{N, Int32}(ntuple(_ -> rand(Int32.(2:4)), N))
     @test call_on_device(OpenCL.rootn, rootn_base, rootn_n) isa Vec{N, T}
+
+    # SpecialFunctions
+    @test let
+        erf_result = call_on_device(SpecialFunctions.erf, v)
+        all(erf_result[i] ≈ SpecialFunctions.erf(v[i]) for i in 1:N)
+    end
+    @test let
+        gamma_result = call_on_device(SpecialFunctions.gamma, base)
+        all(gamma_result[i] ≈ SpecialFunctions.gamma(base[i]) for i in 1:N)
+    end
 
     # special cases: nan
     nan_code = Vec{N, Base.uinttype(T)}(ntuple(_ -> rand(Base.uinttype(T)), N))

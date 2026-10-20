@@ -37,9 +37,6 @@ for gentype in generic_types
 @device_override Base.cosh(x::$gentype) = @builtin_ccall("cosh", $gentype, ($gentype,), x)
 @device_override Base.cospi(x::$gentype) = @builtin_ccall("cospi", $gentype, ($gentype,), x)
 
-@device_override SpecialFunctions.erfc(x::$gentype) = @builtin_ccall("erfc", $gentype, ($gentype,), x)
-@device_override SpecialFunctions.erf(x::$gentype) = @builtin_ccall("erf", $gentype, ($gentype,), x)
-
 @device_override Base.exp(x::$gentype) = @builtin_ccall("exp", $gentype, ($gentype,), x)
 @device_override Base.exp2(x::$gentype) = @builtin_ccall("exp2", $gentype, ($gentype,), x)
 @device_override Base.exp10(x::$gentype) = @builtin_ccall("exp10", $gentype, ($gentype,), x)
@@ -61,8 +58,6 @@ for gentype in generic_types
 # fract(x::$gentype, $gentype *iptr) = @builtin_ccall("fract", $gentype, ($gentype, $gentype *), x, iptr)
 
 @device_override Base.hypot(x::$gentype, y::$gentype) = @builtin_ccall("hypot", $gentype, ($gentype, $gentype), x, y)
-
-@device_override SpecialFunctions.loggamma(x::$gentype) = @builtin_ccall("lgamma", $gentype, ($gentype,), x)
 
 @device_override Base.log(x::$gentype) = @builtin_ccall("log", $gentype, ($gentype,), x)
 @device_override Base.log2(x::$gentype) = @builtin_ccall("log2", $gentype, ($gentype,), x)
@@ -106,8 +101,6 @@ end
 @device_override Base.tan(x::$gentype) = @builtin_ccall("tan", $gentype, ($gentype,), x)
 @device_override Base.tanh(x::$gentype) = @builtin_ccall("tanh", $gentype, ($gentype,), x)
 @device_override Base.tanpi(x::$gentype) = @builtin_ccall("tanpi", $gentype, ($gentype,), x)
-
-@device_override SpecialFunctions.gamma(x::$gentype) = @builtin_ccall("tgamma", $gentype, ($gentype,), x)
 
 @device_override Base.trunc(x::$gentype) = @builtin_ccall("trunc", $gentype, ($gentype,), x)
 
