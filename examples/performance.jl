@@ -60,7 +60,7 @@ function cl_performance(ndatapts::Integer, nworkers::Integer)
             @printf("Device max clock freq: %i MHZ\n",  device.max_clock_frequency)
             @printf("Device max compute units: %i\n",   device.max_compute_units)
             @printf("Device max work group size: %i\n", device.max_work_group_size)
-            @printf("Device max work item size: %s\n",  device.max_work_item_size)
+            @printf("Device max work group sizes: %s\n",  device.max_work_group_sizes)
 
             if device.max_mem_alloc_size < sizeof(Float32) * ndatapts
                 @warn("Requested buffer size exceeds device max alloc size!")

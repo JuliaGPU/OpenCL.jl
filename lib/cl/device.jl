@@ -135,7 +135,8 @@ end
         end
     end
 
-    if s == :max_work_item_size
+    # :max_work_item_size should be deprecated from OpenCL.jl
+    if s == :max_work_group_sizes || s == :max_work_item_size
         result = Vector{Csize_t}(undef, d.max_work_item_dims)
         clGetDeviceInfo(d, CL_DEVICE_MAX_WORK_ITEM_SIZES, sizeof(result), result, C_NULL)
         return tuple([Int(r) for r in result]...)
@@ -189,7 +190,7 @@ function Base.propertynames(::Device, private::Bool=false)
         :has_image_support, :has_local_mem, :host_unified_memory, :available,
         :compiler_available, :non_uniform_work_group_support
         # other
-        :extensions, :platform, :device_type, :max_work_item_size, :sub_group_sizes,
+        :extensions, :platform, :device_type, :max_work_group_sizes, :sub_group_sizes,
         :max_image2d_shape, :max_image3d_shape,
     )
     return private ? (fieldnames(Device)..., props...) : props
