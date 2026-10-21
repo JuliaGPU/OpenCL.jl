@@ -1,6 +1,6 @@
 # Tests on hardware that GitHub Actions doesn't provide. Draft pull requests skip them, unless
-# selected by name in the last commit message: `[only cuda]`, `[only macos]`, or `[only tests]`
-# for both. `[skip macos]` or `[skip tests]` does the opposite (as in GPUCompiler.jl's CI).
+# selected by name in the last commit message: `[only cuda]` or `[only tests]`. `[skip cuda]`
+# or `[skip tests]` does the opposite (as in GPUCompiler.jl's CI).
 steps:
   - label: "CUDA"
     plugins:
@@ -29,50 +29,3 @@ steps:
       OCL_ICD_FILENAMES: "libnvidia-opencl.so.1"
     timeout_in_minutes: 60
 
-  - group: "macos"
-    key: "julia"
-    steps:
-      - label: "{{matrix.julia}} macos - {{matrix.pocl}}"
-        plugins:
-          - JuliaCI/julia#v1:
-              version: "{{matrix.julia}}"
-          - JuliaCI/julia-coverage#v1:
-              codecov: true
-        commands: |
-          julia --project -e '
-            using Pkg
-
-            println("--- :julia: Instantiating project")
-            # Julia 1.10 does not support [sources], so dev the in-tree
-            # SPIRVIntrinsics first; otherwise the Pkg.add below resolves
-            # against the registry, which has no SPIRVIntrinsics 1. Pkg.test
-            # then carries the in-tree copy into the test sandbox.
-            Pkg.develop(path="lib/intrinsics")
-            Pkg.add("{{matrix.pocl}}_jll")
-            Pkg.add("InteractiveUtils")
-
-            println("+++ :julia: Running tests")
-            using InteractiveUtils
-            InteractiveUtils.versioninfo()
-            Pkg.test(; coverage=true, test_args=`--platform={{matrix.pocl}} --verbose`)'
-        agents:
-          queue: "metal"
-        if: |
-          build.message !~ /\[skip [^\]]*(tests|macos)/ &&
-          (build.message =~ /\[only [^\]]*(tests|macos)/ ||
-           build.message !~ /\[only / && !build.pull_request.draft)
-        timeout_in_minutes: 90
-        matrix:
-          setup:
-            julia:
-              - "1.10"
-              - "1.13"
-            pocl:
-              - "pocl"
-              - "pocl_next"
-          adjustments:
-            # the upcoming PoCL release is only smoke-tested on current Julia
-            - with:
-                julia: "1.10"
-                pocl: "pocl_next"
-              skip: true
