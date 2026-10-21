@@ -37,6 +37,9 @@ jobs:
           - { os: ubuntu-24.04, arch: x64, version: '1.13', driver: pocl, memory_backend: buffer, llvm_to_spirv_backend: llvm }
           # oldest supported Julia
           - { os: ubuntu-24.04, arch: x64, version: '1.10', driver: pocl, memory_backend: usm, llvm_to_spirv_backend: llvm }
+          - { os: macos-26, arch: arm64, version: '1.10', driver: pocl, memory_backend: buffer, llvm_to_spirv_backend: llvm }
+          - { os: macos-26, arch: arm64, version: '1.10', driver: pocl, memory_backend: usm, llvm_to_spirv_backend: llvm }
+          - { os: macos-26, arch: arm64, version: '1.10', driver: pocl, memory_backend: svm, llvm_to_spirv_backend: llvm }
           # Julia version coverage on the primary platform
           - { os: ubuntu-24.04, arch: x64, version: '1.11', driver: pocl, memory_backend: usm, llvm_to_spirv_backend: llvm }
           - { os: ubuntu-24.04, arch: x64, version: '1.12', driver: pocl, memory_backend: usm, llvm_to_spirv_backend: llvm }
