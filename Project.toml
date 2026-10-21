@@ -1,6 +1,6 @@
 name = "OpenCL"
 uuid = "08131aa3-fb12-5dee-8b74-c09406e224a2"
-version = "0.10.12"
+version = "0.11.0"
 
 [workspace]
 projects = ["lib/intrinsics", "test", "docs", "res"]
@@ -37,7 +37,7 @@ SPIRVIntrinsics = {path = "lib/intrinsics"}
 
 [compat]
 Adapt = "4"
-GPUArrays = "12.1"
+GPUArrays = "13"
 GPUCompiler = "2.13"
 GPUToolbox = "3.3.2"
 KernelAbstractions = "0.10"
