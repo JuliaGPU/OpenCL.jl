@@ -711,6 +711,9 @@ is_system(a::CLArray) = cl.is_system(a.data[].mem)
 
 ## resizing
 
+# System-memory wrappers cannot be detached from their host allocation.
+GPUArrays.supports_resize(a::CLVector) = !is_system(a)
+
 """
   resize!(a::CLVector, n::Integer)
 
