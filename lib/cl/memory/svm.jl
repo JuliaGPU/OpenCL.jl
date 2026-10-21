@@ -15,10 +15,22 @@ SharedVirtualMemory() = SharedVirtualMemory(CL_NULL, 0, context())
 
 is_system(mem::SharedVirtualMemory) = mem.system
 
+# clSVMAlloc has no error-code output. Do not confuse CLPtr's NULL with Ptr's
+# C_NULL: cross-address-space equality does not identify allocation failure.
+function checked_svm_alloc(f, bytesize, alignment, flags)
+    ptr = retry_reclaim(f, ptr -> ptr == CL_NULL)
+    ptr == CL_NULL && error("clSVMAlloc returned NULL after reclamation " *
+                            "(size=$bytesize, alignment=$alignment, flags=$flags)")
+    return ptr
+end
+
 function svm_alloc(bytesize::Integer;
         alignment::Integer = 0, access::Symbol = :rw, fine_grained = false
     )
 
+    0 < bytesize <= typemax(Int) || throw(ArgumentError("SVM allocation size must be positive and fit Int"))
+    0 <= alignment <= typemax(cl_uint) && (alignment == 0 || ispow2(alignment)) ||
+        throw(ArgumentError("SVM alignment must be zero or a power of two fitting cl_uint"))
     flags = if access == :rw
         CL_MEM_READ_WRITE
     elseif access == :r
@@ -34,20 +46,20 @@ function svm_alloc(bytesize::Integer;
     end
 
     ctx = context()
-    ptr = clSVMAlloc(ctx, flags, bytesize, alignment)
-    @assert ptr != C_NULL
+    GC.@preserve ctx begin
+        ptr = checked_svm_alloc(bytesize, alignment, flags) do
+            clSVMAlloc(ctx, flags, bytesize, alignment)
+        end
+        # SVM allocations do not retain their native context themselves.
+        # Acquire the reference only after allocation has succeeded.
+        clRetainContext(ctx)
 
-    # SVM allocations are not objects attached to their context, so implementations need
-    # not keep the context alive for them. since finalizers run in no particular order,
-    # e.g., at exit, hold a reference to the context until the allocation is freed.
-    clRetainContext(ctx)
-
-    # JuliaGPU/OpenCL.jl#252: uninitialized SVM memory doesn't work on Intel
-    if platform().name == "Intel(R) OpenCL Graphics"
-        enqueue_svm_fill(ptr, UInt8(0), bytesize)
+        # JuliaGPU/OpenCL.jl#252: uninitialized SVM memory doesn't work on Intel.
+        if platform().name == "Intel(R) OpenCL Graphics"
+            enqueue_svm_fill(ptr, UInt8(0), bytesize)
+        end
+        return SharedVirtualMemory(ptr, bytesize, ctx)
     end
-
-    return SharedVirtualMemory(ptr, bytesize, ctx)
 end
 
 function svm_free(mem::SharedVirtualMemory)
