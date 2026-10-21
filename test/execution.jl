@@ -485,6 +485,19 @@ end
     end
 end
 
+@testset "concrete evaluation" begin
+    # comparing against an irrational converts it with a BigFloat-based method that has to
+    # be evaluated at compile time; this regressed when the exception runtime's checked
+    # conversions formed an inference cycle with the throw overlays
+    function compare_pi(res, x)
+        @inbounds res[1] = x[1] < π
+        return
+    end
+    res = CLArray(zeros(Bool, 1))
+    @opencl compare_pi(res, CLArray(Float32[3]))
+    @test Array(res)[1]
+end
+
 @testset "shared method table" begin
     mod = @eval module $(gensym())
         on_device() = Int32(0)

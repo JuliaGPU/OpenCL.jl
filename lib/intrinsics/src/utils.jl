@@ -101,9 +101,11 @@ end
 # local method table for device functions
 Base.Experimental.@MethodTable(method_table)
 
+const HAS_CONSISTENT_OVERLAY = VERSION >= v"1.12.0-DEV.745" || v"1.11-rc1" <= VERSION < v"1.12-"
+
 macro device_override(ex)
     # `method_table` is not interpolated so that the local backend method_table is used
-    if VERSION >= v"1.12.0-DEV.745" || v"1.11-rc1" <= VERSION < v"1.12-"
+    if HAS_CONSISTENT_OVERLAY
         # this requires that the overlay method f′ is consistent with f, i.e.,
         #   - if f(x) returns a value, f′(x) must return the identical value.
         #   - if f(x) throws an exception, f′(x) must also throw an exception

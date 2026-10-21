@@ -72,7 +72,7 @@ const EXCEPTION_FRAME_SIZE = sizeof(ExceptionFrame_st)
 # Claims must cover all work-groups and queues on the device. SPIRVIntrinsics' public
 # atomic helpers are relaxed, so use UnsafeAtomics' primitives with the orderings needed here.
 @inline atomic_claim_device!(p::LLVMPtr{Int32, AS.CrossWorkgroup}) =
-    UnsafeAtomics.Internal.llvm_cmpxchg!(p, Int32(0), Int32(1), Val(:acq_rel), Val(:acquire),
+    UnsafeAtomics.Internal.llvm_cmpxchg!(p, 0 % Int32, 1 % Int32, Val(:acq_rel), Val(:acquire),
                                          Val(:device), Val(false), Val(false), Val(4),
                                          Val(())).old
 
@@ -133,9 +133,9 @@ end
     kernel_debug_level() < 2 && return claimed == 0
 
     item = (get_local_id(1) % UInt64, get_local_id(2) % UInt64, get_local_id(3) % UInt64,
-            UInt64(0))
+            0 % UInt64)
     group = (get_group_id(1) % UInt64, get_group_id(2) % UInt64, get_group_id(3) % UInt64,
-             UInt64(0))
+             0 % UInt64)
     launch_id = kernel_state().launch_id
     if claimed == 0
         unsafe_store!(info_field(info, Val(:launch_id)), launch_id)
@@ -143,7 +143,7 @@ end
         unsafe_store!(info_field(info, Val(:work_group)), group)
         # Publish the owner before another work-item reads it. A losing claimant must
         # never spin: the owner might be an inactive lane of the same subgroup.
-        atomic_store_device!(lock_ptr, Int32(2))
+        atomic_store_device!(lock_ptr, 2 % Int32)
         return true
     end
     claimed == 2 || return false
@@ -181,7 +181,7 @@ function signal_exception()
     # All faulting work-items signal, including level 0 kernels that do not claim a record.
     # Kernel completion makes both the status and any recorded details visible to the host.
     if has_exception_info(info)
-        atomic_store_device!(info_field(info, Val(:status)), Int32(1))
+        atomic_store_device!(info_field(info, Val(:status)), 1 % Int32)
     end
     return
 end
