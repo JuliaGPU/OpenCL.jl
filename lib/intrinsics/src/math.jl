@@ -8,6 +8,17 @@ const generic_types_float = [Float32]
 const generic_types_double = [Float64]
 
 
+# constants
+
+# without consistent overlays (Julia 1.10), the overlays on Base's throw paths prevent the
+# BigFloat-based conversion from being evaluated at compile time.
+@static if !HAS_CONSISTENT_OVERLAY
+for T in generic_types, R in (RoundUp, RoundDown), irr in (π, ℯ)
+    @eval @device_override $T(::typeof($irr), ::typeof($R)) = $@eval($T($irr,$R))
+end
+end
+
+
 # generically typed
 
 for gentype in generic_types
