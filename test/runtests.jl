@@ -6,9 +6,9 @@ import Test
 args = parse_args(ARGS; custom=["platform"])
 
 # `--platform` selects which OpenCL platform to run on, substring-matched against the
-# platform name/vendor (e.g. `pocl`, `cuda`, `intel`). We import exactly one CPU driver JLL,
-# `pocl_jll` by default, so that only a single CPU platform shows up. Special values select
-# a different one:
+# platform name/vendor (e.g. `pocl`, `cuda`, `intel`). Import one CPU driver JLL for CPU
+# tests (`pocl_jll` by default), but do not inject one for an installed vendor platform.
+# Special values select a different CPU driver:
 # - `pocl_next` loads `pocl_next_jll`, a build of the upcoming PoCL release, then filters
 #   identically to `--platform=pocl` (both register a platform with the same name/vendor,
 #   differing only in version);
@@ -17,10 +17,11 @@ args = parse_args(ARGS; custom=["platform"])
 const platform_request = args.custom["platform"] === nothing ? nothing :
                          args.custom["platform"].value
 const driver_pkg = platform_request == "pocl_next" ? :pocl_next_jll :
-                   platform_request == "intel_cpu" ? :intel_opencl_rt_jll : :pocl_jll
+                   platform_request == "intel_cpu" ? :intel_opencl_rt_jll :
+                   platform_request in (nothing,"pocl") ? :pocl_jll : nothing
 const platform_arg = platform_request == "pocl_next" ? Some("pocl") :
                      args.custom["platform"]
-@eval import $driver_pkg
+driver_pkg === nothing || @eval import $driver_pkg
 
 @info "System information:\n" * sprint(io->OpenCL.versioninfo(io))
 
@@ -158,7 +159,8 @@ if !Base.BinaryPlatforms.CPUID.test_cpu_feature(Base.BinaryPlatforms.CPUID.JL_X8
 end
 
 const init_worker_code = quote
-    using OpenCL, $driver_pkg
+    using OpenCL
+    $(driver_pkg === nothing ? nothing : :(using $driver_pkg))
 
     OpenCL.allowscalar(false)
 
@@ -218,7 +220,8 @@ const init_worker_code = quote
 end
 
 const init_code = quote
-    using OpenCL, $driver_pkg
+    using OpenCL
+    $(driver_pkg === nothing ? nothing : :(using $driver_pkg))
     $(OpenCL.llvm_to_spirv_backend === :khronos && :(using SPIRV_LLVM_Translator_jll))
 
     # bring used symbols into the temporary module
