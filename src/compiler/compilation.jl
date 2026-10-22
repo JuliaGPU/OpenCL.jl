@@ -241,18 +241,6 @@ function compile_to_obj(@nospecialize(job::CompilerJob))
     end
 end
 
-function run_and_collect(cmd)
-    stdout = Pipe()
-    proc = run(pipeline(ignorestatus(cmd); stdout, stderr=stdout), wait=false)
-    close(stdout.in)
-
-    reader = Threads.@spawn String(read(stdout))
-    Base.wait(proc)
-    log = strip(fetch(reader))
-
-    return proc, log
-end
-
 """
     OpenCL.llvm_to_spirv_backend :: Symbol
 
@@ -361,6 +349,58 @@ function dump_artifacts(artifacts::Pair{String}...)
     return paths
 end
 
+# Matches SPIRV2CLCTranslateOptions in libspirv2clc.h.
+struct SPIRV2CLCTranslateOptions
+    spirv_major::Cuint
+    spirv_minor::Cuint
+    opencl_version::Cuint
+end
+
+function spirv2clc_diagnostic(severity::Cint, message::Cstring, context::Ptr{Cvoid})
+    diagnostics = unsafe_pointer_to_objref(context)::Vector{Tuple{Cint,String}}
+    push!(diagnostics, (severity, unsafe_string(message)))
+    return nothing
+end
+
+function translate_spirv(spirv::Vector{UInt8}, spirv_version::VersionNumber,
+                         clc_version::VersionNumber)
+    options = SPIRV2CLCTranslateOptions(spirv_version.major, spirv_version.minor,
+                                      100 * clc_version.major + 10 * clc_version.minor)
+    source = Ref{Cstring}(C_NULL)
+    message = Ref{Cstring}(C_NULL)
+    diagnostics = Tuple{Cint,String}[]
+    handler = @cfunction(spirv2clc_diagnostic, Cvoid, (Cint, Cstring, Ptr{Cvoid}))
+    try
+        status = GC.@preserve diagnostics ccall(
+            (:SPIRV2CLCTranslate, spirv2clc_jll.libspirv2clc), Cint,
+            (Ptr{UInt8}, Csize_t, Ref{SPIRV2CLCTranslateOptions}, Ptr{Cvoid}, Ptr{Cvoid},
+             Ref{Cstring}, Ref{Cstring}),
+            spirv, length(spirv), options, handler, pointer_from_objref(diagnostics),
+            source, message)
+        # Errors are included in the returned failure message. Log other diagnostics only
+        # after returning from C, so a Julia logger cannot throw across the C++ frames.
+        for (severity, text) in diagnostics
+            if severity == 1
+                @warn text
+            elseif severity == 2
+                @info text
+            end
+        end
+        if status != 0
+            log = message[] == C_NULL ? "Unknown translation error" : unsafe_string(message[])
+            spv_file, = dump_artifacts(".spv" => spirv)
+            error("Failed to translate SPIR-V to OpenCL C source code:\n$(log)\n" *
+                  "If you think this is a bug, please file an issue and attach $spv_file")
+        end
+        return unsafe_string(source[])
+    finally
+        ccall((:SPIRV2CLCDisposeMessage, spirv2clc_jll.libspirv2clc), Cvoid,
+              (Cstring,), source[])
+        ccall((:SPIRV2CLCDisposeMessage, spirv2clc_jll.libspirv2clc), Cvoid,
+              (Cstring,), message[])
+    end
+end
+
 # link the SPIR-V bytes into a session-local `cl.Kernel` on the active context.
 function link_kernel(@nospecialize(job::CompilerJob), obj::Vector{UInt8}, entry::String)
     spirv_bitcode = obj
@@ -376,21 +416,7 @@ function link_kernel(@nospecialize(job::CompilerJob), obj::Vector{UInt8}, entry:
         clc_version = source_opencl_c_version(dev)
         cl_std = "CL$(clc_version.major).$(clc_version.minor)"
 
-        # Be consistent with the SPIR-V version we generated code for
-        spv = job.config.target.version
-        spirv_version = "$(spv.major).$(spv.minor)"
-
-        spirv_path = tempname(cleanup=false) * ".spv"
-        write(spirv_path, spirv_bitcode)
-        proc, log = run_and_collect(`$(spirv2clc_jll.spirv2clc()) --spirv-version=$spirv_version --cl-std=$cl_std $spirv_path`)
-        rm(spirv_path)
-        if !success(proc)
-            spv_file, = dump_artifacts(".spv" => spirv_bitcode)
-            error("Failed to translate SPIR-V to OpenCL C source code:\n$(log)\n" *
-                  "If you think this is a bug, please file an issue and attach $spv_file")
-        end
-
-        clc_source = strip(log)
+        clc_source = translate_spirv(spirv_bitcode, job.config.target.version, clc_version)
         build_options = "-cl-std=$cl_std"
         cl.Program(; source=clc_source)
     end
