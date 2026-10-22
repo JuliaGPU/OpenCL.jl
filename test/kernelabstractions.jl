@@ -70,6 +70,15 @@ skip_tests=Set([
     "CPU synchronization",
     "fallback test: callable types",
 ])
+# Upstream PoCL lacks pocl/pocl#2281, which our JLLs carry as a patch, and aborts or
+# silently miscompiles the barrier tests' kernels. The JLLs tag their version with
+# `~julia-<hash of the patch series>`.
+let platform = cl.platform()
+    if occursin("Portable Computing Language", platform.name) &&
+       !occursin("~julia-", platform.version)
+        push!(skip_tests, "Barriers")
+    end
+end
 KATestSuite.testsuite(OpenCLBackend, "OpenCL", OpenCL, CLArray, CLDeviceArray; skip_tests)
 
 @kernel function store_global_linear!(A)
