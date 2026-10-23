@@ -161,6 +161,26 @@ end
     @test Array(f) == [UnionField(1), UnionField(2.0f0)]
 end
 
+@testset "local memory" begin
+    function reverse_local!(x)
+        i = get_local_id()
+        tmp = CLLocalArray(Union{Int64, NTuple{3, Int32}}, 4)
+        tmp[i] = x[i]
+        barrier(OpenCL.LOCAL_MEM_FENCE)
+        x[i] = tmp[5 - i]
+        return
+    end
+    a = Union{Int64, NTuple{3, Int32}}[1, Int32.((2, 3, 4)), 5, Int32.((6, 7, 8))]
+    b = CLArray(a)
+    @opencl global_size=4 local_size=4 reverse_local!(b)
+    @test Array(b) == reverse(a)
+
+    # the elements are padded to 16 bytes, followed by a selector byte each. writing past
+    # an undersized allocation goes unnoticed on the devices we test with, so check its size
+    ir = sprint(io -> @device_code_llvm io=io dump_module=true @opencl launch=false reverse_local!(b))
+    @test occursin(r"@local_memory = .* global \[68 x i8\]", ir)
+end
+
 @testset "array operations" begin
     x = CLArray(Union{Missing, Bool}[missing, true, false])
     @test isequal(Array(x .| false), [missing, true, false])
