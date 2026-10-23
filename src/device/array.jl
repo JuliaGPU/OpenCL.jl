@@ -10,6 +10,8 @@ export CLDeviceArray, CLDeviceVector, CLDeviceMatrix, CLLocalArray
 
 struct CLDeviceArray{T,N,A} <: DenseArray{T,N}
     ptr::LLVMPtr{T,A}
+    # distance from `ptr` to the selector bytes of an array of isbits unions (see
+    # `typetagdata`), which is the size of the data for an array that owns its memory
     maxsize::Int
 
     dims::Dims{N}
@@ -18,7 +20,7 @@ struct CLDeviceArray{T,N,A} <: DenseArray{T,N}
     # inner constructors, fully parameterized, exact types (ie. Int not <:Integer)
     # TODO: deprecate; put `ptr` first like oneArray
     CLDeviceArray{T,N,A}(dims::Dims{N}, ptr::LLVMPtr{T,A},
-                          maxsize::Int=prod(dims)*sizeof(T)) where {T,A,N} =
+                          maxsize::Int=prod(dims)*aligned_sizeof(T)) where {T,A,N} =
         new(ptr, maxsize, dims, prod(dims))
 end
 
@@ -42,7 +44,7 @@ CLDeviceVector{T,A}(len::Integer,               p::LLVMPtr{T,A}) where {T,A}   =
 
 ## array interface
 
-Base.elsize(::Type{<:CLDeviceArray{T}}) where {T} = sizeof(T)
+Base.elsize(::Type{<:CLDeviceArray{T}}) where {T} = aligned_sizeof(T)
 
 Base.size(g::CLDeviceArray) = g.dims
 Base.sizeof(x::CLDeviceArray) = Base.elsize(x) * length(x)

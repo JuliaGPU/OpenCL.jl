@@ -15,6 +15,14 @@ import KernelInterface
 
 using Core: LLVMPtr
 
+# the size of an element in an array, which for isbits unions includes padding to their
+# alignment. on Julia 1.10, `Base.aligned_sizeof` isn't constant-folded in device code.
+@static if VERSION < v"1.11"
+    @generated aligned_sizeof(::Type{T}) where {T} = :($(Base.aligned_sizeof(T)))
+else
+    import Base: aligned_sizeof
+end
+
 # library wrappers
 include("../lib/cl/CL.jl")
 @reexport using .cl
