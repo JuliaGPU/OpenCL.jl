@@ -89,10 +89,12 @@ end
     #@boundscheck checkbounds(A, index)
     @boundscheck index <= length(A) || Base.throw_boundserror(A, index)
 
-    if isbitstype(T)
-        arrayref_bits(A, index)
-    else #if isbitsunion(T)
+    # only isbits unions have their selector stored separately; other inline types, like
+    # structs with a union field, carry it within the element
+    if Base.isbitsunion(T)
         arrayref_union(A, index)
+    else
+        arrayref_bits(A, index)
     end
 end
 
@@ -134,10 +136,10 @@ end
     #@boundscheck checkbounds(A, index)
     @boundscheck index <= length(A) || Base.throw_boundserror(A, index)
 
-    if isbitstype(T)
-        arrayset_bits(A, x, index)
-    else #if isbitsunion(T)
+    if Base.isbitsunion(T)
         arrayset_union(A, x, index)
+    else
+        arrayset_bits(A, x, index)
     end
     return A
 end
@@ -193,12 +195,12 @@ end
     #@boundscheck checkbounds(A, index)
     @boundscheck index <= length(A) || Base.throw_boundserror(A, index)
 
-    if isbitstype(T)
-        align = alignment(A)
-        unsafe_invariant_load(pointer(A), index, Val(align))
-    else #if isbitsunion(T)
+    if Base.isbitsunion(T)
         # the type tag is stored separately, and is not part of the invariant payload
         arrayref_union(A, index)
+    else
+        align = alignment(A)
+        unsafe_invariant_load(pointer(A), index, Val(align))
     end
 end
 

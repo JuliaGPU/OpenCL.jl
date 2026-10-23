@@ -159,6 +159,34 @@ end
     f = CLVector{UnionField, M}(undef, 2)
     @opencl global_size=2 fill_struct!(f)
     @test Array(f) == [UnionField(1), UnionField(2.0f0)]
+    function copy_struct!(y, x)
+        i = get_global_id()
+        y[i] = x[i]
+        y[i + 2] = Base.Experimental.Const(x)[i]
+        return
+    end
+    g = CLVector{UnionField, M}(undef, 4)
+    @opencl global_size=2 copy_struct!(g, f)
+    @test Array(g) == [UnionField(1), UnionField(2.0f0), UnionField(1), UnionField(2.0f0)]
+
+    # their selector isn't stored past the elements, nor loaded from there
+    struct_array(bytes) =
+        CLDeviceArray((2,), reinterpret(Core.LLVMPtr{UnionField, AS.CrossWorkgroup}, pointer(bytes)))
+    function store_struct!(bytes)
+        i = get_global_id()
+        struct_array(bytes)[i] = UnionField(i)
+        return
+    end
+    function load_struct!(y, bytes)
+        i = get_global_id()
+        y[i] = struct_array(bytes)[i]
+        return
+    end
+    bytes = CLVector{UInt8, M}(fill(0xff, 3 * sizeof(UnionField)))
+    @opencl global_size=2 store_struct!(bytes)
+    @test all(==(0xff), Array(bytes)[2 * sizeof(UnionField) + 1:end])
+    @opencl global_size=2 load_struct!(g, bytes)
+    @test Array(g)[1:2] == [UnionField(1), UnionField(2)]
 end
 
 @testset "local memory" begin
