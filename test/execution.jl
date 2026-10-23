@@ -556,3 +556,19 @@ end
     Base.invokelatest(launch)
     @test count() == n+2
 end
+
+@testset "device-side reinterpret to a stronger alignment" begin
+    function kernel(y, a, offset)
+        ptr = reinterpret(Core.LLVMPtr{Int32,AS.CrossWorkgroup}, pointer(a)) + offset
+        x = CLDeviceArray{Int32,1,AS.CrossWorkgroup}((2,), ptr)
+        b = reinterpret(Int64, x)
+        @inbounds y[1] = b[1]
+        return
+    end
+    a = CLArray([1, 2])
+    y = OpenCL.zeros(Int, 1)
+    @opencl kernel(y, a, 8)
+    @test Array(y)[] == 2
+    @opencl kernel(y, a, 4)
+    @test_throws OpenCL.KernelException cl.finish(cl.queue())
+end

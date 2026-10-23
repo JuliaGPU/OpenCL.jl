@@ -86,6 +86,15 @@ end
     v = view(a, 2:7)  # offset of 1 Int32 = 4 bytes
     r = reinterpret(Int64, v)  # Int64 = 8 bytes; 4 is not a multiple of 8
     @test Array(r) == reinterpret(Int64, @view Array(a)[2:7])
+
+    # kernels require aligned elements
+    @test_throws ArgumentError r .+ 1
+    @test Array(copy(r) .+ 1) == reinterpret(Int64, @view Array(a)[2:7]) .+ 1
+    @test_throws ArgumentError Base.unsafe_convert(CLDeviceVector{Int64,AS.CrossWorkgroup}, r)
+    # empty arrays have no elements to access
+    e = reinterpret(Int64, view(a, 2:1))
+    @test isempty(OpenCL.kernel_convert(e))
+    @test isempty(Base.unsafe_convert(CLDeviceVector{Int64,AS.CrossWorkgroup}, e))
 end
 
 @testset "aliasing" begin
