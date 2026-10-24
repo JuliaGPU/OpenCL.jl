@@ -188,6 +188,12 @@ function spirv_driver(dev::cl.Device)
     end
 end
 
+# SPIR-V extensions that let the back-ends express more of the IR, enabled when the device
+# accepts them:
+# - SPV_KHR_float_controls2 carries per-instruction fast-math flags, such as `contract` (e.g.
+#   from `muladd`), which base SPIR-V can't express, so drivers never fuse those into FMAs.
+const OPTIONAL_SPIRV_EXTENSIONS = ["SPV_KHR_float_controls2"]
+
 @noinline function _compiler_config(dev, backend; kernel=true, name=nothing, always_inline=false,
                                      debug_level=Base.JLOptions().debug_level,
                                      sub_group_size::Union{Nothing,Int}=_sub_group_size(dev),
@@ -214,8 +220,13 @@ end
         error("Device does not support cl_intel_required_subgroup_size")
     end
 
+    if extensions === nothing
+        # spirv2clc doesn't implement them, so only for programs built from SPIR-V
+        extensions = source ? String[] : filter(in(dev.spirv_extensions), OPTIONAL_SPIRV_EXTENSIONS)
+    end
+
     # GPUCompiler adds the extensions that the atomics need
-    spirv_ext = extensions === nothing ? "" : join(("+$ext" for ext in extensions), ",")
+    spirv_ext = join(("+$ext" for ext in extensions), ",")
 
     # create GPUCompiler objects
     target = SPIRVCompilerTarget(; version=SPIRV_VERSION, supports_fp16, supports_fp64,

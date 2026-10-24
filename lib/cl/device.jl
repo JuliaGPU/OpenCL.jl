@@ -112,6 +112,17 @@ end
         return String[string(s) for s in split(bs)]
     end
 
+    # cl_khr_spirv_queries: the SPIR-V extensions the device accepts. Empty if the device
+    # doesn't support the query.
+    if s == :spirv_extensions
+        "cl_khr_spirv_queries" in d.extensions || return String[]
+        size = Ref{Csize_t}()
+        clGetDeviceInfo(d, CL_DEVICE_SPIRV_EXTENSIONS_KHR, 0, C_NULL, size)
+        result = Vector{Cstring}(undef, size[] ÷ sizeof(Cstring))
+        clGetDeviceInfo(d, CL_DEVICE_SPIRV_EXTENSIONS_KHR, size[], result, C_NULL)
+        return String[unsafe_string(ext) for ext in result]
+    end
+
     if s == :platform
         result = Ref{cl_platform_id}()
         clGetDeviceInfo(d, CL_DEVICE_PLATFORM, sizeof(cl_platform_id), result, C_NULL)
@@ -187,9 +198,9 @@ function Base.propertynames(::Device, private::Bool=false)
         :max_work_group_size, :max_parameter_size, :profiling_timer_resolution,
         # boolean properties
         :has_image_support, :has_local_mem, :host_unified_memory, :available,
-        :compiler_available, :non_uniform_work_group_support
+        :compiler_available, :non_uniform_work_group_support,
         # other
-        :extensions, :platform, :device_type, :max_work_item_size, :sub_group_sizes,
+        :extensions, :spirv_extensions, :platform, :device_type, :max_work_item_size, :sub_group_sizes,
         :max_image2d_shape, :max_image3d_shape,
     )
     return private ? (fieldnames(Device)..., props...) : props
