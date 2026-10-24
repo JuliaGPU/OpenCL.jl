@@ -208,23 +208,18 @@ end
 # Base compares rationals using the 128-bit products of their numerators and denominators,
 # which GPUToolbox computes in 64-bit words instead
 @testset "rational comparisons" begin
-    # LLVM 18+ leaves a funnel shift in float/rational comparisons, whose generated name
-    # spirv2clc doesn't turn into a valid OpenCL C identifier. LLVM 15/16 optimize it away.
-    uses_spirv2clc = OpenCL.resolve_program_backend(cl.device(), OpenCL.program_backend()) !== :spirv
-    broken_float_rational = uses_spirv2clc && Base.libllvm_version >= v"18"
-
     xs = Float32[0, -1, 1.4, 1.5, 1.6, Inf, NaN]
     # Construct the rational on the host: its checked arithmetic is unsupported by the
     # Khronos translator, independently of the comparison being tested.
     q = 3 // 2
-    @test Array(map(x -> x < q, CLArray(xs))) == (xs .< q) broken=broken_float_rational
+    @test Array(map(x -> x < q, CLArray(xs))) == (xs .< q)
 
     qs = [1//3, -5//7, 3//2, typemax(Int)//2, 2^40//3, -typemax(Int)//(2^40 + 1)]
     ns = [0, -1, 2, 2^35, typemax(Int), typemin(Int)]
     fs = Float32[0.3, -0.7, 1.5, 2f0^62, 3.6f11, -Inf]
     for op in (<, <=, cmp)
         @test Array(op.(CLArray(qs), CLArray(fs))) == op.(qs, fs)
-        @test Array(op.(CLArray(fs), CLArray(qs))) == op.(fs, qs) broken=broken_float_rational
+        @test Array(op.(CLArray(fs), CLArray(qs))) == op.(fs, qs)
     end
     for op in (<, <=)
         @test Array(op.(CLArray(qs), CLArray(reverse(qs)))) == op.(qs, reverse(qs))
