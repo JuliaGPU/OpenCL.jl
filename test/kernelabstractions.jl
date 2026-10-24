@@ -79,7 +79,19 @@ let platform = cl.platform()
         push!(skip_tests, "Barriers")
     end
 end
+# debug PR: check the groupreduce launches in this worker before and after the test suite
+include(joinpath(@__DIR__, "..", ".buildkite", "debug", "groupreduce_check.jl"))
+if get(ENV, "GROUPREDUCE_CHECK_BEFORE", "true") == "true"
+    @testset "groupreduce check before" begin
+        @test groupreduce_check("before KernelAbstractions' tests")
+    end
+end
+
 KATestSuite.testsuite(OpenCLBackend, "OpenCL", OpenCL, CLArray, CLDeviceArray; skip_tests)
+
+@testset "groupreduce check after" begin
+    @test groupreduce_check("after KernelAbstractions' tests")
+end
 
 @kernel function store_global_linear!(A)
     I = @index(Global, Linear)

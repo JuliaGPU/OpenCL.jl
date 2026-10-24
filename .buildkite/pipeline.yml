@@ -29,55 +29,57 @@ steps:
       OCL_ICD_FILENAMES: "libnvidia-opencl.so.1"
     timeout_in_minutes: 60
 
-  # Debug PR: stress the intermittent KernelAbstractions `groupreduce` failure (`Float32,
-  # max` on the OpenCL C target) instead of running the test suite. See
-  # .buildkite/debug/groupreduce_stress.jl.
+  # Debug PR: run the full test suite as the macOS CI does, which is where KernelAbstractions'
+  # `groupreduce` test fails now and then, with test/kernelabstractions.jl checking the same
+  # launches with diagnostics (.buildkite/debug/groupreduce_check.jl).
   - group: "macos"
     key: "julia"
     steps:
-      - label: "1.13 macos - {{matrix.driver}} - groupreduce stress #{{matrix.rep}}"
+      - label: "1.13 macos - pocl_next - full suite, check before: {{matrix.before}} #{{matrix.rep}}"
         plugins:
           - JuliaCI/julia#v1:
               version: "1.13"
         commands: |
-          set -u
+          set -u -o pipefail
           OUT="$$PWD/debug-out"
           mkdir -p "$$OUT"
-          # keep PoCL's kernel cache, with the binaries that ran, for the artifacts
+          # a fresh PoCL kernel cache, kept for the artifacts
           export POCL_CACHE_DIR="$$OUT/kcache"
+          export GROUPREDUCE_DEBUG_DIR="$$OUT/groupreduce"
+          export GROUPREDUCE_CHECK_BEFORE="{{matrix.before}}"
           status=0
 
           echo "--- :julia: Instantiating project"
-          julia --project -e 'using Pkg; Pkg.develop(path="lib/intrinsics")'
-          julia --project=test -e 'using Pkg; Pkg.instantiate(); Pkg.precompile()'
-          julia --project=test -e 'using InteractiveUtils; versioninfo()'
+          julia --project -e '
+            using Pkg
+            Pkg.develop(path="lib/intrinsics")
+            Pkg.add("pocl_next_jll")
+            Pkg.add("InteractiveUtils")
+            using InteractiveUtils
+            InteractiveUtils.versioninfo()'
           sysctl -n machdep.cpu.brand_string hw.ncpu hw.memsize || true
           uptime
 
-          echo "+++ :mag: Stress test, long phases in one process"
-          julia --threads=2 --check-bounds=yes --project=test .buildkite/debug/groupreduce_stress.jl \
-            {{matrix.driver}} warm,cpuload,gc,cold,sibling 240 "$$OUT/inprocess" || status=1
-
-          echo "+++ :mag: Stress test, one cold round per fresh process"
-          for i in $$(seq 1 8); do
-            julia --check-bounds=yes --project=test .buildkite/debug/groupreduce_stress.jl \
-              {{matrix.driver}} cold 1 "$$OUT/process$$i" || status=1
-          done
-
-          echo "+++ :julia: KernelAbstractions tests, as in CI"
-          for i in 1 2 3; do
-            echo "--- KernelAbstractions tests, run $$i"
-            julia --project -e 'using Pkg; Pkg.test(; coverage=true, test_args=`--platform={{matrix.driver}} --verbose poclc/kernelabstractions pocl/kernelabstractions`)' || status=1
+          # the first run starts from an empty PoCL kernel cache, the second reuses it
+          for i in 1 2; do
+            echo "+++ :julia: Running tests, run $$i"
+            julia --project -e 'using Pkg; Pkg.test(; coverage=true, test_args=`--platform=pocl_next --verbose`)' 2>&1 |
+              tee "$$OUT/test$$i.log" || status=1
           done
 
           echo "--- :buildkite: Uploading results"
-          cat "$$OUT"/*/failures.log "$$OUT"/*/sibling/failures.log 2>/dev/null > failures.log || true
+          touch "$$GROUPREDUCE_DEBUG_DIR/failures.log"
+          cp "$$GROUPREDUCE_DEBUG_DIR/failures.log" failures.log
           buildkite-agent artifact upload failures.log
-          if grep -q FAILURE failures.log; then
-            tar czf debug-out.tar.gz -C "$$OUT" .
+          if [ $$status -ne 0 ] || grep -q FAILURE failures.log; then
+            # the generated code of the checks, and PoCL's binaries of all groupreduce kernels
+            grep -rl groupreduce "$$POCL_CACHE_DIR" | xargs -n1 dirname | sort -u > kcache-dirs.txt || true
+            tar czf debug-out.tar.gz "$$GROUPREDUCE_DEBUG_DIR" "$$OUT"/test*.log $$(cat kcache-dirs.txt)
             buildkite-agent artifact upload debug-out.tar.gz
-            { echo "**{{matrix.driver}} #{{matrix.rep}}**"; echo '```'; grep -A3 -E "FAILURE|summary" failures.log | head -60; echo '```'; } |
-              buildkite-agent annotate --style error --context "stress-{{matrix.driver}}-{{matrix.rep}}"
+            { echo "**check before: {{matrix.before}} #{{matrix.rep}}**"; echo '```';
+              grep -h -A1 -E "Error in testset|Test Failed|Evaluated" "$$OUT"/test*.log | cut -c1-300 | head -30;
+              grep -A3 FAILURE failures.log | head -40; echo '```'; } |
+              buildkite-agent annotate --style error --context "debug-{{matrix.before}}-{{matrix.rep}}"
           fi
           exit $$status
         agents:
@@ -86,12 +88,13 @@ steps:
           build.message !~ /\[skip [^\]]*(tests|macos)/ &&
           (build.message =~ /\[only [^\]]*(tests|macos)/ ||
            build.message !~ /\[only / && !build.pull_request.draft)
-        timeout_in_minutes: 120
+        timeout_in_minutes: 150
         matrix:
           setup:
-            driver:
-              - "pocl"
-              - "pocl_next"
+            before:
+              - "true"
+              - "false"
             rep:
               - "1"
               - "2"
+              - "3"
