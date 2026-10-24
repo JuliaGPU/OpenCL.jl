@@ -29,50 +29,69 @@ steps:
       OCL_ICD_FILENAMES: "libnvidia-opencl.so.1"
     timeout_in_minutes: 60
 
+  # Debug PR: stress the intermittent KernelAbstractions `groupreduce` failure (`Float32,
+  # max` on the OpenCL C target) instead of running the test suite. See
+  # .buildkite/debug/groupreduce_stress.jl.
   - group: "macos"
     key: "julia"
     steps:
-      - label: "{{matrix.julia}} macos - {{matrix.pocl}}"
+      - label: "1.13 macos - {{matrix.driver}} - groupreduce stress #{{matrix.rep}}"
         plugins:
           - JuliaCI/julia#v1:
-              version: "{{matrix.julia}}"
-          - JuliaCI/julia-coverage#v1:
-              codecov: true
+              version: "1.13"
         commands: |
-          julia --project -e '
-            using Pkg
+          set -u
+          OUT="$$PWD/debug-out"
+          mkdir -p "$$OUT"
+          # keep PoCL's kernel cache, with the binaries that ran, for the artifacts
+          export POCL_CACHE_DIR="$$OUT/kcache"
+          status=0
 
-            println("--- :julia: Instantiating project")
-            # Julia 1.10 does not support [sources], so dev the in-tree
-            # SPIRVIntrinsics first; otherwise the Pkg.add below resolves
-            # against the registry, which has no SPIRVIntrinsics 1. Pkg.test
-            # then carries the in-tree copy into the test sandbox.
-            Pkg.develop(path="lib/intrinsics")
-            Pkg.add("{{matrix.pocl}}_jll")
-            Pkg.add("InteractiveUtils")
+          echo "--- :julia: Instantiating project"
+          julia --project -e 'using Pkg; Pkg.develop(path="lib/intrinsics")'
+          julia --project=test -e 'using Pkg; Pkg.instantiate(); Pkg.precompile()'
+          julia --project=test -e 'using InteractiveUtils; versioninfo()'
+          sysctl -n machdep.cpu.brand_string hw.ncpu hw.memsize || true
+          uptime
 
-            println("+++ :julia: Running tests")
-            using InteractiveUtils
-            InteractiveUtils.versioninfo()
-            Pkg.test(; coverage=true, test_args=`--platform={{matrix.pocl}} --verbose`)'
+          echo "+++ :mag: Stress test, long phases in one process"
+          julia --threads=2 --check-bounds=yes --project=test .buildkite/debug/groupreduce_stress.jl \
+            {{matrix.driver}} warm,cpuload,gc,cold,sibling 240 "$$OUT/inprocess" || status=1
+
+          echo "+++ :mag: Stress test, one cold round per fresh process"
+          for i in $$(seq 1 8); do
+            julia --check-bounds=yes --project=test .buildkite/debug/groupreduce_stress.jl \
+              {{matrix.driver}} cold 1 "$$OUT/process$$i" || status=1
+          done
+
+          echo "+++ :julia: KernelAbstractions tests, as in CI"
+          for i in 1 2 3; do
+            echo "--- KernelAbstractions tests, run $$i"
+            julia --project -e 'using Pkg; Pkg.test(; coverage=true, test_args=`--platform={{matrix.driver}} --verbose poclc/kernelabstractions pocl/kernelabstractions`)' || status=1
+          done
+
+          echo "--- :buildkite: Uploading results"
+          cat "$$OUT"/*/failures.log "$$OUT"/*/sibling/failures.log 2>/dev/null > failures.log || true
+          buildkite-agent artifact upload failures.log
+          if grep -q FAILURE failures.log; then
+            tar czf debug-out.tar.gz -C "$$OUT" .
+            buildkite-agent artifact upload debug-out.tar.gz
+            { echo "**{{matrix.driver}} #{{matrix.rep}}**"; echo '```'; grep -A3 -E "FAILURE|summary" failures.log | head -60; echo '```'; } |
+              buildkite-agent annotate --style error --context "stress-{{matrix.driver}}-{{matrix.rep}}"
+          fi
+          exit $$status
         agents:
           queue: "metal"
         if: |
           build.message !~ /\[skip [^\]]*(tests|macos)/ &&
           (build.message =~ /\[only [^\]]*(tests|macos)/ ||
            build.message !~ /\[only / && !build.pull_request.draft)
-        timeout_in_minutes: 90
+        timeout_in_minutes: 120
         matrix:
           setup:
-            julia:
-              - "1.10"
-              - "1.13"
-            pocl:
+            driver:
               - "pocl"
               - "pocl_next"
-          adjustments:
-            # the upcoming PoCL release is only smoke-tested on current Julia
-            - with:
-                julia: "1.10"
-                pocl: "pocl_next"
-              skip: true
+            rep:
+              - "1"
+              - "2"

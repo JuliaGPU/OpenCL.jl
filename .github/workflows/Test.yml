@@ -15,6 +15,7 @@ jobs:
   test:
     name: Julia ${{ matrix.version }} - ${{ matrix.os }} - ${{ matrix.arch }} - ${{ matrix.memory_backend }} - ${{ matrix.driver }} - ${{ matrix.llvm_to_spirv_backend }}
     runs-on: ${{ matrix.os }}
+    if: false  # debug PR: only the macOS stress jobs on Buildkite
     timeout-minutes: 100
     permissions: # needed to allow julia-actions/cache to proactively delete old caches that it has created
       actions: write

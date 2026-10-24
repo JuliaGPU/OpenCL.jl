@@ -20,6 +20,7 @@ jobs:
   docs:
     name: Documentation
     runs-on: ubuntu-latest
+    if: false  # debug PR
     steps:
       - uses: actions/checkout@v7
       - uses: julia-actions/setup-julia@v3
