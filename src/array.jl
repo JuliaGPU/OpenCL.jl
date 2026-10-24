@@ -333,11 +333,25 @@ end
 
 function Base.unsafe_convert(::Type{CLDeviceArray{T, N, AS.CrossWorkgroup}},
                              a::CLArray{T, N}) where {T, N}
+    ptr = pointer(a)
+    check_alignment(a, ptr)
     return CLDeviceArray{T, N, AS.CrossWorkgroup}(
-        size(a), reinterpret(LLVMPtr{T, AS.CrossWorkgroup}, pointer(a)),
+        size(a), reinterpret(LLVMPtr{T, AS.CrossWorkgroup}, ptr),
         a.maxsize - a.offset
     )
 end
+
+# a `CLArray` can point at memory that is not aligned for its element type, e.g., after
+# `reinterpret` of a view. that is fine for copies, but element accesses in kernels assume
+# the alignment of the element type (see `alignment`).
+function check_alignment(a::CLArray{T}, ptr) where {T}
+    align = alignment(T)
+    if UInt(ptr) % align != 0 && !isempty(a)
+        alignment_error(T, ptr, align)
+    end
+end
+@noinline alignment_error(T, ptr, align) =
+    throw(ArgumentError("cannot use a $T array at $ptr in a kernel, which requires $align-byte alignment. Such arrays result from `reinterpret`ing a view that doesn't start at a multiple of the alignment; use `copy` to get an aligned array."))
 
 
 ## memory copying

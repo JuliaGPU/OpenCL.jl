@@ -126,6 +126,7 @@ function Adapt.adapt_storage(to::KernelAdaptor, arr::CLArray{T, N}) where {T, N}
     # which only happens as part of the launch transaction (`take_ownership!`), under
     # the allocation lock and atomically with the enqueue of the kernel.
     ptr = convert(CLPtr{T}, managed.mem) + arr.offset
+    check_alignment(arr, ptr)
     return CLDeviceArray{T, N, AS.CrossWorkgroup}(
         size(arr), reinterpret(LLVMPtr{T, AS.CrossWorkgroup}, ptr),
         arr.maxsize - arr.offset)

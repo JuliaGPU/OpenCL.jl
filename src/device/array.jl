@@ -70,11 +70,10 @@ Base.unsafe_convert(::Type{LLVMPtr{T,A}}, x::CLDeviceArray{T,<:Any,A}) where {T,
 
 ## indexing intrinsics
 
-# TODO: how are allocations aligned by the level zero API? keep track of this
-#       because it enables optimizations like Load Store Vectorization
-#       (cfr. shared memory and its wider-than-datatype alignment)
-
-@generated function alignment(::CLDeviceArray{T}) where {T}
+# the alignment that accesses to elements of type `T` assume. pointers that do not come from
+# an allocation (`reinterpret` of a view) are checked when converting to a device array,
+# see `check_alignment`.
+@generated function alignment(::Type{T}) where {T}
     if Base.isbitsunion(T)
         _, sz, al = Base.uniontype_layout(T)
         al
@@ -82,6 +81,7 @@ Base.unsafe_convert(::Type{LLVMPtr{T,A}}, x::CLDeviceArray{T,<:Any,A}) where {T,
         Base.datatype_alignment(T)
     end
 end
+alignment(::CLDeviceArray{T}) where {T} = alignment(T)
 
 @device_function @inline function arrayref(A::CLDeviceArray{T}, index::Integer) where {T}
     # simplified bounds check to avoid the OneTo construction, which calls `max`
@@ -277,6 +277,12 @@ end
 function Base.reinterpret(::Type{T}, a::CLDeviceArray{S,N,A}) where {T,S,N,A}
     err = GPUArrays._reinterpret_exception(T, a)
     err === nothing || throw(err)
+
+    # `T` may require a stronger alignment than `a` was checked for. this is not a bounds
+    # check: the alignment that element accesses assume depends on it.
+    if alignment(T) > alignment(S) && !isempty(a) && UInt(a.ptr) % alignment(T) != 0
+        throw(ArgumentError("cannot reinterpret an array whose pointer is not aligned for the new element type"))
+    end
 
     if sizeof(T) == sizeof(S) # fast case
         return CLDeviceArray{T,N,A}(size(a), reinterpret(LLVMPtr{T,A}, a.ptr), a.maxsize)
