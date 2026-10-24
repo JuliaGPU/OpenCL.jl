@@ -8,8 +8,8 @@
     T_ptr = convert(LLVMType, LLVMPtr{T,AS.Workgroup})
 
     # determine the array size: an array of a bits union stores a selector byte per
-    # element after the values
-    sz = len * sizeof(T)
+    # element after the values, which are padded to the union's alignment
+    sz = len * Base.aligned_sizeof(T)
     Base.isbitsunion(T) && (sz += len)
 
     # create the global variable

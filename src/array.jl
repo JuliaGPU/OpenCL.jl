@@ -30,30 +30,31 @@ end
 
 function check_eltype(T)
     Base.allocatedinline(T) || error("CLArray only supports element types that are stored inline")
-    Base.isbitsunion(T) && error("CLArray does not yet support isbits-union arrays")
     !("cl_khr_fp16" in cl.device().extensions) && contains_eltype(T, Float16) && error("Float16 is not supported on this device")
     return !("cl_khr_fp64" in cl.device().extensions) && contains_eltype(T, Float64) && error("Float64 is not supported on this device")
 end
 
+# the alignment of array elements, which for isbits unions is the largest of their members
+element_alignment(T) =
+    Base.isbitsunion(T) ? Base.uniontype_layout(T)[3] : Base.datatype_alignment(T)
+
 mutable struct CLArray{T, N, M} <: AbstractGPUArray{T, N}
     data::DataRef{Managed{M}}
 
-    maxsize::Int  # maximum data size; excluding any selector bytes
+    # size of the data in memory, in bytes, excluding any selector bytes. for arrays of
+    # isbits unions, this is where the array's selector bytes start (see `typetagdata`)
+    maxsize::Int
     offset::Int   # offset of the data in memory, in bytes
 
     dims::Dims{N}
 
     function CLArray{T, N, M}(::UndefInitializer, dims::Dims{N}) where {T, N, M}
         check_eltype(T)
-        maxsize = prod(dims) * sizeof(T)
-        bufsize = if Base.isbitsunion(T)
-            # type tag array past the data
-            maxsize + prod(dims)
-        else
-            maxsize
-        end
+        maxsize = prod(dims) * aligned_sizeof(T)
+        # arrays of isbits unions keep one selector byte per element past the data
+        bufsize = Base.isbitsunion(T) ? maxsize + prod(dims) : maxsize
         data = GPUArrays.cached_alloc((CLArray, cl.context(), M, bufsize)) do
-            buf = managed_alloc(M, bufsize; alignment=Base.datatype_alignment(T))
+            buf = managed_alloc(M, bufsize; alignment=element_alignment(T))
             DataRef(free, buf)
         end
         obj = new{T, N, M}(data, maxsize, 0, dims)
@@ -63,7 +64,7 @@ mutable struct CLArray{T, N, M} <: AbstractGPUArray{T, N}
 
     function CLArray{T, N}(
             data::DataRef{Managed{M}}, dims::Dims{N};
-            maxsize::Int = prod(dims) * sizeof(T), offset::Int = 0
+            maxsize::Int = prod(dims) * aligned_sizeof(T), offset::Int = 0
         ) where {T, N, M}
         check_eltype(T)
         obj = new{T, N, M}(data, maxsize, offset, dims)
@@ -167,7 +168,7 @@ end
 
 ## array interface
 
-Base.elsize(::Type{<:CLArray{T}}) where {T} = sizeof(T)
+Base.elsize(::Type{<:CLArray{T}}) where {T} = aligned_sizeof(T)
 
 Base.size(x::CLArray) = x.dims
 Base.sizeof(x::CLArray) = Base.elsize(x) * length(x)
@@ -272,15 +273,23 @@ Base.convert(::Type{T}, x::T) where {T <: CLArray} = x
 
 ## indexing
 
-function Base.getindex(x::CLArray{<:Any, <:Any, <:Union{cl.UnifiedHostMemory, cl.UnifiedSharedMemory, cl.SharedVirtualMemory}}, I::Int)
+# the host pointer only covers the data, so for arrays of isbits unions, copy the element
+# together with its selector byte. like the pointer accesses, these copies take the
+# allocation lock and wait for outstanding work.
+function Base.getindex(x::CLArray{T, <:Any, <:Union{cl.UnifiedHostMemory, cl.UnifiedSharedMemory, cl.SharedVirtualMemory}}, I::Int) where {T}
     @boundscheck checkbounds(x, I)
+    Base.isbitsunion(T) && return @inbounds copyto!(Vector{T}(undef, 1), 1, x, I, 1)[]
     return Base.@lock x.data[].lock begin
         GC.@preserve x unsafe_load(host_pointer(x, I))
     end
 end
 
-function Base.setindex!(x::CLArray{<:Any, <:Any, <:Union{cl.UnifiedHostMemory, cl.UnifiedSharedMemory, cl.SharedVirtualMemory}}, v, I::Int)
+function Base.setindex!(x::CLArray{T, <:Any, <:Union{cl.UnifiedHostMemory, cl.UnifiedSharedMemory, cl.SharedVirtualMemory}}, v, I::Int) where {T}
     @boundscheck checkbounds(x, I)
+    if Base.isbitsunion(T)
+        @inbounds copyto!(x, I, T[v], 1, 1)
+        return x
+    end
     return Base.@lock x.data[].lock begin
         GC.@preserve x unsafe_store!(host_pointer(x, I), v)
     end
@@ -335,19 +344,33 @@ end
 
 synchronize(x::CLArray) = synchronize(x.data[])
 
-typetagdata(a::Array, i = 1) = ccall(:jl_array_typetagdata, Ptr{UInt8}, (Any,), a) + i - 1
-function typetagdata(a::CLArray, i = 1)
-    # for zero-size element types (e.g. singleton unions), the byte offset
-    # is always zero, so the corresponding element offset is also zero
-    elem_offset = iszero(Base.elsize(a)) ? 0 : a.offset ÷ Base.elsize(a)
-    return convert(CLPtr{UInt8}, a.data[]) + a.maxsize + elem_offset + i - 1
+## type tags of isbits-union arrays
+
+# Arrays of isbits unions (`Union{Int, Nothing}`, ...) store one selector byte per element
+# past the data, `maxsize` bytes into the memory, like `Array` does. The selector is the
+# zero-based index of the element's type in `Base.uniontypes(T)`.
+
+@static if VERSION >= v"1.11.0-DEV.753"
+function typetagdata(a::Array, i = 1)
+    # for memory of isbits unions, the reference holds the offset of the data in elements
+    ptr_or_offset = Int(a.ref.ptr_or_offset)
+    return @ccall(jl_genericmemory_typetagdata(a.ref.mem::Any)::Ptr{UInt8}) + ptr_or_offset + i - 1
 end
+else
+typetagdata(a::Array, i = 1) = ccall(:jl_array_typetagdata, Ptr{UInt8}, (Any,), a) + i - 1
+end
+
+# the address of the selector byte of element `i`, which like `pointer` is a host address
+# for host memory
+typetagdata(a::CLArray, i = 1) = convert(CLPtr{UInt8}, a.data[]) + a.maxsize + i - 1
+typetagdata(a::CLArray{<:Any, <:Any, cl.UnifiedHostMemory}, i = 1) =
+    convert(Ptr{UInt8}, a.data[]) + a.maxsize + i - 1
 
 function Base.copyto!(
         dest::CLArray{T}, doffs::Integer, src::Array{T}, soffs::Integer,
         n::Integer
     ) where {T}
-    (n == 0 || sizeof(T) == 0) && return dest
+    n == 0 && return dest
     @boundscheck checkbounds(dest, doffs)
     @boundscheck checkbounds(dest, doffs + n - 1)
     @boundscheck checkbounds(src, soffs)
@@ -363,7 +386,7 @@ function Base.copyto!(
         dest::Array{T}, doffs::Integer, src::DenseCLArray{T}, soffs::Integer,
         n::Integer
     ) where {T}
-    (n == 0 || sizeof(T) == 0) && return dest
+    n == 0 && return dest
     @boundscheck checkbounds(dest, doffs)
     @boundscheck checkbounds(dest, doffs + n - 1)
     @boundscheck checkbounds(src, soffs)
@@ -379,7 +402,7 @@ function Base.copyto!(
         dest::DenseCLArray{T}, doffs::Integer, src::DenseCLArray{T}, soffs::Integer,
         n::Integer
     ) where {T}
-    (n == 0 || sizeof(T) == 0) && return dest
+    n == 0 && return dest
     @boundscheck checkbounds(dest, doffs)
     @boundscheck checkbounds(dest, doffs + n - 1)
     @boundscheck checkbounds(src, soffs)
@@ -392,10 +415,14 @@ end
 Base.copyto!(dest::DenseCLArray{T}, src::DenseCLArray{T}) where {T} =
     copyto!(dest, 1, src, 1, length(src))
 
-# the host address of an array operand in a copy. for arrays wrapping host memory, the
-# device pointer is used, which is identical but also records the device-side use.
-host_address(a::Array, i) = pointer(a, i)
-host_address(a::CLArray{T}, i) where {T} = reinterpret(Ptr{T}, pointer(a, i))
+# where element `i` of an array operand in a copy is, or with `tags`, its selector byte.
+# for arrays wrapping host memory, the device pointer is used as the host address, which is
+# identical but also records the device-side use.
+copy_pointer(a::Union{Array, CLArray}, i, tags) = tags ? typetagdata(a, i) : pointer(a, i)
+host_address(a::Array, i, tags) = copy_pointer(a, i, tags)
+host_address(a::CLArray, i, tags) = reinterpret(Ptr{Cvoid}, copy_pointer(a, i, tags))
+buffer_offset(a::CLArray, i, tags) =
+    tags ? a.maxsize + i - 1 : a.offset + (i - 1) * Base.elsize(a)
 
 for (srcty, dstty) in [(:Array, :CLArray), (:CLArray, :Array), (:CLArray, :CLArray)]
     @eval begin
@@ -404,8 +431,10 @@ for (srcty, dstty) in [(:Array, :CLArray), (:CLArray, :Array), (:CLArray, :CLArr
                 src::$srcty{T}, src_off::Int,
                 N::Int; blocking::Bool = true
             ) where {T}
-            nbytes = N * sizeof(T)
-            nbytes == 0 && return
+            # arrays of isbits unions also have their selector bytes copied
+            nbytes = N * aligned_sizeof(T)
+            ntags = Base.isbitsunion(T) ? N : 0
+            nbytes == 0 && ntags == 0 && return
 
             # arrays wrapping host memory can be treated like host arrays, so dispatch on
             # the memory type of the other array
@@ -421,28 +450,33 @@ for (srcty, dstty) in [(:Array, :CLArray), (:CLArray, :Array), (:CLArray, :CLArr
                 # the copy has to be submitted before the arrays can be freed, which for
                 # arrays wrapping host memory also releases that memory
                 GC.@preserve dst src with_managed_locks(managed) do
-                    if memtype(device_array) == cl.SharedVirtualMemory
-                        cl.enqueue_svm_copy(pointer(dst, dst_off), pointer(src, src_off), nbytes; blocking)
-                    elseif memtype(device_array) <: cl.UnifiedMemory
-                        cl.enqueue_usm_copy(pointer(dst, dst_off), pointer(src, src_off), nbytes; blocking)
-                    else
-                        dst_buffer = dst isa CLArray && !is_system(dst)
-                        src_buffer = src isa CLArray && !is_system(src)
-                        if dst_buffer && src_buffer
-                            cl.enqueue_copy(convert(cl.Buffer, dst.data[]),
-                                dst.offset + (dst_off - 1) * sizeof(T),
-                                convert(cl.Buffer, src.data[]),
-                                src.offset + (src_off - 1) * sizeof(T),
-                                nbytes; blocking)
-                        elseif dst_buffer
-                            cl.enqueue_write(convert(cl.Buffer, dst.data[]),
-                                dst.offset + (dst_off - 1) * sizeof(T),
-                                host_address(src, src_off), nbytes; blocking)
-                        elseif src_buffer
-                            cl.enqueue_read(host_address(dst, dst_off),
-                                convert(cl.Buffer, src.data[]),
-                                src.offset + (src_off - 1) * sizeof(T),
-                                nbytes; blocking)
+                    for (n, tags) in ((nbytes, false), (ntags, true))
+                        n == 0 && continue
+                        if memtype(device_array) == cl.SharedVirtualMemory
+                            cl.enqueue_svm_copy(copy_pointer(dst, dst_off, tags),
+                                copy_pointer(src, src_off, tags), n; blocking)
+                        elseif memtype(device_array) <: cl.UnifiedMemory
+                            cl.enqueue_usm_copy(copy_pointer(dst, dst_off, tags),
+                                copy_pointer(src, src_off, tags), n; blocking)
+                        else
+                            dst_buffer = dst isa CLArray && !is_system(dst)
+                            src_buffer = src isa CLArray && !is_system(src)
+                            if dst_buffer && src_buffer
+                                cl.enqueue_copy(convert(cl.Buffer, dst.data[]),
+                                    buffer_offset(dst, dst_off, tags),
+                                    convert(cl.Buffer, src.data[]),
+                                    buffer_offset(src, src_off, tags),
+                                    n; blocking)
+                            elseif dst_buffer
+                                cl.enqueue_write(convert(cl.Buffer, dst.data[]),
+                                    buffer_offset(dst, dst_off, tags),
+                                    host_address(src, src_off, tags), n; blocking)
+                            elseif src_buffer
+                                cl.enqueue_read(host_address(dst, dst_off, tags),
+                                    convert(cl.Buffer, src.data[]),
+                                    buffer_offset(src, src_off, tags),
+                                    n; blocking)
+                            end
                         end
                     end
                 end
@@ -498,8 +532,9 @@ function Base.fill!(A::DenseCLArray{T}, val) where {T}
     # the OpenCL fill commands only accept patterns of 1, 2, 4, ..., 128 bytes, and
     # require the destination to be aligned to that size, so fall back to a kernel
     # otherwise. we also do so for host memory wrapped using `unsafe_wrap`, which
-    # implementations do not expect here (PoCL crashes).
-    if !ispow2(sizeof(T)) || sizeof(T) > 128 || !fill_aligned(A) || is_system(A)
+    # implementations do not expect here (PoCL crashes), and for arrays of isbits unions,
+    # whose selector bytes also need to be set.
+    if Base.isbitsunion(T) || !ispow2(sizeof(T)) || sizeof(T) > 128 || !fill_aligned(A) || is_system(A)
         return invoke(fill!, Tuple{AnyGPUArray, Any}, A, val)
     end
     cl.context!(context(A)) do
@@ -530,7 +565,7 @@ function Base.unsafe_convert(::Type{CLPtr{T}}, V::SubArray{T, N, P, <:Tuple{Vara
 end
 function Base.unsafe_convert(::Type{CLPtr{T}}, V::SubArray{T, N, P, <:Tuple{Vararg{Union{Base.RangeIndex, Base.ReshapedUnitRange}}}}) where {T, N, P}
     return Base.unsafe_convert(CLPtr{T}, parent(V)) +
-        (Base.first_index(V) - 1) * sizeof(T)
+        (Base.first_index(V) - 1) * aligned_sizeof(T)
 end
 
 
@@ -571,6 +606,9 @@ device.
     calling `unsafe_wrap(Array, arr)` again).
 """
 function Base.unsafe_wrap(::Type{Array}, arr::CLArray{T, N}) where {T, N}
+    # an `Array` keeps its selector bytes elsewhere than the `CLArray` does
+    Base.isbitsunion(T) && throw(ArgumentError(
+        "unsafe_wrap(Array, ...) does not support isbits-union element types like $T"))
     return unsafe_wrap(Array, host_pointer(arr), size(arr))
 end
 
@@ -647,6 +685,9 @@ end
 function wrap_system_memory(::Type{CLArray{T, N, M}}, ptr::Ptr{T}, dims::NTuple{N, Int},
                             owner = nothing) where {T, N, M}
     check_eltype(T)
+    # the selector bytes of such arrays live past the data, outside of the wrapped memory
+    Base.isbitsunion(T) && throw(ArgumentError(
+        "unsafe_wrap(CLArray, ...) does not support isbits-union element types like $T"))
     isbitstype(T) || throw(ArgumentError("Can only unsafe_wrap a pointer to a bits type"))
     all(>=(0), dims) || throw(ArgumentError("Invalid dimensions $dims"))
     bytesize = Base.checked_mul(foldl(Base.checked_mul, dims; init = 1), sizeof(T))
@@ -724,30 +765,30 @@ function Base.resize!(a::CLVector{T}, n::Integer) where {T}
     is_system(a) && throw(ArgumentError("Cannot resize a CLArray that wraps host memory"))
 
     # TODO: add additional space to allow for quicker resizing
-    maxsize = n * sizeof(T)
-    bufsize = if isbitstype(T)
-        maxsize
-    else
-        # type tag array past the data
-        maxsize + n
-    end
+    maxsize = n * aligned_sizeof(T)
+    # arrays of isbits unions keep one selector byte per element past the data
+    bufsize = Base.isbitsunion(T) ? maxsize + n : maxsize
 
     # replace the data with a new CL. this 'unshares' the array.
     # as a result, we can safely support resizing unowned buffers.
     new_data = cl.context!(context(a)) do
-        mem = managed_alloc(memtype(a), bufsize; alignment=Base.datatype_alignment(T))
+        mem = managed_alloc(memtype(a), bufsize; alignment=element_alignment(T))
         with_managed_locks(Managed[mem, a.data[]]) do
-            ptr = convert(CLPtr{T}, mem)
             m = min(length(a), n)
-            if m > 0
-                GC.@preserve a begin
-                    if memtype(a) == cl.SharedVirtualMemory
-                        cl.enqueue_svm_copy(ptr, pointer(a), m*sizeof(T); blocking=false)
-                    elseif memtype(a) <: cl.UnifiedMemory
-                        cl.enqueue_usm_copy(ptr, pointer(a), m*sizeof(T); blocking=false)
-                    else
-                        cl.enqueue_copy(convert(cl.Buffer, mem), 0, convert(cl.Buffer, a.data[]), a.offset, m*sizeof(T); blocking=false)
-                    end
+            # copy the existing elements, and their selector bytes
+            regions = ((0, a.offset, m * aligned_sizeof(T)),
+                       (maxsize, a.maxsize, Base.isbitsunion(T) ? m : 0))
+            GC.@preserve a for (dst_off, src_off, nbytes) in regions
+                nbytes == 0 && continue
+                if memtype(a) == cl.SharedVirtualMemory
+                    cl.enqueue_svm_copy(convert(CLPtr{UInt8}, mem) + dst_off,
+                        convert(CLPtr{UInt8}, a.data[]) + src_off, nbytes; blocking=false)
+                elseif memtype(a) <: cl.UnifiedMemory
+                    cl.enqueue_usm_copy(convert(CLPtr{UInt8}, mem) + dst_off,
+                        convert(CLPtr{UInt8}, a.data[]) + src_off, nbytes; blocking=false)
+                else
+                    cl.enqueue_copy(convert(cl.Buffer, mem), dst_off,
+                        convert(cl.Buffer, a.data[]), src_off, nbytes; blocking=false)
                 end
             end
         end
