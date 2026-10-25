@@ -1,5 +1,6 @@
 using OpenCL
 using Documenter
+using DocumenterCodeBlocks: CodeBlocks
 
 DocMeta.setdocmeta!(OpenCL, :DocTestSetup, :(using OpenCL, pocl_jll); recursive = true)
 
@@ -14,6 +15,9 @@ makedocs(;
     authors = "Jake Bolewski, JuliaHub and other contributors",
     repo = "https://github.com/JuliaGPU/OpenCL.jl/blob/{commit}{path}#{line}",
     sitename = "OpenCL.jl",
+    plugins = [
+        CodeBlocks(; line_counter = :named),
+    ],
     format = Documenter.HTML(; canonical = "https://JuliaGPU.github.io/OpenCL.jl"),
     pages = ["index.md"; numbered_pages],
 )
