@@ -38,7 +38,7 @@ SPIRVIntrinsics = {path = "lib/intrinsics"}
 [compat]
 Adapt = "4"
 GPUArrays = "12.1"
-GPUCompiler = "2.13"
+GPUCompiler = "2.18"
 GPUToolbox = "3.4"
 KernelAbstractions = "0.10"
 KernelInterface = "0.4"
