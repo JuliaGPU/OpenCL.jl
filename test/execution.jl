@@ -138,6 +138,52 @@ end
     @test OpenCL.return_type(getindex, Tuple{Base.RefValue{Integer}}) === Integer
 end
 
+@testset "method redefinition" begin
+    # kernel lookups are cached per signature; a method added after the first launch must
+    # still be picked up by later launches in a newer world
+    @eval redefined_kernel(a, x::Number) = (@inbounds a[1] = 1; return)
+    a = CLArray([0])
+    invokelatest() do
+        @opencl redefined_kernel(a, 42)
+    end
+    @test Array(a)[1] == 1
+
+    @eval redefined_kernel(a, x::Int) = (@inbounds a[1] = 2; return)
+    invokelatest() do
+        @opencl redefined_kernel(a, 42)
+    end
+    @test Array(a)[1] == 2
+
+    @eval redefined_kernel(a, x::Int) = (@inbounds a[1] = 3; return)
+    invokelatest() do
+        @opencl redefined_kernel(a, 42)
+    end
+    @test Array(a)[1] == 3
+end
+
+@testset "mutated compiler options" begin
+    # the kernel lookup compares the options' current values
+    options_kernel() = return
+    extensions = String[]
+    k1 = @opencl launch=false extensions=extensions options_kernel()
+    push!(extensions, "SPV_KHR_expect_assume")
+    k2 = @opencl launch=false extensions=extensions options_kernel()
+    @test k1.fun !== k2.fun
+end
+
+@testset "program backend switch" begin
+    # the kernel lookup depends on the task-local program backend
+    if "cl_khr_il_program" in cl.device().extensions
+        backend_kernel() = return
+        for mode in (:spirv, :opencl, :spirv)
+            OpenCL.program_backend!(mode) do
+                k = @opencl launch=false backend_kernel()
+                @test (k.fun.program.source === nothing) == (mode === :spirv)
+            end
+        end
+    end
+end
+
 end
 
 ###############################################################################
