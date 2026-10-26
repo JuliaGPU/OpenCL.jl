@@ -261,9 +261,9 @@ end
 
 const clfunction_lock = ReentrantLock()
 
-function clfunction(f::F, tt::TT=Tuple{}; source=f, kwargs...) where {F,TT}
+function clfunction(f::F, tt::TT=Tuple{}; source::S=f, kwargs...) where {F,TT,S}
     kernel, device_rng = clfunction_link(methodinstance(F, tt); kwargs...)
-    HostKernel{F,typeof(source),tt}(f, source, kernel, device_rng)
+    HostKernel{F,S,tt}(f, source, kernel, device_rng)
 end
 
 # the part of `clfunction` that doesn't depend on the kernel's function and argument types,
