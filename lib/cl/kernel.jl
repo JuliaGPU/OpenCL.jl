@@ -9,8 +9,14 @@ mutable struct Kernel <: CLObject
     const id::cl_kernel
     const lock::ReentrantLock
 
+    # Cache settings registered by `set_indirect_memory!` with `clSetKernelExecInfo`.
+    # They persist across launches, so unchanged settings need no driver call.
+    # Guarded by `lock`; direct calls to `clSetKernelExecInfo` bypass this cache.
+    const indirect_pointers::Vector{Vector{CLPtr{Cvoid}}}   # SVM, buffer and USM pointers
+    indirect_access::NTuple{3,Bool}                        # USM device, host and shared
+
     function Kernel(k::cl_kernel, retain::Bool=false)
-        kernel = new(k, ReentrantLock())
+        kernel = new(k, ReentrantLock(), [CLPtr{Cvoid}[] for _ in 1:3], (false, false, false))
         retain && clRetainKernel(kernel)
         finalizer(clReleaseKernel, kernel)
         return kernel
@@ -309,27 +315,31 @@ end
         end
     end
 
-    # configure USM access
-    if device_access
+    # USM access flags are only enabled, never cleared. Set each flag once.
+    (device_set, host_set, shared_set) = k.indirect_access
+    if device_access && !device_set
         clSetKernelExecInfo(k, CL_KERNEL_EXEC_INFO_INDIRECT_DEVICE_ACCESS_INTEL, sizeof(cl_bool), Ref{cl_bool}(true))
     end
-    if host_access
+    if host_access && !host_set
         clSetKernelExecInfo(k, CL_KERNEL_EXEC_INFO_INDIRECT_HOST_ACCESS_INTEL, sizeof(cl_bool), Ref{cl_bool}(true))
     end
-    if shared_access
+    if shared_access && !shared_set
         clSetKernelExecInfo(k, CL_KERNEL_EXEC_INFO_INDIRECT_SHARED_ACCESS_INTEL, sizeof(cl_bool), Ref{cl_bool}(true))
     end
+    k.indirect_access = (device_access | device_set, host_access | host_set,
+                         shared_access | shared_set)
 
-    # set the pointers
-    if !isempty(svm_pointers)
-        clSetKernelExecInfo(k, CL_KERNEL_EXEC_INFO_SVM_PTRS, sizeof(svm_pointers), svm_pointers)
-    end
-    if !isempty(bda_pointers)
-        clSetKernelExecInfo(k, CL_KERNEL_EXEC_INFO_DEVICE_PTRS_EXT, sizeof(bda_pointers), bda_pointers)
-    end
-    if !isempty(usm_pointers)
-        clSetKernelExecInfo(k, CL_KERNEL_EXEC_INFO_USM_PTRS_INTEL, sizeof(usm_pointers), usm_pointers)
-    end
+    # Register pointer lists only when they differ from the cached lists.
+    set_indirect_pointers!(k, 1, CL_KERNEL_EXEC_INFO_SVM_PTRS, svm_pointers)
+    set_indirect_pointers!(k, 2, CL_KERNEL_EXEC_INFO_DEVICE_PTRS_EXT, bda_pointers)
+    set_indirect_pointers!(k, 3, CL_KERNEL_EXEC_INFO_USM_PTRS_INTEL, usm_pointers)
+    return
+end
+
+function set_indirect_pointers!(k::Kernel, i::Int, param, pointers::Vector{CLPtr{Cvoid}})
+    (isempty(pointers) || pointers == k.indirect_pointers[i]) && return
+    clSetKernelExecInfo(k, param, sizeof(pointers), pointers)
+    k.indirect_pointers[i] = pointers
     return
 end
 
