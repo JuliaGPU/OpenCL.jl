@@ -4,6 +4,7 @@ using ..OpenCL
 using ..OpenCL: @device_override, method_table, kernel_convert, clfunction, has_feature,
                 SPIRVIntrinsics
 
+import KernelAbstractions as KA
 import KernelInterface as KI
 
 import Adapt
@@ -343,6 +344,16 @@ function KI.supports_shuffle(b::OpenCLBackend, ::Type{T}) where {T <: ShuffleTyp
     T === Float16 && return props.float16
     return true
 end
+
+
+## KernelAbstractions
+
+Adapt.adapt_storage(::KA.CPU, a::CLArray) = convert(Array, a)
+
+# `@Const` applies `constify` inside the kernel, where arguments have already been
+# converted to device arrays, so the rule has to be registered for `CLDeviceArray`
+# rather than for `CLArray`.
+Adapt.adapt_storage(::KA.ConstAdaptor, a::CLDeviceArray) = Base.Experimental.Const(a)
 
 
 ## Indexing Functions
