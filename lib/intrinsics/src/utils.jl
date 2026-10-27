@@ -2,9 +2,41 @@ const known_intrinsics = String["printf"]
 
 # SPIR-V wrapper and OpenCL.std functions need Itanium C++ ABI names. We
 # implement a very limited subset here, just enough to support these builtins.
-#
-# This macro also keeps track of called builtins, generating `ccall("extern...", llvmcall)`
-# expressions for them (so that we can exclude them during IR verification).
+function mangle(T::Type)
+    if T == Int32
+        "i"
+    elseif T == UInt32
+        "j"
+    elseif T == Int64
+        "l"
+    elseif T == UInt64
+        "m"
+    elseif T == Int16
+        "s"
+    elseif T == UInt16
+        "t"
+    elseif T == Int8
+        "c"
+    elseif T == UInt8
+        "h"
+    elseif T == Float16
+        "Dh"
+    elseif T == Float32
+        "f"
+    elseif T == Float64
+        "d"
+    elseif T <: LLVMPtr
+        elt, as = T.parameters
+        (as == AS.Private ? "P" : "PU3AS$as") * "V" * mangle(elt)
+    else
+        error("Unknown type $T")
+    end
+end
+mangle(::Type{NTuple{N, VecElement{T}}}) where {N, T} = "Dv$(N)_" * mangle(T)
+
+# `@builtin_ccall` calls builtins by their mangled name. It also keeps track of called
+# builtins, generating `ccall("extern...", llvmcall)` expressions for them (so that we can
+# exclude them during IR verification).
 #
 # Builtins that all work-items of a (sub-)group have to execute together (barriers, sub-group
 # shuffles, votes, reductions, ...) have to be called with `convergent = true`, see
@@ -17,38 +49,6 @@ macro builtin_ccall(name, ret, argtypes, args...)
     end
     @assert Meta.isexpr(argtypes, :tuple)
     argtypes = argtypes.args
-
-    function mangle(T::Type)
-        if T == Int32
-            "i"
-        elseif T == UInt32
-            "j"
-        elseif T == Int64
-            "l"
-        elseif T == UInt64
-            "m"
-        elseif T == Int16
-            "s"
-        elseif T == UInt16
-            "t"
-        elseif T == Int8
-            "c"
-        elseif T == UInt8
-            "h"
-        elseif T == Float16
-            "Dh"
-        elseif T == Float32
-            "f"
-        elseif T == Float64
-            "d"
-        elseif T <: LLVMPtr
-            elt, as = T.parameters
-            (as == AS.Private ? "P" : "PU3AS$as") * "V" * mangle(elt)
-        else
-            error("Unknown type $T")
-        end
-    end
-    mangle(::Type{NTuple{N, VecElement{T}}}) where {N, T} = "Dv$(N)_" * mangle(T)
 
     # C++-style mangling; very limited to just support these intrinsics
     # TODO: generalize for use with other intrinsics? do we need to mangle those?
