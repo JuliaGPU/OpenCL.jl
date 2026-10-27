@@ -10,6 +10,7 @@ using Reexport
 using GPUArrays
 using Random
 using Preferences
+using PrecompileTools: @compile_workload
 
 import KernelInterface
 
