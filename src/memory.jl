@@ -33,8 +33,18 @@ end
 
 Base.sizeof(managed::Managed) = sizeof(managed.mem)
 
+# Lock each allocation once, in a stable order to avoid deadlocks, and return them.
 function lock_managed(managed::AbstractVector{<:Managed})
-    locked = unique(managed)
+    locked = if length(managed) <= 8
+        # For small lists, a linear scan is cheaper than the `Set` built by `unique`.
+        locked = empty(managed)
+        for memory in managed
+            any(m -> m === memory, locked) || push!(locked, memory)
+        end
+        locked
+    else
+        unique(managed)
+    end
     sort!(locked; by=memory -> objectid(memory.lock))
     for memory in locked
         lock(memory.lock)
