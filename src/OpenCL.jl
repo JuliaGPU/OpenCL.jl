@@ -66,4 +66,20 @@ export OpenCLBackend
     eval(Expr(:public, :synchronize, Symbol("@sync")))
 end
 
+# displaying an array (in USM, the preferred memory back-end where supported), which the
+# device-free workload can't do, compiles for 150 to 400 ms otherwise. the REPL displays on
+# a `TTYTerminal`, which is part of Base on 1.12+.
+let ios = @static isdefined(Base, :Terminals) ? (IOBuffer, Base.Terminals.TTYTerminal) :
+                                               (IOBuffer,)
+    for io in ios, N in (1, 2)
+        precompile(Tuple{typeof(show), IOContext{io}, MIME"text/plain",
+                         CLArray{Float32,N,cl.UnifiedDeviceMemory}})
+    end
+end
+
+# freeing an array, which otherwise compiles in the first garbage collection that frees one
+for M in (cl.UnifiedDeviceMemory, cl.SharedVirtualMemory, cl.Buffer)
+    precompile(Tuple{typeof(free), Managed{M}})
+end
+
 end
