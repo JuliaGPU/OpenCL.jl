@@ -110,6 +110,18 @@ for name in collect(keys(testsuite))
     end
 end
 
+# captured variables that get boxed (`Core.Box`) lose their type
+if isdefined(Test, :detect_closure_boxes)
+    testsuite["closure boxes"] = quote
+        import KernelAbstractions, SIMD, SpecialFunctions, SPIRVIntrinsics
+        exts = [Base.get_extension(OpenCL, :KernelAbstractionsExt),
+                Base.get_extension(SPIRVIntrinsics, :SPIRVIntrinsicsSIMDExt),
+                Base.get_extension(SPIRVIntrinsics, :SPIRVIntrinsicsSpecialFunctionsExt),
+                Base.get_extension(SPIRVIntrinsics, :SPIRVIntrinsicsSIMDSpecialFunctionsExt)]
+        @test Test.detect_closure_boxes(OpenCL, SPIRVIntrinsics, exts...) == []
+    end
+end
+
 ## filter
 filter_tests!(testsuite, args)
 
