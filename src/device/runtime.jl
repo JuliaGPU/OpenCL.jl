@@ -66,7 +66,7 @@ const EXCEPTION_FRAME_SIZE = sizeof(ExceptionFrame_st)
 
 # the mailbox address as carried by the kernel state; null when the device has no
 # host-accessible memory to put a mailbox in (see `allocate_exception_mailbox`).
-@inline exception_info() = reinterpret(ExceptionInfo, kernel_state().exception_info)
+@device_function @inline exception_info() = reinterpret(ExceptionInfo, kernel_state().exception_info)
 @inline has_exception_info(info::ExceptionInfo) = info != reinterpret(ExceptionInfo, 0)
 
 # Claims must cover all work-groups and queues on the device. SPIRVIntrinsics' public
@@ -176,7 +176,7 @@ macro gputhrow(name::String, reason::String)
     end
 end
 
-function signal_exception()
+@device_function function signal_exception()
     info = exception_info()
     # All faulting work-items signal, including level 0 kernels that do not claim a record.
     # Kernel completion makes both the status and any recorded details visible to the host.
@@ -230,7 +230,7 @@ struct KernelState
     launch_id::UInt64
 end
 
-@inline @generated kernel_state() = GPUCompiler.kernel_state_value(KernelState)
+@device_function @inline @generated kernel_state() = GPUCompiler.kernel_state_value(KernelState)
 
 ## intrinsics for adding and accessing additional kernel arguments
 
@@ -255,5 +255,5 @@ end
 end
 
 for name in [:random_keys, :random_counters]
-    @eval @inline $name() = additional_arg_value(LLVMPtr{UInt32, AS.Workgroup}, Val($(QuoteNode(name))))
+    @eval @device_function @inline $name() = additional_arg_value(LLVMPtr{UInt32, AS.Workgroup}, Val($(QuoteNode(name))))
 end

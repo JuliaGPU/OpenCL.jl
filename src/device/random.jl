@@ -26,22 +26,24 @@ end
 end
 
 # local memory with the actual seed, set by `initialize_rng_state` or overridden by `seed!`
-@inline function global_random_keys()
+@device_function @inline function global_random_keys()
     ptr = random_keys()::LLVMPtr{UInt32, AS.Workgroup}
     return CLDeviceArray{UInt32, 1, AS.Workgroup}((rng_nslots(),), ptr)
 end
 
 # local memory with per-slot counters, incremented when generating numbers
-@inline function global_random_counters()
+@device_function @inline function global_random_counters()
     ptr = random_counters()::LLVMPtr{UInt32, AS.Workgroup}
     return CLDeviceArray{UInt32, 1, AS.Workgroup}((rng_nslots(),), ptr)
 end
 
-# initialization function, called automatically at the start of each kernel
-function initialize_rng_state()
+# initialization function, called automatically at the start of each kernel.
+# it must return nothing, as the kernel calls it as a void function.
+@device_function function initialize_rng_state()
     slot = rng_slot()
     @inbounds global_random_keys()[slot] = kernel_state().random_seed
     @inbounds global_random_counters()[slot] = 0
+    return
 end
 
 # generators

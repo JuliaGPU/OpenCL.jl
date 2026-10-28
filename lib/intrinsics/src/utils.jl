@@ -103,37 +103,12 @@ Base.Experimental.@MethodTable(method_table)
 
 const HAS_CONSISTENT_OVERLAY = VERSION >= v"1.12.0-DEV.745" || v"1.11-rc1" <= VERSION < v"1.12-"
 
+# `method_table` resolves in the caller's module, so that back ends that use these macros
+# define their overrides in their own method table
 macro device_override(ex)
-    # `method_table` is not interpolated so that the local backend method_table is used
-    if HAS_CONSISTENT_OVERLAY
-        # this requires that the overlay method f′ is consistent with f, i.e.,
-        #   - if f(x) returns a value, f′(x) must return the identical value.
-        #   - if f(x) throws an exception, f′(x) must also throw an exception
-        #     (although the exceptions do not need to be identical).
-        # in return, calls that only reach overlays through their error paths (e.g.
-        # `checked_add` via `throw_overflowerr_binaryop`) remain eligible for concrete
-        # evaluation, which e.g. keyword-argument handling relies on.
-        esc(quote
-            Base.Experimental.@consistent_overlay(method_table, $ex)
-        end)
-    else
-        esc(quote
-            Base.Experimental.@overlay(method_table, $ex)
-        end)
-    end
+    esc(GPUToolbox.Overlays.device_override(__module__, GlobalRef(__module__, :method_table), ex))
 end
 
 macro device_function(ex)
-    ex = macroexpand(__module__, ex)
-    def = ExprTools.splitdef(ex)
-
-    # generate a function that errors
-    def[:body] = quote
-        error("This function is not intended for use on the CPU")
-    end
-
-    esc(quote
-        $(ExprTools.combinedef(def))
-        @device_override $ex
-    end)
+    esc(GPUToolbox.Overlays.device_function(__module__, GlobalRef(__module__, :method_table), ex))
 end

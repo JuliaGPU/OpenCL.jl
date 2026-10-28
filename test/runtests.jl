@@ -122,6 +122,13 @@ if isdefined(Test, :detect_closure_boxes)
     end
 end
 
+# sysimage builds compile methods for the host, which must not reach device-only code
+testsuite["host leaks"] = quote
+    import GPUToolbox, SPIRVIntrinsics
+    @test isempty(GPUToolbox.Overlays.host_leaks(OpenCL))
+    @test isempty(GPUToolbox.Overlays.host_leaks(SPIRVIntrinsics))
+end
+
 ## filter
 filter_tests!(testsuite, args)
 

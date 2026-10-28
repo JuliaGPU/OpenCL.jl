@@ -3,10 +3,9 @@ module SPIRVIntrinsics
 using LLVM, LLVM.IR, LLVM.Build, LLVM.Interop
 using Core: LLVMPtr
 
-import ExprTools
-
 import UnsafeAtomics
 
+import GPUToolbox
 using GPUToolbox: u32
 
 include("pointer.jl")
