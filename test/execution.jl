@@ -561,6 +561,12 @@ end
     @test Array(a)[1] == 1
 end
 
+# failures of the precompile workload don't fail precompilation, so check its kernel here
+# (`Pkg.test` runs with `--check-bounds=yes`, which once broke it)
+@testset "precompile workload" begin
+    @test !isempty(OpenCL.compile_to_obj(OpenCL.precompile_job()).obj)
+end
+
 @testset "compilation cache" begin
     mod = @eval module $(gensym())
         @noinline child() = return

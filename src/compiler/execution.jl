@@ -193,6 +193,25 @@ pass_arg(@nospecialize dt) = !(isghosttype(dt) || Core.Compiler.isconstType(dt))
 Core.kwcall(kwargs::NamedTuple, kernel::AbstractKernel, args::Vararg{Any,N}) where {N} =
     launch_tuple(kernel, args; kwargs...)
 
+# Build `launch_tuple` argument expressions for callable `F` and argument types `TT`.
+# A regular helper using vectors avoids recompiling the generator for each argument count.
+function kernel_call_arguments(@nospecialize(F), @nospecialize(TT), nargs::Int)
+    types = Any[F, TT.parameters...]
+    exprs = Any[:(kernel_convert(source, indirect_memory, managed))]
+    for i in 1:nargs
+        push!(exprs, :(kernel_convert(args[$i], indirect_memory, managed)))
+    end
+    call_args = Any[]
+    for (dt, ex) in zip(types, exprs)
+        # Omit arguments with no runtime value.
+        pass_arg(dt) || continue
+        # Replace non-isbits arguments, which must be unused (or compilation would have
+        # failed), with null pointers.
+        push!(call_args, isbitstype(dt) ? ex : :C_NULL)
+    end
+    return call_args
+end
+
 """
     OpenCL.launch_tuple(kernel, args::Tuple; kwargs...)
 
@@ -201,22 +220,7 @@ Launch `kernel`, as calling it with the arguments `args...` and the launch keywo
 """
 @inline @generated function launch_tuple(kernel::AbstractKernel{F,TT}, args::Tuple;
                                          call_kwargs...) where {F,TT}
-    sig = Tuple{F, TT.parameters...}    # Base.signature_type with a function type
-    args = (:(kernel_convert(source, indirect_memory, managed)),
-            (:(kernel_convert(args[$i], indirect_memory, managed)) for i in 1:fieldcount(args))...)
-
-    # filter out ghost arguments that shouldn't be passed
-    to_pass = map(pass_arg, sig.parameters)
-    call_t =                  Type[x[1] for x in zip(sig.parameters,  to_pass) if x[2]]
-    call_args = Union{Expr,Symbol}[x[1] for x in zip(args, to_pass)            if x[2]]
-
-    # replace non-isbits arguments (they should be unused, or compilation would have failed)
-    for (i,dt) in enumerate(call_t)
-        if !isbitstype(dt)
-            call_t[i] = Ptr{Any}
-            call_args[i] = :C_NULL
-        end
-    end
+    call_args = kernel_call_arguments(F, TT, fieldcount(args))
 
     # convert arguments before locking (conversion is pure, and collects the managed
     # allocations to lock), then perform the launch transaction: with all participating
