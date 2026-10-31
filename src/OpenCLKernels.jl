@@ -168,7 +168,7 @@ end
 ## Shared and Scratch Memory
 
 @device_override @inline function KA.SharedMemory(::Type{T}, ::Val{Dims}, ::Val{Id}) where {T, Dims, Id}
-    ptr = OpenCL.emit_localmemory(T, Val(prod(Dims)))
+    ptr = OpenCL.emit_localmemory(T, Val(prod(Dims)), Val(Id))
     CLDeviceArray(Dims, ptr)
 end
 
