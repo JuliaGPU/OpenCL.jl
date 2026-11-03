@@ -215,11 +215,19 @@ end
         error("Device does not support cl_intel_required_subgroup_size")
     end
 
+    # `BFloat16` loads, stores and conversions; GPUCompiler widens the arithmetic to `float`.
+    # (spirv2clc has no bfloat16 support.)
+    supports_bfloat16 = !source && "SPV_KHR_bfloat16" in dev.spirv_extensions
+    if supports_bfloat16
+        extensions = union(something(extensions, String[]), ["SPV_KHR_bfloat16"])
+    end
+
     # GPUCompiler adds the extensions that the atomics need
     spirv_ext = extensions === nothing ? "" : join(("+$ext" for ext in extensions), ",")
 
     # create GPUCompiler objects
     target = SPIRVCompilerTarget(; version=SPIRV_VERSION, supports_fp16, supports_fp64,
+                                   supports_bfloat16,
                                    validate=true, extensions=spirv_ext, atomics,
                                    backend=llvm_to_spirv_backend,
                                    driver=spirv_driver(dev), kwargs...)
