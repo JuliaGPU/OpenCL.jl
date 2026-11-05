@@ -31,6 +31,7 @@ end
             :driver_version,
             :version,
             :extensions,
+            :spirv_extensions,
             :platform,
             :name,
             :device_type,
@@ -78,6 +79,8 @@ end
             if length(v) > 0
                 @test isa(v, Array{String, 1})
             end
+        elseif k == :spirv_extensions
+            @test isa(v, Vector{String})
         elseif k == :platform
             @test v == cl.platform()
         elseif k == :max_work_item_sizes
