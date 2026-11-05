@@ -9,14 +9,19 @@ mutable struct Kernel <: CLObject
     const id::cl_kernel
     const lock::ReentrantLock
 
+    # Intel's CPU runtime invalidates a program handle once its reference count drops to
+    # zero, even while kernels still use it, so keep the program the kernel was created from.
+    const program::Union{Program,Nothing}
+
     # Cache settings registered by `set_indirect_memory!` with `clSetKernelExecInfo`.
     # They persist across launches, so unchanged settings need no driver call.
     # Guarded by `lock`; direct calls to `clSetKernelExecInfo` bypass this cache.
     const indirect_pointers::Vector{Vector{CLPtr{Cvoid}}}   # SVM, buffer and USM pointers
     indirect_access::NTuple{3,Bool}                        # USM device, host and shared
 
-    function Kernel(k::cl_kernel, retain::Bool=false)
-        kernel = new(k, ReentrantLock(), [CLPtr{Cvoid}[] for _ in 1:3], (false, false, false))
+    function Kernel(k::cl_kernel, retain::Bool=false; program::Union{Program,Nothing}=nothing)
+        kernel = new(k, ReentrantLock(), program, [CLPtr{Cvoid}[] for _ in 1:3],
+                     (false, false, false))
         retain && clRetainKernel(kernel)
         finalizer(clReleaseKernel, kernel)
         return kernel
@@ -45,7 +50,7 @@ function Kernel(p::Program, kernel_name::String)
     if err_code[] != CL_SUCCESS
         throw(CLError(err_code[]))
     end
-    return Kernel(kernel_id)
+    return Kernel(kernel_id; program=p)
 end
 
 function Base.getproperty(k::Kernel, s::Symbol)

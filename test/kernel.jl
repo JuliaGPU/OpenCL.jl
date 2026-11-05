@@ -29,6 +29,13 @@ end
     @test k.reference_count > 0
     @test k.program == prg
     @test typeof(k.attributes) == String
+
+    # the kernel's program stays queryable after the `Program` that built it is collected
+    # (a function, so that the `Program` isn't kept alive by the testset's scope)
+    kernel_of(src) = cl.Kernel(cl.build!(cl.Program(source=src)), "sum")
+    k = kernel_of(test_source)
+    GC.gc(true)
+    @test k.program isa cl.Program
 end
 
 @testset "mem/workgroup size" begin
