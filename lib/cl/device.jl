@@ -143,6 +143,16 @@ end
 
     # error handling inspired by rusticl
     # https://gitlab.freedesktop.org/mesa/mesa/-/blob/c4385d6fb0938231114eb3023082cd33788b89b4/src/gallium/frontends/rusticl/api/device.rs#L314-320
+    # cl_khr_spirv_queries: the SPIR-V extensions that modules may declare
+    if s == :spirv_extensions
+        "cl_khr_spirv_queries" in d.extensions || return String[]
+        size = Ref{Csize_t}()
+        clGetDeviceInfo(d, CL_DEVICE_SPIRV_EXTENSIONS_KHR, 0, C_NULL, size)
+        result = Vector{Ptr{Cchar}}(undef, size[] ÷ sizeof(Ptr{Cchar}))
+        clGetDeviceInfo(d, CL_DEVICE_SPIRV_EXTENSIONS_KHR, sizeof(result), result, C_NULL)
+        return String[unsafe_string(ptr) for ptr in result]
+    end
+
     if s == :sub_group_sizes
         res_size = Ref{Csize_t}()
         err = unchecked_clGetDeviceInfo(d, CL_DEVICE_SUB_GROUP_SIZES_INTEL, C_NULL, C_NULL, res_size)
@@ -189,7 +199,7 @@ function Base.propertynames(::Device, private::Bool=false)
         :has_image_support, :has_local_mem, :host_unified_memory, :available,
         :compiler_available, :non_uniform_work_group_support
         # other
-        :extensions, :platform, :device_type, :max_work_item_size, :sub_group_sizes,
+        :extensions, :spirv_extensions, :platform, :device_type, :max_work_item_size, :sub_group_sizes,
         :max_image2d_shape, :max_image3d_shape,
     )
     return private ? (fieldnames(Device)..., props...) : props

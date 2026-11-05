@@ -406,11 +406,13 @@ end
     # nothing enables native floating-point min/max
     @test !occursin("min_max", GPUCompiler.spirv_extensions(OpenCL.compiler_config(dev).target))
 
-    # the user's extensions are kept, and the atomics add the ones they need
+    # the user's extensions are kept, next to the one for bfloat16 (on devices that support
+    # it), and the atomics add the ones they need
     config = OpenCL.compiler_config(dev; extensions=["SPV_KHR_expect_assume"],
                                     atomics=GPUCompiler.SPIRVAtomics(; fadd_f32_local=true))
+    bfloat16 = config.target.supports_bfloat16 ? ",+SPV_KHR_bfloat16" : ""
     @test GPUCompiler.spirv_extensions(config.target) ==
-          "+SPV_KHR_expect_assume,+SPV_EXT_shader_atomic_float_add"
+          "+SPV_KHR_expect_assume$bfloat16,+SPV_EXT_shader_atomic_float_add"
 end
 
 # `@atomic` returns the old value when it uses an atomic operation, and the new one when it
