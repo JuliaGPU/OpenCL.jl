@@ -272,11 +272,20 @@ function clfunction(f::F, tt::TT=Tuple{}; source::S=f, kwargs...) where {F,TT,S}
     # copies of arrays, like `extensions`, which the caller may mutate.
     options = map(v -> v isa AbstractArray ? copy(v) : v, kw)
     key = (cl.context(), cl.device(), program_backend(), options)
-    kernel, device_rng = GPUCompiler.cached_lookup(Tuple{cl.Kernel,Bool}, F, tt, key) do
-        clfunction_link(methodinstance(F, tt); kw...)
-    end
+    kernel, device_rng = GPUCompiler.cached_lookup(KernelLinker(F, tt, kw),
+                                                   Tuple{cl.Kernel,Bool}, F, tt, key)
     HostKernel{F,S,tt}(f, source, kernel, device_rng)
 end
+
+# what `clfunction` calls when the kernel isn't cached: a callable struct rather than a
+# closure, whose type would depend on the kernel's, compiling it (and the inlined
+# `methodinstance`) again for every kernel.
+struct KernelLinker{K}
+    ft::Type
+    tt::Type
+    kw::K
+end
+(l::KernelLinker)() = clfunction_link(methodinstance(l.ft, l.tt); l.kw...)
 
 # the part of `clfunction` that doesn't depend on the kernel's function and argument types,
 # kept separate so that it's compiled once rather than for every kernel
