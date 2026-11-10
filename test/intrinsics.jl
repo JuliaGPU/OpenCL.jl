@@ -228,6 +228,24 @@ end
     end
 end
 
+# Base throws some of `Rational`'s errors with a formatted message, which doesn't compile, so
+# GPUToolbox's overrides throw them with a constant one. Without those, kernels that construct
+# a rational with a negative denominator (Julia 1.10) or negate one (1.10 and 1.11) fail.
+@testset "rational arithmetic" begin
+    xs = [1//3, -5//7, 3//2, 2//-9]
+    ys = [2//5, 7//3, -1//4, 9//2]
+    zs = [-1//2, 1//7, 3//8, 1//1]
+    # Intel's CPU runtime can't compile the `OpSMulExtended` of checked `Int` products
+    if OpenCL.OpenCLKernels.intel_cpu_runtime(cl.device())
+        @test_skip "checked rational multiplication on Intel's CPU runtime"
+    else
+        @test Array(map(muladd, CLArray(xs), CLArray(ys), CLArray(zs))) == muladd.(xs, ys, zs)
+    end
+    @test Array(map(-, CLArray(xs))) == -xs
+    @test Array(map((n, d) -> n // d, CLArray([1, 3, -4]), CLArray([-2, 6, -8]))) ==
+          [-1//2, 1//2, 1//2]
+end
+
 # truncating the 3-D builtins used to produce loads of vector types SPIR-V doesn't have
 function truncated_builtins_kernel(a, b, c)
     # only the last work-item writes
