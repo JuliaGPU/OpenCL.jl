@@ -136,6 +136,9 @@ const FEATURES = Feature[
             dev -> has_fp_atomics(dev, cl.CL_DEVICE_DOUBLE_FP_ATOMIC_CAPABILITIES_EXT,
                                   cl.CL_DEVICE_GLOBAL_FP_ATOMIC_MIN_MAX_EXT |
                                   cl.CL_DEVICE_LOCAL_FP_ATOMIC_MIN_MAX_EXT)),
+    # Whether kernels can call the OpenCL `native_*` math builtins, which every device has.
+    # Cleared on the OpenCL C source path: spirv2clc doesn't translate them.
+    Feature(:native_math, dev -> true),
 ]
 
 const FeatureSet = UInt64
