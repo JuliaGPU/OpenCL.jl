@@ -203,8 +203,9 @@ end
     source = backend === :opencl || !("cl_khr_il_program" in dev.extensions)
     if source
         # spirv2clc does not implement the SPV_EXT_shader_atomic_float_min_max capabilities,
-        # so don't report them
-        features &= ~(feature_bit(:fp32_atomic_min_max) | feature_bit(:fp64_atomic_min_max))
+        # or the `native_*` math builtins, so don't report them
+        features &= ~(feature_bit(:fp32_atomic_min_max) | feature_bit(:fp64_atomic_min_max) |
+                      feature_bit(:native_math))
     end
 
     if atomics === nothing
