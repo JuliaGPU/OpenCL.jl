@@ -71,10 +71,17 @@ const EXCEPTION_FRAME_SIZE = sizeof(ExceptionFrame_st)
 
 # Claims must cover all work-groups and queues on the device. SPIRVIntrinsics' public
 # atomic helpers are relaxed, so use UnsafeAtomics' primitives with the orderings needed here.
+#
+# Claim with an atomic max (0 -> 1, leaving 1 and 2) rather than a compare-and-swap, which
+# PoCL implements with a builtin that returns the old value through a stack slot. At debug
+# level 2 the claim reads work-item ids, so PoCL inlines it into every throw site before
+# forming the work-item loops, which give each copy of the slot an array over the work-group.
+# LLVM 22 can't forward stores across the cmpxchg, so these arrays stay: megabytes of stack
+# for kernels with many bounds checks (JuliaGPU/KernelAbstractions.jl#974). LLVM 23 removes
+# them (llvm/llvm-project#193939).
 @inline atomic_claim_device!(p::LLVMPtr{Int32, AS.CrossWorkgroup}) =
-    UnsafeAtomics.Internal.llvm_cmpxchg!(p, 0 % Int32, 1 % Int32, Val(:acq_rel), Val(:acquire),
-                                         Val(:device), Val(false), Val(false), Val(4),
-                                         Val(())).old
+    UnsafeAtomics.Internal.llvm_rmw!(p, Val(:max), 1 % Int32, Val(:acq_rel), Val(:device),
+                                     Val(false), Val(4), Val(()))
 
 @inline atomic_store_device!(p::LLVMPtr{Int32, AS.CrossWorkgroup}, val::Int32) =
     UnsafeAtomics.Internal.llvm_store!(p, val, Val(:release), Val(:device), Val(false),
