@@ -160,7 +160,7 @@ jobs:
       - name: Setup BusyBox
         if: runner.os == 'Windows' && steps.busybox.outputs.cache-hit != 'true'
         run: |
-          Invoke-WebRequest https://frippery.org/files/busybox/busybox64.exe -OutFile C:\Windows\drop.exe
+          Invoke-WebRequest https://frippery.org/files/busybox/busybox64.exe -OutFile C:\Windows\drop.exe  -MaximumRetryCount 5 -RetryIntervalSec 30
       - name: Save BusyBox
         if: runner.os == 'Windows' && steps.busybox.outputs.cache-hit != 'true'
         uses: actions/cache/save@v6
