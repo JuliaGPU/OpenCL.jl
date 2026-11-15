@@ -160,7 +160,17 @@ jobs:
       - name: Setup BusyBox
         if: runner.os == 'Windows' && steps.busybox.outputs.cache-hit != 'true'
         run: |
-          Invoke-WebRequest https://frippery.org/files/busybox/busybox64.exe -OutFile C:\Windows\drop.exe  -MaximumRetryCount 5 -RetryIntervalSec 30
+          $attempts = 5
+          for ($i = 1; $i -le $attempts; $i++) {
+            try {
+              Invoke-WebRequest https://frippery.org/files/busybox/busybox64.exe -OutFile C:\Windows\drop.exe
+              break
+            } catch {
+              if ($i -eq $attempts) { throw }
+              Write-Host "Download failed (attempt $i/$attempts): $($_.Exception.Message). Retrying in 30s..."
+              Start-Sleep -Seconds 30
+            }
+          }
       - name: Save BusyBox
         if: runner.os == 'Windows' && steps.busybox.outputs.cache-hit != 'true'
         uses: actions/cache/save@v6
