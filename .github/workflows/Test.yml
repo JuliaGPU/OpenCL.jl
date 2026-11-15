@@ -148,8 +148,16 @@ jobs:
         with:
           test_args: "--quickfail --verbose --platform=${{ case(matrix.driver == 'pocl_local', 'pocl', matrix.driver) }}"
 
-      - name: Setup BusyBox
+      # downloading from frippery.org is unreliable, so cache the binary
+      - name: Cache BusyBox
         if: runner.os == 'Windows'
+        id: busybox
+        uses: actions/cache@v6
+        with:
+          path: C:\Windows\drop.exe
+          key: busybox
+      - name: Setup BusyBox
+        if: runner.os == 'Windows' && steps.busybox.outputs.cache-hit != 'true'
         run: |
           Invoke-WebRequest https://frippery.org/files/busybox/busybox64.exe -OutFile C:\Windows\drop.exe
       - name: Test OpenCL.jl (de-escalated)
