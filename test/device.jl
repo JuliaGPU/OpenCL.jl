@@ -57,7 +57,9 @@ end
             :max_image2d_shape,
             :max_image3d_shape,
         ]
-    @test isa(cl.platform(), cl.Platform)
+    platform = cl.platform()
+    @test isa(propertynames(platform), Tuple)
+    @test isa(platform, cl.Platform)
     if isdefined(Core, :FieldError) # VERSION > v"1.12.0-"
         @test_throws FieldError cl.platform().zjdlkf
     else
@@ -65,6 +67,7 @@ end
     end
 
     device = cl.device()
+    @test isa(propertynames(device), Tuple)
     @test isa(device, cl.Device)
     if isdefined(Core, :FieldError) # VERSION > v"1.12.0-"
         @test_throws FieldError device.zjdlkf
