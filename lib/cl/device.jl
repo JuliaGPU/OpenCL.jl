@@ -197,7 +197,7 @@ function Base.propertynames(::Device, private::Bool=false)
         :max_work_group_size, :max_parameter_size, :profiling_timer_resolution,
         # boolean properties
         :has_image_support, :has_local_mem, :host_unified_memory, :available,
-        :compiler_available, :non_uniform_work_group_support
+        :compiler_available, :non_uniform_work_group_support,
         # other
         :extensions, :spirv_extensions, :platform, :device_type, :max_work_item_size, :sub_group_sizes,
         :max_image2d_shape, :max_image3d_shape,
