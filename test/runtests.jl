@@ -148,17 +148,14 @@ if args.list === nothing
     end
 end
 
-# Intel's CPU runtime crashes the process while compiling some of the GPUArrays kernels
-# (a segfault in the LLVM optimizer of its kernel compiler; #558 = intel/llvm#23517,
-# #559 = intel/llvm#23518), so skip the tests that use them. "sum prod" hits the #559 crash
-# through `mapreduce(*, +, A, B)` on multi-dimensional arrays; which element types trigger
-# it differs between hosts.
+# Only run OpenCL.jl's own tests on Intel's CPU runtime. Its kernel compiler segfaults on
+# some of the GPUArrays and AcceleratedKernels kernels (#558 = intel/llvm#23517, #559 =
+# intel/llvm#23518). Which kernels crash differs between hosts, and every release of those
+# packages can reach the same bugs from other tests.
 for t in targets
     t.platform == "Intel(R) OpenCL" || continue
-    for name in ("gpuarrays/accumulate", "gpuarrays/linalg/core", "gpuarrays/reductions/base",
-                 "gpuarrays/reductions/contract", "gpuarrays/reductions/== isequal",
-                 "gpuarrays/reductions/sum prod")
-        delete!(testsuite, "$(t.label)/$name")
+    for name in collect(keys(testsuite))
+        startswith(name, "$(t.label)/gpuarrays/") && delete!(testsuite, name)
     end
 end
 
@@ -169,9 +166,7 @@ end
 if !Base.BinaryPlatforms.CPUID.test_cpu_feature(Base.BinaryPlatforms.CPUID.JL_X86_avx512f)
     for t in targets
         t.platform == "Intel(R) OpenCL" || continue
-        for name in ("device/random", "gpuarrays/random")
-            delete!(testsuite, "$(t.label)/$name")
-        end
+        delete!(testsuite, "$(t.label)/device/random")
     end
 end
 
