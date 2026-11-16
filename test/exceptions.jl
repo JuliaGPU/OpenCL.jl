@@ -179,6 +179,38 @@ end
     @test exce.name == "DomainError"
 end
 
+@testset "exceptions from GPUToolbox's shared overrides" begin
+    function throw_at(dl, kernel, args...)
+        k = @opencl launch=false debug_level=dl kernel(args...)
+        k(args...)
+        try; cl.finish(cl.queue()); nothing; catch err; err; end
+    end
+
+    # the shared overrides throw through `device_throw`, which reports like a quirk
+    shared() = (OpenCL.GPUToolbox.Overlays.@device_throw ArgumentError("shared reason"); return)
+    exc = throw_at(1, shared)
+    @test exc isa OpenCL.KernelException
+    @test exc.name == "ArgumentError"
+    @test exc.reason == "shared reason"
+    @test isempty(throw_at(0, shared).name)
+
+    # a `Rational` with a typemin denominator can't be normalized
+    rational!(a, d) = (a[1] = 1 // d[1]; return)
+    a = OpenCL.zeros(Rational{Int}, 1)
+    d = CLArray([typemin(Int)])
+    @test throw_at(0, rational!, a, d) isa OpenCL.KernelException
+    if isdefined(Base, :__throw_rational_argerror_typemin)
+        # Julia 1.10 throws an `ArgumentError` with the type in its message
+        exc = throw_at(1, rational!, a, d)
+        @test exc isa OpenCL.KernelException
+        @test exc.name == "ArgumentError"
+        @test exc.reason == "invalid rational: denominator can't be typemin"
+        msg = sprint(showerror, exc)
+        @test occursin("ArgumentError", msg)
+        @test occursin("denominator can't be typemin", msg)
+    end
+end
+
 # The mailbox is shared by all work-groups and queues on the device: claims and stores
 # synchronize at device scope, publishing the details recorded before them.
 @testset "exception mailbox atomics" begin
