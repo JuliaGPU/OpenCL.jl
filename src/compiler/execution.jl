@@ -241,6 +241,7 @@ Launch `kernel`, as calling it with the arguments `args...` and the launch keywo
                 foreach(take_ownership!, locked)
                 launch_with_exception_mailbox(kernel.fun, ($(converted...),);
                                               indirect_memory, rng_state=kernel.rng_state,
+                                              exception_sites=kernel.exception_sites,
                                               call_kwargs...)
             finally
                 unlock_managed(locked)
@@ -258,6 +259,8 @@ struct HostKernel{F,S,TT} <: AbstractKernel{F,TT}
     source::S
     fun::cl.Kernel
     rng_state::Bool
+    # the throw sites of the kernel's code, which the exceptions it reports refer to
+    exception_sites::Vector{GPUCompiler.ExceptionSite}
 end
 
 
@@ -272,9 +275,11 @@ function clfunction(f::F, tt::TT=Tuple{}; source::S=f, kwargs...) where {F,TT,S}
     # copies of arrays, like `extensions`, which the caller may mutate.
     options = map(v -> v isa AbstractArray ? copy(v) : v, kw)
     key = (cl.context(), cl.device(), program_backend(), options)
-    kernel, device_rng = GPUCompiler.cached_lookup(KernelLinker(F, tt, kw),
-                                                   Tuple{cl.Kernel,Bool}, F, tt, key)
-    HostKernel{F,S,tt}(f, source, kernel, device_rng)
+    kernel, device_rng, exception_sites =
+        GPUCompiler.cached_lookup(KernelLinker(F, tt, kw),
+                                  Tuple{cl.Kernel,Bool,Vector{GPUCompiler.ExceptionSite}},
+                                  F, tt, key)
+    HostKernel{F,S,tt}(f, source, kernel, device_rng, exception_sites)
 end
 
 # what `clfunction` calls when the kernel isn't cached: a callable struct rather than a
@@ -316,7 +321,7 @@ function clfunction_link(mi::Core.MethodInstance; kwargs...)
             end
         end
 
-        return kernel, res.device_rng
+        return kernel, res.device_rng, res.exception_sites
     end
 end
 
@@ -338,6 +343,7 @@ end
         res.obj = compiled.obj
         res.entry = compiled.entry
         res.device_rng = compiled.device_rng
+        res.exception_sites = compiled.exception_sites
     end
     return res
 end

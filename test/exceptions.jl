@@ -1,15 +1,19 @@
 using KernelAbstractions
 
 @testset "debug level" begin
-    # `debug_level` selects how much exception-reporting code a kernel carries,
-    # independent of the session's `-g` level
+    # `debug_level` selects what the host knows about a kernel's throw sites, independent of
+    # the session's `-g` level
     kernel(a) = (a[2] = 1f0; return)
     a = OpenCL.zeros(Float32, 1)
-    ir(dl) = sprint(io->(@device_code_llvm io=io @opencl launch=false debug_level=dl kernel(a)))
-    @test !occursin("gpu_report_exception", ir(0))
-    @test occursin("gpu_report_exception", ir(1))
-    @test !occursin("gpu_report_exception_frame", ir(1))
-    @test occursin("gpu_report_exception_frame", ir(2))
+    sites(dl) = (@opencl launch=false debug_level=dl kernel(a)).exception_sites
+    @test isempty(sites(0))
+    site = only(sites(1))
+    @test site.name == "BoundsError"
+    @test site.reason == "Out-of-bounds array access"
+    @test isempty(site.frames)
+    site = only(sites(2))
+    @test site.name == "BoundsError"
+    @test any(frame -> occursin("kernel", frame.func), site.frames)
 end
 
 @testset "device-side exceptions" begin
@@ -58,7 +62,7 @@ end
         return
     end
     ir = sprint(io->(@device_code_llvm io=io @opencl launch=false boxed_kernel(a)))
-    @test occursin("gpu_signal_exception", ir)
+    @test occursin("__spirv_AtomicSMax", ir)
     @opencl boxed_kernel(a)
     @test_throws OpenCL.KernelException cl.finish(cl.queue())
 
@@ -121,30 +125,32 @@ end
         try; cl.finish(cl.queue()); nothing; catch err; err; end
     end
 
-    # -g0: only that an exception occurred; everything else stays at its sentinel
+    # -g0: only that an exception occurred, and where
     exc0 = throw_at(0, bounds_oob, OpenCL.zeros(Float32, 1))
     @test exc0 isa OpenCL.KernelException
     @test isempty(exc0.name)
     @test isempty(exc0.reason)
-    @test exc0.work_item == (0, 0, 0)
+    @test exc0.work_item == (1, 1, 1)
     @test isempty(exc0.backtrace)
     @test occursin("debug_level=2", sprint(showerror, exc0))
 
-    # -g1: the faulting type and reason for quirk throws; no position (recording it costs
-    # every kernel that can throw, even when nothing ever does; see `claim_output!`)
+    # -g1: the faulting type and reason
     exc1 = throw_at(1, bounds_oob, OpenCL.zeros(Float32, 1))
     @test exc1.name == "BoundsError"
     @test exc1.reason == "Out-of-bounds array access"
-    @test exc1.work_item == (0, 0, 0)
+    @test exc1.work_item == (1, 1, 1)
+    @test exc1.work_group == (1, 1, 1)
     @test isempty(exc1.backtrace)
-    @test occursin("A BoundsError was thrown", sprint(showerror, exc1))
+    msg = sprint(showerror, exc1)
+    @test occursin("A BoundsError was thrown by work-item 1×1×1 in work-group 1×1×1", msg)
+    @test occursin("Out-of-bounds array access", msg)
+    @test occursin("debug_level=2", msg)
 
-    # a non-quirk throw records the compiler-deduced type name (here `jl_throw`'s generic
-    # "exception") only at debug level >= 2: copying that runtime string takes a byte loop
-    # on the unhappy path (see `report_exception`)
+    # a non-quirk throw has the compiler-deduced type name (here `jl_throw`'s generic
+    # "exception")
     excn = throw_at(1, nonquirk, OpenCL.zeros(Int32, 1), CLArray(Int32[0]))
     @test excn isa OpenCL.KernelException
-    @test isempty(excn.name)
+    @test excn.name == "exception"
     excn2 = throw_at(2, nonquirk, OpenCL.zeros(Int32, 1), CLArray(Int32[0]))
     @test excn2.name == "exception"
 
@@ -155,7 +161,10 @@ end
     @test exc2.work_group == (1, 1, 1)
     @test !isempty(exc2.backtrace)
     @test any(frame -> occursin("throw_boundserror", frame[1]), exc2.backtrace)
-    @test occursin("by work-item 1×1×1 in work-group 1×1×1", sprint(showerror, exc2))
+    @test any(frame -> occursin("bounds_oob", frame[1]), exc2.backtrace)
+    msg = sprint(showerror, exc2)
+    @test occursin("by work-item 1×1×1 in work-group 1×1×1", msg)
+    @test occursin("Stacktrace:", msg)
 
     # the position identifies the faulting work-item, not the first one
     function throw_at_three(a)
@@ -164,10 +173,12 @@ end
         end
         return
     end
-    exc3 = throw_at(2, throw_at_three, OpenCL.zeros(Float32, 1);
-                    global_size=8, local_size=4)
-    @test exc3.work_item == (3, 1, 1)
-    @test exc3.work_group in ((1, 1, 1), (2, 1, 1))
+    for dl in 0:2
+        exc3 = throw_at(dl, throw_at_three, OpenCL.zeros(Float32, 1);
+                        global_size=8, local_size=4)
+        @test exc3.work_item == (3, 1, 1)
+        @test exc3.work_group in ((1, 1, 1), (2, 1, 1))
+    end
 
     # quirks that construct their exception without a `throw_*` helper are overridden to
     # report through the mailbox as well, rather than boxing on the throwing branch
@@ -211,8 +222,8 @@ end
     end
 end
 
-# The mailbox is shared by all work-groups and queues on the device: claims and stores
-# synchronize at device scope, publishing the details recorded before them.
+# The mailbox is shared by all work-groups and queues on the device: claims synchronize at
+# device scope.
 @testset "exception mailbox atomics" begin
     function failure()
         OpenCL.@gputhrow "Error" "failure"
@@ -224,9 +235,7 @@ end
                      eachmatch(r"(%\S+) = OpConstant %\S+ (\d+)", asm))
     claims = [map(i -> constants[m[i]], 1:3) for m in
               eachmatch(r"= OpAtomicSMax %\S+ %\S+ (%\S+) (%\S+) (%\S+)", asm)]
-    stores = [map(i -> constants[m[i]], 1:2) for m in
-              eachmatch(r"OpAtomicStore %\S+ (%\S+) (%\S+)", asm)]
-    @test !isempty(claims) && !isempty(stores)
+    @test !isempty(claims)
     for (scope, semantics, value) in claims
         @test scope == 1                    # Device
         @test semantics & 0x8 != 0          # AcquireRelease
@@ -237,11 +246,6 @@ end
     # site, which overflows the stack of kernels with many bounds checks
     # (JuliaGPU/KernelAbstractions.jl#974)
     @test !occursin("OpAtomicCompareExchange", asm)
-    for (scope, semantics) in stores
-        @test scope == 1
-        @test semantics & 0x4 != 0          # Release
-        @test semantics & 0x200 != 0
-    end
 end
 
 @testset "exception report ownership" begin

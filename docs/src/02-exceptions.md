@@ -11,7 +11,7 @@ julia> a = OpenCL.zeros(Float32, 1);
 julia> @opencl (a -> (a[2] = 1f0; return))(a)
 
 julia> OpenCL.synchronize()
-ERROR: KernelException: A BoundsError was thrown on device cpu-...: Out-of-bounds array access
+ERROR: KernelException: A BoundsError was thrown by work-item 1×1×1 in work-group 1×1×1 on device cpu-...: Out-of-bounds array access
 For more details, run Julia with `-g2`, or launch the kernel with `@opencl debug_level=2`
 ```
 
@@ -24,11 +24,12 @@ OpenCL's requirements for convergent work-group barriers.
 Kernels default to Julia's `-g` setting. Use `@opencl debug_level=N`, or the same keyword to
 `clfunction`, to select the amount of diagnostic information per kernel:
 
-- `0`: records only that an exception occurred.
-- `1` (the default): also records the type and reason for common runtime errors, including
-  bounds errors, domain errors, overflow, and inexact conversions.
-- `2`: also records the work-item's local id and work-group id (both 1-based), a name for
-  other exceptions, and a device-side backtrace.
+- `0`: only that an exception occurred, and the work-item's local id and work-group id (both
+  1-based).
+- `1` (the default): also the type and reason of the exception. These are precise for
+  common runtime errors, including bounds errors, domain errors, overflow, and inexact
+  conversions; other exceptions are reported by a generic name.
+- `2`: also a device-side backtrace.
 
 ```julia
 @opencl debug_level=2 (a -> (a[2] = 1f0; return))(a)
@@ -41,18 +42,17 @@ end
 ```
 
 Backtrace entries are `(function, file, line)` tuples. Fields unavailable at the selected
-level contain empty strings, empty vectors, or zero coordinates. Names, reasons, function
-names, and file paths are limited to 63, 191, 127, and 127 bytes respectively; backtraces
-contain at most 16 frames. Level 2 adds more code to throwing paths and is intended for
-debugging.
+level contain empty strings or empty vectors. The kernel only records which of its throw
+sites threw: the compiler keeps a table of these sites with the kernel, with their name,
+reason and backtrace, which the host looks up, so a higher level doesn't add code to kernels.
 
 ## Synchronization and memory
 
 Each device in an OpenCL context has a host-visible exception mailbox, allocated on first
 launch. Queues targeting that device share the mailbox, so checking one queue may wait for
 and report a failure from another queue on the same device. `exc.dev` identifies that device.
-Only one faulting work-item records detailed diagnostics until the host consumes the report.
-Its launch identifier and coordinates distinguish it from other work-items and later kernels.
+Only the first faulting work-item records its throw site and position until the host
+consumes the report.
 
 Mailbox allocation tries USM host memory, fine-grained SVM, coarse-grained SVM, then a
 host-accessible buffer with `cl_ext_buffer_device_address`. The memory must be supported by

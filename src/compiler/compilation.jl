@@ -17,8 +17,9 @@ const OpenCLCompilerJob = CompilerJob{SPIRVCompilerTarget,OpenCLCompilerParams}
 
 Cached compilation results for an OpenCL kernel job, managed by
 `GPUCompiler.cached_results`. Fields are populated through the compile pipeline:
-`obj` (SPIR-V bytes) + `entry` + `device_rng` after codegen, and `kernels` after the
-session-local link onto an OpenCL context. The first three are session-portable
+`obj` (SPIR-V bytes) + `entry` + `device_rng` + `exception_sites` after codegen, and
+`kernels` after the session-local link onto an OpenCL context. The first four are
+session-portable
 (cached through precompilation, except when GPUCompiler marks the job
 session-dependent and wipes its entries before image serialization); `kernels` is
 session-local and never populated during precompilation. `obj === nothing`
@@ -34,11 +35,14 @@ mutable struct OpenCLResults
     obj::Union{Nothing, Vector{UInt8}}                   # SPIR-V binary
     entry::Union{Nothing, String}
     device_rng::Bool
+    exception_sites::Vector{GPUCompiler.ExceptionSite}   # what the kernel can throw
     kernels::Vector{Tuple{cl.Context, cl.Kernel}}        # session-local; linear-scanned
-    OpenCLResults() = new(nothing, nothing, false, Tuple{cl.Context, cl.Kernel}[])
+    OpenCLResults() = new(nothing, nothing, false, GPUCompiler.ExceptionSite[],
+                          Tuple{cl.Context, cl.Kernel}[])
 end
 
 GPUCompiler.runtime_module(::CompilerJob{<:Any,OpenCLCompilerParams}) = OpenCL
+GPUCompiler.uses_exception_sites(::CompilerJob{<:Any,OpenCLCompilerParams}) = true
 
 # SPIR-V doesn't support 128-bit integers, so keep 64-bit integer math (e.g. `Rational`
 # comparisons) that Base computes with them out of Int128. Some of Base's exceptions format
@@ -237,8 +241,8 @@ end
     CompilerConfig(target, params; kernel, name, always_inline, debug_level)
 end
 
-# run inference + LLVM codegen + SPIR-V emission. returns `(obj, entry, device_rng)`,
-# all session-portable so they survive precompilation when stored on a cached `CodeInstance`.
+# run inference + LLVM codegen + SPIR-V emission. returns `(obj, entry, device_rng,
+# exception_sites)`, all session-portable so they survive precompilation when stored on a cached `CodeInstance`.
 const compilations = Threads.Atomic{Int}(0)
 function compile_to_obj(@nospecialize(job::CompilerJob))
     Threads.atomic_add!(compilations, 1)
@@ -250,7 +254,7 @@ function compile_to_obj(@nospecialize(job::CompilerJob))
         @dispose ir=meta.ir begin
             entry = meta.entry.name
             device_rng = haskey(meta.entry.function_attributes, "julia.opencl.rng")
-            (; obj, entry, device_rng)
+            (; obj, entry, device_rng, meta.exception_sites)
         end
     end
 end
