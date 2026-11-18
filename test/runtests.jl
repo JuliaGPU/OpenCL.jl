@@ -22,6 +22,25 @@ const platform_arg = platform_request == "pocl_next" ? Some("pocl") :
                      args.custom["platform"]
 @eval import $driver_pkg
 
+# GitHub's Windows runners are elevated, which makes the ICD loader ignore OCL_ICD_FILENAMES,
+# so on CI register the JLL's driver in the registry, which the loader still reads. Each
+# process enumerates drivers once, at its first OpenCL call, so this has to come before
+# `versioninfo` below and before the test workers start. The entries are machine-wide, so
+# remove them again for the next run, which may use another driver.
+@static if Sys.iswindows()
+    if get(ENV, "CI", "") == "true" && OpenCL.cl.is_high_integrity_level()
+        const icd_vendors = raw"HKLM\SOFTWARE\Khronos\OpenCL\Vendors"
+        for driver in OpenCL.cl.OpenCL_jll.drivers
+            run(pipeline(`reg add $icd_vendors /v $driver /t REG_DWORD /d 0 /f`;
+                         stdout=devnull))
+            atexit() do
+                run(pipeline(ignorestatus(`reg delete $icd_vendors /v $driver /f`);
+                             stdout=devnull, stderr=devnull))
+            end
+        end
+    end
+end
+
 @info "System information:\n" * sprint(io->OpenCL.versioninfo(io))
 
 platform_filter = platform_arg
