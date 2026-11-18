@@ -148,10 +148,45 @@ jobs:
         with:
           test_args: "--quickfail --verbose --platform=${{ case(matrix.driver == 'pocl_local', 'pocl', matrix.driver) }}"
 
+      # On Windows, the tests run through busybox-w32's `drop` to shed the runner's administrator
+      # privileges: an elevated process makes the ICD loader ignore OCL_ICD_FILENAMES, so the
+      # drivers from JLLs wouldn't be found. frippery.org often refuses GitHub's runners, so we
+      # cache a pinned build (saved right away, so failing test runs still populate the cache).
+      - name: Restore BusyBox
+        if: runner.os == 'Windows'
+        id: busybox
+        uses: actions/cache/restore@v6
+        with:
+          path: C:\busybox
+          key: busybox-w64-FRP-6354-g5f09fb446
+      - name: Download BusyBox
+        if: runner.os == 'Windows' && steps.busybox.outputs.cache-hit != 'true'
+        run: |
+          New-Item -ItemType Directory -Force C:\busybox | Out-Null
+          for ($i = 1; ; $i++) {
+            try {
+              Invoke-WebRequest https://frippery.org/files/busybox/busybox-w64-FRP-6354-g5f09fb446.exe -OutFile C:\busybox\busybox.exe
+              break
+            } catch {
+              if ($i -ge 5) { throw }
+              Write-Host "Download failed (attempt $i): $($_.Exception.Message)"
+              Start-Sleep -Seconds (30 * $i)
+            }
+          }
+          $hash = (Get-FileHash C:\busybox\busybox.exe -Algorithm SHA256).Hash
+          if ($hash -ne '95343c871869cc0ab57ecec26b2f9af0370eb9c954f7e5ddd017163e4e0d09a0') {
+            throw "Unexpected BusyBox checksum $hash"
+          }
+      - name: Save BusyBox
+        if: runner.os == 'Windows' && steps.busybox.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: C:\busybox
+          key: ${{ steps.busybox.outputs.cache-primary-key }}
       - name: Setup BusyBox
         if: runner.os == 'Windows'
         run: |
-          Invoke-WebRequest https://frippery.org/files/busybox/busybox64.exe -OutFile C:\Windows\drop.exe
+          Copy-Item C:\busybox\busybox.exe C:\Windows\drop.exe
       - name: Test OpenCL.jl (de-escalated)
         if: runner.os == 'Windows'
         shell: drop -c "julia '{0}'"
