@@ -247,7 +247,8 @@ builtin_attributes_kernel(a) = (@inbounds a[get_global_id(1)] = get_group_id(1);
     ir = sprint(io -> @device_code_llvm io=io dump_module=true optimize=false @opencl launch=false builtin_attributes_kernel(a))
     attrs = match(r"declare .*__spirv_BuiltInWorkgroupId.*\(i32[^)]*\) (?:local_unnamed_addr )?#(\d+)", ir)
     @test attrs !== nothing
-    @test occursin(Regex("attributes #$(attrs[1]) = \\{[^}]*nofree"), ir)
+    group = match(Regex("attributes #$(attrs[1]) = \\{([^}]*)\\}"), ir)[1]
+    @test issubset(["nofree", "nosync", "nounwind", "speculatable", "willreturn"], split(group))
 end
 
 # truncating the 3-D builtins used to produce loads of vector types SPIR-V doesn't have

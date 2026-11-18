@@ -14,13 +14,18 @@
 end
 
 # load a component of a built-in vector variable, by calling the function that the SPIR-V
-# back-end lowers to a load and an extract of the component
+# back-end lowers to a load and an extract of the component. the declaration gets the
+# attributes LLVM gives its own work-item intrinsics (e.g. `llvm.nvvm.read.ptx.sreg.tid.x`):
+# Enzyme only differentiates through calls of `nofree` declarations, and `speculatable` lets
+# the optimizer hoist calls out of conditionals.
 @llvmgenerated builder function builtin_vector_variable(::Val{name}, idx::Int32)::UInt where {name}
     ft = LLVM.FunctionType(convert(LLVMType, UInt), [idx.value_type])
     f = LLVM.Function(current_module(builder), String(name), ft)
     push!(f.function_attributes, EnumAttribute(:nounwind))
     push!(f.function_attributes, EnumAttribute(:willreturn))
     push!(f.function_attributes, EnumAttribute(:nofree))
+    push!(f.function_attributes, EnumAttribute(:nosync))
+    push!(f.function_attributes, EnumAttribute(:speculatable))
     f.memory_effects = MemoryEffects(:none)
     call!(builder, ft, f, [idx])
 end
