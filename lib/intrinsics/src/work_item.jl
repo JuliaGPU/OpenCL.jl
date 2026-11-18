@@ -20,6 +20,7 @@ end
     f = LLVM.Function(current_module(builder), String(name), ft)
     push!(f.function_attributes, EnumAttribute(:nounwind))
     push!(f.function_attributes, EnumAttribute(:willreturn))
+    push!(f.function_attributes, EnumAttribute(:nofree))
     f.memory_effects = MemoryEffects(:none)
     call!(builder, ft, f, [idx])
 end
