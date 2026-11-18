@@ -405,8 +405,17 @@ end
     work_group_barrier(OpenCL.LOCAL_MEM_FENCE | OpenCL.GLOBAL_MEM_FENCE)
 end
 
+# `KI.LOCAL_MEM_FENCE` and `KI.GLOBAL_MEM_FENCE` have the bits of OpenCL's flags
+@device_override @inline function KI.barrier(flags::KI.MemFenceFlags)
+    work_group_barrier(flags.bits)
+end
+
 @device_override @inline function KI.sub_group_barrier()
     sub_group_barrier(OpenCL.LOCAL_MEM_FENCE | OpenCL.GLOBAL_MEM_FENCE)
+end
+
+@device_override @inline function KI.sub_group_barrier(flags::KI.MemFenceFlags)
+    sub_group_barrier(flags.bits)
 end
 
 # OpenCL limitation: a sub-group barrier has to be executed by the whole sub-group, and there
