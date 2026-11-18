@@ -59,6 +59,14 @@ jobs:
           version: ${{ matrix.version }}
           arch: ${{ matrix.arch }}
 
+      # On the SVE-capable ARM runners (Neoverse-N2), loop vectorization can extract a
+      # pointer from a scalable vector at a dynamic lane, which late GC lowering in Julia
+      # 1.13 and earlier reads as a constant, crashing OpenCL's precompilation. Target a
+      # CPU without SVE until the fix (JuliaLang/julia#62933) is backported.
+      - name: Avoid SVE code generation
+        if: runner.arch == 'ARM64' && matrix.version != 'nightly'
+        run: echo "JULIA_CPU_TARGET=neoverse-n1" >> "$GITHUB_ENV"
+
       - name: Setup Julia cache
         uses: julia-actions/cache@v3
 
