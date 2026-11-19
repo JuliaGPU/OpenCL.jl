@@ -28,6 +28,8 @@ changes.**
 1. Install an OpenCL driver. You can install one system-wide, i.e., using your package
    manager, or use a JLL for a CPU back-end: `pocl_jll.jl` (all platforms), or
    `intel_opencl_rt_jll.jl` (Intel's CPU runtime, for x86_64 Linux and Windows).
+   Only use PoCL through `pocl_jll.jl`: it carries fixes that upstream PoCL lacks, and
+   other builds of PoCL, such as those of Linux distributions, can miscompile kernels.
 2. Add OpenCL to your Julia environment:
 
 ```julia
