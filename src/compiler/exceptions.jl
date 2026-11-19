@@ -8,15 +8,13 @@
 An exception thrown during kernel execution on `dev`, detected when synchronizing
 (`cl.finish`, a blocking copy, `Array(x)`, ...).
 
-How much is known about the exception depends on the debug level the kernel was compiled
-with (the session's `-g` level, or `@opencl debug_level=`):
+`work_item` is the local id of the work-item that threw, and `work_group` the id of its
+work-group (both 1-based). How much is known about the exception depends on the debug level
+the kernel was compiled with (the session's `-g` level, or `@opencl debug_level=`):
 
-- `0`: only that an exception was thrown;
-- `1`: additionally its type `name` and `reason`, for exceptions thrown by Julia's runtime
-  (bounds errors, domain errors, ...);
-- `2`: additionally the position of the faulting work-item (`work_item` is its local id,
-  `work_group` the id of its work-group), the name of any other exception, and a device-side
-  `backtrace` as `(function, file, line)` tuples.
+- `0`: only that an exception was thrown, and by which work-item;
+- `1`: additionally its type `name` and `reason`;
+- `2`: additionally a device-side `backtrace` as `(function, file, line)` tuples.
 
 `dev` identifies the device whose mailbox reported the exception.
 Fields that were not recorded are empty strings, empty vectors, or all-zero tuples.
@@ -30,7 +28,16 @@ struct KernelException <: Exception
     backtrace::Vector{Tuple{String, String, Int}}   # (function, file, line) per frame
 end
 
-# Positions are 1-based, so zero coordinates indicate that level 2 details were not recorded.
+function KernelException(dev::cl.Device, site::Union{Nothing, GPUCompiler.ExceptionSite},
+                         work_item::NTuple{3, Int}, work_group::NTuple{3, Int})
+    site === nothing && return KernelException(dev, "", "", work_item, work_group,
+                                               Tuple{String, String, Int}[])
+    backtrace = Tuple{String, String, Int}[(frame.func, frame.file, frame.line)
+                                           for frame in site.frames]
+    return KernelException(dev, site.name, site.reason, work_item, work_group, backtrace)
+end
+
+# Positions are 1-based, so zero coordinates indicate that no position was recorded.
 function Base.showerror(io::IO, err::KernelException)
     name = isempty(err.name) ? "exception" : err.name
     article = first(uppercase(name)) in ('A', 'E', 'I', 'O', 'U') ? "An" : "A"
@@ -42,7 +49,7 @@ function Base.showerror(io::IO, err::KernelException)
     end
     print(io, " on device ", err.dev.name)
     isempty(err.reason) || print(io, ": ", err.reason)
-    if err.work_item == (0, 0, 0)
+    if isempty(err.backtrace)
         print(io, "\nFor more details, run Julia with `-g2`, or launch the kernel with `@opencl debug_level=2`")
     else
         print(io, "\nStacktrace:")
@@ -51,12 +58,6 @@ function Base.showerror(io::IO, err::KernelException)
             isempty(file) || print(io, " at ", file, ":", line)
         end
     end
-end
-
-# decode a null-terminated mailbox text buffer into a `String`
-function exception_string(bytes::NTuple{N, UInt8}) where {N}
-    len = something(findfirst(iszero, bytes), N + 1) - 1
-    return String(UInt8[bytes[i] for i in 1:len])
 end
 
 
@@ -78,9 +79,19 @@ mutable struct ExceptionMailbox
     const lock::ReentrantLock
     # queues that have launched kernels since the mailbox was last checked on them
     const pending::Set{cl.CmdQueue}
-    # the last launch, assigned under the lock after submission; distinguishes work-items
-    # from different launches
+    # the tables of throw sites of the kernels launched since then, which the id that a
+    # kernel records indexes (see `exception_sites_id`)
+    const exception_sites::Vector{Vector{GPUCompiler.ExceptionSite}}
+    const exception_sites_ids::IdDict{Vector{GPUCompiler.ExceptionSite}, UInt32}
+    # counts launches, under the lock after submission, so that checks can tell whether
+    # kernels were launched while they waited
     Base.@atomic launch_id::UInt64
+end
+
+function ExceptionMailbox(mem, address, mapped, queue)
+    return ExceptionMailbox(mem, address, mapped, queue, ReentrantLock(), Set{cl.CmdQueue}(),
+                            Vector{GPUCompiler.ExceptionSite}[],
+                            IdDict{Vector{GPUCompiler.ExceptionSite}, UInt32}(), UInt64(0))
 end
 
 # Device-scoped atomics cannot protect a mailbox shared by different devices. These strong
@@ -126,13 +137,11 @@ function allocate_exception_mailbox(ctx::cl.Context; backends=exception_mailbox_
         @warn """Device-side exceptions cannot be reported on $(join(map(dev -> dev.name, devs), ", ")): \
                  the device does not support any host-accessible memory to put the exception mailbox in.
                  Kernels that throw will complete silently."""
-        return ExceptionMailbox(nothing, UInt64(0), false, nothing, ReentrantLock(),
-                                Set{cl.CmdQueue}(), UInt64(0))
+        return ExceptionMailbox(nothing, UInt64(0), false, nothing)
     end
 
     queue = mapped ? cl.context!(cl.CmdQueue, ctx) : nothing
-    mailbox = ExceptionMailbox(mem, UInt64(UInt(pointer(mem))), mapped, queue,
-                               ReentrantLock(), Set{cl.CmdQueue}(), UInt64(0))
+    mailbox = ExceptionMailbox(mem, UInt64(UInt(pointer(mem))), mapped, queue)
     with_exception_mailbox(mailbox) do ptr
         unsafe_store!(ptr, ExceptionInfo_st())
     end
@@ -178,14 +187,16 @@ end
 # closure or `do` block on Julia 1.13.
 function launch_with_exception_mailbox(kernel::cl.Kernel, args::Tuple;
                                        indirect_memory::Vector{cl.AbstractMemory},
-                                       rng_state::Bool, kwargs...)
+                                       rng_state::Bool,
+                                       exception_sites::Vector{GPUCompiler.ExceptionSite},
+                                       kwargs...)
     mailbox, queue = current_exception_mailbox()
     Base.@lock mailbox.lock begin
-        state = next_kernel_state(mailbox, indirect_memory, rng_state)
+        state = next_kernel_state(mailbox, indirect_memory, rng_state, exception_sites)
         result = cl.call(kernel, prepend(state, args); indirect_memory, rng_state, kwargs...)
         # only publish the launch once it has been submitted, so that `check_exceptions`
         # can tell whether kernels have been submitted while it waited without the lock
-        publish_launch(mailbox, queue, state.launch_id)
+        publish_launch(mailbox, queue)
         return result
     end
 end
@@ -205,15 +216,28 @@ end
 
 @noinline function next_kernel_state(mailbox::ExceptionMailbox,
                                      indirect_memory::Vector{cl.AbstractMemory},
-                                     rng_state::Bool)
+                                     rng_state::Bool,
+                                     exception_sites::Vector{GPUCompiler.ExceptionSite})
     mailbox.mem === nothing || push!(indirect_memory, mailbox.mem)
-    launch_id = (Base.@atomic mailbox.launch_id) + UInt64(1)
-    return KernelState(rng_state ? Base.rand(UInt32) : UInt32(0), mailbox.address, launch_id)
+    return KernelState(rng_state ? Base.rand(UInt32) : UInt32(0), mailbox.address,
+                       exception_sites_id(mailbox, exception_sites))
 end
 
-@noinline function publish_launch(mailbox::ExceptionMailbox, queue::cl.CmdQueue,
-                                  launch_id::UInt64)
-    Base.@atomic mailbox.launch_id = launch_id
+# Number the kernel's table of throw sites, for the host to look up the site that the
+# kernel records. Kernels can't be identified otherwise: the mailbox is checked once its
+# queues have completed, not after every launch. The numbering is reset on every check, so it
+# only covers the kernels launched since. Called with the mailbox lock held.
+function exception_sites_id(mailbox::ExceptionMailbox,
+                            exception_sites::Vector{GPUCompiler.ExceptionSite})
+    (mailbox.mem === nothing || isempty(exception_sites)) && return UInt32(0)
+    return get!(mailbox.exception_sites_ids, exception_sites) do
+        push!(mailbox.exception_sites, exception_sites)
+        length(mailbox.exception_sites) % UInt32
+    end
+end
+
+@noinline function publish_launch(mailbox::ExceptionMailbox, queue::cl.CmdQueue)
+    Base.@atomic mailbox.launch_id += UInt64(1)
     if mailbox.mem !== nothing
         push!(mailbox.pending, queue)
     end
@@ -264,21 +288,25 @@ function check_exceptions(queue::cl.CmdQueue; rethrow::Bool=true)
             status_ptr = convert(Ptr{Int32}, ptr)
             unsafe_load(status_ptr) == 0 && return nothing
             info = unsafe_load(ptr)
-            nframes = min(Int(info.num_frames), EXCEPTION_MAX_FRAMES)
-            backtrace = Tuple{String, String, Int}[
-                (exception_string(info.frames[i].func),
-                 exception_string(info.frames[i].file),
-                 Int(info.frames[i].line)) for i in 1:nframes]
-            # clear the flag, lock and payload so the mailbox is reusable (and other queues
-            # checking it don't re-report the exception)
+            # clear the record so the mailbox is reusable (and other queues checking it
+            # don't re-report the exception)
             unsafe_store!(ptr, ExceptionInfo_st())
-            KernelException(queue.device, exception_string(info.name),
-                            exception_string(info.reason),
-                            Int.(info.work_item[1:3]), Int.(info.work_group[1:3]),
-                            backtrace)
+            KernelException(queue.device, reported_site(mailbox, info),
+                            ntuple(d -> Int(info.work_item[d]), 3),
+                            ntuple(d -> Int(info.work_group[d]), 3))
         end
         empty!(mailbox.pending)
+        empty!(mailbox.exception_sites)
+        empty!(mailbox.exception_sites_ids)
         exc === nothing || throw(exc)
     end
     return
+end
+
+# the throw site that `info` records, if known
+function reported_site(mailbox::ExceptionMailbox, info::ExceptionInfo_st)
+    1 <= info.sites <= length(mailbox.exception_sites) || return nothing
+    sites = mailbox.exception_sites[info.sites]
+    1 <= info.site <= length(sites) || return nothing
+    return sites[info.site]
 end
