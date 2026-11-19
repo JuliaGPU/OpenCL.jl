@@ -233,7 +233,32 @@ end
 @device_function rootn(x::Float64, y::Int32) = @builtin_ccall("rootn", Float64, (Float64, Int32), x, y)
 
 
-# TODO: half and native
+# native
+
+# The `native_*` builtins have implementation-defined accuracy, which is what `@fastmath`
+# allows. OpenCL C defines them for `float` only, so only single precision is covered here;
+# where PoCL implements others, they are slower than the accurate builtins (`double`) or
+# missing (`half` `native_sin` and `native_cos`).
+#
+# On PoCL's CPU device, single-precision `native_sin`, `native_cos` and `native_tan` are
+# 20-65% faster than the accurate builtins, with errors of up to 2-3 ulp, but only for
+# arguments up to about 10^4 in magnitude: their argument reduction is inaccurate beyond.
+# PoCL's other `native_*` builtins are either the accurate builtins (e.g. `native_log`,
+# `native_exp`, `native_sqrt`) or slower (`native_powr`), so they aren't used for
+# `@fastmath`.
+#
+# TODO: half
+
+for f in (:sin, :cos, :tan)
+    native = Symbol(:native_, f)
+    @eval begin
+        @device_function $native(x::Float32) = @builtin_ccall($(String(native)), Float32, (Float32,), x)
+        @device_override Base.FastMath.$(Symbol(f, :_fast))(x::Float32) = $native(x)
+    end
+end
+
+# (the half-precision `sincos_fast` computes in single precision)
+@device_override Base.FastMath.sincos_fast(x::Float32) = (native_sin(x), native_cos(x))
 
 function _mulhi(a::Int64, b::Int64)
     shift = sizeof(a) * 4

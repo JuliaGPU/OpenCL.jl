@@ -205,6 +205,53 @@ end
     @test call_on_device(OpenCL.mad, x, y, z) ≈ x * y + z
 end
 
+function fastmath_kernel(S, C, T, SC, X)
+    i = get_global_id()
+    @inbounds begin
+        x = X[i]
+        S[i] = @fastmath sin(x)
+        C[i] = @fastmath cos(x)
+        T[i] = @fastmath tan(x)
+        s, c = @fastmath sincos(x)
+        SC[i] = s - c
+    end
+    return
+end
+@testset "@fastmath - $FT" for FT in float_types
+    # the accuracy of the `native_*` builtins is implementation-defined. PoCL's are within a
+    # few ulp, but only for arguments up to about 10^4 in magnitude
+    pocl = occursin("pocl", lowercase(cl.platform().vendor))
+    specials = FT[0, -0.0, floatmin(FT)]
+    xs = pocl ? FT[specials; 1.0e-3; 1.0e3; range(-100, 100; length = 1000)] :
+                FT[specials; 1.0e-3; range(-π, π; length = 1000)]
+    X = CLArray(xs)
+    S, C, T, SC = (similar(X) for _ in 1:4)
+    ir = sprint() do io
+        @device_code_llvm io=io debuginfo=:none dump_module=true @opencl global_size=length(X) fastmath_kernel(S, C, T, SC, X)
+    end
+
+    # on PoCL, within a few ulp of the exact results, or (near zeros) a few ulp of one
+    within(Y, f) = all(zip(Array(Y), xs)) do (y, x)
+        ref = f(big(x))
+        err = abs(y - ref)
+        pocl ? (err <= 4 * eps(FT(ref)) || err <= 4 * eps(FT)) : err <= max(1, abs(ref)) / 2^10
+    end
+    @test within(S, sin)
+    @test within(C, cos)
+    @test within(T, tan)
+    @test within(SC, x -> sin(x) - cos(x))
+    pocl && @test isequal(Array(S)[1:3], specials)
+
+    # single-precision functions use the `native_*` builtins (also the half-precision
+    # `sincos`, which computes in single precision); the others are the accurate ones. The
+    # OpenCL C source path can't translate the `native_*` builtins, so it doesn't use them.
+    native = OpenCL.resolve_program_backend(cl.device()) === :spirv
+    @test occursin("native_sin", ir) == (native && FT != Float64)
+    @test occursin("native_cos", ir) == (native && FT != Float64)
+    @test occursin("native_tan", ir) == (native && FT == Float32)
+    @test occursin("_Z6sincos", ir) == (!native || FT == Float64)
+end
+
 # Base compares rationals using the 128-bit products of their numerators and denominators,
 # which GPUToolbox computes in 64-bit words instead
 @testset "rational comparisons" begin
