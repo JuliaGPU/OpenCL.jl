@@ -181,7 +181,7 @@ if cl.USMBackend() in cl.supported_memory_backends(cl.device())
     end
 
     # `Union{Nothing, Missing}` has no data, only selector bytes
-    @testset "copies take ownership of host memory ($T)" for (T, vals) in
+    @testset "copies take ownership of host USM ($T)" for (T, vals) in
             ((Int, [1, 2]), (Union{Nothing, Missing}, Union{Nothing, Missing}[nothing, missing]))
         host = CLVector{T, cl.UnifiedHostMemory}(vals)
         dev = CLVector{T, cl.UnifiedDeviceMemory}(vals)
