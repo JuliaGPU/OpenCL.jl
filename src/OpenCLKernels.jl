@@ -414,10 +414,6 @@ end
     sub_group_barrier(OpenCL.LOCAL_MEM_FENCE | OpenCL.GLOBAL_MEM_FENCE)
 end
 
-@device_override @inline function KI.sub_group_barrier(flags::KI.MemFenceFlags)
-    sub_group_barrier(flags.bits)
-end
-
 # OpenCL limitation: a sub-group barrier has to be executed by the whole sub-group, and there
 # is no barrier for part of one. Where a segment's lanes execute together anyway, a narrower
 # segment only fences its memory accesses; elsewhere, the whole sub-group executes this.
