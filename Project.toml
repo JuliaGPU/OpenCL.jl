@@ -29,6 +29,7 @@ UnsafeAtomics = "013be700-e6cd-48c3-b4a1-df204f14c38f"
 spirv2clc_jll = "f0274c0c-8c8a-59f1-85b7-f7d60330c5fb"
 
 [sources]
+KernelInterface = {url = "https://github.com/JuliaGPU/KernelAbstractions.jl", rev = "granularbarrier", subdir = "lib/KernelInterface"}
 SPIRVIntrinsics = {path = "lib/intrinsics"}
 
 [compat]
@@ -37,7 +38,7 @@ GPUArrays = "12.1"
 GPUCompiler = "2.23.2"
 GPUToolbox = "3.6"
 KernelAbstractions = "0.10"
-KernelInterface = "0.4"
+KernelInterface = "0.4.7"
 LLVM = "10"
 LinearAlgebra = "1"
 OpenCL_jll = "=2024.10.24"
