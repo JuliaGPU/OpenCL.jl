@@ -114,8 +114,7 @@ function take_ownership!(managed::Managed{M}; queue=cl.queue()) where {M}
     return managed
 end
 
-# host memory has no device address, so device-side operations on it, like copies, use its
-# host address, as a `Ptr`
+# host USM only converts to a host `Ptr`, which devices can use as is
 function device_convert(typ::Union{Type{<:Ptr}, Type{<:CLPtr}, Type{cl.Buffer}},
                         managed::Managed{M}) where {M}
     # let null pointers pass through as-is
