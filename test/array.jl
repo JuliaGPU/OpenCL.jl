@@ -180,7 +180,7 @@ if cl.USMBackend() in cl.supported_memory_backends(cl.device())
         @test OpenCL.memtype(e) == cl.UnifiedSharedMemory
     end
 
-    # `Union{Nothing, Missing}` has no data, only selector bytes
+    # arrays of `Union{Nothing, Missing}` have no data, only selector bytes
     @testset "copies take ownership of host USM ($T)" for (T, vals) in
             ((Int, [1, 2]), (Union{Nothing, Missing}, Union{Nothing, Missing}[nothing, missing]))
         host = CLVector{T, cl.UnifiedHostMemory}(vals)

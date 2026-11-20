@@ -429,7 +429,7 @@ Base.copyto!(dest::DenseCLArray{T}, src::DenseCLArray{T}) where {T} =
 # where element `i` of an array operand in a copy is, or with `tags`, its selector byte.
 # for arrays wrapping host memory, the device pointer is used as the host address, which is
 # identical but also records the device-side use. host USM only converts to a host pointer,
-# so `device_convert` returns that one, which records the use too.
+# so that one is taken through `device_convert`, which records the use too.
 copy_pointer(a::Union{Array, CLArray}, i, tags) = tags ? typetagdata(a, i) : pointer(a, i)
 copy_pointer(a::CLArray{<:Any, <:Any, cl.UnifiedHostMemory}, i, tags) =
     device_convert(Ptr{UInt8}, a.data[]) + buffer_offset(a, i, tags)
