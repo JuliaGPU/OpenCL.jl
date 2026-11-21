@@ -101,6 +101,111 @@ end
     @test_throws ArgumentError kernel(a, Int32(1); ndrange = 4, local_size = 2)
 end
 
+# uses the last byte of the block
+function ki_dynamic_localmem_kernel(out)
+    n = KI.dynamic_localmemory_size()
+    x = KI.dynamic_localmemory(UInt8, n)
+    if n > 0
+        @inbounds x[n] = 1
+        @inbounds out[1] = n + x[n] - 1
+    else
+        @inbounds out[1] = 0
+    end
+    return
+end
+
+# dynamic and static local memory, next to the local memory of the RNG
+function ki_dynamic_localmem_rng_kernel(out, ::Val{N}) where {N}
+    n = KI.get_local_size().x
+    i = KI.get_local_id().x
+    I = KI.get_global_id().x
+    x = KI.dynamic_localmemory(Float32, n)
+    s = KI.localmemory(Int32, N)
+    @inbounds x[i] = rand(Float32)
+    @inbounds s[i] = i
+    KI.barrier()
+    j = n - i + 1
+    @inbounds out[I, 1] = x[j]
+    @inbounds out[I, 2] = s[j]
+    @inbounds out[I, 3] = KI.dynamic_localmemory_size()
+    return
+end
+
+function ki_static_localmem_kernel(out, ::Val{N}) where {N}
+    s = KI.localmemory(Int32, N)
+    i = KI.get_local_id().x
+    @inbounds s[i] = i
+    KI.barrier()
+    @inbounds out[1] = s[1] + KI.dynamic_localmemory_size()
+    return
+end
+
+@testset "dynamic local memory" begin
+    backend = OpenCLBackend()
+    @test KI.supports_dynamic_localmemory(backend)
+    out = KI.zeros(backend, Int, 1)
+    kernel = KI.@launch backend launch=false ki_dynamic_localmem_kernel(out)
+
+    # kernels get the size they asked for, which isn't rounded up
+    kernel(out; localmem = 24)
+    @test Array(out) == [24]
+    kernel(out; localmem = 5)
+    @test Array(out) == [5]
+    kernel(out; localmem = n -> 8n, workgroupsize = 5)
+    @test Array(out) == [40]
+    kernel(out)
+    @test Array(out) == [0]
+
+    # it is a launch keyword of OpenCL.jl's kernels
+    kernel.kern(out; localmem = 12)
+    @test Array(out) == [12]
+    @test_throws ArgumentError kernel.kern(out; localmem = -1)
+    @test_throws ArgumentError kernel.kern(out; localmem = Int(typemax(UInt32)) + 1)
+
+    # the limit is the local memory of the device, less the bytes that align the block
+    # and what the driver reports the kernel to use (NVIDIA's reports some for any kernel)
+    limit = KI.max_dynamic_localmemory(kernel)
+    @test 0 < limit <= min(cl.device().local_mem_size, typemax(UInt32)) -
+                       OpenCL.dynamic_localmemory_alignment
+    kernel(out; localmem = limit)
+    @test Array(out) == [limit]
+    @test_throws ArgumentError kernel(out; localmem = limit + 1)
+    # and stays that after launches have sized the argument
+    @test KI.max_dynamic_localmemory(KI.@launch backend launch=false ki_dynamic_localmem_kernel(out)) == limit
+
+    # kernels that don't use the memory have no argument for it, even if they ask for
+    # its size
+    a = KI.zeros(backend, Int32, 4)
+    fill_kernel = KI.@launch backend launch=false ki_fill_kernel(a, Int32(1))
+    @test !fill_kernel.kern.dynamic_localmemory
+    @test kernel.kern.dynamic_localmemory
+    fill_kernel(a, Int32(6); ndrange = 4, localmem = 64)
+    @test Array(a) == fill(Int32(6), 4)
+
+    # static local memory and the local memory of the RNG count against the limit
+    N = 16
+    static_kernel = KI.@launch backend launch=false ki_static_localmem_kernel(out, Val(N))
+    @test !static_kernel.kern.dynamic_localmemory
+    @test KI.max_dynamic_localmemory(static_kernel) <= limit
+    static_kernel(out, Val(N); workgroupsize = N, localmem = 32)
+    @test Array(out) == [33]
+
+    groups = 3
+    rng_out = KI.zeros(backend, Float32, N * groups, 3)
+    rng_kernel = KI.@launch backend launch=false ki_dynamic_localmem_rng_kernel(rng_out, Val(N))
+    @test rng_kernel.kern.rng_state
+    @test rng_kernel.kern.dynamic_localmemory
+    @test KI.max_dynamic_localmemory(rng_kernel) < KI.max_dynamic_localmemory(static_kernel)
+    for localmem in (N * sizeof(Float32), KI.max_dynamic_localmemory(rng_kernel))
+        rng_kernel(rng_out, Val(N); numgroups = groups, workgroupsize = N, localmem)
+        result = Array(rng_out)
+        @test all(x -> 0 <= x < 1, result[:, 1])
+        @test length(unique(result[:, 1])) > 1
+        @test result[:, 2] == repeat(Float32.(N:-1:1), groups)
+        @test all(==(localmem), result[:, 3])
+    end
+end
+
 @testset "sub-groups" begin
     backend = OpenCLBackend()
     dev = cl.device()

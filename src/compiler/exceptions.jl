@@ -189,11 +189,15 @@ function launch_with_exception_mailbox(kernel::cl.Kernel, args::Tuple;
                                        indirect_memory::Vector{cl.AbstractMemory},
                                        rng_state::Bool,
                                        exception_sites::Vector{GPUCompiler.ExceptionSite},
+                                       dynamic_localmemory::Bool=false, localmem::Int=0,
                                        kwargs...)
+    local_bytes = dynamic_local_bytes(dynamic_localmemory, localmem)
     mailbox, queue = current_exception_mailbox()
     Base.@lock mailbox.lock begin
-        state = next_kernel_state(mailbox, indirect_memory, rng_state, exception_sites)
-        result = cl.call(kernel, prepend(state, args); indirect_memory, rng_state, kwargs...)
+        state = next_kernel_state(mailbox, indirect_memory, rng_state, exception_sites,
+                                  localmem)
+        result = cl.call(kernel, prepend(state, args); indirect_memory, rng_state,
+                         local_bytes, kwargs...)
         # only publish the launch once it has been submitted, so that `check_exceptions`
         # can tell whether kernels have been submitted while it waited without the lock
         publish_launch(mailbox, queue)
@@ -217,9 +221,11 @@ end
 @noinline function next_kernel_state(mailbox::ExceptionMailbox,
                                      indirect_memory::Vector{cl.AbstractMemory},
                                      rng_state::Bool,
-                                     exception_sites::Vector{GPUCompiler.ExceptionSite})
+                                     exception_sites::Vector{GPUCompiler.ExceptionSite},
+                                     localmem::Int=0)
     mailbox.mem === nothing || push!(indirect_memory, mailbox.mem)
-    return KernelState(rng_state ? Base.rand(UInt32) : UInt32(0), mailbox.address,
+    return KernelState(rng_state ? Base.rand(UInt32) : UInt32(0), localmem % UInt32,
+                       mailbox.address,
                        exception_sites_id(mailbox, exception_sites))
 end
 

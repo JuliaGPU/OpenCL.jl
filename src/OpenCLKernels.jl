@@ -44,6 +44,15 @@ OpenCL has no barrier for part of a sub-group, so
 a sub-group is the SIMD lanes of one hardware thread (and with `cl_khr_subgroup_ballot`).
 Elsewhere, the segments of a sub-group have to execute the sub-group functions with a `width`
 together, like the ones without.
+
+# Dynamic local memory
+
+Kernels that use `KernelInterface.dynamic_localmemory` get a local memory argument, which
+launches size with the `localmem` keyword (also of the kernels that `@opencl` returns). The
+block has the size that the launch asked for, and is aligned to 16 bytes, for which the
+launch allocates 16 bytes more. `KernelInterface.max_dynamic_localmemory` is the device's
+local memory (`CL_DEVICE_LOCAL_MEM_SIZE`) less those bytes, the kernel's static local memory
+as the driver reports it, and what the kernel's use of `rand` can take.
 """
 Base.@kwdef struct OpenCLBackend <: KI.Backend
     platform::cl.Platform = cl.platform()
@@ -230,7 +239,8 @@ end
     return
 end
 
-# passes the arguments on as a tuple, like calling the `HostKernel` does
+# passes the arguments on as a tuple, like calling the `HostKernel` does. `localmem`, the
+# bytes of dynamic local memory, is a launch keyword of OpenCL.jl's kernels too.
 function KI.launch(kernel::KI.Kernel{OpenCLBackend}, groups::Dims{3}, items::Dims{3},
                    args::Tuple; kwargs...)
     # KernelInterface has validated the launch geometry
@@ -249,6 +259,13 @@ KI.max_work_group_size(kernel::KI.Kernel{OpenCLBackend}) = max_work_group_size(k
     wginfo = cl.work_group_info(fun, kernel_device(fun))
     Int(wginfo.size)
 end
+
+
+KI.supports_dynamic_localmemory(::OpenCLBackend) = true
+# the device's local memory, less what the kernel uses otherwise (see
+# `OpenCL.max_dynamic_local_bytes`)
+KI.max_dynamic_localmemory(kernel::KI.Kernel{OpenCLBackend})::Int =
+    kernel.kern.max_dynamic_localmemory
 
 
 ## Device Properties
@@ -397,6 +414,19 @@ end
     ptr = OpenCL.emit_localmemory(T, Val(prod(Dims)))
     CLDeviceArray(Dims, ptr)
 end
+
+
+# Every array is in the one block that the launch sized: a local memory argument of the
+# kernel, see `OpenCL.dynamic_localmemory`.
+@device_override Base.@propagate_inbounds function KI.dynamic_localmemory(
+        ::Type{T}, dims::Dims{N}, offset::Int) where {T, N}
+    KI.check_dynamic_localmemory(T, dims, offset)
+    ptr = reinterpret(Core.LLVMPtr{T, OpenCL.AS.Workgroup}, OpenCL.dynamic_localmemory() + offset)
+    return CLDeviceArray{T, N, OpenCL.AS.Workgroup}(dims, ptr)
+end
+
+@device_override @inline KI.dynamic_localmemory_size() =
+    OpenCL.kernel_state().dynamic_localmemory_size % Int
 
 
 ## Synchronization and Printing

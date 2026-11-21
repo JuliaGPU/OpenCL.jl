@@ -76,6 +76,9 @@ malloc(sz) = C_NULL
 
 struct KernelState
     random_seed::UInt32
+    # the bytes of dynamic local memory that the launch asked for (see
+    # `dynamic_localmemory`); in the padding of the seed
+    dynamic_localmemory_size::UInt32
 
     # address of the device-side exception mailbox (`ExceptionInfo_st`); zero when the
     # device has no host-accessible memory to put it in. carried as an integer rather than
@@ -112,4 +115,19 @@ end
 
 for name in [:random_keys, :random_counters]
     @eval @device_function @inline $name() = additional_arg_value(LLVMPtr{UInt32, AS.Workgroup}, Val($(QuoteNode(name))))
+end
+
+# The block of local memory whose size is chosen at launch (see `KI.dynamic_localmemory`):
+# another local memory argument, which every launch of a kernel that uses it has to size
+# (see `dynamic_local_bytes`). `kernel_state().dynamic_localmemory_size` is how much of it
+# the launch asked for.
+#
+# OpenCL doesn't specify the alignment of the memory of such an argument, so the launch
+# allocates `dynamic_localmemory_alignment` bytes more than it was asked for, and the block
+# starts at the first aligned address.
+const dynamic_localmemory_alignment = 16
+
+@device_function @inline function dynamic_localmemory()
+    ptr = additional_arg_value(LLVMPtr{UInt8, AS.Workgroup}, Val(:dynamic_localmemory))
+    return ptr + (-UInt(ptr) & UInt(dynamic_localmemory_alignment - 1))
 end
