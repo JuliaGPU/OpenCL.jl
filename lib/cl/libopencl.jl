@@ -179,6 +179,8 @@ const cl_mem_properties = cl_properties
 
 const cl_version = cl_uint
 
+const cl_device_integer_dot_product_capabilities = cl_bitfield
+
 struct _cl_image_format
     image_channel_order::cl_channel_order
     image_channel_data_type::cl_channel_type
@@ -241,6 +243,17 @@ struct _cl_name_version
 end
 
 const cl_name_version = _cl_name_version
+
+struct _cl_device_integer_dot_product_acceleration_properties
+    signed_accelerated::cl_bool
+    unsigned_accelerated::cl_bool
+    mixed_signedness_accelerated::cl_bool
+    accumulating_saturating_signed_accelerated::cl_bool
+    accumulating_saturating_unsigned_accelerated::cl_bool
+    accumulating_saturating_mixed_signedness_accelerated::cl_bool
+end
+
+const cl_device_integer_dot_product_acceleration_properties = _cl_device_integer_dot_product_acceleration_properties
 
 @checked function clGetPlatformIDs(num_entries, platforms, num_platforms)
     @gcsafe_ccall libopencl.clGetPlatformIDs(num_entries::cl_uint,
@@ -1088,6 +1101,17 @@ end
                                                    num_events_in_wait_list::cl_uint,
                                                    event_wait_list::Ptr{cl_event},
                                                    event::Ptr{cl_event})::cl_int
+end
+
+@checked function clGetKernelSuggestedLocalWorkSize(command_queue, kernel, work_dim,
+                                                    global_work_offset, global_work_size,
+                                                    suggested_local_work_size)
+    @gcsafe_ccall libopencl.clGetKernelSuggestedLocalWorkSize(command_queue::cl_command_queue,
+                                                              kernel::cl_kernel,
+                                                              work_dim::cl_uint,
+                                                              global_work_offset::Ptr{Csize_t},
+                                                              global_work_size::Ptr{Csize_t},
+                                                              suggested_local_work_size::Ptr{Csize_t})::cl_int
 end
 
 function clGetExtensionFunctionAddressForPlatform(platform, func_name)
@@ -2537,6 +2561,8 @@ const CL_DEVICE_MAX_WORK_GROUP_SIZE = 0x1004
 
 const CL_DEVICE_MAX_WORK_ITEM_SIZES = 0x1005
 
+const CL_DEVICE_MAX_WORK_GROUP_SIZES = 0x1005
+
 const CL_DEVICE_PREFERRED_VECTOR_WIDTH_CHAR = 0x1006
 
 const CL_DEVICE_PREFERRED_VECTOR_WIDTH_SHORT = 0x1007
@@ -2735,6 +2761,16 @@ const CL_DEVICE_WORK_GROUP_COLLECTIVE_FUNCTIONS_SUPPORT = 0x1068
 
 const CL_DEVICE_GENERIC_ADDRESS_SPACE_SUPPORT = 0x1069
 
+const CL_DEVICE_UUID = 0x106a
+
+const CL_DRIVER_UUID = 0x106b
+
+const CL_DEVICE_LUID_VALID = 0x106c
+
+const CL_DEVICE_LUID = 0x106d
+
+const CL_DEVICE_NODE_MASK = 0x106e
+
 const CL_DEVICE_OPENCL_C_FEATURES = 0x106f
 
 const CL_DEVICE_DEVICE_ENQUEUE_CAPABILITIES = 0x1070
@@ -2742,6 +2778,18 @@ const CL_DEVICE_DEVICE_ENQUEUE_CAPABILITIES = 0x1070
 const CL_DEVICE_PIPE_SUPPORT = 0x1071
 
 const CL_DEVICE_LATEST_CONFORMANCE_VERSION_PASSED = 0x1072
+
+const CL_DEVICE_INTEGER_DOT_PRODUCT_CAPABILITIES = 0x1073
+
+const CL_DEVICE_INTEGER_DOT_PRODUCT_ACCELERATION_PROPERTIES_8BIT = 0x1074
+
+const CL_DEVICE_INTEGER_DOT_PRODUCT_ACCELERATION_PROPERTIES_4x8BIT_PACKED = 0x1075
+
+const CL_DEVICE_SPIRV_EXTENDED_INSTRUCTION_SETS = 0x12b9
+
+const CL_DEVICE_SPIRV_EXTENSIONS = 0x12ba
+
+const CL_DEVICE_SPIRV_CAPABILITIES = 0x12bb
 
 const CL_FP_DENORM = 1 << 0
 
@@ -3284,6 +3332,14 @@ const CL_VERSION_MAJOR_MASK = 1 << CL_VERSION_MAJOR_BITS - 1
 const CL_VERSION_MINOR_MASK = 1 << CL_VERSION_MINOR_BITS - 1
 
 const CL_VERSION_PATCH_MASK = 1 << CL_VERSION_PATCH_BITS - 1
+
+const CL_UUID_SIZE = 16
+
+const CL_LUID_SIZE = 8
+
+const CL_DEVICE_INTEGER_DOT_PRODUCT_INPUT_4x8BIT_PACKED = 1 << 0
+
+const CL_DEVICE_INTEGER_DOT_PRODUCT_INPUT_4x8BIT = 1 << 1
 
 const cl_khr_gl_sharing = 1
 

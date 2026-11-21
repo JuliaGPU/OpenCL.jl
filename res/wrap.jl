@@ -153,7 +153,7 @@ function main()
     end
     cd(@__DIR__) do
         wrap("opencl", paths...; include_dirs=[include_dir],
-             defines=["CL_TARGET_OPENCL_VERSION" => "300"],)
+             defines=["CL_TARGET_OPENCL_VERSION" => "310"],)
     end
 end
 
