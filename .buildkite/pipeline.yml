@@ -48,6 +48,14 @@ steps:
             # against the registry, which has no SPIRVIntrinsics 1. Pkg.test
             # then carries the in-tree copy into the test sandbox.
             Pkg.develop(path="lib/intrinsics")
+            # [TEMP] Julia 1.10 doesn't read the [sources] of KernelAbstractions and
+            # KernelInterface either
+            if VERSION < v"1.11"
+                url = "https://github.com/JuliaGPU/KernelAbstractions.jl"
+                rev = "ccr-c54f0813-yayzye"
+                Pkg.add([PackageSpec(; url, rev),
+                         PackageSpec(; url, rev, subdir="lib/KernelInterface")])
+            end
             Pkg.add("{{matrix.pocl}}_jll")
             Pkg.add("InteractiveUtils")
 
