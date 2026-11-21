@@ -7,7 +7,8 @@
 end
 
 function check(f)
-    res = retry_reclaim(err -> err == CL_OUT_OF_RESOURCES ||
+    res = retry_reclaim(
+                        err -> err == CL_OUT_OF_RESOURCES ||
                                err == CL_MEM_OBJECT_ALLOCATION_FAILURE ||
                                err == CL_OUT_OF_HOST_MEMORY) do
         return f()
@@ -21,7 +22,7 @@ function check(f)
 end
 
 macro CL_MAKE_VERSION(major, minor, patch)
-    return quote
+    quote
         VersionNumber($major, $minor, $patch)
     end
 end
@@ -94,11 +95,11 @@ const cl_device_svm_capabilities = cl_bitfield
 
 const cl_command_queue_properties = cl_bitfield
 
-const cl_device_partition_property = intptr_t
+const cl_device_partition_property = Cptrdiff_t
 
 const cl_device_affinity_domain = cl_bitfield
 
-const cl_context_properties = intptr_t
+const cl_context_properties = Cptrdiff_t
 
 const cl_context_info = cl_uint
 
@@ -132,7 +133,7 @@ const cl_sampler_info = cl_uint
 
 const cl_map_flags = cl_bitfield
 
-const cl_pipe_properties = intptr_t
+const cl_pipe_properties = Cptrdiff_t
 
 const cl_pipe_info = cl_uint
 
@@ -213,6 +214,16 @@ end
 
 function Base.setproperty!(x::Ptr{_cl_image_desc}, f::Symbol, v)
     return unsafe_store!(getproperty(x, f), v)
+end
+
+function Base.propertynames(x::_cl_image_desc, private::Bool=false)
+    return (:image_type, :image_width, :image_height, :image_depth, :image_array_size,
+            :image_row_pitch, :image_slice_pitch, :num_mip_levels, :num_samples, :buffer,
+            :mem_object, if private
+                fieldnames(typeof(x))
+            else
+                ()
+            end...)
 end
 
 const cl_image_desc = _cl_image_desc
@@ -363,8 +374,7 @@ end
 
 function clCreateBuffer(context, flags, size, host_ptr, errcode_ret)
     @gcsafe_ccall libopencl.clCreateBuffer(context::cl_context, flags::cl_mem_flags,
-                                           size::Csize_t,
-                                           host_ptr::Ptr{Cvoid},
+                                           size::Csize_t, host_ptr::Ptr{Cvoid},
                                            errcode_ret::Ptr{cl_int})::cl_mem
 end
 
@@ -463,8 +473,7 @@ end
 
 function clSVMAlloc(context, flags, size, alignment)
     @gcsafe_ccall libopencl.clSVMAlloc(context::cl_context, flags::cl_svm_mem_flags,
-                                       size::Csize_t,
-                                       alignment::cl_uint)::CLPtr{Cvoid}
+                                       size::Csize_t, alignment::cl_uint)::CLPtr{Cvoid}
 end
 
 function clSVMFree(context, svm_pointer)
@@ -540,8 +549,7 @@ end
                                  user_data)
     @gcsafe_ccall libopencl.clBuildProgram(program::cl_program, num_devices::cl_uint,
                                            device_list::Ptr{cl_device_id},
-                                           options::Ptr{Cchar},
-                                           pfn_notify::Ptr{Cvoid},
+                                           options::Ptr{Cchar}, pfn_notify::Ptr{Cvoid},
                                            user_data::Ptr{Cvoid})::cl_int
 end
 
@@ -562,11 +570,9 @@ function clLinkProgram(context, num_devices, device_list, options, num_input_pro
                        input_programs, pfn_notify, user_data, errcode_ret)
     @gcsafe_ccall libopencl.clLinkProgram(context::cl_context, num_devices::cl_uint,
                                           device_list::Ptr{cl_device_id},
-                                          options::Ptr{Cchar},
-                                          num_input_programs::cl_uint,
+                                          options::Ptr{Cchar}, num_input_programs::cl_uint,
                                           input_programs::Ptr{cl_program},
-                                          pfn_notify::Ptr{Cvoid},
-                                          user_data::Ptr{Cvoid},
+                                          pfn_notify::Ptr{Cvoid}, user_data::Ptr{Cvoid},
                                           errcode_ret::Ptr{cl_int})::cl_program
 end
 
@@ -746,9 +752,9 @@ end
 @checked function clEnqueueReadBuffer(command_queue, buffer, blocking_read, offset, size,
                                       ptr, num_events_in_wait_list, event_wait_list, event)
     @gcsafe_ccall libopencl.clEnqueueReadBuffer(command_queue::cl_command_queue,
-                                                buffer::cl_mem,
-                                                blocking_read::cl_bool, offset::Csize_t,
-                                                size::Csize_t, ptr::Ptr{Cvoid},
+                                                buffer::cl_mem, blocking_read::cl_bool,
+                                                offset::Csize_t, size::Csize_t,
+                                                ptr::Ptr{Cvoid},
                                                 num_events_in_wait_list::cl_uint,
                                                 event_wait_list::Ptr{cl_event},
                                                 event::Ptr{cl_event})::cl_int
@@ -777,9 +783,9 @@ end
 @checked function clEnqueueWriteBuffer(command_queue, buffer, blocking_write, offset, size,
                                        ptr, num_events_in_wait_list, event_wait_list, event)
     @gcsafe_ccall libopencl.clEnqueueWriteBuffer(command_queue::cl_command_queue,
-                                                 buffer::cl_mem,
-                                                 blocking_write::cl_bool, offset::Csize_t,
-                                                 size::Csize_t, ptr::Ptr{Cvoid},
+                                                 buffer::cl_mem, blocking_write::cl_bool,
+                                                 offset::Csize_t, size::Csize_t,
+                                                 ptr::Ptr{Cvoid},
                                                  num_events_in_wait_list::cl_uint,
                                                  event_wait_list::Ptr{cl_event},
                                                  event::Ptr{cl_event})::cl_int
@@ -809,9 +815,9 @@ end
 @checked function clEnqueueFillBuffer(command_queue, buffer, pattern, pattern_size, offset,
                                       size, num_events_in_wait_list, event_wait_list, event)
     @gcsafe_ccall libopencl.clEnqueueFillBuffer(command_queue::cl_command_queue,
-                                                buffer::cl_mem,
-                                                pattern::Ptr{Cvoid}, pattern_size::Csize_t,
-                                                offset::Csize_t, size::Csize_t,
+                                                buffer::cl_mem, pattern::Ptr{Cvoid},
+                                                pattern_size::Csize_t, offset::Csize_t,
+                                                size::Csize_t,
                                                 num_events_in_wait_list::cl_uint,
                                                 event_wait_list::Ptr{cl_event},
                                                 event::Ptr{cl_event})::cl_int
@@ -851,10 +857,10 @@ end
                                      row_pitch, slice_pitch, ptr, num_events_in_wait_list,
                                      event_wait_list, event)
     @gcsafe_ccall libopencl.clEnqueueReadImage(command_queue::cl_command_queue,
-                                               image::cl_mem,
-                                               blocking_read::cl_bool, origin::Ptr{Csize_t},
-                                               region::Ptr{Csize_t}, row_pitch::Csize_t,
-                                               slice_pitch::Csize_t, ptr::Ptr{Cvoid},
+                                               image::cl_mem, blocking_read::cl_bool,
+                                               origin::Ptr{Csize_t}, region::Ptr{Csize_t},
+                                               row_pitch::Csize_t, slice_pitch::Csize_t,
+                                               ptr::Ptr{Cvoid},
                                                num_events_in_wait_list::cl_uint,
                                                event_wait_list::Ptr{cl_event},
                                                event::Ptr{cl_event})::cl_int
@@ -864,10 +870,8 @@ end
                                       input_row_pitch, input_slice_pitch, ptr,
                                       num_events_in_wait_list, event_wait_list, event)
     @gcsafe_ccall libopencl.clEnqueueWriteImage(command_queue::cl_command_queue,
-                                                image::cl_mem,
-                                                blocking_write::cl_bool,
-                                                origin::Ptr{Csize_t},
-                                                region::Ptr{Csize_t},
+                                                image::cl_mem, blocking_write::cl_bool,
+                                                origin::Ptr{Csize_t}, region::Ptr{Csize_t},
                                                 input_row_pitch::Csize_t,
                                                 input_slice_pitch::Csize_t, ptr::Ptr{Cvoid},
                                                 num_events_in_wait_list::cl_uint,
@@ -878,9 +882,8 @@ end
 @checked function clEnqueueFillImage(command_queue, image, fill_color, origin, region,
                                      num_events_in_wait_list, event_wait_list, event)
     @gcsafe_ccall libopencl.clEnqueueFillImage(command_queue::cl_command_queue,
-                                               image::cl_mem,
-                                               fill_color::Ptr{Cvoid}, origin::Ptr{Csize_t},
-                                               region::Ptr{Csize_t},
+                                               image::cl_mem, fill_color::Ptr{Cvoid},
+                                               origin::Ptr{Csize_t}, region::Ptr{Csize_t},
                                                num_events_in_wait_list::cl_uint,
                                                event_wait_list::Ptr{cl_event},
                                                event::Ptr{cl_event})::cl_int
@@ -890,8 +893,8 @@ end
                                      dst_origin, region, num_events_in_wait_list,
                                      event_wait_list, event)
     @gcsafe_ccall libopencl.clEnqueueCopyImage(command_queue::cl_command_queue,
-                                               src_image::cl_mem,
-                                               dst_image::cl_mem, src_origin::Ptr{Csize_t},
+                                               src_image::cl_mem, dst_image::cl_mem,
+                                               src_origin::Ptr{Csize_t},
                                                dst_origin::Ptr{Csize_t},
                                                region::Ptr{Csize_t},
                                                num_events_in_wait_list::cl_uint,
@@ -932,10 +935,9 @@ end
 function clEnqueueMapBuffer(command_queue, buffer, blocking_map, map_flags, offset, size,
                             num_events_in_wait_list, event_wait_list, event, errcode_ret)
     @gcsafe_ccall libopencl.clEnqueueMapBuffer(command_queue::cl_command_queue,
-                                               buffer::cl_mem,
-                                               blocking_map::cl_bool,
-                                               map_flags::cl_map_flags,
-                                               offset::Csize_t, size::Csize_t,
+                                               buffer::cl_mem, blocking_map::cl_bool,
+                                               map_flags::cl_map_flags, offset::Csize_t,
+                                               size::Csize_t,
                                                num_events_in_wait_list::cl_uint,
                                                event_wait_list::Ptr{cl_event},
                                                event::Ptr{cl_event},
@@ -946,10 +948,9 @@ function clEnqueueMapImage(command_queue, image, blocking_map, map_flags, origin
                            image_row_pitch, image_slice_pitch, num_events_in_wait_list,
                            event_wait_list, event, errcode_ret)
     @gcsafe_ccall libopencl.clEnqueueMapImage(command_queue::cl_command_queue,
-                                              image::cl_mem,
-                                              blocking_map::cl_bool,
-                                              map_flags::cl_map_flags,
-                                              origin::Ptr{Csize_t}, region::Ptr{Csize_t},
+                                              image::cl_mem, blocking_map::cl_bool,
+                                              map_flags::cl_map_flags, origin::Ptr{Csize_t},
+                                              region::Ptr{Csize_t},
                                               image_row_pitch::Ptr{Csize_t},
                                               image_slice_pitch::Ptr{Csize_t},
                                               num_events_in_wait_list::cl_uint,
@@ -1060,9 +1061,9 @@ end
 @checked function clEnqueueSVMMap(command_queue, blocking_map, flags, svm_ptr, size,
                                   num_events_in_wait_list, event_wait_list, event)
     @gcsafe_ccall libopencl.clEnqueueSVMMap(command_queue::cl_command_queue,
-                                            blocking_map::cl_bool,
-                                            flags::cl_map_flags, svm_ptr::CLPtr{Cvoid},
-                                            size::Csize_t, num_events_in_wait_list::cl_uint,
+                                            blocking_map::cl_bool, flags::cl_map_flags,
+                                            svm_ptr::CLPtr{Cvoid}, size::Csize_t,
+                                            num_events_in_wait_list::cl_uint,
                                             event_wait_list::Ptr{cl_event},
                                             event::Ptr{cl_event})::cl_int
 end
@@ -1291,17 +1292,15 @@ const clCreateFromGLTexture3D_fn = Ptr{clCreateFromGLTexture3D_t}
 
 function clCreateFromGLTexture2D(context, flags, target, miplevel, texture, errcode_ret)
     @gcsafe_ccall libopencl.clCreateFromGLTexture2D(context::cl_context,
-                                                    flags::cl_mem_flags,
-                                                    target::cl_GLenum, miplevel::cl_GLint,
-                                                    texture::cl_GLuint,
+                                                    flags::cl_mem_flags, target::cl_GLenum,
+                                                    miplevel::cl_GLint, texture::cl_GLuint,
                                                     errcode_ret::Ptr{cl_int})::cl_mem
 end
 
 function clCreateFromGLTexture3D(context, flags, target, miplevel, texture, errcode_ret)
     @gcsafe_ccall libopencl.clCreateFromGLTexture3D(context::cl_context,
-                                                    flags::cl_mem_flags,
-                                                    target::cl_GLenum, miplevel::cl_GLint,
-                                                    texture::cl_GLuint,
+                                                    flags::cl_mem_flags, target::cl_GLenum,
+                                                    miplevel::cl_GLint, texture::cl_GLuint,
                                                     errcode_ret::Ptr{cl_int})::cl_mem
 end
 
@@ -1823,7 +1822,7 @@ end
     @ext_ccall libopencl.clRetainSemaphoreKHR(sema_object::cl_semaphore_khr)::cl_int
 end
 
-const cl_import_properties_arm = intptr_t
+const cl_import_properties_arm = Cptrdiff_t
 
 # typedef cl_mem CL_API_CALL clImportMemoryARM_t ( cl_context context , cl_mem_flags flags , const cl_import_properties_arm * properties , void * memory , size_t size , cl_int * errcode_ret )
 const clImportMemoryARM_t = Cvoid
@@ -2338,6 +2337,17 @@ const clCancelCommandsIMG_fn = Ptr{clCancelCommandsIMG_t}
     @ext_ccall libopencl.clCancelCommandsIMG(event_list::Ptr{cl_event},
                                              num_events_in_list::Csize_t)::cl_int
 end
+
+const cl_context_safety_properties_img = cl_bitfield
+
+struct _cl_kernel_allocation_info_intel
+    base::Ptr{Cvoid}
+    size::Csize_t
+    type::cl_unified_shared_memory_type_intel
+    arg_index::cl_int
+end
+
+const cl_kernel_allocation_info_intel = _cl_kernel_allocation_info_intel
 
 const cl_perf_hint_qcom = cl_uint
 
@@ -3379,13 +3389,21 @@ const cl_khr_icd = 1
 
 const CL_KHR_ICD_EXTENSION_NAME = "cl_khr_icd"
 
-const CL_KHR_ICD_EXTENSION_VERSION = @CL_MAKE_VERSION(2, 0, 0)
+const CL_KHR_ICD_EXTENSION_VERSION = @CL_MAKE_VERSION(2, 0, 1)
 
 const CL_PLATFORM_ICD_SUFFIX_KHR = 0x0920
 
 const CL_PLATFORM_NOT_FOUND_KHR = -1001
 
 const CL_ICD2_TAG_KHR = intptr_t(0x4f50454e434c3331)
+
+const cl_khr_icd_unloadable = 1
+
+const CL_KHR_ICD_UNLOADABLE_EXTENSION_NAME = "cl_khr_icd_unloadable"
+
+const CL_KHR_ICD_UNLOADABLE_EXTENSION_VERSION = @CL_MAKE_VERSION(1, 0, 0)
+
+const CL_PLATFORM_UNLOADABLE_KHR = 0x0921
 
 const cl_khr_il_program = 1
 
@@ -4592,7 +4610,7 @@ const cl_intel_unified_shared_memory = 1
 
 const CL_INTEL_UNIFIED_SHARED_MEMORY_EXTENSION_NAME = "cl_intel_unified_shared_memory"
 
-const CL_INTEL_UNIFIED_SHARED_MEMORY_EXTENSION_VERSION = @CL_MAKE_VERSION(0, 0, 0)
+const CL_INTEL_UNIFIED_SHARED_MEMORY_EXTENSION_VERSION = @CL_MAKE_VERSION(1, 1, 0)
 
 const CL_DEVICE_HOST_MEM_CAPABILITIES_INTEL = 0x4190
 
@@ -5103,6 +5121,42 @@ const CL_IMG_CANCEL_COMMAND_EXTENSION_NAME = "cl_img_cancel_command"
 const CL_IMG_CANCEL_COMMAND_EXTENSION_VERSION = @CL_MAKE_VERSION(0, 0, 0)
 
 const CL_CANCELLED_IMG = -1126
+
+const cl_img_safety_mechanisms = 1
+
+const CL_IMG_SAFETY_MECHANISMS_EXTENSION_NAME = "cl_img_safety_mechanisms"
+
+const CL_IMG_SAFETY_MECHANISMS_EXTENSION_VERSION = @CL_MAKE_VERSION(1, 0, 0)
+
+const CL_CONTEXT_SAFETY_PROPERTIES_IMG = 0x40d9
+
+const CL_CONTEXT_WORKGROUP_PROTECTION_IMG = 1 << 0
+
+const CL_CONTEXT_ENHANCED_EVENT_EXECUTION_STATUS_IMG = 1 << 1
+
+const CL_DEVICE_WORKGROUP_PROTECTION_SVM_CAPABILITIES_IMG = 0x40da
+
+const CL_DEVICE_WORKGROUP_PROTECTION_DEVICE_ENQUEUE_CAPABILITIES_IMG = 0x40db
+
+const CL_DEVICE_SAFETY_MEM_SIZE_IMG = 0x40dc
+
+const CL_ECC_RECOVERED_IMG = 0x40dd
+
+const CL_PAGE_FAULT_IMG = -1127
+
+const CL_SAFETY_FAULT_IMG = -1128
+
+const CL_GENERAL_FAULT_IMG = -1129
+
+const CL_ECC_UNRECOVERED_IMG = -1130
+
+const cl_intel_kernel_allocations_info = 1
+
+const CL_INTEL_KERNEL_ALLOCATIONS_INFO_EXTENSION_NAME = "cl_intel_kernel_allocations_info"
+
+const CL_INTEL_KERNEL_ALLOCATIONS_INFO_EXTENSION_VERSION = @CL_MAKE_VERSION(1, 0, 0)
+
+const CL_KERNEL_ALLOCATIONS_INFO_INTEL = 0x425a
 
 const cl_qcom_perf_hint = 1
 
