@@ -176,14 +176,23 @@ end
     if "cl_khr_il_program" in cl.device().extensions
         backend_kernel() = return
         for mode in (:spirv, :opencl, :spirv)
-            OpenCL.program_backend!(mode) do
-                try
-                    k = @opencl launch=false backend_kernel()
-                    @test (k.fun.program.source === nothing) == (mode === :spirv)
-                catch
-                    # Remove this test once opencl 3.1 supported
-                    @test cl.device().opencl_version == v"3.1"
+            if mode === :opencl && OpenCL.source_opencl_c_version(cl.device()) > v"3.0"
+                # spirv2clc only translates to OpenCL C up to 3.0. Once a release supports
+                # newer versions this becomes an unexpected pass: revert to the plain test.
+                @test_broken try
+                    OpenCL.program_backend!(mode) do
+                        k = @opencl launch=false backend_kernel()
+                        k.fun.program.source !== nothing
+                    end
+                catch err
+                    occursin("unsupported OpenCL C version", sprint(showerror, err)) || rethrow()
+                    false
                 end
+                continue
+            end
+            OpenCL.program_backend!(mode) do
+                k = @opencl launch=false backend_kernel()
+                @test (k.fun.program.source === nothing) == (mode === :spirv)
             end
         end
     end
