@@ -17,15 +17,16 @@ const OpenCLCompilerJob = CompilerJob{SPIRVCompilerTarget,OpenCLCompilerParams}
 
 Cached compilation results for an OpenCL kernel job, managed by
 `GPUCompiler.cached_results`. Fields are populated through the compile pipeline:
-`obj` (SPIR-V bytes) + `entry` + `device_rng` + `exception_sites` after codegen, and
-`kernels` after the session-local link onto an OpenCL context. The first four are
-session-portable
+`obj` (SPIR-V bytes) + `entry` + `device_rng` + `dynamic_localmemory` + `exception_sites`
+after codegen, and `kernels` after the session-local link onto an OpenCL context. The first
+five are session-portable
 (cached through precompilation, except when GPUCompiler marks the job
 session-dependent and wipes its entries before image serialization); `kernels` is
 session-local and never populated during precompilation. `obj === nothing`
 identifies a job that has not been compiled yet.
 
-`kernels` is a small linear cache of `(cl.Context, cl.Kernel)` pairs. The cache partition
+`kernels` is a small linear cache of `(cl.Context, cl.Kernel, max_dynamic_localmemory)`
+entries (see `max_dynamic_local_bytes` for the last one). The cache partition
 already covers everything that affects codegen via `GPUCompiler.cache_owner`, so the only
 runtime-visible dimension left is the OpenCL context that owns the linked `cl.Kernel`.
 A linear scan with `===` is fastest in the common case (n=1) and stays cheap for the
@@ -35,10 +36,11 @@ mutable struct OpenCLResults
     obj::Union{Nothing, Vector{UInt8}}                   # SPIR-V binary
     entry::Union{Nothing, String}
     device_rng::Bool
+    dynamic_localmemory::Bool                            # has the argument for it
     exception_sites::Vector{GPUCompiler.ExceptionSite}   # what the kernel can throw
-    kernels::Vector{Tuple{cl.Context, cl.Kernel}}        # session-local; linear-scanned
-    OpenCLResults() = new(nothing, nothing, false, GPUCompiler.ExceptionSite[],
-                          Tuple{cl.Context, cl.Kernel}[])
+    kernels::Vector{Tuple{cl.Context, cl.Kernel, Int}}   # session-local; linear-scanned
+    OpenCLResults() = new(nothing, nothing, false, false, GPUCompiler.ExceptionSite[],
+                          Tuple{cl.Context, cl.Kernel, Int}[])
 end
 
 GPUCompiler.runtime_module(::CompilerJob{<:Any,OpenCLCompilerParams}) = OpenCL
@@ -154,7 +156,20 @@ function GPUCompiler.finish_linked_module!(@nospecialize(job::OpenCLCompilerJob)
             "julia.opencl.random_keys" => (; name = "random_keys", typ = LLVMPtr{UInt32, AS.Workgroup}),
             "julia.opencl.random_counters" => (; name = "random_counters", typ = LLVMPtr{UInt32, AS.Workgroup}),
         )
-        GPUCompiler.add_input_arguments!(job, mod, f, kernel_intrinsics)
+        f = GPUCompiler.add_input_arguments!(job, mod, f, kernel_intrinsics)
+
+        # the dynamic local memory is added separately, so that it is the last argument
+        # whether or not the kernel uses the RNG. launches have to size the argument, so
+        # note that the kernel has it.
+        if haskey(mod.functions, "julia.opencl.dynamic_localmemory")
+            kernel_intrinsics = Dict(
+                "julia.opencl.dynamic_localmemory" =>
+                    (; name = "dynamic_localmemory", typ = LLVMPtr{UInt8, AS.Workgroup}),
+            )
+            f = GPUCompiler.add_input_arguments!(job, mod, f, kernel_intrinsics)
+            push!(f.function_attributes,
+                  StringAttribute("julia.opencl.dynamic_localmemory", ""))
+        end
     end
     return
 end
@@ -242,7 +257,7 @@ end
 end
 
 # run inference + LLVM codegen + SPIR-V emission. returns `(obj, entry, device_rng,
-# exception_sites)`, all session-portable so they survive precompilation when stored on a cached `CodeInstance`.
+# dynamic_localmemory, exception_sites)`, all session-portable so they survive precompilation when stored on a cached `CodeInstance`.
 const compilations = Threads.Atomic{Int}(0)
 function compile_to_obj(@nospecialize(job::CompilerJob))
     Threads.atomic_add!(compilations, 1)
@@ -254,7 +269,9 @@ function compile_to_obj(@nospecialize(job::CompilerJob))
         @dispose ir=meta.ir begin
             entry = meta.entry.name
             device_rng = haskey(meta.entry.function_attributes, "julia.opencl.rng")
-            (; obj, entry, device_rng, meta.exception_sites)
+            dynamic_localmemory =
+                haskey(meta.entry.function_attributes, "julia.opencl.dynamic_localmemory")
+            (; obj, entry, device_rng, dynamic_localmemory, meta.exception_sites)
         end
     end
 end

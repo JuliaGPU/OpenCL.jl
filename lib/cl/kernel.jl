@@ -174,7 +174,7 @@ end
 
 function enqueue_kernel(k::Kernel, global_work_size, local_work_size=nothing;
                         global_work_offset=nothing, wait_on::Vector{Event}=Event[],
-                        rng_state=false, nargs=nothing)
+                        rng_state=false, nargs=nothing, local_bytes::Integer=0)
     max_work_dim = device().max_work_item_dims
     work_dim     = length(global_work_size)
     if work_dim > max_work_dim
@@ -231,12 +231,16 @@ function enqueue_kernel(k::Kernel, global_work_size, local_work_size=nothing;
             local_work_size !== nothing ? prod(lsize) : device().max_work_group_size
         end
         if nargs === nothing
-            nargs = k.num_args - 2
+            nargs = k.num_args - 2 - (local_bytes > 0)
         end
-        rng_state_size = sizeof(UInt32) * num_slots
-        set_arg!(k, nargs + 1, LocalMem(UInt32, rng_state_size))
-        set_arg!(k, nargs + 2, LocalMem(UInt32, rng_state_size))
+        # a `UInt32` key and counter per slot (see `max_rng_local_bytes`)
+        set_arg!(k, nargs + 1, LocalMem(UInt32, num_slots))
+        set_arg!(k, nargs + 2, LocalMem(UInt32, num_slots))
     end
+
+    # kernels that use dynamic local memory take it as their last argument, after those
+    # of the RNG, with `local_bytes` as its size
+    local_bytes > 0 && set_arg!(k, k.num_args, LocalMem(UInt8, local_bytes))
 
     if !isempty(wait_on)
         n_events = length(wait_on)
@@ -250,6 +254,17 @@ function enqueue_kernel(k::Kernel, global_work_size, local_work_size=nothing;
     clEnqueueNDRangeKernel(queue(), k, work_dim, goffset, gsize, lsize,
                            n_events, wait_event_ids, ret_event)
     return Event(ret_event[], retain=false)
+end
+
+# the most bytes of local memory that `enqueue_kernel` allocates for the device-side RNG of
+# `k`, whose two arguments hold a `UInt32` per slot: for the largest work-group
+function max_rng_local_bytes(k::Kernel, dev::Device)
+    num_slots = if sub_groups_supported(dev)
+        KernelSubGroupInfo(k, dev, Csize_t[]).max_num_sub_groups
+    else
+        KernelWorkGroupInfo(k, dev).size
+    end
+    return 2 * sizeof(UInt32) * num_slots
 end
 
 function enqueue_task(k::Kernel; wait_for=nothing)
@@ -276,13 +291,13 @@ function call(
         k::Kernel, args::Tuple; global_size = (1,), local_size = nothing,
         global_work_offset = nothing, wait_on::Vector{Event} = Event[],
         indirect_memory::Vector{AbstractMemory} = AbstractMemory[],
-        rng_state=false,
+        rng_state=false, local_bytes::Integer=0,
     )
     return Base.@lock k begin
     _set_args!(k, args)
     isempty(indirect_memory) || set_indirect_memory!(k, indirect_memory)
     enqueue_kernel(k, global_size, local_size; global_work_offset, wait_on, rng_state,
-                   nargs=length(args))
+                   nargs=length(args), local_bytes)
     end
 end
 

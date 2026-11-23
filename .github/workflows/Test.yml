@@ -78,7 +78,15 @@ jobs:
             using Pkg
             # Julia 1.10 does not support [sources], so dev the in-tree
             # SPIRVIntrinsics; Pkg.test then carries it into the test sandbox.
-            Pkg.develop(path="lib/intrinsics")'
+            Pkg.develop(path="lib/intrinsics")
+            # [TEMP] Julia 1.10 doesn't read the [sources] of KernelAbstractions and
+            # KernelInterface either
+            if VERSION < v"1.11"
+                url = "https://github.com/JuliaGPU/KernelAbstractions.jl"
+                rev = "ccr-c54f0813-yayzye"
+                Pkg.add([PackageSpec(; url, rev),
+                         PackageSpec(; url, rev, subdir="lib/KernelInterface")])
+            end'
 
       - name: Test OpenCL.jl
         uses: julia-actions/julia-runtest@v1

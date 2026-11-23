@@ -241,6 +241,7 @@ Launch `kernel`, as calling it with the arguments `args...` and the launch keywo
                 foreach(take_ownership!, locked)
                 launch_with_exception_mailbox(kernel.fun, ($(converted...),);
                                               indirect_memory, rng_state=kernel.rng_state,
+                                              dynamic_localmemory=kernel.dynamic_localmemory,
                                               exception_sites=kernel.exception_sites,
                                               call_kwargs...)
             finally
@@ -261,6 +262,10 @@ struct HostKernel{F,S,TT} <: AbstractKernel{F,TT}
     rng_state::Bool
     # the throw sites of the kernel's code, which the exceptions it reports refer to
     exception_sites::Vector{GPUCompiler.ExceptionSite}
+    # whether the kernel's last argument is the dynamic local memory, which launches size
+    # with the `localmem` keyword, and how many bytes of it a launch can ask for
+    dynamic_localmemory::Bool
+    max_dynamic_localmemory::Int
 end
 
 
@@ -275,11 +280,12 @@ function clfunction(f::F, tt::TT=Tuple{}; source::S=f, kwargs...) where {F,TT,S}
     # copies of arrays, like `extensions`, which the caller may mutate.
     options = map(v -> v isa AbstractArray ? copy(v) : v, kw)
     key = (cl.context(), cl.device(), program_backend(), options)
-    kernel, device_rng, exception_sites =
+    kernel, device_rng, exception_sites, dynamic_localmemory, max_dynamic_localmemory =
         GPUCompiler.cached_lookup(KernelLinker(F, tt, kw),
-                                  Tuple{cl.Kernel,Bool,Vector{GPUCompiler.ExceptionSite}},
+                                  Tuple{cl.Kernel,Bool,Vector{GPUCompiler.ExceptionSite},Bool,Int},
                                   F, tt, key)
-    HostKernel{F,S,tt}(f, source, kernel, device_rng, exception_sites)
+    HostKernel{F,S,tt}(f, source, kernel, device_rng, exception_sites, dynamic_localmemory,
+                       max_dynamic_localmemory)
 end
 
 # what `clfunction` calls when the kernel isn't cached: a callable struct rather than a
@@ -305,23 +311,28 @@ function clfunction_link(mi::Core.MethodInstance; kwargs...)
         # session-local cache; almost always n=1, so this is one `===` compare.
         ctx = cl.context()
         kernel = nothing
-        @inbounds for (cached_ctx, cached_kernel) in res.kernels
+        max_dynamic_localmemory = 0
+        @inbounds for (cached_ctx, cached_kernel, cached_max) in res.kernels
             if cached_ctx === ctx
                 kernel = cached_kernel
+                max_dynamic_localmemory = cached_max
                 break
             end
         end
         if kernel === nothing
             kernel = link_kernel(job, res.obj::Vector{UInt8}, res.entry::String)
+            # (before any launch sets the kernel's local memory arguments)
+            max_dynamic_localmemory = max_dynamic_local_bytes(kernel, res.device_rng)
             # Don't cache session-local kernel handles while precompiling: the
             # results struct is serialized into the package image along with its
             # CodeInstance, and the handles would come back dangling.
             if ccall(:jl_generating_output, Cint, ()) != 1
-                push!(res.kernels, (ctx, kernel))
+                push!(res.kernels, (ctx, kernel, max_dynamic_localmemory))
             end
         end
 
-        return kernel, res.device_rng, res.exception_sites
+        return kernel, res.device_rng, res.exception_sites, res.dynamic_localmemory,
+               max_dynamic_localmemory
     end
 end
 
@@ -343,7 +354,39 @@ end
         res.obj = compiled.obj
         res.entry = compiled.entry
         res.device_rng = compiled.device_rng
+        res.dynamic_localmemory = compiled.dynamic_localmemory
         res.exception_sites = compiled.exception_sites
     end
     return res
+end
+
+
+## dynamic local memory
+#
+# a kernel that uses the device-side `dynamic_localmemory` has a local memory argument for
+# it, which every launch has to size; the kernel state tells the kernel how much the launch
+# asked for with `localmem`.
+
+# the bytes to allocate for a launch asking for `localmem` bytes of dynamic local memory:
+# 0 if the kernel doesn't have the argument, which then ignores what the launch asks for.
+# local memory arguments can't be empty, and the kernel aligns the block itself, so there
+# always is `dynamic_localmemory_alignment` more than was asked for.
+@inline function dynamic_local_bytes(dynamic_localmemory::Bool, localmem::Int)
+    0 <= localmem <= typemax(UInt32) || throw_localmem(localmem)
+    return dynamic_localmemory ? localmem + dynamic_localmemory_alignment : 0
+end
+@noinline throw_localmem(localmem::Int) =
+    throw(ArgumentError("`localmem` must be between 0 and $(typemax(UInt32)) bytes, got $localmem"))
+
+# the most dynamic local memory a launch of `k` can ask for: what the device has, less
+# what the kernel allocates statically, what `cl.enqueue_kernel` allocates for the RNG
+# (which depends on the work-group size, so assume the largest), and what
+# `dynamic_local_bytes` adds. has to be called before any local memory argument of `k` is
+# set, because the kernel reports those as well.
+function max_dynamic_local_bytes(k::cl.Kernel, device_rng::Bool)
+    dev = cl.device()
+    available = Int(min(dev.local_mem_size, typemax(UInt32))) -
+                cl.work_group_info(k, dev).local_mem_size - dynamic_localmemory_alignment
+    device_rng && (available -= cl.max_rng_local_bytes(k, dev))
+    return max(available, 0)
 end
