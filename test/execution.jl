@@ -575,6 +575,21 @@ end
     @test Array(a)[1] == 1
 end
 
+# a kernel that reaches an overlay shadowed by another one is dropped from a package image
+# when it is loaded (see `Bool` in device/quirks.jl). Julia records the methods of a table
+# that shadow a method as its `interferences`.
+if hasfield(Method, :interferences)
+    @testset "overlays do not shadow one another" begin
+        for table in (OpenCL.method_table, OpenCL.SPIRVIntrinsics.method_table)
+            shadowed = filter(Base.MethodList(table).ms) do m
+                I = m.interferences
+                any(i -> isassigned(I, i), eachindex(I))
+            end
+            @test isempty(shadowed)
+        end
+    end
+end
+
 # failures of the precompile workload don't fail precompilation, so check its kernel here
 # (`Pkg.test` runs with `--check-bounds=yes`, which once broke it)
 @testset "precompile workload" begin

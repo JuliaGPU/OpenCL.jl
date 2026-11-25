@@ -41,12 +41,16 @@ end
 # the `InexactError` themselves, through its vararg `@nospecialize` constructor. On the
 # device that means boxing the arguments on the throwing branch (an allocation the
 # optimizer can't remove), so route them through `@gputhrow` instead.
-for T in (Real, Float16)
-    @eval @device_override function Base.Bool(x::$T)
-        x == 0 && return false
-        x == 1 && return true
-        @gputhrow "InexactError" "Inexact conversion"
-    end
+#
+# One overlay answers both, because overlays must not shadow one another. When Julia 1.12+
+# loads a package image, it only trusts a kernel's edge to an overlay that no more specific
+# method of the same table intersects. It verifies other edges against the global method
+# table, which doesn't have the overlay, so it drops the kernel and every session compiles
+# it again (fixed by JuliaLang/julia#64727).
+@device_override function Base.Bool(x::Real)
+    x == 0 && return false
+    x == 1 && return true
+    @gputhrow "InexactError" "Inexact conversion"
 end
 
 # abstractarray.jl
