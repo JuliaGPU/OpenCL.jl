@@ -247,15 +247,11 @@ const compilations = Threads.Atomic{Int}(0)
 function compile_to_obj(@nospecialize(job::CompilerJob))
     Threads.atomic_add!(compilations, 1)
 
-    JuliaContext() do ctx
-        obj, meta = GPUCompiler.compile(:obj, job)
-
-        # we own the IR: inspect it, then dispose of it
-        @dispose ir=meta.ir begin
-            entry = meta.entry.name
-            device_rng = haskey(meta.entry.function_attributes, "julia.opencl.rng")
-            (; obj, entry, device_rng, meta.exception_sites)
-        end
+    # the IR is only valid within the block: return plain data
+    GPUCompiler.compile(:obj, job) do obj, meta
+        entry = meta.entry.name
+        device_rng = haskey(meta.entry.function_attributes, "julia.opencl.rng")
+        (; obj, entry, device_rng, meta.exception_sites)
     end
 end
 
