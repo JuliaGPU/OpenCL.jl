@@ -511,6 +511,17 @@ end
     end
 end
 
+@testset "correctly rounded Float32 division and sqrt" begin
+    if cl.single_fp_config(cl.device()).correctly_rounded_divide_sqrt
+        a = rand(Float32, 4096) .+ 0.5f0
+        b = rand(Float32, 4096) .+ 0.5f0
+        a_cl, b_cl = CLArray(a), CLArray(b)
+        @test all(isone, Array(a_cl ./ a_cl))
+        @test Array(a_cl ./ b_cl) == a ./ b
+        @test Array(sqrt.(a_cl)) == sqrt.(a)
+    end
+end
+
 @testset "backends" begin
     llvm_backend_llvm = sprint() do io
         OpenCL.code_llvm(io, () -> nothing, (); dump_module = true, backend = :llvm)

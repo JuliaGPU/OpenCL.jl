@@ -419,7 +419,7 @@ end
 function link_kernel(@nospecialize(job::CompilerJob), obj::Vector{UInt8}, entry::String)
     spirv_bitcode = obj
     clc_source = nothing
-    build_options = ""
+    build_options = String[]
 
     dev = cl.device()
     backend = resolve_program_backend(dev, job.config.params.program_backend)
@@ -431,8 +431,15 @@ function link_kernel(@nospecialize(job::CompilerJob), obj::Vector{UInt8}, entry:
         cl_std = "CL$(clc_version.major).$(clc_version.minor)"
 
         clc_source = translate_spirv(spirv_bitcode, job.config.target.version, clc_version)
-        build_options = "-cl-std=$cl_std"
+        push!(build_options, "-cl-std=$cl_std")
         cl.Program(; source=clc_source)
+    end
+
+    # Julia's Float32 `/` and `sqrt` are correctly rounded, but OpenCL allows them 2.5 and
+    # 3 ulp of error unless the program opts out. NVIDIA uses that freedom, so `x / x` can
+    # be `prevfloat(1f0)` there.
+    if cl.single_fp_config(dev).correctly_rounded_divide_sqrt
+        push!(build_options, "-cl-fp32-correctly-rounded-divide-sqrt")
     end
 
     # optionally dump the artifacts of every kernel (e.g. to debug a runtime miscompile)
@@ -442,7 +449,7 @@ function link_kernel(@nospecialize(job::CompilerJob), obj::Vector{UInt8}, entry:
     end
 
     try
-        cl.build!(prog; options=build_options)
+        cl.build!(prog; options=join(build_options, " "))
     catch e
         files = clc_source === nothing ?
             dump_artifacts(".spv" => spirv_bitcode) :
