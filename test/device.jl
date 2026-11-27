@@ -99,6 +99,8 @@ end
 
     @test cl.svm_capabilities(cl.device()).fine_grain_buffer isa Bool
 
+    @test cl.single_fp_config(cl.device()).correctly_rounded_divide_sqrt isa Bool
+
     if cl.sub_groups_supported(cl.device())
         @test cl.sub_group_size(cl.device()) > 0
     else

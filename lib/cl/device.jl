@@ -236,7 +236,24 @@ function exec_capabilities(d::Device)
     )
 end
 
-usm_supported(d::Device) = "cl_intel_unified_shared_memory" in d.extensions
+function single_fp_config(d::Device)
+    result = Ref{cl_device_fp_config}()
+    clGetDeviceInfo(d, CL_DEVICE_SINGLE_FP_CONFIG, sizeof(cl_device_fp_config), result, C_NULL)
+    mask = result[]
+
+    return (;
+        denorm = mask & CL_FP_DENORM != 0,
+        inf_nan = mask & CL_FP_INF_NAN != 0,
+        round_to_nearest = mask & CL_FP_ROUND_TO_NEAREST != 0,
+        round_to_zero = mask & CL_FP_ROUND_TO_ZERO != 0,
+        round_to_inf = mask & CL_FP_ROUND_TO_INF != 0,
+        fma = mask & CL_FP_FMA != 0,
+        soft_float = mask & CL_FP_SOFT_FLOAT != 0,
+        correctly_rounded_divide_sqrt = mask & CL_FP_CORRECTLY_ROUNDED_DIVIDE_SQRT != 0,
+    )
+end
+
+usm_supported(d::Device) ="cl_intel_unified_shared_memory" in d.extensions
 
 function usm_capabilities(d::Device)
     usm_supported(d) || throw(ArgumentError("Unified Shared Memory not supported on this device"))
