@@ -138,7 +138,7 @@ end
     # :max_work_item_size should be deprecated from OpenCL.jl
     if s == :max_work_group_sizes || s == :max_work_item_size
         result = Vector{Csize_t}(undef, d.max_work_item_dims)
-        clGetDeviceInfo(d, CL_DEVICE_MAX_WORK_ITEM_SIZES, sizeof(result), result, C_NULL)
+        clGetDeviceInfo(d, CL_DEVICE_MAX_WORK_GROUP_SIZES, sizeof(result), result, C_NULL)
         return tuple([Int(r) for r in result]...)
     end
 
