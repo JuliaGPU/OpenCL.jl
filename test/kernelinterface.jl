@@ -101,6 +101,11 @@ end
     @test_throws ArgumentError kernel(a, Int32(1); ndrange = 4, local_size = 2)
 end
 
+function ki_max_sub_group_size_kernel(out)
+    @inbounds out[1] = KI.get_max_sub_group_size()
+    return
+end
+
 @testset "sub-groups" begin
     backend = OpenCLBackend()
     dev = cl.device()
@@ -109,20 +114,31 @@ end
     if cl.sub_groups_supported(dev) && "cl_intel_required_subgroup_size" in dev.extensions &&
        cl.sub_group_size(dev) <= 64
         @test KI.supports_subgroups(backend)
-        @test KI.sub_group_size(backend) == cl.sub_group_size(dev)
+        sizes = KI.sub_group_sizes(backend)
+        @test first(sizes) == cl.sub_group_size(dev)
+        @test all(in(dev.sub_group_sizes), sizes) && all(<=(64), sizes)
+        @test allunique(sizes)
         @test KI.supports_shuffle(backend, Int32) ==
               ("cl_khr_subgroup_shuffle" in dev.extensions)
 
-        # which kernels can't opt out of
-        a = KI.zeros(backend, Int32, 4)
-        width = KI.sub_group_size(backend)
-        KI.@launch backend launch=false sub_group_size=width ki_fill_kernel(a, Int32(1))
-        @test_throws ArgumentError KI.@launch backend launch=false sub_group_size=nothing ki_fill_kernel(a, Int32(1))
-        @test_throws ArgumentError KI.@launch backend launch=false sub_group_size=2width ki_fill_kernel(a, Int32(1))
+        # kernels execute with the width they request, or the default one
+        out = KI.zeros(backend, Int32, 1)
+        for width in (nothing, sizes...)
+            kernel = KI.@launch backend launch=false sub_group_size=width ki_max_sub_group_size_kernel(out)
+            kernel(out; workgroupsize = min(64, KI.max_work_group_size(kernel)))
+            @test Array(out)[] == something(width, first(sizes))
+        end
+        # requesting the default width doesn't compile another kernel
+        @test KI.@launch(backend, launch=false, sub_group_size=first(sizes),
+                         ki_max_sub_group_size_kernel(out)).kern.fun ===
+              KI.@launch(backend, launch=false, ki_max_sub_group_size_kernel(out)).kern.fun
+        @test_throws ArgumentError KI.@launch backend launch=false sub_group_size=2maximum(sizes) ki_max_sub_group_size_kernel(out)
+        @test_throws ArgumentError KI.@launch backend launch=false sub_group_size=0 ki_max_sub_group_size_kernel(out)
         # PoCL executes sub-group operations as work-group barriers
         occursin("pocl", dev.platform.vendor) && @test !KI.supports_independent_subgroups(backend)
     else
         @test !KI.supports_subgroups(backend)
+        @test KI.sub_group_sizes(backend) == ()
         @test !KI.supports_linear_subgroups(backend)
         @test !KI.supports_independent_subgroups(backend)
     end
@@ -141,7 +157,7 @@ end
 @testset "reduction ballot" begin
     backend = OpenCLBackend()
     if KI.supports_subgroups(backend)
-        n = 2 * KI.sub_group_size(backend) + 5
+        n = 2 * first(KI.sub_group_sizes(backend)) + 5
         pred = CLArray(rand(Bool, n))
         out = CLArray(zeros(UInt64, n, 2))
         kernel = KI.@launch backend launch=false reduction_ballot_kernel(out, pred)

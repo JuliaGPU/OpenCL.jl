@@ -1,6 +1,6 @@
 name = "OpenCL"
 uuid = "08131aa3-fb12-5dee-8b74-c09406e224a2"
-version = "1.0"
+version = "1.1"
 
 [workspace]
 projects = ["lib/intrinsics", "test", "docs", "res"]
@@ -37,7 +37,7 @@ GPUArrays = "12.1"
 GPUCompiler = "2.24"
 GPUToolbox = "3.6"
 KernelAbstractions = "0.10"
-KernelInterface = "0.4.7"
+KernelInterface = "0.5"
 LLVM = "10"
 LinearAlgebra = "1"
 OpenCL_jll = "=2024.10.24"

@@ -26,10 +26,11 @@ can be used afterwards.
 
 # Sub-groups
 
-KernelInterface's sub-groups need a width that is the same for every kernel. For now, they
-are only supported on devices with `cl_intel_required_subgroup_size`, through which kernels
-request the width that `KernelInterface.sub_group_size` reports (at most 64). The shuffles
-also need `cl_khr_subgroup_shuffle`.
+For now, KernelInterface's sub-groups are only supported on devices with
+`cl_intel_required_subgroup_size`, where kernels are compiled for a fixed width: the device's
+default (as `cl.sub_group_size` reports it, if at most 64), or the one they request with
+`sub_group_size`, from the widths of at most 64 that `KernelInterface.sub_group_sizes`
+lists. The shuffles also need `cl_khr_subgroup_shuffle`.
 
 OpenCL doesn't specify which work-items form a sub-group, so
 `KernelInterface.supports_linear_subgroups` is only `true` on runtimes known to form them
@@ -182,20 +183,28 @@ KI.argconvert(::OpenCLBackend, arg) = kernel_convert(arg)
 # `f` is the host-side callable: the kernel keeps it as its `source`, which is converted
 # again at every launch, because the converted callable only holds pointers to the arrays
 # it captures
-function KI.kernel_function(backend::OpenCLBackend, f::F, tt::TT=Tuple{}; name = nothing, kwargs...) where {F,TT}
+function KI.kernel_function(backend::OpenCLBackend, f::F, tt::TT=Tuple{}; name = nothing,
+                            sub_group_size::Union{Nothing,Integer} = nothing, kwargs...) where {F,TT}
     @noinline activate(backend)     # this method is compiled for every kernel
-    check_sub_group_size(backend, kwargs)
-    kern = GC.@preserve f clfunction(kernel_convert(f), tt; source=f, name, kwargs...)
+    # without a request, `clfunction` compiles for the device's default width. a request for
+    # that width is passed on as no request, because the compiler configuration is cached by
+    # the keyword arguments. other widths are checked here: `clfunction` also accepts
+    # widths past 64, which `KI.sub_group_sizes` doesn't offer.
+    kern = if sub_group_size === nothing || !requested_sub_group_size(backend, sub_group_size)
+        GC.@preserve f clfunction(kernel_convert(f), tt; source=f, name, kwargs...)
+    else
+        GC.@preserve f clfunction(kernel_convert(f), tt; source=f, name,
+                                  sub_group_size = Int(sub_group_size), kwargs...)
+    end
     KI.Kernel{OpenCLBackend, typeof(kern)}(backend, kern)
 end
 
-# kernels have to execute with the sub-group width that `KI.sub_group_size` reports
-function check_sub_group_size(backend::OpenCLBackend, kwargs)
-    haskey(kwargs, :sub_group_size) && KI.supports_subgroups(backend) || return
-    width = KI.sub_group_size(backend)
-    kwargs[:sub_group_size] == width ||
-        throw(ArgumentError("KernelInterface kernels execute with sub-group width $width, got `sub_group_size=$(kwargs[:sub_group_size])`"))
-    return
+# whether a kernel has to be compiled for `width` instead of the default width
+@noinline function requested_sub_group_size(backend::OpenCLBackend, width::Integer)
+    props = device_properties(backend)
+    width in props.sub_group_sizes ||
+        throw(ArgumentError("Sub-group size $width is not supported by this device, which supports $(props.sub_group_sizes)"))
+    return width != props.sub_group_size
 end
 
 # these helpers take the `cl.Kernel` instead of the `KI.Kernel`, whose type depends on the
@@ -260,7 +269,7 @@ const DeviceProperties = @NamedTuple{
     max_work_group_size::Int, max_work_group_dims::NTuple{3, Int}, compute_units::Int,
     float64::Bool, unified::Bool,
     # 0 if the device doesn't support sub-groups of a fixed width
-    sub_group_size::Int, shuffle::Bool, float16::Bool,
+    sub_group_size::Int, sub_group_sizes::Tuple{Vararg{Int}}, shuffle::Bool, float16::Bool,
     linear_sub_groups::Bool, independent_sub_groups::Bool, partitionable_sub_groups::Bool,
 }
 @noinline function device_properties(dev::cl.Device)
@@ -269,13 +278,22 @@ const DeviceProperties = @NamedTuple{
     end::Dict{cl.Device, DeviceProperties}
     return get!(cache, dev) do
         sizes = dev.max_work_item_size
-        # KernelInterface needs a fixed sub-group width, which for now means one that kernels
-        # request with `cl_intel_required_subgroup_size` (as `clfunction` does). Wider
-        # sub-groups than 64 aren't reported, since `KI.sub_group_ballot` has a bit per lane.
+        # KernelInterface's sub-groups are for now only supported with a width that kernels
+        # are compiled for with `cl_intel_required_subgroup_size`: the default one that
+        # `clfunction` uses (`sub_group_size`), or one they request from `sub_group_sizes`.
+        # Wider sub-groups than 64 aren't supported, since `KI.sub_group_ballot` has a bit per
+        # lane.
         sub_group_size = 0
+        sub_group_sizes = ()
         if cl.sub_groups_supported(dev) && "cl_intel_required_subgroup_size" in dev.extensions
             width = cl.sub_group_size(dev)
-            width <= 64 && (sub_group_size = width)
+            if width <= 64
+                sub_group_size = width
+                # (`dev.sub_group_sizes` returns `(0, 1)` when the query fails)
+                widths = dev.sub_group_sizes
+                widths = widths == (0, 1) ? () : filter(w -> 0 < w <= 64 && w != width, widths)
+                sub_group_sizes = (width, widths...)
+            end
         end
         pocl = occursin("pocl", dev.platform.vendor)
         (; max_work_group_size = Int(dev.max_work_group_size),
@@ -283,7 +301,7 @@ const DeviceProperties = @NamedTuple{
            compute_units = Int(dev.max_compute_units),
            float64 = "cl_khr_fp64" in dev.extensions,
            unified = cl.default_memory_backend(dev; unified=true) !== nothing,
-           sub_group_size,
+           sub_group_size, sub_group_sizes,
            shuffle = sub_group_size > 0 && "cl_khr_subgroup_shuffle" in dev.extensions,
            float16 = "cl_khr_fp16" in dev.extensions,
            # OpenCL leaves the layout to the implementation: only report it for the
@@ -326,7 +344,7 @@ KI.supports_unified(b::OpenCLBackend) = device_properties(b).unified
 KI.supports_atomics(::OpenCLBackend) = true
 
 KI.supports_subgroups(b::OpenCLBackend) = device_properties(b).sub_group_size > 0
-KI.sub_group_size(b::OpenCLBackend)::Int = device_properties(b).sub_group_size
+KI.sub_group_sizes(b::OpenCLBackend)::Tuple{Vararg{Int}} = device_properties(b).sub_group_sizes
 KI.supports_linear_subgroups(b::OpenCLBackend) = device_properties(b).linear_sub_groups
 KI.supports_independent_subgroups(b::OpenCLBackend) = device_properties(b).independent_sub_groups
 KI.supports_partitionable_subgroups(b::OpenCLBackend) = device_properties(b).partitionable_sub_groups
