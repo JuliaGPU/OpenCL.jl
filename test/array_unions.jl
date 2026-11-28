@@ -270,8 +270,7 @@ const union_host_memtypes =
     @test isequal(Array(c), [missing, missing])
 end
 
-# resizing host memory isn't supported (it has no device address to copy to)
-@testset "resize! ($M)" for M in filter(!=(cl.UnifiedHostMemory), union_memtypes)
+@testset "resize! ($M)" for M in union_memtypes
     a = CLVector{Union{Int, Nothing}, M}([1, nothing, 3])
     resize!(a, 5)
     @test length(a) == 5

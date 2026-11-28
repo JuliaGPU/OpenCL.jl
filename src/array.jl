@@ -797,6 +797,9 @@ function Base.resize!(a::CLVector{T}, n::Integer) where {T}
                 if memtype(a) == cl.SharedVirtualMemory
                     cl.enqueue_svm_copy(convert(CLPtr{UInt8}, mem) + dst_off,
                         convert(CLPtr{UInt8}, a.data[]) + src_off, nbytes; blocking=false)
+                elseif memtype(a) == cl.UnifiedHostMemory
+                    cl.enqueue_usm_copy(device_convert(Ptr{UInt8}, mem) + dst_off,
+                        device_convert(Ptr{UInt8}, a.data[]) + src_off, nbytes; blocking=false)
                 elseif memtype(a) <: cl.UnifiedMemory
                     cl.enqueue_usm_copy(convert(CLPtr{UInt8}, mem) + dst_off,
                         convert(CLPtr{UInt8}, a.data[]) + src_off, nbytes; blocking=false)

@@ -114,7 +114,8 @@ function take_ownership!(managed::Managed{M}; queue=cl.queue()) where {M}
     return managed
 end
 
-function device_convert(typ::Union{Type{<:CLPtr}, Type{cl.Buffer}},
+# host USM only converts to a host `Ptr`, which devices can use as is
+function device_convert(typ::Union{Type{<:Ptr}, Type{<:CLPtr}, Type{cl.Buffer}},
                         managed::Managed{M}) where {M}
     # let null pointers pass through as-is
     # XXX: does not work for buffers
