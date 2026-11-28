@@ -374,11 +374,8 @@ else
 typetagdata(a::Array, i = 1) = ccall(:jl_array_typetagdata, Ptr{UInt8}, (Any,), a) + i - 1
 end
 
-# the address of the selector byte of element `i`, which like `pointer` is a host address
-# for host memory
+# the device address of the selector byte of element `i`
 typetagdata(a::CLArray, i = 1) = convert(CLPtr{UInt8}, a.data[]) + a.maxsize + i - 1
-typetagdata(a::CLArray{<:Any, <:Any, cl.UnifiedHostMemory}, i = 1) =
-    convert(Ptr{UInt8}, a.data[]) + a.maxsize + i - 1
 
 function Base.copyto!(
         dest::CLArray{T}, doffs::Integer, src::Array{T}, soffs::Integer,
@@ -431,8 +428,11 @@ Base.copyto!(dest::DenseCLArray{T}, src::DenseCLArray{T}) where {T} =
 
 # where element `i` of an array operand in a copy is, or with `tags`, its selector byte.
 # for arrays wrapping host memory, the device pointer is used as the host address, which is
-# identical but also records the device-side use.
+# identical but also records the device-side use. host USM only converts to a host pointer,
+# so that one is taken through `device_convert`, which records the use too.
 copy_pointer(a::Union{Array, CLArray}, i, tags) = tags ? typetagdata(a, i) : pointer(a, i)
+copy_pointer(a::CLArray{<:Any, <:Any, cl.UnifiedHostMemory}, i, tags) =
+    device_convert(Ptr{UInt8}, a.data[]) + buffer_offset(a, i, tags)
 host_address(a::Array, i, tags) = copy_pointer(a, i, tags)
 host_address(a::CLArray, i, tags) = reinterpret(Ptr{Cvoid}, copy_pointer(a, i, tags))
 buffer_offset(a::CLArray, i, tags) =
@@ -797,6 +797,9 @@ function Base.resize!(a::CLVector{T}, n::Integer) where {T}
                 if memtype(a) == cl.SharedVirtualMemory
                     cl.enqueue_svm_copy(convert(CLPtr{UInt8}, mem) + dst_off,
                         convert(CLPtr{UInt8}, a.data[]) + src_off, nbytes; blocking=false)
+                elseif memtype(a) == cl.UnifiedHostMemory
+                    cl.enqueue_usm_copy(device_convert(Ptr{UInt8}, mem) + dst_off,
+                        device_convert(Ptr{UInt8}, a.data[]) + src_off, nbytes; blocking=false)
                 elseif memtype(a) <: cl.UnifiedMemory
                     cl.enqueue_usm_copy(convert(CLPtr{UInt8}, mem) + dst_off,
                         convert(CLPtr{UInt8}, a.data[]) + src_off, nbytes; blocking=false)

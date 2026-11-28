@@ -179,6 +179,21 @@ if cl.USMBackend() in cl.supported_memory_backends(cl.device())
         e = c .+ d
         @test OpenCL.memtype(e) == cl.UnifiedSharedMemory
     end
+
+    # arrays of `Union{Nothing, Missing}` have no data, only selector bytes
+    @testset "copies take ownership of host USM ($T)" for (T, vals) in
+            ((Int, [1, 2]), (Union{Nothing, Missing}, Union{Nothing, Missing}[nothing, missing]))
+        host = CLVector{T, cl.UnifiedHostMemory}(vals)
+        dev = CLVector{T, cl.UnifiedDeviceMemory}(vals)
+        for (dst, src) in ((host, dev), (dev, host))
+            queue = cl.CmdQueue()
+            cl.queue!(queue) do
+                unsafe_copyto!(dst, 1, src, 1, 2; blocking=false)
+                @test host.data[].queue === queue
+                cl.finish(queue)
+            end
+        end
+    end
 end
 
 @testset "merging memory types in broadcasts" begin
