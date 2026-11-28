@@ -282,7 +282,7 @@ const DeviceProperties = @NamedTuple{
            max_work_group_dims = ntuple(d -> d <= length(sizes) ? Int(sizes[d]) : 1, 3),
            compute_units = Int(dev.max_compute_units),
            float64 = "cl_khr_fp64" in dev.extensions,
-           unified = cl.default_memory_backend(dev; unified=true) !== nothing,
+           unified = cl.device_memory_backend(dev; unified=true) !== nothing,
            sub_group_size,
            shuffle = sub_group_size > 0 && "cl_khr_subgroup_shuffle" in dev.extensions,
            float16 = "cl_khr_fp16" in dev.extensions,

@@ -216,16 +216,30 @@ function default_memory_backend(dev::Device; unified=false)
     return in(backend, supported_backends) ? backend : nothing
 end
 
+# the back-end only depends on the device, `unified` and a preference, and determining it
+# is slow, so cache it for all tasks
+const device_memory_backends =
+    Dict{Tuple{Device, Bool}, Union{Nothing, AbstractMemoryBackend}}()
+const device_memory_backend_lock = ReentrantLock()
+function device_memory_backend(dev::Device; unified::Bool)
+    return @lock device_memory_backend_lock begin
+        get!(device_memory_backends, (dev, unified)) do
+            backend = default_memory_backend(dev; unified)
+            if backend === BufferBackend() && !bda_supported(dev)
+                @warn """Your device $(dev.name) does not support the necessary extensions for OpenCL.jl's memory management (requiring either USM, coarse-grained SVM, or BDA).
+                         Falling back to plain OpenCL buffers, which severely limits compatibility with other OpenCL.jl, only supporting OpenCL C kernels.""" maxlog=1 _id="memory_backend_$(dev.name)"
+            end
+            backend
+        end
+    end
+end
+
 function memory_backend()
     return get!(task_local_storage(), :CLMemoryBackend) do
         dev = device()
-        backend = default_memory_backend(dev)
+        backend = device_memory_backend(dev; unified=false)
         if backend === nothing
             error("Device $(dev) does not support any of the available memory backends")
-        end
-        if backend === BufferBackend() && !bda_supported(dev)
-            @warn """Your device $(dev.name) does not support the necessary extensions for OpenCL.jl's memory management (requiring either USM, coarse-grained SVM, or BDA).
-                     Falling back to plain OpenCL buffers, which severely limits compatibility with other OpenCL.jl, only supporting OpenCL C kernels.""" maxlog=1 _id="memory_backend_$(dev.name)"
         end
         backend
     end
@@ -234,7 +248,7 @@ end
 function unified_memory_backend()
     return get!(task_local_storage(), :CLUnifiedMemoryBackend) do
         dev = device()
-        backend = default_memory_backend(dev; unified=true)
+        backend = device_memory_backend(dev; unified=true)
         if backend === nothing
             error("Device $(dev) does not support any of the available unified memory backends")
         end
